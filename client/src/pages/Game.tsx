@@ -329,6 +329,9 @@ export default function Game() {
       if (result.isVictory) audioManager.playVictory()
       if (result.isLevelUp) audioManager.playLevelUp()
       if (result.loot?.length) audioManager.playItemPickup()
+      if (result.isMerchant) audioManager.playGold()
+      if (result.worldStateChanges?.currentLocation) audioManager.playDoorOpen()
+      if (/cast|spell|magic|enchant|summon/i.test(result.narration || '')) audioManager.playMagic()
 
       if (result.isCombat && result.enemyName) {
         setInCombat(true)
