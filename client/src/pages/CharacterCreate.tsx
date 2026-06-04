@@ -2,7 +2,17 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { characterApi } from '../lib/api'
 import type { Race, CharacterClass } from '../../../shared/types'
-import { RACE_STAT_BONUSES } from '../../../shared/types'
+
+const RACE_STAT_BONUSES: Record<Race, Partial<Record<string, number>>> = {
+  Human: { str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 },
+  Elf: { dex: 2, int: 1 },
+  Dwarf: { con: 2, wis: 1 },
+  Halfling: { dex: 2, cha: 1 },
+  Gnome: { int: 2, dex: 1 },
+  'Half-Orc': { str: 2, con: 1 },
+  Tiefling: { cha: 2, int: 1 },
+  Dragonborn: { str: 2, cha: 1 },
+}
 
 const RACES: Race[] = ['Human', 'Elf', 'Dwarf', 'Halfling', 'Gnome', 'Half-Orc', 'Tiefling', 'Dragonborn']
 const CLASSES: CharacterClass[] = ['Fighter', 'Wizard', 'Rogue', 'Cleric', 'Ranger', 'Paladin', 'Barbarian', 'Bard', 'Druid', 'Monk', 'Sorcerer', 'Warlock']
