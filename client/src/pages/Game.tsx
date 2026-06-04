@@ -105,7 +105,7 @@ export default function Game() {
 
   useEffect(() => {
     audioManager.startAmbient()
-    document.addEventListener('click', () => audioManager.startAmbient(), { once: true })
+    document.addEventListener('click', () => { audioManager.startAmbient(); audioManager.startGameplay() }, { once: true })
   }, [])
 
   const refreshParty = useCallback(() => {
