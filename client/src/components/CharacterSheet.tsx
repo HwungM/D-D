@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Character, CharacterStats } from '../../../shared/types'
+import { getItemProperties, getRarityColor } from '../lib/itemSystem'
 
 const XP_THRESHOLDS = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000]
 
@@ -20,40 +21,142 @@ function racePortraitUrl(race: string): string {
   return `/assets/races/${race.toLowerCase().replace(/['\s]/g, '-').replace('--', '-')}.png`
 }
 
+const EXACT_ASSETS = new Set([
+  'sword-iron','sword-steel','sword-silver','sword-enchanted','sword-rare','sword-legendary','sword-cursed',
+  'sword-common','longsword',
+  'dagger','dagger-common','dagger-enchanted','dagger-poison',
+  'axe','axe-hand','axe-battle','axe-great',
+  'bow','bow-short','bow-long','bow-enchanted',
+  'staff-wooden','staff-arcane','staff-elemental',
+  'wand-basic','wand-enchanted',
+  'spear','mace','halberd','warhammer',
+  'armor-leather','armor-studded','armor-chain','armor-breastplate','armor-plate','armor-dark-plate',
+  'shield','shield-wooden','shield-iron','shield-enchanted',
+  'helmet-iron','helmet-horned','gauntlets-iron','gloves-leather',
+  'boots','boots-leather','boots-enchanted',
+  'cloak','cloak-common','cloak-elvish','cloak-shadow',
+  'ring','ring-iron','ring-gold','ring-enchanted',
+  'amulet','amulet-silver','amulet-bone','amulet-enchanted',
+  'potion-health','potion-health-small','potion-health-medium','potion-health-large',
+  'potion-mana','potion-mana-small','potion-mana-medium','potion-mana-large',
+  'potion-invisibility','potion-speed','potion-strength','potion-poison',
+  'scroll','scroll-spell','scroll-ancient','scroll-map',
+  'tome','tome-ancient','journal',
+  'tool-torch','tool-rope','tool-lockpick','tool-grapple',
+  'arrows','arrows-magic','bolts',
+  'food-bread','food-meat','drink-ale','drink-wine',
+  'key','quest-key','quest-letter','quest-rune','quest-orb','quest-gem',
+  'gem-currency','gold-coin','gold-pouch','silver-coin','treasure-chest',
+])
+
 function itemIconUrl(name: string): string {
-  const n = name.toLowerCase()
-  if (n.includes('sword') || n.includes('longsword') || n.includes('blade')) return '/assets/items/sword-common.png'
+  const n = name.toLowerCase().trim()
+  // Exact asset name match
+  if (EXACT_ASSETS.has(n)) return `/assets/items/${n}.png`
+  // Slug match (replace spaces with dashes)
+  const slug = n.replace(/\s+/g, '-')
+  if (EXACT_ASSETS.has(slug)) return `/assets/items/${slug}.png`
+  // Keyword matching (most specific first)
+  if (n.includes('sword-iron') || n.includes('iron sword')) return '/assets/items/sword-iron.png'
+  if (n.includes('sword-steel') || n.includes('steel sword')) return '/assets/items/sword-steel.png'
+  if (n.includes('sword-silver') || n.includes('silver sword')) return '/assets/items/sword-silver.png'
+  if (n.includes('sword-enchanted') || n.includes('enchanted sword') || (n.includes('sword') && n.includes('enchant'))) return '/assets/items/sword-enchanted.png'
+  if (n.includes('sword-legendary') || n.includes('legendary sword')) return '/assets/items/sword-legendary.png'
+  if (n.includes('sword-cursed') || n.includes('cursed sword')) return '/assets/items/sword-cursed.png'
+  if (n.includes('sword-rare') || n.includes('rare sword')) return '/assets/items/sword-rare.png'
+  if (n.includes('longsword')) return '/assets/items/longsword.png'
+  if (n.includes('sword') || n.includes('blade')) return '/assets/items/sword-common.png'
+  if (n.includes('dagger-enchanted') || (n.includes('dagger') && n.includes('enchant'))) return '/assets/items/dagger-enchanted.png'
+  if (n.includes('dagger-poison') || n.includes('poison dagger')) return '/assets/items/dagger-poison.png'
   if (n.includes('dagger') || n.includes('knife') || n.includes('shortsword')) return '/assets/items/dagger.png'
-  if (n.includes('axe') || n.includes('hatchet')) return '/assets/items/axe.png'
+  if (n.includes('axe-great') || n.includes('greataxe') || n.includes('great axe')) return '/assets/items/axe-great.png'
+  if (n.includes('axe-battle') || n.includes('battleaxe') || n.includes('battle axe')) return '/assets/items/axe-battle.png'
+  if (n.includes('axe-hand') || n.includes('hand axe') || n.includes('hatchet')) return '/assets/items/axe-hand.png'
+  if (n.includes('axe')) return '/assets/items/axe.png'
+  if (n.includes('bow-enchanted') || (n.includes('bow') && n.includes('enchant'))) return '/assets/items/bow-enchanted.png'
+  if (n.includes('longbow') || n.includes('bow-long') || n.includes('long bow')) return '/assets/items/bow-long.png'
+  if (n.includes('shortbow') || n.includes('bow-short') || n.includes('short bow')) return '/assets/items/bow-short.png'
   if (n.includes('bow') && !n.includes('elbow')) return '/assets/items/bow.png'
+  if (n.includes('staff-elemental') || (n.includes('staff') && n.includes('element'))) return '/assets/items/staff-elemental.png'
+  if (n.includes('staff-arcane') || (n.includes('staff') && n.includes('arcane'))) return '/assets/items/staff-arcane.png'
   if (n.includes('staff')) return '/assets/items/staff-wooden.png'
+  if (n.includes('wand-enchanted') || (n.includes('wand') && n.includes('enchant'))) return '/assets/items/wand-enchanted.png'
   if (n.includes('wand')) return '/assets/items/wand-basic.png'
   if (n.includes('spear') || n.includes('lance')) return '/assets/items/spear.png'
   if (n.includes('mace') || n.includes('flail') || n.includes('club')) return '/assets/items/mace.png'
   if (n.includes('halberd') || n.includes('polearm') || n.includes('glaive')) return '/assets/items/halberd.png'
-  if (n.includes('hammer')) return '/assets/items/warhammer.png'
-  if (n.includes('potion') && (n.includes('health') || n.includes('heal') || n.includes('hp'))) return '/assets/items/potion-health.png'
-  if (n.includes('potion') && (n.includes('mana') || n.includes('magic'))) return '/assets/items/potion-mana.png'
-  if (n.includes('potion') || n.includes('elixir')) return '/assets/items/potion-health.png'
-  if (n.includes('armor') || n.includes('mail') || n.includes('plate') || n.includes('breastplate')) return '/assets/items/armor-chain.png'
-  if (n.includes('leather armor') || n.includes('hide armor')) return '/assets/items/armor-leather.png'
+  if (n.includes('hammer') || n.includes('warhammer')) return '/assets/items/warhammer.png'
+  if (n.includes('armor-dark') || n.includes('dark plate') || n.includes('darkplate')) return '/assets/items/armor-dark-plate.png'
+  if (n.includes('armor-plate') || n.includes('plate armor') || (n.includes('plate') && !n.includes('breast'))) return '/assets/items/armor-plate.png'
+  if (n.includes('armor-breast') || n.includes('breastplate')) return '/assets/items/armor-breastplate.png'
+  if (n.includes('armor-stud') || n.includes('studded leather')) return '/assets/items/armor-studded.png'
+  if (n.includes('armor-chain') || n.includes('chainmail') || n.includes('chain mail') || n.includes('mail') || n.includes('ring mail')) return '/assets/items/armor-chain.png'
+  if (n.includes('armor-leather') || n.includes('leather armor') || n.includes('hide armor')) return '/assets/items/armor-leather.png'
+  if (n.includes('armor') || n.includes('plate')) return '/assets/items/armor-chain.png'
+  if (n.includes('shield-enchanted') || (n.includes('shield') && n.includes('enchant'))) return '/assets/items/shield-enchanted.png'
+  if (n.includes('shield-iron') || n.includes('iron shield')) return '/assets/items/shield-iron.png'
+  if (n.includes('shield-wooden') || n.includes('wooden shield') || n.includes('wood shield')) return '/assets/items/shield-wooden.png'
   if (n.includes('shield')) return '/assets/items/shield.png'
+  if (n.includes('helmet-horned') || n.includes('horned helm')) return '/assets/items/helmet-horned.png'
   if (n.includes('helmet') || n.includes('helm') || n.includes('hood')) return '/assets/items/helmet-iron.png'
-  if (n.includes('cloak') || n.includes('robe') || n.includes('cape')) return '/assets/items/cloak.png'
+  if (n.includes('gauntlet')) return '/assets/items/gauntlets-iron.png'
+  if (n.includes('gloves') || n.includes('bracers')) return '/assets/items/gloves-leather.png'
+  if (n.includes('boots-enchanted') || (n.includes('boots') && n.includes('enchant'))) return '/assets/items/boots-enchanted.png'
+  if (n.includes('boots-leather') || n.includes('leather boots')) return '/assets/items/boots-leather.png'
   if (n.includes('boots') || n.includes('shoes') || n.includes('greaves')) return '/assets/items/boots.png'
-  if (n.includes('gloves') || n.includes('gauntlets') || n.includes('bracers')) return '/assets/items/gloves-leather.png'
+  if (n.includes('cloak-shadow') || n.includes('shadow cloak')) return '/assets/items/cloak-shadow.png'
+  if (n.includes('cloak-elvish') || n.includes('elven cloak') || n.includes('elvish cloak')) return '/assets/items/cloak-elvish.png'
+  if (n.includes('cloak') || n.includes('robe') || n.includes('cape')) return '/assets/items/cloak.png'
+  if (n.includes('ring-enchanted') || (n.includes('ring') && n.includes('enchant'))) return '/assets/items/ring-enchanted.png'
+  if (n.includes('ring-gold') || n.includes('gold ring')) return '/assets/items/ring-gold.png'
+  if (n.includes('ring-iron') || n.includes('iron ring')) return '/assets/items/ring-iron.png'
   if (n.includes('ring')) return '/assets/items/ring.png'
+  if (n.includes('amulet-enchanted') || (n.includes('amulet') && n.includes('enchant'))) return '/assets/items/amulet-enchanted.png'
+  if (n.includes('amulet-bone') || n.includes('bone amulet')) return '/assets/items/amulet-bone.png'
+  if (n.includes('amulet-silver') || n.includes('silver amulet')) return '/assets/items/amulet-silver.png'
   if (n.includes('amulet') || n.includes('necklace') || n.includes('pendant') || n.includes('talisman')) return '/assets/items/amulet.png'
+  if (n.includes('potion') && n.includes('health') && n.includes('large')) return '/assets/items/potion-health-large.png'
+  if (n.includes('potion') && n.includes('health') && n.includes('medium')) return '/assets/items/potion-health-medium.png'
+  if (n.includes('potion') && n.includes('health') && n.includes('small')) return '/assets/items/potion-health-small.png'
+  if (n.includes('potion') && (n.includes('health') || n.includes('heal') || n.includes('hp'))) return '/assets/items/potion-health.png'
+  if (n.includes('potion') && n.includes('mana') && n.includes('large')) return '/assets/items/potion-mana-large.png'
+  if (n.includes('potion') && n.includes('mana') && n.includes('medium')) return '/assets/items/potion-mana-medium.png'
+  if (n.includes('potion') && n.includes('mana') && n.includes('small')) return '/assets/items/potion-mana-small.png'
+  if (n.includes('potion') && (n.includes('mana') || n.includes('magic'))) return '/assets/items/potion-mana.png'
+  if (n.includes('potion') && n.includes('invisib')) return '/assets/items/potion-invisibility.png'
+  if (n.includes('potion') && n.includes('speed')) return '/assets/items/potion-speed.png'
+  if (n.includes('potion') && n.includes('strength')) return '/assets/items/potion-strength.png'
+  if (n.includes('potion') && n.includes('poison')) return '/assets/items/potion-poison.png'
+  if (n.includes('potion') || n.includes('elixir') || n.includes('vial') || n.includes('flask')) return '/assets/items/potion-health.png'
+  if (n.includes('scroll-ancient') || n.includes('ancient scroll')) return '/assets/items/scroll-ancient.png'
+  if (n.includes('scroll-map') || n.includes('map scroll')) return '/assets/items/scroll-map.png'
+  if (n.includes('scroll-spell') || (n.includes('scroll') && n.includes('spell'))) return '/assets/items/scroll-spell.png'
   if (n.includes('scroll')) return '/assets/items/scroll.png'
+  if (n.includes('tome-ancient') || n.includes('ancient tome')) return '/assets/items/tome-ancient.png'
   if (n.includes('tome') || n.includes('book') || n.includes('spellbook') || n.includes('grimoire')) return '/assets/items/tome.png'
+  if (n.includes('journal') || n.includes('diary')) return '/assets/items/journal.png'
+  if (n.includes('letter') || n.includes('quest-letter')) return '/assets/items/quest-letter.png'
   if (n.includes('torch')) return '/assets/items/tool-torch.png'
   if (n.includes('rope')) return '/assets/items/tool-rope.png'
-  if (n.includes('lockpick')) return '/assets/items/tool-lockpick.png'
+  if (n.includes('lockpick') || n.includes('lock pick') || n.includes('thieves')) return '/assets/items/tool-lockpick.png'
+  if (n.includes('grapple') || n.includes('grappling hook')) return '/assets/items/tool-grapple.png'
+  if (n.includes('arrows-magic') || n.includes('magic arrow') || n.includes('magical arrow')) return '/assets/items/arrows-magic.png'
+  if (n.includes('arrows') || n.includes('arrow')) return '/assets/items/arrows.png'
+  if (n.includes('bolts') || n.includes('bolt') || n.includes('crossbow bolt')) return '/assets/items/bolts.png'
+  if (n.includes('quest-key') || (n.includes('key') && n.includes('quest'))) return '/assets/items/quest-key.png'
   if (n.includes('key')) return '/assets/items/key.png'
-  if (n.includes('food') || n.includes('bread') || n.includes('ration') || n.includes('meal')) return '/assets/items/food-bread.png'
+  if (n.includes('quest-rune') || n.includes('rune')) return '/assets/items/quest-rune.png'
+  if (n.includes('quest-orb') || n.includes('orb')) return '/assets/items/quest-orb.png'
+  if (n.includes('quest-gem') || (n.includes('gem') && n.includes('quest'))) return '/assets/items/quest-gem.png'
+  if (n.includes('gem') || n.includes('ruby') || n.includes('sapphire') || n.includes('jewel') || n.includes('crystal')) return '/assets/items/gem-currency.png'
+  if (n.includes('gold-pouch') || n.includes('gold pouch') || n.includes('coin pouch')) return '/assets/items/gold-pouch.png'
+  if (n.includes('silver-coin') || n.includes('silver coin')) return '/assets/items/silver-coin.png'
   if (n.includes('gold') || n.includes('coin')) return '/assets/items/gold-coin.png'
-  if (n.includes('gem') || n.includes('ruby') || n.includes('sapphire') || n.includes('jewel')) return '/assets/items/gem-currency.png'
-  if (n.includes('journal') || n.includes('diary') || n.includes('letter')) return '/assets/items/journal.png'
+  if (n.includes('treasure-chest') || n.includes('chest')) return '/assets/items/treasure-chest.png'
+  if (n.includes('food-meat') || n.includes('cooked meat') || n.includes('meat')) return '/assets/items/food-meat.png'
+  if (n.includes('food') || n.includes('bread') || n.includes('ration') || n.includes('meal')) return '/assets/items/food-bread.png'
+  if (n.includes('drink-ale') || n.includes('ale') || n.includes('beer') || n.includes('flagon')) return '/assets/items/drink-ale.png'
+  if (n.includes('drink-wine') || n.includes('wine')) return '/assets/items/drink-wine.png'
   if (n.includes('map')) return '/assets/items/scroll-map.png'
   return '/assets/items/quest-orb.png'
 }
@@ -228,26 +331,53 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
               <p className="font-serif text-xs italic text-center py-2" style={{ color: 'rgba(160,140,110,0.3)' }}>Your pack is empty</p>
             ) : (
               <div className="space-y-1">
-                {character.inventory.map((item, i) => (
-                  <div key={item.id || i} className="flex items-center gap-2 px-2 py-1.5" style={{
-                    background: 'rgba(255,255,255,0.02)',
-                    border: `1px solid ${ITEM_TYPE_COLOR[item.type] || 'rgba(255,255,255,0.06)'}`,
-                  }}>
-                    <img
-                      src={itemIconUrl(item.name)}
-                      alt=""
-                      className="w-6 h-6 object-cover shrink-0"
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-serif text-xs truncate" style={{ color: '#c8bfa0' }}>{item.name}</p>
-                      {item.description && (
-                        <p className="text-xs truncate" style={{ color: 'rgba(160,140,110,0.4)', fontSize: '10px' }}>{item.description}</p>
-                      )}
+                {character.inventory.map((item, i) => {
+                  const props = getItemProperties(item.name)
+                  const rarityCol = props?.rarity ? getRarityColor(props.rarity) : null
+                  return (
+                    <div key={item.id || i} className="flex items-start gap-2 px-2 py-1.5" style={{
+                      background: 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${rarityCol || ITEM_TYPE_COLOR[item.type] || 'rgba(255,255,255,0.06)'}`,
+                    }}>
+                      <img
+                        src={itemIconUrl(item.name)}
+                        alt=""
+                        className="w-6 h-6 object-cover shrink-0 mt-0.5"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          {rarityCol && (
+                            <span className="shrink-0 w-1.5 h-1.5 rounded-full" style={{ background: rarityCol, boxShadow: `0 0 4px ${rarityCol}` }} />
+                          )}
+                          <p className="font-serif text-xs truncate" style={{ color: '#c8bfa0' }}>{item.name}</p>
+                        </div>
+                        {props?.damageRoll && (
+                          <p className="text-xs" style={{ color: 'rgba(200,146,42,0.65)', fontSize: '10px' }}>
+                            {props.damageRoll} {props.damageType}
+                          </p>
+                        )}
+                        {props?.acBonus && !props.damageRoll && (
+                          <p className="text-xs" style={{ color: 'rgba(100,130,200,0.7)', fontSize: '10px' }}>
+                            +{props.acBonus} AC
+                          </p>
+                        )}
+                        {props?.effect && (
+                          <p className="text-xs truncate" style={{ color: 'rgba(160,140,110,0.5)', fontSize: '10px' }}>
+                            {props.effect.slice(0, 60)}{props.effect.length > 60 ? '…' : ''}
+                          </p>
+                        )}
+                        {!props?.effect && item.description && (
+                          <p className="text-xs truncate" style={{ color: 'rgba(160,140,110,0.4)', fontSize: '10px' }}>{item.description}</p>
+                        )}
+                        {props?.consumable && (
+                          <p className="text-xs" style={{ color: 'rgba(160,120,80,0.5)', fontSize: '9px' }}>Single use</p>
+                        )}
+                      </div>
+                      {item.quantity > 1 && <span className="text-xs shrink-0" style={{ color: 'rgba(160,140,110,0.4)' }}>×{item.quantity}</span>}
                     </div>
-                    {item.quantity > 1 && <span className="text-xs shrink-0" style={{ color: 'rgba(160,140,110,0.4)' }}>×{item.quantity}</span>}
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )
           )}

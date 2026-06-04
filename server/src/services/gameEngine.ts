@@ -1,7 +1,7 @@
 import { supabaseAdmin } from './supabase';
-import { generateNarration } from './openai';
+import { generateNarration, generateRollOutcome } from './openai';
 import OpenAI from 'openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext } from '../../../shared/types';
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
 
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -352,6 +352,35 @@ export async function processAction(
     campaignContext
   );
 
+  // If AI wants player to roll, return early with setup narration + rollContext
+  if (aiResponse.awaitingRoll && aiResponse.rollContext) {
+    // Save the setup narration event
+    await supabaseAdmin.from('story_events').insert({
+      campaign_id: campaignId,
+      character_id: characterId,
+      event_type: 'action',
+      content: action,
+      metadata: {},
+    });
+    await supabaseAdmin.from('story_events').insert({
+      campaign_id: campaignId,
+      character_id: characterId,
+      event_type: 'narration',
+      content: aiResponse.narration,
+      metadata: { awaitingRoll: true, rollContext: aiResponse.rollContext },
+    });
+
+    return {
+      narration: aiResponse.narration,
+      awaitingRoll: true,
+      rollContext: aiResponse.rollContext,
+      suggestedActions: aiResponse.suggestedActions,
+      sceneImagePrompt: aiResponse.sceneImagePrompt,
+      isDeath: false,
+      isLevelUp: false,
+    };
+  }
+
   // Handle dice roll if required
   let diceResult: DiceRollResult | undefined;
   let success = true;
@@ -455,6 +484,90 @@ export async function processAction(
     choiceCards: aiResponse.choiceCards,
     characterHistoryNote: aiResponse.characterHistoryNote as ActionResult['characterHistoryNote'],
     antagonistUpdate: aiResponse.antagonistUpdate,
+  };
+}
+
+export async function resolveRollAction(
+  characterId: string,
+  campaignId: string,
+  rollResult: number,
+  rollTotal: number,
+  dc: number,
+  success: boolean,
+  isCritSuccess: boolean,
+  isCritFail: boolean,
+  rollContext: RollContext
+): Promise<ActionResult> {
+  const { data: character, error: charError } = await supabaseAdmin.from('characters').select('*').eq('id', characterId).single();
+  if (charError || !character) throw new Error('Character not found');
+
+  const { data: campaign, error: campError } = await supabaseAdmin.from('campaigns').select('*').eq('id', campaignId).single();
+  if (campError || !campaign) throw new Error('Campaign not found');
+
+  const recentHistory = await getRecentHistory(campaignId, characterId);
+
+  const aiResponse = await generateRollOutcome(
+    rollResult,
+    rollTotal,
+    dc,
+    success,
+    isCritSuccess,
+    isCritFail,
+    rollContext,
+    campaign.world_state as WorldState,
+    character as Character,
+    recentHistory
+  );
+
+  const xpGained = success ? Math.floor(Math.random() * 20) + 10 : 5;
+
+  const { updatedCharacter } = await applyConsequences(
+    characterId,
+    {
+      worldStateChanges: aiResponse.worldStateChanges as Partial<WorldState>,
+      isDeath: aiResponse.isDeath,
+      xpGained,
+      hpChange: aiResponse.isDeath ? -(character as Character).max_hp : aiResponse.hpChange,
+      goldChange: aiResponse.goldChange,
+      loot: aiResponse.loot as { id: string; name: string; description: string; quantity: number; type: string; value?: number }[] | undefined,
+    },
+    character as Character,
+    { id: campaignId, world_state: campaign.world_state as WorldState, act: campaign.act }
+  );
+
+  await supabaseAdmin.from('story_events').insert({
+    campaign_id: campaignId,
+    character_id: characterId,
+    event_type: 'dice_roll',
+    content: `Rolled ${rollResult} (total ${rollTotal}) vs DC ${dc} — ${success ? 'SUCCESS' : 'FAILURE'}`,
+    metadata: { rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, rollContext },
+  });
+  await supabaseAdmin.from('story_events').insert({
+    campaign_id: campaignId,
+    character_id: characterId,
+    event_type: 'narration',
+    content: aiResponse.narration,
+    metadata: { suggestedActions: aiResponse.suggestedActions, fromRoll: true },
+  });
+
+  return {
+    narration: aiResponse.narration,
+    worldStateChanges: aiResponse.worldStateChanges as Partial<WorldState>,
+    characterChanges: {
+      hp: updatedCharacter.hp,
+      xp: updatedCharacter.xp,
+      level: updatedCharacter.level,
+      gold: updatedCharacter.gold,
+      inventory: updatedCharacter.inventory,
+      status_effects: updatedCharacter.status_effects,
+    },
+    sceneImagePrompt: aiResponse.sceneImagePrompt,
+    suggestedActions: aiResponse.suggestedActions,
+    isDeath: aiResponse.isDeath,
+    isVictory: aiResponse.isVictory,
+    isCombat: aiResponse.isCombat,
+    loot: aiResponse.loot as ActionResult['loot'],
+    isLevelUp: false,
   };
 }
 
