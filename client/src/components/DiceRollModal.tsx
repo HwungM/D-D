@@ -62,8 +62,7 @@ export default function DiceRollModal({ narration, rollContext, characterName, o
               setShake(true)
               setTimeout(() => setShake(false), 600)
             }
-            setTimeout(() => setShowContinue(true), 1000)
-            onRoll(trueRoll, total, success, isCritSuccess, isCritFail)
+            setTimeout(() => setShowContinue(true), 800)
           }
         }, tickSlow)
       }
@@ -254,11 +253,24 @@ export default function DiceRollModal({ narration, rollContext, characterName, o
           )}
         </div>
 
-        {/* Continue button */}
-        {showContinue && (
-          <p className="font-serif text-sm" style={{ color: 'rgba(180,160,120,0.4)', fontSize: '11px' }}>
-            Awaiting outcome...
-          </p>
+        {/* Continue button — player must click to see outcome */}
+        {showContinue && finalResult !== null && (
+          <button
+            onClick={() => {
+              const t = finalResult + modifier
+              onRoll(finalResult, t, t >= dc, finalResult === 20, finalResult === 1)
+            }}
+            className="font-serif px-8 py-3 transition-all"
+            style={{
+              background: isCritSuccess ? 'rgba(251,191,36,0.12)' : isCritFail ? 'rgba(239,68,68,0.12)' : success ? 'rgba(74,222,128,0.1)' : 'rgba(200,80,80,0.1)',
+              border: `1px solid ${isCritSuccess ? 'rgba(251,191,36,0.5)' : isCritFail ? 'rgba(239,68,68,0.5)' : success ? 'rgba(74,222,128,0.4)' : 'rgba(239,68,68,0.4)'}`,
+              color: isCritSuccess ? '#fbbf24' : isCritFail ? '#ef4444' : success ? '#4ade80' : 'rgba(220,100,100,0.9)',
+              fontSize: 14,
+              letterSpacing: '0.1em',
+            }}
+          >
+            {isCritSuccess ? 'See What Happens →' : isCritFail ? 'Face the Consequences →' : success ? 'Claim Your Victory →' : 'Accept Your Fate →'}
+          </button>
         )}
       </div>
 
