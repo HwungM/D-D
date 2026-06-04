@@ -1,5 +1,22 @@
 // Shared types between client and server
 
+export interface StatusEffect {
+  name: string;
+  description: string;
+  type: 'buff' | 'debuff' | 'neutral';
+  duration?: number;
+}
+
+export interface ShopItem {
+  id: string;
+  name: string;
+  description: string;
+  type: 'weapon' | 'armor' | 'potion' | 'misc' | 'key';
+  price: number;
+  quantity: number;
+}
+
+
 export interface CharacterStats {
   str: number;
   dex: number;
@@ -45,6 +62,7 @@ export interface Character {
   backstory?: string;
   portrait_url?: string;
   reputation: Record<string, number>;
+  status_effects?: StatusEffect[];
   is_alive: boolean;
   death_note?: string;
   created_at: string;
@@ -164,6 +182,10 @@ export interface ActionResult {
   enemyName?: string;
   newAbility?: Ability;
   loot?: InventoryItem[];
+  shopItems?: ShopItem[];
+  isMerchant?: boolean;
+  advanceAct?: boolean;
+  statusEffectChanges?: { add?: StatusEffect[]; remove?: string[] };
 }
 
 export interface PartyMember {

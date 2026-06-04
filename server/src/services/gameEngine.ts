@@ -1,6 +1,6 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration } from './openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem } from '../../../shared/types';
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
 import { getAbilityForLevel } from '../../../shared/classAbilities';
 
@@ -46,6 +46,8 @@ export async function applyConsequences(
     loot?: { id: string; name: string; description: string; quantity: number; type: string; value?: number }[];
     diceResult?: DiceRollResult;
     diceDC?: number;
+    statusEffectChanges?: { add?: { name: string; description: string; type: string; duration?: number }[]; remove?: string[] };
+    sessionNote?: string;
   },
   currentCharacter: Character,
   campaign: { id: string; world_state: WorldState }
@@ -152,6 +154,31 @@ export async function applyConsequences(
     }
   }
 
+  // Apply status effects
+  if (actionResult.statusEffectChanges) {
+    let effects: StatusEffect[] = [...(currentCharacter.status_effects || [])];
+    if (actionResult.statusEffectChanges.remove) {
+      const toRemove = new Set(actionResult.statusEffectChanges.remove.map(n => n.toLowerCase()));
+      effects = effects.filter(e => !toRemove.has(e.name.toLowerCase()));
+    }
+    if (actionResult.statusEffectChanges.add) {
+      for (const e of actionResult.statusEffectChanges.add) {
+        const existing = effects.findIndex(x => x.name.toLowerCase() === e.name.toLowerCase());
+        const effect: StatusEffect = { name: e.name, description: e.description, type: e.type as StatusEffect['type'], duration: e.duration };
+        if (existing >= 0) effects[existing] = effect;
+        else effects.push(effect);
+      }
+    }
+    updates.status_effects = effects;
+  }
+
+  // Add session note to world state
+  if (actionResult.sessionNote) {
+    const notes = [...(newWorldState.sessionNotes || []), actionResult.sessionNote].slice(-10);
+    newWorldState.sessionNotes = notes;
+    await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
+  }
+
   // Apply death
   if (actionResult.isDeath) {
     updates.hp = 0;
@@ -255,10 +282,17 @@ export async function processAction(
       hpChange: aiResponse.isDeath ? -character.max_hp : aiResponse.hpChange,
       goldChange: aiResponse.goldChange,
       loot: aiResponse.loot,
+      statusEffectChanges: aiResponse.statusEffectChanges,
+      sessionNote: aiResponse.sessionNote,
     },
     character as Character,
     { id: campaignId, world_state: campaign.world_state as WorldState }
   );
+
+  // Advance act if triggered
+  if (aiResponse.advanceAct) {
+    await supabaseAdmin.from('campaigns').update({ act: campaign.act + 1 }).eq('id', campaignId);
+  }
 
   // Determine if a new ability was granted on level-up
   const newLevelAfter = updatedCharacter.level;
@@ -295,6 +329,7 @@ export async function processAction(
       level: updatedCharacter.level,
       gold: updatedCharacter.gold,
       inventory: updatedCharacter.inventory,
+      status_effects: updatedCharacter.status_effects,
     },
     sceneImagePrompt: aiResponse.sceneImagePrompt,
     suggestedActions: aiResponse.suggestedActions,
@@ -305,6 +340,10 @@ export async function processAction(
     enemyName: aiResponse.enemyName,
     newAbility: grantedAbility,
     loot: aiResponse.loot as ActionResult['loot'],
+    shopItems: aiResponse.shopItems as ShopItem[] | undefined,
+    isMerchant: aiResponse.isMerchant,
+    advanceAct: aiResponse.advanceAct,
+    statusEffectChanges: aiResponse.statusEffectChanges as ActionResult['statusEffectChanges'],
   };
 }
 

@@ -132,6 +132,7 @@ export default function Dashboard() {
   const [joinError, setJoinError] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [continuingId, setContinuingId] = useState<string | null>(null)
 
   const startAudio = useCallback(() => { audioManager.startAmbient() }, [])
 
@@ -176,14 +177,19 @@ export default function Dashboard() {
   }
 
   async function handleContinue(campaign: Campaign) {
-    const { data } = await characterApi.listByCampaign(campaign.id)
-    const chars = data.characters || []
-    const alive = chars.find((c: { is_alive: boolean }) => c.is_alive)
-    const char = alive || chars[chars.length - 1]
-    if (char) {
-      navigate(`/campaign/${campaign.id}/play/${char.id}`)
-    } else {
-      navigate(`/campaign/${campaign.id}/create-character`)
+    setContinuingId(campaign.id)
+    try {
+      const { data } = await characterApi.listByCampaign(campaign.id)
+      const chars = data.characters || []
+      const alive = chars.find((c: { is_alive: boolean }) => c.is_alive)
+      const char = alive || chars[chars.length - 1]
+      if (char) {
+        navigate(`/campaign/${campaign.id}/play/${char.id}`)
+      } else {
+        navigate(`/campaign/${campaign.id}/create-character`)
+      }
+    } finally {
+      setContinuingId(null)
     }
   }
 
@@ -324,6 +330,7 @@ export default function Dashboard() {
                   campaign={campaign}
                   onContinue={() => handleContinue(campaign)}
                   onDelete={() => setConfirmDeleteId(campaign.id)}
+                  isContinuing={continuingId === campaign.id}
                 />
               ))}
             </div>
@@ -539,10 +546,11 @@ export default function Dashboard() {
   )
 }
 
-function CampaignCard({ campaign, onContinue, onDelete }: {
+function CampaignCard({ campaign, onContinue, onDelete, isContinuing = false }: {
   campaign: Campaign
   onContinue: () => void
   onDelete: () => void
+  isContinuing?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
 
@@ -602,14 +610,20 @@ function CampaignCard({ campaign, onContinue, onDelete }: {
         <div className="flex gap-2">
           <button
             onClick={e => { e.stopPropagation(); onContinue() }}
-            className="flex-1 py-2 text-xs font-serif transition-all"
+            disabled={isContinuing}
+            className="flex-1 py-2 text-xs font-serif transition-all disabled:opacity-60"
             style={{
               background: 'rgba(192,57,43,0.15)',
               border: '1px solid rgba(192,57,43,0.35)',
               color: '#e8a090',
             }}
           >
-            Continue
+            {isContinuing ? (
+              <span className="flex items-center justify-center gap-1.5">
+                <span className="w-2.5 h-2.5 border border-current rounded-full animate-spin" style={{ borderTopColor: 'transparent' }} />
+                Loading...
+              </span>
+            ) : 'Continue'}
           </button>
           <button
             onClick={e => { e.stopPropagation(); onDelete() }}

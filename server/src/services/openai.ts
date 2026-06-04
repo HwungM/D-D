@@ -40,6 +40,23 @@ LOOT RULES:
 - goldChange: positive integer when earning gold, negative when spending. null if no gold change.
 - hpChange: positive to heal, negative for damage taken. null if no HP change.
 
+STATUS EFFECTS RULES:
+- Status effects represent ongoing conditions: Poisoned, Blessed, Cursed, Burning, Stunned, Inspired, etc.
+- Add effects when narratively appropriate (entering a cursed place, drinking a potion, blessed by a priest).
+- Remove effects when they expire or are cured.
+- statusEffectChanges.add: array of {name, description, type: "buff"|"debuff"|"neutral", duration} (duration in turns, null = indefinite)
+- statusEffectChanges.remove: array of effect names to remove
+
+SHOP/MERCHANT RULES:
+- When the character encounters a merchant, trader, or shop, set isMerchant: true and populate shopItems.
+- shopItems: array of {id, name, description, type, price, quantity} — 4-8 items appropriate to the setting.
+- The player can then choose to buy items (handled separately). Do not auto-deduct gold.
+
+ACT PROGRESSION RULES:
+- When a major story milestone is reached (a major villain defeated, a crucial revelation, a catastrophic loss), set advanceAct: true.
+- This signals a chapter transition — use it sparingly, only for truly pivotal moments.
+- When advancing act, write a more dramatic, conclusive narration that wraps the current chapter.
+
 RESPONSE FORMAT: Always respond with valid JSON matching this schema:
 {
   "narration": "string — the story text the player sees",
@@ -58,7 +75,12 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "enemyName": "string | null",
   "loot": [{"id": "unique-id", "name": "item name", "description": "one sentence", "quantity": 1, "type": "weapon|armor|potion|misc|key", "value": 10}] | null,
   "goldChange": number | null,
-  "hpChange": number | null
+  "hpChange": number | null,
+  "isMerchant": boolean,
+  "shopItems": [{"id": "item-id", "name": "item name", "description": "one sentence", "type": "weapon|armor|potion|misc|key", "price": 10, "quantity": 1}] | null,
+  "advanceAct": boolean,
+  "statusEffectChanges": {"add": [{"name": "string", "description": "string", "type": "buff|debuff|neutral", "duration": number | null}], "remove": ["effect name"]} | null,
+  "sessionNote": "string — one sentence summary of what happened, added to DM notes" | null
 }`;
 
 export async function generateNarration(
@@ -85,6 +107,11 @@ export async function generateNarration(
   loot?: { id: string; name: string; description: string; quantity: number; type: string; value?: number }[];
   goldChange?: number;
   hpChange?: number;
+  isMerchant?: boolean;
+  shopItems?: { id: string; name: string; description: string; type: string; price: number; quantity: number }[];
+  advanceAct?: boolean;
+  statusEffectChanges?: { add?: { name: string; description: string; type: string; duration?: number }[]; remove?: string[] };
+  sessionNote?: string;
 }> {
   // Build unusual race/class combo note
   const unusualCombos: Record<string, string[]> = {
@@ -142,8 +169,9 @@ CURRENT WORLD STATE:
 ${npcContext}${questContext}
 
 CHARACTER: ${character.name} (${character.race} ${character.class}, Level ${character.level})${unusualNote}
-HP: ${character.hp}/${character.max_hp}
-Gold: ${character.gold}
+HP: ${character.hp}/${character.max_hp} | Gold: ${character.gold}
+${character.backstory ? `BACKSTORY: ${character.backstory.slice(0, 300)} — weave this into narration and NPC reactions where relevant.` : ''}
+${character.status_effects && character.status_effects.length > 0 ? `ACTIVE STATUS EFFECTS: ${character.status_effects.map(e => `${e.name} (${e.type})`).join(', ')} — these affect what the character can do.` : ''}
 Notable inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
 ${abilitiesContext}
 STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
@@ -186,6 +214,11 @@ IMPORTANT: If this action introduces or involves a named NPC, include their name
     loot: parsed.loot || undefined,
     goldChange: parsed.goldChange ?? undefined,
     hpChange: parsed.hpChange ?? undefined,
+    isMerchant: parsed.isMerchant || false,
+    shopItems: parsed.shopItems || undefined,
+    advanceAct: parsed.advanceAct || false,
+    statusEffectChanges: parsed.statusEffectChanges || undefined,
+    sessionNote: parsed.sessionNote || undefined,
   };
 }
 
