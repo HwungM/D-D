@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Session } from '@supabase/supabase-js'
-import type { Character, Campaign, StoryEvent, ActionResult } from '../../../shared/types'
+import type { Character, Campaign, StoryEvent, ActionResult, WorldState } from '../../../shared/types'
 
 interface AuthState {
   session: Session | null
@@ -31,6 +31,7 @@ interface GameState {
   isLoading: boolean
   lastActionResult: ActionResult | null
   currentSceneImage: string | null
+  worldState: WorldState | null
   setCampaign: (campaign: Campaign | null) => void
   setCharacter: (character: Character | null) => void
   addEvent: (event: StoryEvent) => void
@@ -39,6 +40,8 @@ interface GameState {
   setLastActionResult: (result: ActionResult | null) => void
   setSceneImage: (url: string | null) => void
   updateCharacter: (updates: Partial<Character>) => void
+  setWorldState: (ws: WorldState | null) => void
+  mergeWorldState: (changes: Partial<WorldState>) => void
 }
 
 export const useGameStore = create<GameState>()((set) => ({
@@ -48,6 +51,7 @@ export const useGameStore = create<GameState>()((set) => ({
   isLoading: false,
   lastActionResult: null,
   currentSceneImage: null,
+  worldState: null,
   setCampaign: (campaign) => set({ currentCampaign: campaign }),
   setCharacter: (character) => set({ currentCharacter: character }),
   addEvent: (event) => set((state) => ({ events: [...state.events, event] })),
@@ -60,5 +64,18 @@ export const useGameStore = create<GameState>()((set) => ({
       currentCharacter: state.currentCharacter
         ? { ...state.currentCharacter, ...updates }
         : null,
+    })),
+  setWorldState: (ws) => set({ worldState: ws }),
+  mergeWorldState: (changes) =>
+    set((state) => ({
+      worldState: state.worldState
+        ? {
+            ...state.worldState,
+            ...changes,
+            activeQuests: changes.activeQuests ?? state.worldState.activeQuests,
+            npcMemory: changes.npcMemory ?? state.worldState.npcMemory,
+            discoveredLocations: changes.discoveredLocations ?? state.worldState.discoveredLocations,
+          }
+        : (changes as WorldState),
     })),
 }))
