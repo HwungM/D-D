@@ -1,11 +1,15 @@
+const AMBIENT_URL = 'https://drive.google.com/uc?export=download&id=1py8BxMCNxzXUrWwGNWty34Ra-wykvjox'
+
 type AudioTrack = 'combat-1' | 'combat-2' | 'combat-3' | 'victory' | 'level-up'
 
 class AudioManager {
   private tracks: Map<string, HTMLAudioElement> = new Map()
   private currentMusic: HTMLAudioElement | null = null
+  private ambientTrack: HTMLAudioElement | null = null
   private musicEnabled = true
   private sfxEnabled = true
   private musicVolume = 0.4
+  private ambientVolume = 0.25
   private sfxVolume = 0.7
   private combatIndex = 0
 
@@ -45,6 +49,27 @@ class AudioManager {
     }, 50)
   }
 
+  startAmbient() {
+    if (!this.musicEnabled) return
+    if (!this.ambientTrack) {
+      this.ambientTrack = new Audio(AMBIENT_URL)
+      this.ambientTrack.loop = true
+      this.ambientTrack.volume = 0
+    }
+    if (!this.ambientTrack.paused) return
+    this.fadeIn(this.ambientTrack, this.ambientVolume, 3000)
+  }
+
+  private async pauseAmbient() {
+    if (!this.ambientTrack || this.ambientTrack.paused) return
+    await this.fadeOut(this.ambientTrack, 1000)
+  }
+
+  private async resumeAmbient() {
+    if (!this.musicEnabled || !this.ambientTrack) return
+    this.fadeIn(this.ambientTrack, this.ambientVolume, 2000)
+  }
+
   async playCombat() {
     if (!this.musicEnabled) return
     const tracks: AudioTrack[] = ['combat-1', 'combat-2', 'combat-3']
@@ -53,6 +78,7 @@ class AudioManager {
     const src = srcs[this.combatIndex]
     this.combatIndex = (this.combatIndex + 1) % 3
 
+    await this.pauseAmbient()
     if (this.currentMusic) await this.fadeOut(this.currentMusic)
     const audio = this.getOrCreate(key, src, true)
     this.currentMusic = audio
@@ -64,6 +90,7 @@ class AudioManager {
       await this.fadeOut(this.currentMusic)
       this.currentMusic = null
     }
+    this.resumeAmbient()
   }
 
   playVictory() {
@@ -73,6 +100,7 @@ class AudioManager {
     audio.volume = this.sfxVolume
     audio.currentTime = 0
     audio.play().catch(() => {})
+    audio.onended = () => this.resumeAmbient()
   }
 
   playDiceRoll() {

@@ -25,6 +25,10 @@ export default function Game() {
   const narratorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    audioManager.startAmbient()
+  }, [])
+
+  useEffect(() => {
     if (!campaignId || !characterId) return
 
     // Load scene / character state
