@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { campaignApi } from '../lib/api'
 import { useAuthStore } from '../lib/store'
+import { audioManager } from '../lib/audio'
 import type { Campaign, StorySeedOption } from '../../../shared/types'
 
 export default function Dashboard() {
@@ -18,6 +19,7 @@ export default function Dashboard() {
   const [campaignError, setCampaignError] = useState('')
 
   useEffect(() => {
+    audioManager.startAmbient()
     campaignApi.list().then(({ data }) => {
       setCampaigns(data.campaigns || [])
     }).finally(() => setLoading(false))

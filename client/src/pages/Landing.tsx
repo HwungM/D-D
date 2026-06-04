@@ -17,24 +17,33 @@ export default function Landing() {
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState('')
 
-  async function handleLogin(username: string) {
+  async function handleLogin(displayName: string) {
     setError('')
-    setLoading(username)
+    setLoading(displayName)
+    // Sanitize: remove spaces, lowercase for API key
+    const apiUsername = displayName.replace(/\s+/g, '').toLowerCase()
     try {
-      // Try login first, fall back to register
+      // Always try login first
       try {
-        const { data } = await authApi.login(username, HARDCODED_PASSWORD)
+        const { data } = await authApi.login(apiUsername, HARDCODED_PASSWORD)
         setSession(data.session)
-        setUser(data.user)
+        setUser({ ...data.user, username: displayName })
+        navigate('/dashboard')
+        return
       } catch {
-        const { data } = await authApi.register(username, HARDCODED_PASSWORD, username)
-        setSession(data.session)
-        setUser(data.user)
+        // Login failed — try register
       }
-      navigate('/dashboard')
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Something went wrong'
-      setError(typeof msg === 'string' ? msg : JSON.stringify(msg))
+      // Try register
+      try {
+        const { data } = await authApi.register(apiUsername, HARDCODED_PASSWORD, apiUsername)
+        setSession(data.session)
+        setUser({ ...data.user, username: displayName })
+        navigate('/dashboard')
+        return
+      } catch {
+        // Register failed — account likely exists with old credentials, force recreate
+      }
+      setError('Having trouble signing in. Ask King to check the server.')
     } finally {
       setLoading(null)
     }
