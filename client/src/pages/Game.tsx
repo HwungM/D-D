@@ -74,7 +74,7 @@ export default function Game() {
   const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'world' | 'journal'>('character')
   const narratorRef = useRef<HTMLDivElement>(null)
   const historicalIds = useRef<Set<string>>(new Set())
-  const actionTakenRef = useRef(false)
+
 
   const [showLevelUp, setShowLevelUp] = useState(false)
   const [levelUpData, setLevelUpData] = useState<{ level: number; hpGained: number; newAbility: Ability | null; characterName: string } | null>(null)
@@ -97,7 +97,7 @@ export default function Game() {
   const [recentNarrations, setRecentNarrations] = useState<string[]>([])
   const [showHighStakes, setShowHighStakes] = useState(false)
   const [highStakesData, setHighStakesData] = useState<{ narration: string; choices: HighStakesChoiceType[] } | null>(null)
-  const [proactiveNarration, setProactiveNarration] = useState<string | null>(null)
+
   const [showDiceModal, setShowDiceModal] = useState(false)
   const [diceModalData, setDiceModalData] = useState<{ narration: string; rollContext: RollContext } | null>(null)
 
@@ -178,33 +178,6 @@ export default function Game() {
     if (narratorRef.current) narratorRef.current.scrollTop = narratorRef.current.scrollHeight
   }, [events])
 
-  // Proactive event — fires once on returning to an existing session (not on first start)
-  useEffect(() => {
-    if (!started || !campaignId || !characterId) return
-    // Only fire if this is a returning session (has prior history)
-    if (historicalIds.current.size === 0) return
-    const timer = setTimeout(async () => {
-      if (isLoading || actionTakenRef.current) return
-      try {
-        const { data, status } = await gameApi.getProactiveEvent(campaignId, characterId)
-        if (status === 200 && data?.narration) {
-          setProactiveNarration(data.narration)
-          addEvent({
-            id: `proactive-${Date.now()}`,
-            campaign_id: campaignId,
-            character_id: characterId,
-            event_type: 'narration',
-            content: data.narration,
-            metadata: { isProactiveEvent: true, suggestedActions: data.suggestedActions },
-            created_at: new Date().toISOString(),
-          })
-        }
-      } catch {
-        // Silently ignore
-      }
-    }, 3000) // Small delay so it appears after history loads
-    return () => clearTimeout(timer)
-  }, [started])
 
   async function handleRollComplete(rollResult: number, rollTotal: number, success: boolean, isCritSuccess: boolean, isCritFail: boolean) {
     if (!campaignId || !characterId || !diceModalData) return
@@ -305,7 +278,6 @@ export default function Game() {
 
   async function handleAction(action: string) {
     if (!campaignId || !characterId || isLoading) return
-    actionTakenRef.current = true
     setLoading(true)
     setShowDice(false)
     setShowHighStakes(false)
