@@ -216,6 +216,7 @@ router.post('/dev-kill/:characterId', requireAuth, async (req: AuthRequest, res:
     return;
   }
 
+  const { data: char } = await supabaseAdmin.from('characters').select('name, class, race, level').eq('id', characterId).single();
   const { error } = await supabaseAdmin
     .from('characters')
     .update({ hp: 0, is_alive: false, death_note: 'Slain by mysterious forces during a dev test.' })
@@ -224,6 +225,23 @@ router.post('/dev-kill/:characterId', requireAuth, async (req: AuthRequest, res:
   if (error) {
     res.status(500).json({ error: 'Failed to kill character' });
     return;
+  }
+
+  // Record death in world state
+  if (char) {
+    const { data: campaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', req.body.campaignId || '').single();
+    // Try to find campaign via character
+    const { data: charCampaign } = await supabaseAdmin.from('characters').select('campaign_id').eq('id', characterId).single();
+    if (charCampaign) {
+      const { data: camp } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', charCampaign.campaign_id).single();
+      if (camp) {
+        const ws = (camp.world_state || {}) as Record<string, unknown>;
+        const fallen = Array.isArray(ws.fallenHeroes) ? ws.fallenHeroes : [];
+        fallen.push({ name: char.name, race: char.race, class: char.class, level: char.level, cause: 'dev test', diedAt: new Date().toISOString() });
+        ws.fallenHeroes = fallen;
+        await supabaseAdmin.from('campaigns').update({ world_state: ws }).eq('id', charCampaign.campaign_id);
+      }
+    }
   }
 
   res.json({ success: true, message: 'Character has met their end.' });

@@ -119,7 +119,13 @@ export default function Game() {
   useEffect(() => {
     if (!campaignId || !characterId) return
     gameApi.getScene(campaignId, characterId).then(({ data }) => {
-      if (data.character) setCharacter(data.character as Character)
+      if (data.character) {
+        setCharacter(data.character as Character)
+        if (data.character.is_alive === false) {
+          setTimeout(() => setShowDeathScreen(true), 300)
+          return
+        }
+      }
       if (data.worldState) {
         setWorldState(data.worldState)
         if (data.worldState.currentLocation) audioManager.setLocation(data.worldState.currentLocation)

@@ -300,6 +300,19 @@ export async function applyConsequences(
     updates.hp = 0;
     updates.is_alive = false;
     updates.death_note = actionResult.deathDescription || 'Fell in battle.';
+    // Record in world state so successors and NPCs remember
+    const fallen = Array.isArray(newWorldState.fallenHeroes) ? newWorldState.fallenHeroes : [];
+    fallen.push({
+      name: currentCharacter.name,
+      race: currentCharacter.race,
+      class: currentCharacter.class,
+      level: currentCharacter.level,
+      cause: actionResult.deathDescription || 'Fell in battle.',
+      diedAt: new Date().toISOString(),
+      location: newWorldState.currentLocation || 'Unknown',
+    });
+    newWorldState.fallenHeroes = fallen;
+    await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
   }
 
   // Persist character updates
@@ -672,8 +685,13 @@ export async function getOpeningScene(
     sessionCount: openingWs.sessionCount || 1,
   };
 
+  const fallenHeroes = openingWs.fallenHeroes || [];
+  const openingAction = fallenHeroes.length > 0
+    ? `SUCCESSOR_ENTRY: A new hero enters the world. The previous hero ${fallenHeroes[fallenHeroes.length - 1].name} (${fallenHeroes[fallenHeroes.length - 1].race} ${fallenHeroes[fallenHeroes.length - 1].class}, level ${fallenHeroes[fallenHeroes.length - 1].level}) fell — ${fallenHeroes[fallenHeroes.length - 1].cause}. The new hero is ${character.name}, ${character.race} ${character.class}. Acknowledge the fallen in a way that fits the world. NPCs who knew the previous hero may reference them.`
+    : 'OPENING_SCENE';
+
   const aiResponse = await generateNarration(
-    'OPENING_SCENE',
+    openingAction,
     openingWs,
     openingWb,
     character as Character,
