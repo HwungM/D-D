@@ -110,8 +110,7 @@ async function generateAsset(asset, index, total) {
       prompt: asset.prompt,
       n: 1,
       size: '1024x1024',
-      quality: 'standard',
-      output_format: 'png',
+      quality: 'medium',
     });
 
     const b64 = response.data[0].b64_json;
