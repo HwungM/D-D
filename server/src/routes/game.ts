@@ -195,4 +195,38 @@ router.get('/scene/:campaignId/:characterId', requireAuth, async (req: AuthReque
   });
 });
 
+// DEV ONLY: instantly kill a character for testing the death flow
+router.post('/dev-kill/:characterId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_DEV_ENDPOINTS) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+
+  const { characterId } = req.params;
+
+  const { data: character } = await supabaseAdmin
+    .from('characters')
+    .select('user_id')
+    .eq('id', characterId)
+    .eq('user_id', req.user!.id)
+    .single();
+
+  if (!character) {
+    res.status(403).json({ error: 'Character not found or not yours' });
+    return;
+  }
+
+  const { error } = await supabaseAdmin
+    .from('characters')
+    .update({ hp: 0, is_alive: false, death_note: 'Slain by mysterious forces during a dev test.' })
+    .eq('id', characterId);
+
+  if (error) {
+    res.status(500).json({ error: 'Failed to kill character' });
+    return;
+  }
+
+  res.json({ success: true, message: 'Character has met their end.' });
+});
+
 export default router;

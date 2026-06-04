@@ -20,8 +20,9 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
 
   // npcMemory: merge by name (upsert), preserving metCharacters from both sides
   if (changes.npcMemory) {
+    const npcArray = Array.isArray(changes.npcMemory) ? changes.npcMemory : Object.values(changes.npcMemory);
     const existing = new Map((current.npcMemory || []).map(n => [n.name, n]));
-    for (const npc of changes.npcMemory) {
+    for (const npc of npcArray) {
       const prev = existing.get(npc.name);
       if (prev) {
         const metChars = Array.from(new Set([...(prev.metCharacters || []), ...(npc.metCharacters || [])]));
@@ -35,8 +36,9 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
 
   // activeQuests: merge by title (upsert)
   if (changes.activeQuests) {
+    const questArray = Array.isArray(changes.activeQuests) ? changes.activeQuests : Object.values(changes.activeQuests);
     const existing = new Map((current.activeQuests || []).map(q => [q.title, q]));
-    for (const q of changes.activeQuests) existing.set(q.title, { ...existing.get(q.title), ...q, startedAt: existing.get(q.title)?.startedAt || new Date().toISOString() });
+    for (const q of questArray) existing.set(q.title, { ...existing.get(q.title), ...q, startedAt: existing.get(q.title)?.startedAt || new Date().toISOString() });
     merged.activeQuests = Array.from(existing.values());
   }
 
@@ -52,9 +54,10 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
 
   // sessionNotes: append new ones only
   if (changes.sessionNotes) {
+    const notesArray = Array.isArray(changes.sessionNotes) ? changes.sessionNotes : Object.values(changes.sessionNotes);
     const existing = new Set(current.sessionNotes || []);
-    const newNotes = changes.sessionNotes.filter(n => !existing.has(n));
-    merged.sessionNotes = [...(current.sessionNotes || []), ...newNotes];
+    const newNotes = notesArray.filter((n: string) => !existing.has(n));
+    merged.sessionNotes = [...(current.sessionNotes || []), ...(newNotes as string[])];
   }
 
   // characterLastSeen: merge
