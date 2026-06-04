@@ -141,7 +141,9 @@ export default function Game() {
       const loaded: StoryEvent[] = data.events || []
       historicalIds.current = new Set(loaded.map(e => e.id))
       setEvents(loaded)
-      if (loaded.length > 0) {
+      // Only auto-start if THIS character has their own history — not just party members'
+      const myEvents = loaded.filter(e => e.character_id === characterId)
+      if (myEvents.length > 0) {
         setStarted(true)
         const recent = loaded
           .filter(e => e.event_type === 'narration')
@@ -149,13 +151,17 @@ export default function Game() {
           .map(e => e.content)
         setRecentNarrations(recent)
         // Restore suggested actions from last narration event metadata
-        const lastNarration = [...loaded].reverse().find(e => e.event_type === 'narration')
+        const lastNarration = [...loaded].reverse().find(e => e.event_type === 'narration' && e.character_id === characterId)
         if (lastNarration?.metadata?.suggestedActions) {
           setLastActionResult({
             narration: lastNarration.content,
             suggestedActions: lastNarration.metadata.suggestedActions as string[],
           } as ActionResult)
         }
+      } else if (loaded.length > 0) {
+        // Party has history but this character is new — show recent story on start screen for context
+        const recent = loaded.filter(e => e.event_type === 'narration').slice(-5).map(e => e.content)
+        setRecentNarrations(recent)
       }
     })
     campaignApi.get(campaignId).then(({ data }) => {
