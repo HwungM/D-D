@@ -25,20 +25,37 @@ export default function Dashboard() {
     }).finally(() => setLoading(false))
   }, [])
 
-  async function loadSeeds() {
-    setLoadingSeeds(true)
-    try {
-      const { data } = await campaignApi.getSeeds()
-      setSeeds(data.seeds || [])
-    } catch {
-      // fallback seeds
-      setSeeds([
-        { id: 'fallback-1', title: 'The Shattered Throne', premise: 'A kingdom fractured by regicide. Five factions vie for power as an ancient evil stirs beneath the capital.', tone: 'Political intrigue and betrayal', startingLocation: 'Ashveil City' },
-        { id: 'fallback-2', title: 'The Last Bastion', premise: 'The undead armies have crossed the northern pass. One fortified city remains. Supplies dwindle. Morale breaks.', tone: 'Survival horror and sacrifice', startingLocation: 'Ironhold' },
-      ])
-    } finally {
-      setLoadingSeeds(false)
-    }
+  function loadSeeds() {
+    setSeeds([
+      {
+        id: 'seed-1',
+        title: 'The Shattered Throne',
+        premise: 'A king has been murdered and his throne sits empty. Five factions each claim the right to rule. The kingdom is weeks from civil war — and something ancient stirs beneath the capital, waiting for the chaos.',
+        tone: 'Political intrigue and betrayal',
+        startingLocation: 'Ashveil City',
+      },
+      {
+        id: 'seed-2',
+        title: 'The Bleaching',
+        premise: 'Animals die without cause. Crops rot before harvest. Magic itself feels thin. Something is draining the life from the land, slowly, from somewhere deep in the northern wastes. No one who went to investigate has returned.',
+        tone: 'Creeping dread and mystery',
+        startingLocation: 'The village of Dunmore',
+      },
+      {
+        id: 'seed-3',
+        title: 'Oathbreakers',
+        premise: 'The most powerful archmage in the world was found dead this morning. Every nation wants the killer found immediately. You were seen near the tower the night it happened. You have until dawn to prove your innocence — or flee.',
+        tone: 'Tense investigation and survival',
+        startingLocation: 'The city of Vareth',
+      },
+      {
+        id: 'seed-4',
+        title: 'The Last Gate',
+        premise: 'A portal to the Abyss tore open thirty days ago. Demons poured through for a week — then went silent. The silence is worse. Something is organizing them. Something that does not want to be found until it is ready.',
+        tone: 'Dark horror and desperate odds',
+        startingLocation: 'Fort Ashenmere',
+      },
+    ])
   }
 
   async function createCampaign() {
