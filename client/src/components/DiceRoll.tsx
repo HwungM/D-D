@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { audioManager } from '../lib/audio'
 
 interface DiceRollProps {
   rolling: boolean
@@ -27,6 +28,7 @@ export default function DiceRoll({ rolling, result, modifier, label }: DiceRollP
       setVisible(true)
       setExiting(false)
       setSpinning(true)
+      audioManager.playDiceRoll()
 
       let count = 0
       const scramble = setInterval(() => {

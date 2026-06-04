@@ -95,6 +95,7 @@ export default function Game() {
       if (result.isCombat) audioManager.playCombat()
       if (result.isVictory) audioManager.playVictory()
       if (result.levelUp) audioManager.playLevelUp()
+      if (result.loot?.length) audioManager.playItemPickup()
 
       const dmEvent: StoryEvent = {
         id: `temp-dm-${Date.now()}`,

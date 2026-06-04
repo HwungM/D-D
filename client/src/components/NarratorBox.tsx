@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { audioManager } from '../lib/audio'
 
 type Mood = 'neutral' | 'amused' | 'serious' | 'menacing' | 'surprised' | 'pleased'
 
@@ -38,6 +39,7 @@ export default function NarratorBox({ text, mood = 'neutral', onComplete }: Narr
     indexRef.current = 0
     setDisplayed('')
     setTyping(true)
+    audioManager.playPageTurn()
 
     const interval = setInterval(() => {
       indexRef.current += 1

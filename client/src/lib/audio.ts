@@ -75,6 +75,30 @@ class AudioManager {
     audio.play().catch(() => {})
   }
 
+  playDiceRoll() {
+    if (!this.sfxEnabled) return
+    const audio = this.getOrCreate('dice-roll', '/audio/dice-roll.mp3', false)
+    audio.volume = this.sfxVolume
+    audio.currentTime = 0
+    audio.play().catch(() => {})
+  }
+
+  playItemPickup() {
+    if (!this.sfxEnabled) return
+    const audio = this.getOrCreate('item-pickup', '/audio/item-pickup.mp3', false)
+    audio.volume = this.sfxVolume
+    audio.currentTime = 0
+    audio.play().catch(() => {})
+  }
+
+  playPageTurn() {
+    if (!this.sfxEnabled) return
+    const audio = this.getOrCreate('page-turn', '/audio/page-turn.mp3', false)
+    audio.volume = this.sfxVolume
+    audio.currentTime = 0
+    audio.play().catch(() => {})
+  }
+
   playLevelUp() {
     if (!this.sfxEnabled) return
     const audio = this.getOrCreate('level-up', '/audio/level-up.mp3', false)
