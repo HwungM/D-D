@@ -282,7 +282,6 @@ export default function Game() {
     setShowDice(false)
     setShowHighStakes(false)
     setHighStakesData(null)
-    setProactiveNarration(null)
 
     // Immediate local scene switch based on action text + current location
     const immediateScene = matchSceneImage(action + ' ' + (worldState?.currentLocation || ''))
@@ -315,6 +314,7 @@ export default function Game() {
         })
         setDiceModalData({ narration: result.narration, rollContext: result.rollContext })
         setShowDiceModal(true)
+        setLoading(false)
         return
       }
 
