@@ -11,6 +11,30 @@ import AudioControls from '../components/AudioControls'
 import { audioManager } from '../lib/audio'
 import type { Character, StoryEvent, ActionResult } from '../../../shared/types'
 
+// Handle old DB format: "ACTION: ...\nNARRATION: ..." stored as single event
+function normalizeEvents(events: StoryEvent[]): StoryEvent[] {
+  const result: StoryEvent[] = []
+  for (const ev of events) {
+    const hasOldFormat = ev.content.includes('NARRATION:') && (ev.content.startsWith('ACTION:') || ev.content.includes('\nNARRATION:'))
+    if (hasOldFormat) {
+      const narrationIdx = ev.content.indexOf('NARRATION:')
+      const rawAction = ev.content.slice(0, narrationIdx).replace(/^ACTION:\s*/i, '').trim()
+      const narration = ev.content.slice(narrationIdx).replace(/^NARRATION:\s*/i, '').trim()
+      if (rawAction && !rawAction.includes('BEGIN_CAMPAIGN_OPENING') && !rawAction.includes('OPENING_SCENE')) {
+        result.push({ ...ev, id: `${ev.id}-a`, event_type: 'action', content: rawAction })
+      }
+      if (narration) {
+        result.push({ ...ev, id: `${ev.id}-n`, event_type: 'narration', content: narration })
+      }
+    } else {
+      // Skip bare opening placeholders
+      if (ev.content === 'BEGIN_CAMPAIGN_OPENING' || ev.content === 'OPENING_SCENE') continue
+      result.push(ev)
+    }
+  }
+  return result
+}
+
 const DEFAULT_SCENES = [
   '/assets/scenes/tavern.png',
   '/assets/scenes/forest-road.png',
@@ -276,13 +300,13 @@ export default function Game() {
             className="flex-1 overflow-y-auto py-4 space-y-2"
             style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}
           >
-            {events.map((event, i) => (
+            {normalizeEvents(events).map((event, i) => (
               <NarratorBox
                 key={event.id || i}
                 text={event.content}
                 mood={event.event_type === 'narration' ? 'neutral' : 'serious'}
                 isPlayerAction={event.event_type === 'action'}
-                instant={historicalIds.current.has(event.id)}
+                instant={historicalIds.current.has(event.id) || historicalIds.current.has(event.id.replace(/-[an]$/, ''))}
               />
             ))}
             {isLoading && (
