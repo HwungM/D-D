@@ -51,7 +51,8 @@ class AudioManager {
   private ambientVolume = 0.25
   private sfxVolume = 0.7
   private combatIndex = 0
-  private gameplayIndex = Math.floor(Math.random() * GAMEPLAY_TRACKS.length)
+  private shuffledTracks = [...GAMEPLAY_TRACKS].sort(() => Math.random() - 0.5)
+  private gameplayIndex = 0
 
   private getOrCreate(key: string, src: string, loop = false): HTMLAudioElement {
     if (!this.tracks.has(key)) {
@@ -142,8 +143,12 @@ class AudioManager {
 
   private playNextGameplayTrack() {
     if (!this.musicEnabled) return
-    const src = GAMEPLAY_TRACKS[this.gameplayIndex]
-    this.gameplayIndex = (this.gameplayIndex + 1) % GAMEPLAY_TRACKS.length
+    const src = this.shuffledTracks[this.gameplayIndex]
+    this.gameplayIndex++
+    if (this.gameplayIndex >= this.shuffledTracks.length) {
+      this.shuffledTracks = [...GAMEPLAY_TRACKS].sort(() => Math.random() - 0.5)
+      this.gameplayIndex = 0
+    }
     const audio = new Audio(src)
     audio.volume = 0
     this.gameplayTrack = audio
