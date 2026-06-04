@@ -1,32 +1,126 @@
-import type { StoryEvent } from '../../../shared/types'
+import { useEffect, useRef, useState } from 'react'
+
+type Mood = 'neutral' | 'amused' | 'serious' | 'menacing' | 'surprised' | 'pleased'
 
 interface NarratorBoxProps {
-  event: StoryEvent
+  text: string
+  mood?: Mood
+  onComplete?: () => void
 }
 
-export default function NarratorBox({ event }: NarratorBoxProps) {
-  if (event.event_type === 'action') {
-    return (
-      <div className="flex justify-end animate-fade-in">
-        <div className="max-w-[80%] bg-slate-800 border border-slate-700 px-4 py-2 text-sm font-serif text-slate-300 italic">
-          &gt; {event.content.replace(/^ACTION:\s*/i, '')}
-        </div>
-      </div>
-    )
-  }
+const MOOD_PORTRAIT: Record<Mood, string> = {
+  neutral: '/assets/dm/dm-neutral.png',
+  amused: '/assets/dm/dm-amused.png',
+  serious: '/assets/dm/dm-serious.png',
+  menacing: '/assets/dm/dm-menacing.png',
+  surprised: '/assets/dm/dm-surprised.png',
+  pleased: '/assets/dm/dm-pleased.png',
+}
 
-  const narrative = event.content.replace(/^NARRATION:\s*/i, '').replace(/^ACTION:.*\nNARRATION:\s*/is, '')
+const MOOD_BORDER_COLOR: Record<Mood, string> = {
+  neutral: 'rgba(192,57,43,0.3)',
+  amused: 'rgba(212,168,67,0.4)',
+  serious: 'rgba(100,30,22,0.5)',
+  menacing: 'rgba(139,28,28,0.6)',
+  surprised: 'rgba(192,100,43,0.4)',
+  pleased: 'rgba(150,180,100,0.4)',
+}
+
+export default function NarratorBox({ text, mood = 'neutral', onComplete }: NarratorBoxProps) {
+  const [displayed, setDisplayed] = useState('')
+  const [typing, setTyping] = useState(true)
+  const indexRef = useRef(0)
+  const prevText = useRef('')
+
+  useEffect(() => {
+    if (prevText.current === text) return
+    prevText.current = text
+    indexRef.current = 0
+    setDisplayed('')
+    setTyping(true)
+
+    const interval = setInterval(() => {
+      indexRef.current += 1
+      setDisplayed(text.slice(0, indexRef.current))
+      if (indexRef.current >= text.length) {
+        clearInterval(interval)
+        setTyping(false)
+        onComplete?.()
+      }
+    }, 18)
+
+    return () => clearInterval(interval)
+  }, [text, onComplete])
+
+  const portraitUrl = MOOD_PORTRAIT[mood]
+  const borderColor = MOOD_BORDER_COLOR[mood]
 
   return (
-    <div className="animate-fade-in">
-      <div className="parchment-box px-5 py-4">
-        <p className="font-serif text-sm leading-relaxed text-gray-800 whitespace-pre-wrap">{narrative}</p>
-      </div>
-      {event.event_type === 'level_up' && (
-        <div className="mt-1 text-center text-ember-400 text-xs uppercase tracking-widest font-serif animate-pulse">
-          ✦ Level Up! ✦
+    <div className="animate-fade-in narrator-box relative">
+      <div
+        className="relative p-5 pt-6"
+        style={{
+          background: 'linear-gradient(135deg, #f5e6c8 0%, #ede0b8 30%, #f0dba8 60%, #e8d49a 100%)',
+          borderTop: `2px solid ${borderColor}`,
+          borderBottom: `2px solid ${borderColor}`,
+          boxShadow: `0 0 15px ${borderColor}, inset 0 0 30px rgba(0,0,0,0.08)`,
+          animation: 'flickerBorder 4s ease-in-out infinite',
+        }}
+      >
+        {/* Parchment noise texture */}
+        <div
+          className="absolute inset-0 opacity-[0.06] pointer-events-none"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.2'/%3E%3C/svg%3E")`,
+          }}
+        />
+
+        <div className="flex gap-4 relative z-10">
+          {/* DM portrait — 60x60 circular */}
+          <div className="shrink-0">
+            <div
+              className="w-[60px] h-[60px] rounded-full overflow-hidden border-2 relative"
+              style={{
+                borderColor: 'rgba(139,90,43,0.5)',
+                boxShadow: `0 0 12px ${borderColor}, inset 0 0 8px rgba(0,0,0,0.3)`,
+                animation: 'torchFlicker 2s ease-in-out infinite',
+              }}
+            >
+              <img
+                src={portraitUrl}
+                alt="Dungeon Master"
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            {/* Quill animation while typing */}
+            {typing && (
+              <div
+                className="mt-1 text-center text-amber-700/70 text-base select-none"
+                style={{ animation: 'candleFlame 0.8s ease-in-out infinite' }}
+              >
+                ✍
+              </div>
+            )}
+          </div>
+
+          {/* Text content */}
+          <p className="font-serif text-sm leading-relaxed text-gray-800 whitespace-pre-wrap flex-1 pt-1">
+            {displayed}
+            {typing && (
+              <span
+                className="inline-block w-0.5 h-4 bg-gray-600 ml-0.5 align-middle"
+                style={{ animation: 'flicker 0.8s ease-in-out infinite' }}
+              />
+            )}
+          </p>
         </div>
-      )}
+
+        {/* Decorative bottom edge */}
+        <div className="absolute bottom-0 left-0 right-0 h-px" style={{
+          background: `linear-gradient(90deg, transparent, ${borderColor}, transparent)`,
+        }} />
+      </div>
     </div>
   )
 }

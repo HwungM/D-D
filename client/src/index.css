@@ -1,10 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   html {
-    font-family: Georgia, Cambria, "Times New Roman", serif;
+    font-family: 'EB Garamond', Georgia, Cambria, "Times New Roman", serif;
   }
 
   ::-webkit-scrollbar {
@@ -46,4 +48,76 @@
   .stat-box {
     @apply flex flex-col items-center justify-center bg-slate-900 border border-slate-700 p-2 min-w-[60px];
   }
+}
+
+/* Global keyframes */
+@keyframes ember-particle {
+  0% { transform: translateY(0) translateX(0); opacity: 0.9; }
+  25% { transform: translateY(-25vh) translateX(8px); opacity: 0.7; }
+  50% { transform: translateY(-50vh) translateX(-6px); opacity: 0.4; }
+  75% { transform: translateY(-75vh) translateX(4px); opacity: 0.15; }
+  100% { transform: translateY(-100vh) translateX(-2px); opacity: 0; }
+}
+
+.ember-particle {
+  animation: ember-particle var(--duration, 8s) ease-in var(--delay, 0s) infinite;
+}
+
+@keyframes torchFlicker {
+  0%, 100% { box-shadow: 0 0 30px #c0392b55, 0 0 60px #c0392b22; }
+  20% { box-shadow: 0 0 25px #c0392b44, 0 0 50px #c0392b18; }
+  40% { box-shadow: 0 0 40px #c0392b77, 0 0 80px #c0392b33; }
+  60% { box-shadow: 0 0 28px #c0392b55, 0 0 55px #c0392b22; }
+  80% { box-shadow: 0 0 35px #c0392b66, 0 0 70px #c0392b28; }
+}
+
+@keyframes flickerBorder {
+  0%, 100% { box-shadow: 0 0 15px #c0392b22, inset 0 0 30px rgba(0,0,0,0.1); }
+  33% { box-shadow: 0 0 8px #c0392b11, inset 0 0 30px rgba(0,0,0,0.15); }
+  66% { box-shadow: 0 0 20px #c0392b33, inset 0 0 30px rgba(0,0,0,0.08); }
+}
+
+@keyframes loadingBar {
+  0% { width: 0%; }
+  20% { width: 30%; }
+  50% { width: 55%; }
+  80% { width: 80%; }
+  95% { width: 92%; }
+  100% { width: 100%; }
+}
+
+@keyframes slideUpIn {
+  0% { transform: translateX(-50%) translateY(150%); }
+  100% { transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes slideDownOut {
+  0% { transform: translateX(-50%) translateY(0); }
+  100% { transform: translateX(-50%) translateY(150%); }
+}
+
+@keyframes candleFlame {
+  0%, 100% { transform: scaleX(1) scaleY(1); opacity: 0.9; }
+  25% { transform: scaleX(0.92) scaleY(1.08); opacity: 1; }
+  50% { transform: scaleX(1.06) scaleY(0.96); opacity: 0.85; }
+  75% { transform: scaleX(0.96) scaleY(1.04); opacity: 0.95; }
+}
+
+.candle-flame {
+  animation: candleFlame 1.8s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+/* Parchment texture helper */
+.parchment-texture {
+  background: linear-gradient(135deg, #f5e6c8 0%, #ede0b8 30%, #f0dba8 60%, #e8d49a 100%);
+  position: relative;
+}
+
+.parchment-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.06'/%3E%3C/svg%3E");
+  pointer-events: none;
 }

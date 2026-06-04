@@ -166,15 +166,22 @@ export default function Game() {
 
           {/* Dice roll display */}
           {showDice && lastActionResult?.diceRoll && (
-            <div className="px-4 py-2">
-              <DiceRoll result={lastActionResult.diceRoll} onDismiss={() => setShowDice(false)} />
-            </div>
+            <DiceRoll
+              rolling={showDice}
+              result={lastActionResult.diceRoll.total}
+              modifier={lastActionResult.diceRoll.modifier}
+              label={lastActionResult.diceRoll.description || 'Roll'}
+            />
           )}
 
           {/* Narrator history */}
           <div ref={narratorRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {events.map((event, i) => (
-              <NarratorBox key={event.id || i} event={event} />
+              <NarratorBox
+                key={event.id || i}
+                text={event.content}
+                mood={event.event_type === 'narration' ? 'neutral' : 'serious'}
+              />
             ))}
             {isLoading && (
               <div className="parchment-box p-4 animate-pulse">
