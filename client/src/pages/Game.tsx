@@ -74,6 +74,7 @@ export default function Game() {
   const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'world' | 'journal'>('character')
   const narratorRef = useRef<HTMLDivElement>(null)
   const historicalIds = useRef<Set<string>>(new Set())
+  const actionTakenRef = useRef(false)
 
   const [showLevelUp, setShowLevelUp] = useState(false)
   const [levelUpData, setLevelUpData] = useState<{ level: number; hpGained: number; newAbility: Ability | null; characterName: string } | null>(null)
@@ -183,7 +184,7 @@ export default function Game() {
     // Only fire if this is a returning session (has prior history)
     if (historicalIds.current.size === 0) return
     const timer = setTimeout(async () => {
-      if (isLoading) return
+      if (isLoading || actionTakenRef.current) return
       try {
         const { data, status } = await gameApi.getProactiveEvent(campaignId, characterId)
         if (status === 200 && data?.narration) {
@@ -304,6 +305,7 @@ export default function Game() {
 
   async function handleAction(action: string) {
     if (!campaignId || !characterId || isLoading) return
+    actionTakenRef.current = true
     setLoading(true)
     setShowDice(false)
     setShowHighStakes(false)
