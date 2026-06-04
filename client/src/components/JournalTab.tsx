@@ -6,9 +6,9 @@ interface JournalTabProps {
 }
 
 export default function JournalTab({ events, characterId }: JournalTabProps) {
-  const journalEvents = events
-    .filter(e => e.event_type === 'narration' || e.event_type === 'action')
-    .filter(e => !e.content.startsWith('BEGIN_CAMPAIGN') && !e.content.startsWith('OPENING_SCENE'))
+  const journalEvents = (Array.isArray(events) ? events : [])
+    .filter(e => e?.event_type === 'narration' || e?.event_type === 'action')
+    .filter(e => e?.content && !e.content.startsWith('BEGIN_CAMPAIGN') && !e.content.startsWith('OPENING_SCENE'))
 
   if (journalEvents.length === 0) {
     return (

@@ -11,12 +11,19 @@ const DISPOSITION_STYLE: Record<string, { color: string; label: string; icon: st
   unknown:  { color: 'rgba(180,160,120,0.4)', label: 'Unknown', icon: '❓' },
 }
 
-function reputationBar(value: number) {
-  const clamped = Math.max(-100, Math.min(100, value))
+function reputationBar(value: unknown) {
+  const num = typeof value === 'number' ? value : 0
+  const clamped = Math.max(-100, Math.min(100, num))
   const color = clamped >= 50 ? '#4ade80' : clamped >= 0 ? '#c89228' : clamped >= -50 ? '#f97316' : '#f87171'
   const label = clamped >= 50 ? 'Allied' : clamped >= 10 ? 'Friendly' : clamped >= -10 ? 'Neutral' : clamped >= -50 ? 'Hostile' : 'Enemy'
   const pct = ((clamped + 100) / 200) * 100
   return { color, label, pct }
+}
+
+function safeStr(val: unknown): string {
+  if (typeof val === 'string') return val
+  if (val === null || val === undefined) return ''
+  return String(val)
 }
 
 export default function WorldPanel({ worldState }: WorldPanelProps) {
@@ -28,11 +35,51 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
     )
   }
 
-  const npcs = worldState.npcMemory ?? []
-  const factions = Object.entries(worldState.factionStandings ?? {})
+  const npcs = Array.isArray(worldState.npcMemory) ? worldState.npcMemory : []
+  const factionEntries = worldState.factionStandings && typeof worldState.factionStandings === 'object'
+    ? Object.entries(worldState.factionStandings)
+    : []
+  const sessionNotes = Array.isArray(worldState.sessionNotes) ? worldState.sessionNotes : []
+  const journal = Array.isArray((worldState as Record<string, unknown>).campaignJournal)
+    ? ((worldState as Record<string, unknown>).campaignJournal as unknown[])
+    : []
 
   return (
     <div className="p-4 space-y-5 text-sm">
+
+      {/* Campaign Journal */}
+      {journal.length > 0 && (
+        <div>
+          <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)' }}>Campaign Journal</p>
+          <div className="space-y-2">
+            {journal.slice(-4).map((entry, i) => {
+              const e = entry as Record<string, unknown>
+              return (
+                <div key={i} className="px-3 py-2.5" style={{ background: 'rgba(200,146,42,0.04)', border: '1px solid rgba(200,146,42,0.12)' }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-mono" style={{ color: 'rgba(200,146,42,0.5)' }}>
+                      Act {safeStr(e.actNumber)} · Session {safeStr(e.sessionNumber)}
+                    </span>
+                  </div>
+                  <p className="font-serif text-xs leading-relaxed" style={{ color: 'rgba(180,160,120,0.7)' }}>
+                    {safeStr(e.summary)}
+                  </p>
+                  {Array.isArray(e.keyDecisions) && e.keyDecisions.length > 0 && (
+                    <div className="mt-1.5 space-y-0.5">
+                      {(e.keyDecisions as unknown[]).slice(0, 3).map((d, j) => (
+                        <p key={j} className="text-xs" style={{ color: 'rgba(160,140,110,0.5)', paddingLeft: '8px' }}>
+                          · {safeStr(d)}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* NPCs */}
       <div>
         <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)' }}>Known Characters</p>
@@ -41,19 +88,20 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
         ) : (
           <div className="space-y-2">
             {npcs.map((npc, i) => {
-              const disp = DISPOSITION_STYLE[npc.disposition] ?? DISPOSITION_STYLE.unknown
+              if (!npc || typeof npc !== 'object') return null
+              const disp = DISPOSITION_STYLE[safeStr(npc.disposition)] ?? DISPOSITION_STYLE.unknown
               return (
                 <div key={i} className="px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-base leading-none">{disp.icon}</span>
-                    <span className="font-serif text-xs" style={{ color: '#d4c5a0' }}>{npc.name}</span>
+                    <span className="font-serif text-xs" style={{ color: '#d4c5a0' }}>{safeStr(npc.name)}</span>
                     <span className="ml-auto text-xs" style={{ color: disp.color, fontSize: '10px' }}>{disp.label}</span>
                   </div>
                   {npc.notes && (
-                    <p className="text-xs leading-relaxed" style={{ color: 'rgba(160,140,110,0.55)', paddingLeft: '26px' }}>{npc.notes}</p>
+                    <p className="text-xs leading-relaxed" style={{ color: 'rgba(160,140,110,0.55)', paddingLeft: '26px' }}>{safeStr(npc.notes)}</p>
                   )}
                   {npc.lastMet && (
-                    <p className="text-xs mt-0.5" style={{ color: 'rgba(160,140,110,0.3)', paddingLeft: '26px', fontSize: '10px' }}>Last seen: {npc.lastMet}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'rgba(160,140,110,0.3)', paddingLeft: '26px', fontSize: '10px' }}>Last seen: {safeStr(npc.lastMet)}</p>
                   )}
                 </div>
               )
@@ -63,12 +111,12 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
       </div>
 
       {/* Faction standings */}
-      {factions.length > 0 && (
+      {factionEntries.length > 0 && (
         <div>
           <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)' }}>Faction Standings</p>
           <div className="space-y-3">
-            {factions.map(([name, val]) => {
-              const { color, label, pct } = reputationBar(val as number)
+            {factionEntries.map(([name, val]) => {
+              const { color, label, pct } = reputationBar(val)
               return (
                 <div key={name}>
                   <div className="flex justify-between mb-1">
@@ -85,13 +133,13 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
         </div>
       )}
 
-      {/* Session notes */}
-      {(worldState.sessionNotes?.length ?? 0) > 0 && (
+      {/* Session notes / DM notes */}
+      {sessionNotes.length > 0 && (
         <div>
           <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)' }}>DM Notes</p>
           <div className="space-y-1">
-            {worldState.sessionNotes!.map((note, i) => (
-              <p key={i} className="font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(160,140,110,0.5)' }}>• {note}</p>
+            {sessionNotes.map((note, i) => (
+              <p key={i} className="font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(160,140,110,0.5)' }}>• {safeStr(note)}</p>
             ))}
           </div>
         </div>

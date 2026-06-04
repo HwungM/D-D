@@ -15,9 +15,10 @@ const TIME_ICONS: Record<string, string> = {
 }
 
 export default function QuestLog({ worldState }: QuestLogProps) {
-  const activeQuests = worldState?.activeQuests?.filter(q => q.status === 'active') ?? []
-  const doneQuests   = worldState?.activeQuests?.filter(q => q.status !== 'active') ?? []
-  const locations    = worldState?.discoveredLocations ?? []
+  const allQuests = Array.isArray(worldState?.activeQuests) ? worldState!.activeQuests! : []
+  const activeQuests = allQuests.filter(q => q?.status === 'active')
+  const doneQuests   = allQuests.filter(q => q?.status && q.status !== 'active')
+  const locations    = Array.isArray(worldState?.discoveredLocations) ? worldState!.discoveredLocations! : []
 
   if (!worldState) {
     return (
