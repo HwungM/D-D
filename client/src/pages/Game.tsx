@@ -25,6 +25,7 @@ import HighStakesChoice from '../components/HighStakesChoice'
 import SidebarErrorBoundary from '../components/SidebarErrorBoundary'
 import DiceRollModal from '../components/DiceRollModal'
 import { audioManager } from '../lib/audio'
+import { ttsManager } from '../lib/ttsManager'
 import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType, RollContext } from '../../../shared/types'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
@@ -100,6 +101,7 @@ export default function Game() {
 
   const [showDiceModal, setShowDiceModal] = useState(false)
   const [diceModalData, setDiceModalData] = useState<{ narration: string; rollContext: RollContext } | null>(null)
+  const [isMuted, setIsMuted] = useState(false)
 
   useEffect(() => {
     audioManager.startAmbient()
@@ -227,6 +229,7 @@ export default function Game() {
         metadata: { suggestedActions: result.suggestedActions, fromRoll: true },
         created_at: new Date().toISOString(),
       })
+      ttsManager.speak(result.narration)
 
       if (result.characterChanges) setCharacter({ ...currentCharacter!, ...result.characterChanges } as Character)
       if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
@@ -265,6 +268,7 @@ export default function Game() {
           metadata: { suggestedActions: result.suggestedActions },
           created_at: new Date().toISOString(),
         })
+        ttsManager.speak(result.narration)
       }
       if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
       if (result.sceneImagePrompt) {
@@ -314,6 +318,7 @@ export default function Game() {
         })
         setDiceModalData({ narration: result.narration, rollContext: result.rollContext })
         setShowDiceModal(true)
+        ttsManager.speak(result.narration)
         setLoading(false)
         return
       }
@@ -361,6 +366,7 @@ export default function Game() {
         metadata: { diceRoll: result.diceRoll, suggestedActions: result.suggestedActions },
         created_at: new Date().toISOString(),
       })
+      ttsManager.speak(result.narration)
 
       if (result.characterChanges) setCharacter({ ...currentCharacter!, ...result.characterChanges } as Character)
       if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
@@ -514,6 +520,24 @@ export default function Game() {
 
         {/* Right: controls */}
         <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={() => {
+              const nowEnabled = ttsManager.toggle()
+              setIsMuted(!nowEnabled)
+            }}
+            title={isMuted ? 'Unmute narrator' : 'Mute narrator'}
+            className="font-serif text-sm px-2 py-1 transition-all"
+            style={{
+              border: '1px solid rgba(255,255,255,0.07)',
+              color: isMuted ? 'rgba(140,120,80,0.4)' : 'rgba(200,146,42,0.8)',
+              background: 'transparent',
+              lineHeight: 1,
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,146,42,0.3)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
+          >
+            {isMuted ? '🔇' : '🔊'}
+          </button>
           <AudioControls />
           {campaignId && (
             <button
