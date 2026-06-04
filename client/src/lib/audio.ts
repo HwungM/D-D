@@ -1,4 +1,4 @@
-const AMBIENT_URL = 'https://drive.google.com/uc?export=download&id=1py8BxMCNxzXUrWwGNWty34Ra-wykvjox'
+const AMBIENT_URL = '/audio/ambient.mp3'
 
 type AudioTrack = 'combat-1' | 'combat-2' | 'combat-3' | 'victory' | 'level-up'
 
