@@ -36,6 +36,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
       .insert({
         name,
         story_seed: storySeed,
+        created_by: req.user!.id,
         world_state: {
           currentLocation: worldBible.geography[0]?.name || 'Unknown',
           timeOfDay: 'day',
@@ -81,7 +82,14 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
     return;
   }
 
-  const campaigns = data?.map((m: { campaigns: unknown }) => m.campaigns).filter(Boolean) || [];
+  const seen = new Set<string>()
+  const campaigns = (data?.map((m: { campaigns: unknown }) => m.campaigns).filter(Boolean) || [])
+    .filter((c: unknown) => {
+      const id = (c as { id: string }).id
+      if (seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
   res.json({ campaigns });
 });
 
@@ -282,16 +290,35 @@ router.get('/:id/party', requireAuth, async (req: AuthRequest, res: Response): P
 router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
 
-  // Verify ownership
+  // Verify ownership — check created_by, fall back to membership for old campaigns
   const { data: campaign } = await supabaseAdmin
     .from('campaigns')
     .select('created_by')
     .eq('id', id)
     .single();
 
-  if (!campaign || campaign.created_by !== req.user!.id) {
+  if (!campaign) {
+    res.status(404).json({ error: 'Campaign not found' });
+    return;
+  }
+
+  // If created_by is set, only the creator can delete. If null (old record), any member can delete.
+  if (campaign.created_by && campaign.created_by !== req.user!.id) {
     res.status(403).json({ error: 'Only the campaign creator can delete it' });
     return;
+  }
+
+  if (!campaign.created_by) {
+    const { data: membership } = await supabaseAdmin
+      .from('campaign_members')
+      .select('campaign_id')
+      .eq('campaign_id', id)
+      .eq('user_id', req.user!.id)
+      .single();
+    if (!membership) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
   }
 
   await supabaseAdmin.from('story_events').delete().eq('campaign_id', id);
