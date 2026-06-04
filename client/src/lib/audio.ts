@@ -7,16 +7,14 @@ const GAMEPLAY_TRACKS = [
   '/assets/music/cafdc194-Enchantress.mp3',
   '/assets/music/4aae52b3-Dorian_Concept__Space_II_Official_Video.mp3',
   '/assets/music/181876ab-Ancient_Stones.mp3',
-<<<<<<< HEAD
   '/assets/music/a6744c0c-Hans_Neusidler__Wascha_Mesa__Lute__Luth.mp3',
   '/assets/music/3e5e704a-Baldurs_Gate_2_OST__Romance_I_JZC5Y6VNFXA.mp3',
   '/assets/music/c773bdad-The_Streets_of_Whiterun.mp3',
   '/assets/music/3b5c7d8c-Anonymous_Medieval_Song_No.1_by_Allan_Alexander__lute_and_treble_viol.mp3',
   '/assets/music/840874c1-Lost_Woods_Harp_Lullaby_Version.mp3',
-=======
->>>>>>> fc9a8f6 (Add remaining 3 music tracks to gameplay playlist)
 ]
 
+// Location-based ambient tracks
 const AMBIENT_TRACKS: Record<string, string[]> = {
   dungeon: ['/assets/music/65a3d146-dungeon_ambience_loop.mp3'],
   forest: [
@@ -93,6 +91,7 @@ class AudioManager {
     const srcs = AMBIENT_TRACKS[type] ?? AMBIENT_TRACKS.default
     const src = srcs[Math.floor(Math.random() * srcs.length)]
 
+    // Only swap if type changed or not playing
     if (type !== this.currentAmbientType || !this.ambientTrack || this.ambientTrack.paused) {
       this.currentAmbientType = type
       if (this.ambientTrack && !this.ambientTrack.paused) {
