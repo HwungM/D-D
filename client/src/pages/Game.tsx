@@ -134,6 +134,14 @@ export default function Game() {
           .slice(-5)
           .map(e => e.content)
         setRecentNarrations(recent)
+        // Restore suggested actions from last narration event metadata
+        const lastNarration = [...loaded].reverse().find(e => e.event_type === 'narration')
+        if (lastNarration?.metadata?.suggestedActions) {
+          setLastActionResult({
+            narration: lastNarration.content,
+            suggestedActions: lastNarration.metadata.suggestedActions as string[],
+          } as ActionResult)
+        }
       }
     })
     campaignApi.get(campaignId).then(({ data }) => {
@@ -166,10 +174,12 @@ export default function Game() {
     if (narratorRef.current) narratorRef.current.scrollTop = narratorRef.current.scrollHeight
   }, [events])
 
-  // Proactive event polling — every 90 seconds after game starts
+  // Proactive event — fires once on returning to an existing session (not on first start)
   useEffect(() => {
     if (!started || !campaignId || !characterId) return
-    const interval = setInterval(async () => {
+    // Only fire if this is a returning session (has prior history)
+    if (historicalIds.current.size === 0) return
+    const timer = setTimeout(async () => {
       if (isLoading) return
       try {
         const { data, status } = await gameApi.getProactiveEvent(campaignId, characterId)
@@ -184,16 +194,13 @@ export default function Game() {
             metadata: { isProactiveEvent: true, suggestedActions: data.suggestedActions },
             created_at: new Date().toISOString(),
           })
-          if (data.suggestedActions?.length) {
-            setLastActionResult({ ...lastActionResult, suggestedActions: data.suggestedActions } as ActionResult)
-          }
         }
       } catch {
-        // Silently ignore — proactive events are best-effort
+        // Silently ignore
       }
-    }, 90 * 1000)
-    return () => clearInterval(interval)
-  }, [started, campaignId, characterId, isLoading])
+    }, 3000) // Small delay so it appears after history loads
+    return () => clearTimeout(timer)
+  }, [started])
 
   async function handleStart() {
     if (!campaignId || !characterId) return
