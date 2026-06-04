@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { campaignApi } from '../lib/api'
+import { campaignApi, characterApi } from '../lib/api'
 import { useAuthStore } from '../lib/store'
 import { audioManager } from '../lib/audio'
 import LoadingScreen from '../components/LoadingScreen'
@@ -155,6 +155,22 @@ export default function Dashboard() {
     }
   }
 
+  async function handleContinue(campaign: Campaign) {
+    try {
+      const { data } = await characterApi.listByCampaign(campaign.id)
+      const chars = data.characters || []
+      const alive = chars.find((c: { is_alive: boolean }) => c.is_alive)
+      const char = alive || chars[chars.length - 1]
+      if (char) {
+        navigate(`/campaign/${campaign.id}/play/${char.id}`)
+      } else {
+        navigate(`/campaign/${campaign.id}/create-character`)
+      }
+    } catch {
+      navigate(`/campaign/${campaign.id}/create-character`)
+    }
+  }
+
   function handleLogout() {
     logout()
     navigate('/')
@@ -209,7 +225,7 @@ export default function Dashboard() {
                     <span>{new Date(campaign.created_at).toLocaleDateString()}</span>
                   </div>
                   <button
-                    onClick={() => navigate(`/campaign/${campaign.id}/create-character`)}
+                    onClick={() => handleContinue(campaign)}
                     className="fantasy-btn-secondary text-xs mt-3 w-full"
                   >
                     Continue

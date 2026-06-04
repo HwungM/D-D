@@ -6,6 +6,7 @@ type Mood = 'neutral' | 'amused' | 'serious' | 'menacing' | 'surprised' | 'pleas
 interface NarratorBoxProps {
   text: string
   mood?: Mood
+  isPlayerAction?: boolean
   onComplete?: () => void
 }
 
@@ -27,7 +28,7 @@ const MOOD_BORDER_COLOR: Record<Mood, string> = {
   pleased: 'rgba(150,180,100,0.4)',
 }
 
-export default function NarratorBox({ text, mood = 'neutral', onComplete }: NarratorBoxProps) {
+export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = false, onComplete }: NarratorBoxProps) {
   const [displayed, setDisplayed] = useState('')
   const [typing, setTyping] = useState(true)
   const indexRef = useRef(0)
@@ -39,8 +40,10 @@ export default function NarratorBox({ text, mood = 'neutral', onComplete }: Narr
     indexRef.current = 0
     setDisplayed('')
     setTyping(true)
-    audioManager.playPageTurn()
 
+    if (!isPlayerAction) audioManager.playPageTurn()
+
+    const speed = isPlayerAction ? 10 : 18
     const interval = setInterval(() => {
       indexRef.current += 1
       setDisplayed(text.slice(0, indexRef.current))
@@ -49,10 +52,28 @@ export default function NarratorBox({ text, mood = 'neutral', onComplete }: Narr
         setTyping(false)
         onComplete?.()
       }
-    }, 18)
+    }, speed)
 
     return () => clearInterval(interval)
-  }, [text, onComplete])
+  }, [text, onComplete, isPlayerAction])
+
+  if (isPlayerAction) {
+    return (
+      <div className="animate-fade-in flex items-start gap-3 px-2 py-1">
+        <div className="shrink-0 w-7 h-7 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-xs text-parchment-300 font-fantasy">
+          ⚔
+        </div>
+        <div className="flex-1 bg-slate-800/60 border border-slate-700 px-3 py-2">
+          <p className="text-slate-300 font-serif text-sm italic">
+            {displayed}
+            {typing && (
+              <span className="inline-block w-0.5 h-3.5 bg-slate-500 ml-0.5 align-middle" style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />
+            )}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const portraitUrl = MOOD_PORTRAIT[mood]
   const borderColor = MOOD_BORDER_COLOR[mood]
@@ -69,16 +90,13 @@ export default function NarratorBox({ text, mood = 'neutral', onComplete }: Narr
           animation: 'flickerBorder 4s ease-in-out infinite',
         }}
       >
-        {/* Parchment noise texture */}
         <div
           className="absolute inset-0 opacity-[0.06] pointer-events-none"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.2'/%3E%3C/svg%3E")`,
           }}
         />
-
         <div className="flex gap-4 relative z-10">
-          {/* DM portrait — 60x60 circular */}
           <div className="shrink-0">
             <div
               className="w-[60px] h-[60px] rounded-full overflow-hidden border-2 relative"
@@ -88,37 +106,21 @@ export default function NarratorBox({ text, mood = 'neutral', onComplete }: Narr
                 animation: 'torchFlicker 2s ease-in-out infinite',
               }}
             >
-              <img
-                src={portraitUrl}
-                alt="Dungeon Master"
-                className="w-full h-full object-cover"
-              />
+              <img src={portraitUrl} alt="Dungeon Master" className="w-full h-full object-cover" />
             </div>
-
-            {/* Quill animation while typing */}
             {typing && (
-              <div
-                className="mt-1 text-center text-amber-700/70 text-base select-none"
-                style={{ animation: 'candleFlame 0.8s ease-in-out infinite' }}
-              >
+              <div className="mt-1 text-center text-amber-700/70 text-base select-none" style={{ animation: 'candleFlame 0.8s ease-in-out infinite' }}>
                 ✍
               </div>
             )}
           </div>
-
-          {/* Text content */}
           <p className="font-serif text-sm leading-relaxed text-gray-800 whitespace-pre-wrap flex-1 pt-1">
             {displayed}
             {typing && (
-              <span
-                className="inline-block w-0.5 h-4 bg-gray-600 ml-0.5 align-middle"
-                style={{ animation: 'flicker 0.8s ease-in-out infinite' }}
-              />
+              <span className="inline-block w-0.5 h-4 bg-gray-600 ml-0.5 align-middle" style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />
             )}
           </p>
         </div>
-
-        {/* Decorative bottom edge */}
         <div className="absolute bottom-0 left-0 right-0 h-px" style={{
           background: `linear-gradient(90deg, transparent, ${borderColor}, transparent)`,
         }} />

@@ -31,12 +31,22 @@ export default function Game() {
   useEffect(() => {
     if (!campaignId || !characterId) return
 
-    // Load scene / character state
+    const DEFAULT_SCENES = [
+      '/assets/scenes/tavern.png',
+      '/assets/scenes/forest-road.png',
+      '/assets/scenes/dungeon-corridor.png',
+      '/assets/scenes/castle-gate.png',
+      '/assets/scenes/ancient-ruins.png',
+    ]
+
     gameApi.getScene(campaignId, characterId).then(({ data }) => {
       if (data.character) setCharacter(data.character as Character)
+      // Set a default scene image if none loaded yet
+      if (!currentSceneImage) {
+        setSceneImage(DEFAULT_SCENES[Math.floor(Math.random() * DEFAULT_SCENES.length)])
+      }
     })
 
-    // Load history
     gameApi.getHistory(campaignId, characterId, 50).then(({ data }) => {
       setEvents(data.events || [])
       if (data.events?.length > 0) setStarted(true)
@@ -196,6 +206,7 @@ export default function Game() {
                 key={event.id || i}
                 text={event.content}
                 mood={event.event_type === 'narration' ? 'neutral' : 'serious'}
+                isPlayerAction={event.event_type === 'action'}
               />
             ))}
             {isLoading && (
