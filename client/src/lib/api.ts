@@ -16,6 +16,18 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// On 401, clear session and redirect to login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      useAuthStore.getState().logout()
+      window.location.href = '/'
+    }
+    return Promise.reject(error)
+  }
+)
+
 // Auth
 export const authApi = {
   register: (email: string, password: string, username: string) =>

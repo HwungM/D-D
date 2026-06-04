@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './lib/store'
+import { supabase } from './lib/supabase'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import CharacterCreate from './pages/CharacterCreate'
@@ -12,6 +14,21 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { setSession, setUser, logout } = useAuthStore()
+
+  // Keep Zustand session in sync with Supabase auto-refresh
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setSession(session)
+        setUser({ id: session.user.id, email: session.user.email })
+      } else {
+        logout()
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [setSession, setUser, logout])
+
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
