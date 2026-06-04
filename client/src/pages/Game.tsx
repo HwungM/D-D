@@ -22,6 +22,7 @@ import ShopModal from '../components/ShopModal'
 import ActTransition from '../components/ActTransition'
 import JournalTab from '../components/JournalTab'
 import HighStakesChoice from '../components/HighStakesChoice'
+import SidebarErrorBoundary from '../components/SidebarErrorBoundary'
 import { audioManager } from '../lib/audio'
 import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType } from '../../../shared/types'
 
@@ -516,10 +517,12 @@ export default function Game() {
           {showSidebar ? (
             /* Sidebar content */
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.06) transparent' }}>
-              {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
-              {sidebarTab === 'quests' && <QuestLog worldState={worldState} />}
-              {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
-              {sidebarTab === 'journal' && <JournalTab events={events} characterId={characterId} />}
+              <SidebarErrorBoundary tabName={sidebarTab}>
+                {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
+                {sidebarTab === 'quests' && <QuestLog worldState={worldState} />}
+                {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
+                {sidebarTab === 'journal' && <JournalTab events={events} characterId={characterId} />}
+              </SidebarErrorBoundary>
             </div>
           ) : (
             /* Narrative feed */
