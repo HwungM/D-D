@@ -1,5 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-import { useAuthStore } from './store'
+import { api } from './api'
 
 class TtsManager {
   enabled: boolean = true
@@ -28,36 +27,11 @@ class TtsManager {
     if (!this.enabled) return
     this.stop()
 
-    const token = useAuthStore.getState().session?.access_token
-    if (!token) return
-
     try {
-      const response = await fetch(`${API_URL}/api/tts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ text }),
-      })
-
-      if (!response.ok || !response.body) return
+      const response = await api.post('/tts', { text }, { responseType: 'arraybuffer' })
       if (!this.enabled) return
 
-      // Stream response body into chunks — server sends bytes as OpenAI generates them
-      const reader = response.body.getReader()
-      const chunks: Uint8Array[] = []
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        if (!this.enabled) { reader.cancel(); return }
-        chunks.push(value)
-      }
-
-      if (!this.enabled || chunks.length === 0) return
-
-      const blob = new Blob(chunks, { type: 'audio/mpeg' })
+      const blob = new Blob([response.data as ArrayBuffer], { type: 'audio/mpeg' })
       const url = URL.createObjectURL(blob)
       this.currentObjectUrl = url
 
