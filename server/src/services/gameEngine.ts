@@ -452,6 +452,7 @@ export async function processAction(
       diceResult,
       success,
       xpGained,
+      suggestedActions: aiResponse.suggestedActions,
     },
   });
 
