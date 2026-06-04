@@ -2,6 +2,8 @@ import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
 import { processAction, getOpeningScene } from '../services/gameEngine';
+import { generateProactiveEvent } from '../services/openai';
+import type { WorldState, WorldBible, Character } from '../../../shared/types';
 import { z } from 'zod';
 
 const router = Router();
@@ -140,6 +142,71 @@ router.get('/scene/:campaignId/:characterId', requireAuth, async (req: AuthReque
     worldState: campaign?.world_state,
     character,
   });
+});
+
+router.get('/proactive/:campaignId/:characterId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { campaignId, characterId } = req.params;
+
+  // Verify campaign membership
+  const { data: membership } = await supabaseAdmin
+    .from('campaign_members')
+    .select('campaign_id')
+    .eq('campaign_id', campaignId)
+    .eq('user_id', req.user!.id)
+    .single();
+
+  if (!membership) {
+    res.status(403).json({ error: 'Access denied' });
+    return;
+  }
+
+  // Check last story event time — only fire if last event was > 2 minutes ago
+  const { data: lastEvent } = await supabaseAdmin
+    .from('story_events')
+    .select('created_at')
+    .eq('campaign_id', campaignId)
+    .eq('character_id', characterId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (lastEvent) {
+    const elapsed = Date.now() - new Date(lastEvent.created_at).getTime();
+    if (elapsed < 2 * 60 * 1000) {
+      res.status(204).end();
+      return;
+    }
+  }
+
+  const { data: campaign } = await supabaseAdmin.from('campaigns').select('*').eq('id', campaignId).single();
+  const { data: character } = await supabaseAdmin.from('characters').select('*').eq('id', characterId).single();
+
+  if (!campaign || !character) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+
+  try {
+    const result = await generateProactiveEvent(
+      campaign.world_state as WorldState,
+      campaign.world_bible as WorldBible,
+      character as Character
+    );
+
+    // Save to story_events
+    await supabaseAdmin.from('story_events').insert({
+      campaign_id: campaignId,
+      character_id: characterId,
+      event_type: 'narration',
+      content: result.narration,
+      metadata: { isProactiveEvent: true, suggestedActions: result.suggestedActions },
+    });
+
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to generate proactive event';
+    res.status(500).json({ error: message });
+  }
 });
 
 export default router;

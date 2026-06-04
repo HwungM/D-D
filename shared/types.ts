@@ -94,6 +94,10 @@ export interface WorldState {
   globalFlags?: Record<string, boolean | string | number>;
   npcMemory?: NpcMemory[];
   sessionNotes?: string[];
+  campaignJournal?: CampaignJournalEntry[];
+  characterHistory?: CharacterHistoryEntry[];
+  antagonistProgress?: Record<string, { stepIndex: number; lastAction: string; knowsPlayers: boolean }>;
+  sessionCount?: number;
 }
 
 export interface WorldBible {
@@ -104,6 +108,10 @@ export interface WorldBible {
   factions: Faction[];
   era: string;
   magicSystem: string;
+  primaryAntagonist: Antagonist;
+  centralConflict: string;
+  antagonistRoster: Antagonist[];
+  openingHooks: string[];
 }
 
 export interface GeographyEntry {
@@ -186,6 +194,10 @@ export interface ActionResult {
   isMerchant?: boolean;
   advanceAct?: boolean;
   statusEffectChanges?: { add?: StatusEffect[]; remove?: string[] };
+  isHighStakes?: boolean;
+  choiceCards?: HighStakesChoice[];
+  characterHistoryNote?: CharacterHistoryEntry;
+  antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
 }
 
 export interface PartyMember {
@@ -217,6 +229,43 @@ export interface StorySeedOption {
   premise: string;
   tone: string;
   startingLocation: string;
+}
+
+export interface Antagonist {
+  name: string;
+  trueName?: string;
+  type: 'primary' | 'secondary' | 'faction';
+  agenda: string;
+  currentStep: string;
+  planSteps: string[];
+  whatTheyKnow: string;
+  isRevealed: boolean;
+  power: 'minor' | 'moderate' | 'major' | 'legendary';
+  lastAction?: string;
+  allies?: string[];
+  weaknesses?: string[];
+}
+
+export interface CampaignJournalEntry {
+  actNumber: number;
+  sessionNumber: number;
+  summary: string;
+  keyDecisions: string[];
+  majorNPCsIntroduced: string[];
+  createdAt: string;
+}
+
+export interface CharacterHistoryEntry {
+  type: 'choice' | 'ally' | 'enemy' | 'oath' | 'deed' | 'loss';
+  description: string;
+  impact: string;
+  createdAt: string;
+}
+
+export interface HighStakesChoice {
+  title: string;
+  description: string;
+  consequenceHint: string;
 }
 
 export type Race = 'Human' | 'Elf' | 'Dwarf' | 'Halfling' | 'Gnome' | 'Half-Orc' | 'Tiefling' | 'Dragonborn';
