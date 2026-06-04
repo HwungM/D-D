@@ -1,0 +1,227 @@
+import OpenAI from 'openai';
+import dotenv from 'dotenv';
+import { supabaseAdmin } from './supabase';
+import type { Character, WorldState, WorldBible, StorySeedOption } from '../../../shared/types';
+
+dotenv.config();
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const ART_STYLE_PREFIX =
+  'Dark fantasy illustration style. Muted earth tones — deep browns, slate grays, forest greens, ember reds. ' +
+  'High contrast lighting, single dramatic light source. Painterly texture, reminiscent of classic fantasy book cover art from the 1980s and 1990s. ' +
+  'No cel shading, no anime influence, no bright saturated colors. Atmospheric, slightly grim. Highly detailed. ';
+
+const DM_SYSTEM_PROMPT = `You are a master Dungeon Master running a dark fantasy tabletop RPG campaign. 
+Your style is immersive, morally complex, and gritty — inspired by classic fantasy like Gemmell, Abercrombie, and Cook.
+
+TONE RULES:
+- No easy redemption arcs. Actions have lasting consequences.
+- NPCs have hidden motives. Trust is earned, not given.
+- The world is indifferent to the heroes. Victories are pyrrhic, failures are instructive.
+- Magic is rare, costly, and awe-inspiring — never trivial.
+- Death is real. Combat is dangerous. Fear is appropriate.
+- Vivid sensory details: smells, textures, sounds, temperatures.
+- Speak in second person ("You see...", "Before you...").
+- Keep narration to 150-250 words unless the moment demands more.
+
+RESPONSE FORMAT: Always respond with valid JSON matching this schema:
+{
+  "narration": "string — the story text the player sees",
+  "diceRequired": boolean,
+  "diceType": "d4|d6|d8|d10|d12|d20|d100" | null,
+  "diceDC": number | null,
+  "diceDescription": "string describing what the roll determines" | null,
+  "worldStateChanges": object | null,
+  "suggestedActions": ["action1", "action2", "action3"],
+  "sceneImagePrompt": "brief scene description for image generation",
+  "isLevelUp": boolean,
+  "isDeath": boolean,
+  "deathDescription": "string" | null
+}`;
+
+export async function generateNarration(
+  action: string,
+  worldState: WorldState,
+  worldBible: WorldBible,
+  character: Character,
+  recentHistory: string[]
+): Promise<{
+  narration: string;
+  diceRequired: boolean;
+  diceType?: string;
+  diceDC?: number;
+  diceDescription?: string;
+  worldStateChanges?: Partial<WorldState>;
+  suggestedActions: string[];
+  sceneImagePrompt: string;
+  isLevelUp: boolean;
+  isDeath: boolean;
+  deathDescription?: string;
+}> {
+  const worldContext = `
+WORLD BIBLE SUMMARY:
+- Era: ${worldBible.era}
+- Magic: ${worldBible.magicSystem}
+- Factions: ${worldBible.factions.map(f => f.name).join(', ')}
+- Pantheon: ${worldBible.pantheon.map(g => g.name).join(', ')}
+- Tone: ${worldBible.toneRules.slice(0, 2).join('; ')}
+
+CURRENT WORLD STATE:
+- Location: ${worldState.currentLocation || 'Unknown'}
+- Time: ${worldState.timeOfDay || 'unknown'}
+- Weather: ${worldState.weather || 'unclear'}
+
+CHARACTER: ${character.name} (${character.race} ${character.class}, Level ${character.level})
+HP: ${character.hp}/${character.max_hp}
+Gold: ${character.gold}
+Notable inventory: ${character.inventory.slice(0, 3).map(i => i.name).join(', ') || 'nothing special'}
+
+RECENT EVENTS:
+${recentHistory.slice(-5).join('\n')}
+
+PLAYER ACTION: ${action}`;
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: DM_SYSTEM_PROMPT },
+      { role: 'user', content: worldContext },
+    ],
+    temperature: 0.85,
+    response_format: { type: 'json_object' },
+  });
+
+  const content = response.choices[0].message.content || '{}';
+  const parsed = JSON.parse(content);
+
+  return {
+    narration: parsed.narration || 'The world holds its breath...',
+    diceRequired: parsed.diceRequired || false,
+    diceType: parsed.diceType,
+    diceDC: parsed.diceDC,
+    diceDescription: parsed.diceDescription,
+    worldStateChanges: parsed.worldStateChanges,
+    suggestedActions: parsed.suggestedActions || [],
+    sceneImagePrompt: parsed.sceneImagePrompt || '',
+    isLevelUp: parsed.isLevelUp || false,
+    isDeath: parsed.isDeath || false,
+    deathDescription: parsed.deathDescription,
+  };
+}
+
+export async function generateImage(description: string, cacheKey: string): Promise<string> {
+  // Check cache first
+  const { data: cached } = await supabaseAdmin
+    .from('asset_cache')
+    .select('url')
+    .eq('cache_key', cacheKey)
+    .single();
+
+  if (cached?.url) return cached.url;
+
+  const fullPrompt = ART_STYLE_PREFIX + description;
+
+  const response = await openai.images.generate({
+    model: 'dall-e-3',
+    prompt: fullPrompt,
+    n: 1,
+    size: '1024x1024',
+    quality: 'standard',
+  });
+
+  const url = response.data[0]?.url;
+  if (!url) throw new Error('No image URL returned from DALL-E');
+
+  // Cache the result
+  await supabaseAdmin.from('asset_cache').insert({
+    cache_key: cacheKey,
+    url,
+    asset_type: 'scene',
+  });
+
+  return url;
+}
+
+export async function generateCharacterPortrait(
+  name: string,
+  race: string,
+  characterClass: string,
+  backstory?: string
+): Promise<string> {
+  const cacheKey = `portrait-${name}-${race}-${characterClass}`.toLowerCase().replace(/\s+/g, '-');
+
+  const description = `Portrait of ${name}, a ${race} ${characterClass}. ${backstory ? backstory.slice(0, 100) : ''} Fantasy character portrait, face and shoulders, weathered and experienced.`;
+
+  return generateImage(description, cacheKey);
+}
+
+export async function generateStorySeed(): Promise<StorySeedOption[]> {
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a master worldbuilder specializing in dark, gritty fantasy. Generate exactly 4 distinct campaign premises. Respond with valid JSON only.',
+      },
+      {
+        role: 'user',
+        content: `Generate 4 dark fantasy campaign seed options. Each should be distinct in tone and setting.
+Return JSON array:
+[{
+  "id": "seed-1",
+  "title": "Campaign title (3-5 words)",
+  "premise": "2-3 sentence hook. Make it grim, intriguing, morally complex.",
+  "tone": "e.g. 'Political intrigue and betrayal' or 'Cosmic horror and survival'",
+  "startingLocation": "Name of starting city or location"
+}]`,
+      },
+    ],
+    temperature: 0.9,
+    response_format: { type: 'json_object' },
+  });
+
+  const content = response.choices[0].message.content || '{"seeds":[]}';
+  const parsed = JSON.parse(content);
+  return parsed.seeds || parsed || [];
+}
+
+export async function generateWorldBible(storySeed: string): Promise<WorldBible> {
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a master worldbuilder. Create a detailed but consistent world bible for a dark fantasy RPG campaign. Respond with valid JSON only.',
+      },
+      {
+        role: 'user',
+        content: `Create a world bible for this campaign premise: "${storySeed}"
+
+Return JSON matching exactly:
+{
+  "era": "Name of the age or era",
+  "magicSystem": "2-3 sentence description of how magic works in this world",
+  "geography": [
+    {"name": "place name", "description": "2 sentence desc", "type": "city|region|dungeon|wilderness|landmark"}
+  ],
+  "pantheon": [
+    {"name": "god name", "domain": "domain", "alignment": "alignment", "conflict": "their conflict with another deity"}
+  ],
+  "toneRules": ["rule 1", "rule 2", "rule 3", "rule 4"],
+  "forbiddenLoreHooks": ["mystery 1", "mystery 2", "mystery 3", "mystery 4"],
+  "factions": [
+    {"name": "faction name", "publicFace": "what they claim to be", "secretAgenda": "what they actually want", "power": "weak|moderate|strong"}
+  ]
+}
+
+Include 5-7 geography entries, 5-6 gods, exactly 4 tone rules, 3-4 forbidden lore hooks, exactly 3 factions.`,
+      },
+    ],
+    temperature: 0.85,
+    response_format: { type: 'json_object' },
+  });
+
+  const content = response.choices[0].message.content || '{}';
+  return JSON.parse(content) as WorldBible;
+}
