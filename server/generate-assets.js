@@ -96,7 +96,7 @@ function downloadImage(url, filepath) {
 }
 
 async function generateAsset(asset, index, total) {
-  const outputPath = path.join('/home/user/dnd-game/client/public/assets', asset.file);
+  const outputPath = path.join(__dirname, '../client/public/assets', asset.file);
 
   if (fs.existsSync(outputPath)) {
     console.log(`[${index}/${total}] SKIP: ${asset.file}`);
@@ -111,11 +111,10 @@ async function generateAsset(asset, index, total) {
       n: 1,
       size: '1024x1024',
       quality: 'standard',
-      response_format: 'b64_json',
     });
 
-    const b64 = response.data[0].b64_json;
-    fs.writeFileSync(outputPath, Buffer.from(b64, 'base64'));
+    const imageUrl = response.data[0].url;
+    await downloadImage(imageUrl, outputPath);
     console.log(`[${index}/${total}] ✓ ${asset.file}`);
     await new Promise(r => setTimeout(r, 800));
   } catch (err) {

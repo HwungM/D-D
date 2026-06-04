@@ -96,7 +96,7 @@ function downloadImage(url, filepath) {
 }
 
 async function generateAsset(asset, index, total) {
-  const outputPath = path.join('/home/user/dnd-game/client/public/assets', asset.file);
+  const outputPath = path.join(__dirname, '../client/public/assets', asset.file);
 
   if (fs.existsSync(outputPath)) {
     console.log(`[${index}/${total}] SKIP: ${asset.file}`);
