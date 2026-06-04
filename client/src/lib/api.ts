@@ -81,6 +81,12 @@ export const gameApi = {
     api.post('/game/resolve-roll', data),
 }
 
+// TTS
+export const ttsApi = {
+  speak: (text: string, voice?: string) =>
+    api.post('/tts', { text, voice }, { responseType: 'arraybuffer' }),
+}
+
 // Assets
 export const assetApi = {
   generate: (description: string, cacheKey: string, assetType = 'scene') =>

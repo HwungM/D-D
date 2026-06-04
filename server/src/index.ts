@@ -6,6 +6,7 @@ import campaignRoutes from './routes/campaigns';
 import characterRoutes from './routes/characters';
 import gameRoutes from './routes/game';
 import assetRoutes from './routes/assets';
+import ttsRoutes from './routes/tts';
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.use('/api/campaigns', campaignRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/tts', ttsRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
