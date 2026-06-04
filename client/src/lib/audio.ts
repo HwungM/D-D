@@ -1,5 +1,3 @@
-const AMBIENT_URL = '/audio/ambient.mp3'
-
 const GAMEPLAY_TRACKS = [
   '/assets/music/4a24cd5e-Sunrise_of_Flutes.mp3',
   '/assets/music/8648942c-Glowing_in_the_Mist.mp3',
@@ -9,7 +7,30 @@ const GAMEPLAY_TRACKS = [
   '/assets/music/cafdc194-Enchantress.mp3',
   '/assets/music/4aae52b3-Dorian_Concept__Space_II_Official_Video.mp3',
   '/assets/music/181876ab-Ancient_Stones.mp3',
+  '/assets/music/a6744c0c-Hans_Neusidler__Wascha_Mesa__Lute__Luth.mp3',
+  '/assets/music/3e5e704a-Baldurs_Gate_2_OST__Romance_I_JZC5Y6VNFXA.mp3',
+  '/assets/music/c773bdad-The_Streets_of_Whiterun.mp3',
+  '/assets/music/3b5c7d8c-Anonymous_Medieval_Song_No.1_by_Allan_Alexander__lute_and_treble_viol.mp3',
+  '/assets/music/840874c1-Lost_Woods_Harp_Lullaby_Version.mp3',
 ]
+
+const AMBIENT_TRACKS: Record<string, string[]> = {
+  dungeon: ['/assets/music/65a3d146-dungeon_ambience_loop.mp3'],
+  forest: [
+    '/assets/music/9a6ab247-forest_sounds_wind_and_birds.mp3',
+    '/assets/music/65440955-river_in_the_forest.mp3',
+    '/assets/music/fccd0b0d-calm_stream_in_forest.mp3',
+    '/assets/music/2ea64949-walking_through_forest_sound_1.20.mp3',
+  ],
+  default: ['/audio/ambient.mp3'],
+}
+
+function detectAmbientType(location: string): keyof typeof AMBIENT_TRACKS {
+  const l = location.toLowerCase()
+  if (/dungeon|cave|crypt|tomb|mine|underground|cellar|sewer/.test(l)) return 'dungeon'
+  if (/forest|wood|grove|jungle|wilderness|path|trail|tree|river|stream/.test(l)) return 'forest'
+  return 'default'
+}
 
 type AudioTrack = 'combat-1' | 'combat-2' | 'combat-3' | 'victory' | 'level-up'
 
@@ -18,6 +39,7 @@ class AudioManager {
   private currentMusic: HTMLAudioElement | null = null
   private ambientTrack: HTMLAudioElement | null = null
   private gameplayTrack: HTMLAudioElement | null = null
+  private currentAmbientType = 'default'
   private musicEnabled = true
   private sfxEnabled = true
   private musicVolume = 0.4
@@ -62,15 +84,26 @@ class AudioManager {
     }, 50)
   }
 
-  startAmbient() {
+  startAmbient(location = '') {
     if (!this.musicEnabled) return
-    if (!this.ambientTrack) {
-      this.ambientTrack = new Audio(AMBIENT_URL)
-      this.ambientTrack.loop = true
-      this.ambientTrack.volume = 0
+    const type = location ? detectAmbientType(location) : this.currentAmbientType
+    const srcs = AMBIENT_TRACKS[type] ?? AMBIENT_TRACKS.default
+    const src = srcs[Math.floor(Math.random() * srcs.length)]
+
+    if (type !== this.currentAmbientType || !this.ambientTrack || this.ambientTrack.paused) {
+      this.currentAmbientType = type
+      if (this.ambientTrack && !this.ambientTrack.paused) {
+        this.fadeOut(this.ambientTrack, 2000).then(() => {
+          this.ambientTrack = new Audio(src)
+          this.ambientTrack.loop = true
+          this.fadeIn(this.ambientTrack, this.ambientVolume, 3000)
+        })
+      } else {
+        this.ambientTrack = new Audio(src)
+        this.ambientTrack.loop = true
+        this.fadeIn(this.ambientTrack, this.ambientVolume, 3000)
+      }
     }
-    if (!this.ambientTrack.paused) return
-    this.fadeIn(this.ambientTrack, this.ambientVolume, 3000)
   }
 
   private async pauseAmbient() {
@@ -78,9 +111,13 @@ class AudioManager {
     await this.fadeOut(this.ambientTrack, 1000)
   }
 
-  private async resumeAmbient() {
+  private resumeAmbient() {
     if (!this.musicEnabled || !this.ambientTrack) return
     this.fadeIn(this.ambientTrack, this.ambientVolume, 2000)
+  }
+
+  setLocation(location: string) {
+    this.startAmbient(location)
   }
 
   startGameplay() {
@@ -180,7 +217,9 @@ class AudioManager {
     if (!this.musicEnabled) {
       this.stopMusic()
       this.stopGameplay()
+      if (this.ambientTrack) this.fadeOut(this.ambientTrack)
     } else {
+      this.startAmbient()
       this.startGameplay()
     }
     return this.musicEnabled
