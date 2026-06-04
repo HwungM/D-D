@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { RACE_STAT_BONUSES, CLASS_BASE_HP } from '../../../shared/types';
 import type { CharacterStats, Race, CharacterClass } from '../../../shared/types';
 import { rollDice } from '../services/gameEngine';
+import { getAbilityForLevel } from '../../../shared/classAbilities';
 
 const router = Router();
 
@@ -80,6 +81,10 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
     }
   }
 
+  // Grant level 1 class ability
+  const level1Ability = getAbilityForLevel(characterClass, 1);
+  const startingAbilities = level1Ability ? [level1Ability] : [];
+
   const { data: character, error } = await supabaseAdmin
     .from('characters')
     .insert({
@@ -93,7 +98,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
       hp: maxHp,
       max_hp: maxHp,
       portrait_url: portraitUrl,
-      abilities: [],
+      abilities: startingAbilities,
       inventory: [
         { id: '1', name: 'Traveler\'s Pack', description: 'Basic supplies for adventure', quantity: 1, type: 'misc' },
       ],

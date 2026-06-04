@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { supabaseAdmin } from './supabase';
 import type { Character, WorldState, WorldBible, StorySeedOption } from '../../../shared/types';
+import { CLASS_ABILITIES } from '../../../shared/classAbilities';
 
 dotenv.config();
 
@@ -37,7 +38,10 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "sceneImagePrompt": "brief scene description for image generation",
   "isLevelUp": boolean,
   "isDeath": boolean,
-  "deathDescription": "string" | null
+  "deathDescription": "string" | null,
+  "isCombat": boolean,
+  "isVictory": boolean,
+  "enemyName": "string | null"
 }`;
 
 export async function generateNarration(
@@ -58,7 +62,40 @@ export async function generateNarration(
   isLevelUp: boolean;
   isDeath: boolean;
   deathDescription?: string;
+  isCombat: boolean;
+  isVictory: boolean;
+  enemyName?: string;
 }> {
+  // Build unusual race/class combo note
+  const unusualCombos: Record<string, string[]> = {
+    Barbarian: ['Gnome', 'Elf'],
+    Wizard: ['Half-Orc', 'Dragonborn'],
+    Paladin: ['Tiefling', 'Half-Orc'],
+    Bard: ['Dwarf', 'Half-Orc'],
+    Monk: ['Half-Orc', 'Dragonborn'],
+  };
+  const unusualNote = unusualCombos[character.class]?.includes(character.race)
+    ? `\n⚠ UNUSUAL COMBO: ${character.race} ${character.class} — the DM may acknowledge this in-world with subtle reactions from NPCs.`
+    : '';
+
+  // Build abilities context
+  const classAbilityMap = CLASS_ABILITIES[character.class] || {};
+  const allAbilityNames = Object.values(classAbilityMap).map(a => a.name);
+  const knownAbilities = character.abilities?.map(a => a.name) || [];
+  const abilitiesContext = knownAbilities.length > 0
+    ? `Known abilities: ${knownAbilities.join(', ')}`
+    : `No special abilities yet (class abilities to come: ${allAbilityNames.slice(0, 2).join(', ')}, ...)`;
+
+  // Build stat context
+  const s = character.stats;
+  const statHints = [
+    s.str >= 15 ? `STR ${s.str} → can force doors, break obstacles, intimidate physically` : s.str <= 8 ? `STR ${s.str} → avoid purely physical brute-force options` : null,
+    s.dex >= 15 ? `DEX ${s.dex} → can sneak, pick locks, acrobatics` : null,
+    s.int >= 15 ? `INT ${s.int} → can recall lore, solve puzzles, identify magic` : s.int <= 8 ? `INT ${s.int} → avoid complex lore options in suggestedActions` : null,
+    s.wis >= 15 ? `WIS ${s.wis} → perceptive, reads people well` : null,
+    s.cha >= 15 ? `CHA ${s.cha} → can persuade, deceive, perform, intimidate socially` : s.cha <= 8 ? `CHA ${s.cha} → avoid diplomacy/charm options in suggestedActions` : null,
+  ].filter(Boolean).join('; ');
+
   const worldContext = `
 WORLD BIBLE SUMMARY:
 - Era: ${worldBible.era}
@@ -72,10 +109,12 @@ CURRENT WORLD STATE:
 - Time: ${worldState.timeOfDay || 'unknown'}
 - Weather: ${worldState.weather || 'unclear'}
 
-CHARACTER: ${character.name} (${character.race} ${character.class}, Level ${character.level})
+CHARACTER: ${character.name} (${character.race} ${character.class}, Level ${character.level})${unusualNote}
 HP: ${character.hp}/${character.max_hp}
 Gold: ${character.gold}
 Notable inventory: ${character.inventory.slice(0, 3).map(i => i.name).join(', ') || 'nothing special'}
+${abilitiesContext}
+STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
 
 RECENT EVENTS:
 ${recentHistory.slice(-5).join('\n')}
@@ -107,6 +146,9 @@ PLAYER ACTION: ${action}`;
     isLevelUp: parsed.isLevelUp || false,
     isDeath: parsed.isDeath || false,
     deathDescription: parsed.deathDescription,
+    isCombat: parsed.isCombat || false,
+    isVictory: parsed.isVictory || false,
+    enemyName: parsed.enemyName || undefined,
   };
 }
 

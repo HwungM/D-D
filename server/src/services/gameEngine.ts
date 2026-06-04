@@ -2,6 +2,7 @@ import { supabaseAdmin } from './supabase';
 import { generateNarration } from './openai';
 import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent } from '../../../shared/types';
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
+import { getAbilityForLevel } from '../../../shared/classAbilities';
 
 export function rollDice(sides: number, modifier: number = 0, count: number = 1): DiceRollResult {
   const rolls: number[] = [];
@@ -78,6 +79,15 @@ export async function applyConsequences(
       updates.level = levelCheck.newLevel;
       updates.max_hp = currentCharacter.max_hp + (levelCheck.hpGain ?? 0);
       updates.hp = Math.min(currentCharacter.hp + (levelCheck.hpGain ?? 0), updates.max_hp);
+      // Grant level-up ability if milestone
+      const newAbility = getAbilityForLevel(currentCharacter.class, levelCheck.newLevel);
+      if (newAbility) {
+        const existingAbilities = currentCharacter.abilities || [];
+        const alreadyHas = existingAbilities.some(a => a.name === newAbility.name);
+        if (!alreadyHas) {
+          updates.abilities = [...existingAbilities, newAbility];
+        }
+      }
     }
   }
 
@@ -172,6 +182,7 @@ export async function processAction(
   const xpGained = success ? Math.floor(Math.random() * 20) + 10 : 5;
 
   // Apply consequences
+  const prevLevel = (character as Character).level;
   const { updatedCharacter, updatedWorldState } = await applyConsequences(
     characterId,
     {
@@ -185,6 +196,10 @@ export async function processAction(
     character as Character,
     { id: campaignId, world_state: campaign.world_state as WorldState }
   );
+
+  // Determine if a new ability was granted on level-up
+  const newLevelAfter = updatedCharacter.level;
+  const grantedAbility = newLevelAfter > prevLevel ? getAbilityForLevel(character.class, newLevelAfter) ?? undefined : undefined;
 
   // Log player action and DM narration as separate events
   await supabaseAdmin.from('story_events').insert({
@@ -221,6 +236,10 @@ export async function processAction(
     suggestedActions: aiResponse.suggestedActions,
     isLevelUp: aiResponse.isLevelUp,
     isDeath: aiResponse.isDeath,
+    isCombat: aiResponse.isCombat,
+    isVictory: aiResponse.isVictory,
+    enemyName: aiResponse.enemyName,
+    newAbility: grantedAbility,
   };
 }
 

@@ -8,8 +8,10 @@ import CharacterSheet from '../components/CharacterSheet'
 import NarratorBox from '../components/NarratorBox'
 import DiceRoll from '../components/DiceRoll'
 import AudioControls from '../components/AudioControls'
+import LevelUpScreen from '../components/LevelUpScreen'
+import EnemyPopup from '../components/EnemyPopup'
 import { audioManager } from '../lib/audio'
-import type { Character, StoryEvent, ActionResult } from '../../../shared/types'
+import type { Ability, Character, StoryEvent, ActionResult } from '../../../shared/types'
 
 // Handle old DB format: "ACTION: ...\nNARRATION: ..." stored as single event
 function normalizeEvents(events: StoryEvent[]): StoryEvent[] {
@@ -57,6 +59,17 @@ export default function Game() {
   const narratorRef = useRef<HTMLDivElement>(null)
   // Track IDs from history load — these display instantly, no animation
   const historicalIds = useRef<Set<string>>(new Set())
+
+  // Level up overlay
+  const [showLevelUp, setShowLevelUp] = useState(false)
+  const [levelUpData, setLevelUpData] = useState<{ level: number; hpGained: number; newAbility: Ability | null; characterName: string } | null>(null)
+
+  // Enemy encounter popup
+  const [showEnemyPopup, setShowEnemyPopup] = useState(false)
+  const [enemyPopupName, setEnemyPopupName] = useState('')
+
+  // Combat mode
+  const [inCombat, setInCombat] = useState(false)
 
   useEffect(() => {
     audioManager.startAmbient()
@@ -143,8 +156,33 @@ export default function Game() {
       if (result.diceRoll) setShowDice(true)
       if (result.isCombat) audioManager.playCombat()
       if (result.isVictory) audioManager.playVictory()
-      if (result.levelUp) audioManager.playLevelUp()
+      if (result.isLevelUp) audioManager.playLevelUp()
       if (result.loot?.length) audioManager.playItemPickup()
+
+      // Combat state tracking
+      if (result.isCombat && result.enemyName) {
+        setInCombat(true)
+        setEnemyPopupName(result.enemyName)
+        setShowEnemyPopup(true)
+      }
+      if (result.isVictory) {
+        setInCombat(false)
+      }
+
+      // Level up overlay
+      if (result.isLevelUp && result.characterChanges?.level && currentCharacter) {
+        const newLevel = result.characterChanges.level as number
+        const oldMaxHp = currentCharacter.max_hp
+        const newMaxHp = (result.characterChanges as Partial<Character>).max_hp ?? oldMaxHp
+        const hpGained = newMaxHp - oldMaxHp
+        setLevelUpData({
+          level: newLevel,
+          hpGained: hpGained > 0 ? hpGained : 1,
+          newAbility: result.newAbility ?? null,
+          characterName: currentCharacter.name,
+        })
+        setShowLevelUp(true)
+      }
 
       addEvent({
         id: `temp-dm-${Date.now()}`,
@@ -224,6 +262,25 @@ export default function Game() {
 
   return (
     <div className="h-screen bg-slate-950 text-parchment-100 flex flex-col overflow-hidden">
+      {/* Level Up overlay */}
+      {showLevelUp && levelUpData && (
+        <LevelUpScreen
+          level={levelUpData.level}
+          hpGained={levelUpData.hpGained}
+          newAbility={levelUpData.newAbility}
+          characterName={levelUpData.characterName}
+          onContinue={() => setShowLevelUp(false)}
+        />
+      )}
+
+      {/* Enemy encounter popup */}
+      {showEnemyPopup && (
+        <EnemyPopup
+          enemyName={enemyPopupName}
+          onDismiss={() => setShowEnemyPopup(false)}
+        />
+      )}
+
       {/* Top bar */}
       <header className="border-b border-slate-800/60 px-4 py-2 flex items-center justify-between shrink-0 bg-slate-950/95 backdrop-blur-sm">
         <div className="flex items-center gap-3">
@@ -292,6 +349,39 @@ export default function Game() {
               modifier={lastActionResult.diceRoll.modifier}
               label={lastActionResult.diceRoll.description || 'Roll'}
             />
+          )}
+
+          {/* Combat active banner */}
+          {inCombat && (
+            <div
+              className="shrink-0 flex items-center justify-center gap-2 py-1.5 text-xs font-serif uppercase tracking-widest text-red-400 border-b border-red-800/40"
+              style={{
+                background: 'rgba(127,29,29,0.15)',
+                animation: 'pulse 2s ease-in-out infinite',
+              }}
+            >
+              <span>⚔</span>
+              <span>COMBAT ACTIVE — Fight or flee</span>
+              <span>⚔</span>
+            </div>
+          )}
+
+          {/* Combat banner */}
+          {inCombat && (
+            <div
+              className="shrink-0 flex items-center justify-between px-4 py-1.5"
+              style={{
+                background: 'linear-gradient(90deg, rgba(127,29,29,0.4), rgba(185,28,28,0.25), rgba(127,29,29,0.4))',
+                borderTop: '1px solid rgba(220,38,38,0.4)',
+                borderBottom: '1px solid rgba(220,38,38,0.4)',
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                <span className="text-xs uppercase tracking-widest text-red-400 font-sans">Combat Active</span>
+              </div>
+              <span className="text-xs text-red-600/70 font-serif italic">Fight, flee, or find another way</span>
+            </div>
           )}
 
           {/* Story feed */}

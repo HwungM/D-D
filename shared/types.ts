@@ -143,6 +143,11 @@ export interface ActionResult {
   suggestedActions?: string[];
   isLevelUp?: boolean;
   isDeath?: boolean;
+  isCombat?: boolean;
+  isVictory?: boolean;
+  enemyName?: string;
+  newAbility?: Ability;
+  loot?: InventoryItem[];
 }
 
 export interface SceneData {
