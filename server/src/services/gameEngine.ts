@@ -43,6 +43,7 @@ export async function applyConsequences(
     xpGained?: number;
     hpChange?: number;
     goldChange?: number;
+    loot?: { id: string; name: string; description: string; quantity: number; type: string; value?: number }[];
     diceResult?: DiceRollResult;
     diceDC?: number;
   },
@@ -69,6 +70,30 @@ export async function applyConsequences(
   // Apply gold changes
   if (actionResult.goldChange !== undefined) {
     updates.gold = Math.max(0, currentCharacter.gold + actionResult.goldChange);
+  }
+
+  // Apply loot to inventory
+  if (actionResult.loot && actionResult.loot.length > 0) {
+    const existingInventory = currentCharacter.inventory || [];
+    const newItems = actionResult.loot.map(item => ({
+      id: item.id || crypto.randomUUID(),
+      name: item.name,
+      description: item.description,
+      quantity: item.quantity || 1,
+      type: item.type as 'weapon' | 'armor' | 'potion' | 'misc' | 'key',
+      value: item.value,
+    }));
+    // Stack items with same name
+    const merged = [...existingInventory];
+    for (const newItem of newItems) {
+      const existing = merged.find(i => i.name.toLowerCase() === newItem.name.toLowerCase());
+      if (existing) {
+        existing.quantity += newItem.quantity;
+      } else {
+        merged.push(newItem);
+      }
+    }
+    updates.inventory = merged;
   }
 
   // Apply XP and check level up
@@ -191,7 +216,9 @@ export async function processAction(
       isDeath: aiResponse.isDeath,
       deathDescription: aiResponse.deathDescription,
       xpGained,
-      hpChange: aiResponse.isDeath ? -character.max_hp : undefined,
+      hpChange: aiResponse.isDeath ? -character.max_hp : aiResponse.hpChange,
+      goldChange: aiResponse.goldChange,
+      loot: aiResponse.loot,
     },
     character as Character,
     { id: campaignId, world_state: campaign.world_state as WorldState }
@@ -231,6 +258,7 @@ export async function processAction(
       xp: updatedCharacter.xp,
       level: updatedCharacter.level,
       gold: updatedCharacter.gold,
+      inventory: updatedCharacter.inventory,
     },
     sceneImagePrompt: aiResponse.sceneImagePrompt,
     suggestedActions: aiResponse.suggestedActions,
@@ -240,6 +268,7 @@ export async function processAction(
     isVictory: aiResponse.isVictory,
     enemyName: aiResponse.enemyName,
     newAbility: grantedAbility,
+    loot: aiResponse.loot as ActionResult['loot'],
   };
 }
 

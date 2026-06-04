@@ -13,7 +13,7 @@ const ART_STYLE_PREFIX =
   'High contrast lighting, single dramatic light source. Painterly texture, reminiscent of classic fantasy book cover art from the 1980s and 1990s. ' +
   'No cel shading, no anime influence, no bright saturated colors. Atmospheric, slightly grim. Highly detailed. ';
 
-const DM_SYSTEM_PROMPT = `You are a master Dungeon Master running a dark fantasy tabletop RPG campaign. 
+const DM_SYSTEM_PROMPT = `You are a master Dungeon Master running a dark fantasy tabletop RPG campaign.
 Your style is immersive, morally complex, and gritty — inspired by classic fantasy like Gemmell, Abercrombie, and Cook.
 
 TONE RULES:
@@ -25,6 +25,13 @@ TONE RULES:
 - Vivid sensory details: smells, textures, sounds, temperatures.
 - Speak in second person ("You see...", "Before you...").
 - Keep narration to 150-250 words unless the moment demands more.
+
+LOOT RULES:
+- Only award loot when narratively earned: defeating enemies, looting bodies/containers, finding hidden caches, completing quests.
+- 1-3 items max per loot event. Make items feel meaningful and setting-appropriate.
+- Item types: weapon, armor, potion, misc, key
+- goldChange: positive integer when earning gold, negative when spending. null if no gold change.
+- hpChange: positive to heal, negative for damage taken. null if no HP change.
 
 RESPONSE FORMAT: Always respond with valid JSON matching this schema:
 {
@@ -41,7 +48,10 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "deathDescription": "string" | null,
   "isCombat": boolean,
   "isVictory": boolean,
-  "enemyName": "string | null"
+  "enemyName": "string | null",
+  "loot": [{"id": "unique-id", "name": "item name", "description": "one sentence", "quantity": 1, "type": "weapon|armor|potion|misc|key", "value": 10}] | null,
+  "goldChange": number | null,
+  "hpChange": number | null
 }`;
 
 export async function generateNarration(
@@ -65,6 +75,9 @@ export async function generateNarration(
   isCombat: boolean;
   isVictory: boolean;
   enemyName?: string;
+  loot?: { id: string; name: string; description: string; quantity: number; type: string; value?: number }[];
+  goldChange?: number;
+  hpChange?: number;
 }> {
   // Build unusual race/class combo note
   const unusualCombos: Record<string, string[]> = {
@@ -149,6 +162,9 @@ PLAYER ACTION: ${action}`;
     isCombat: parsed.isCombat || false,
     isVictory: parsed.isVictory || false,
     enemyName: parsed.enemyName || undefined,
+    loot: parsed.loot || undefined,
+    goldChange: parsed.goldChange ?? undefined,
+    hpChange: parsed.hpChange ?? undefined,
   };
 }
 

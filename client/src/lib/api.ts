@@ -32,6 +32,10 @@ export const campaignApi = {
   list: () => api.get('/campaigns'),
   get: (id: string) => api.get(`/campaigns/${id}`),
   join: (id: string) => api.post(`/campaigns/${id}/join`),
+  createInvite: (campaignId: string) => api.post(`/campaigns/${campaignId}/invite`),
+  getInvite: (code: string) => api.get(`/campaigns/invite/${code}`),
+  acceptInvite: (code: string) => api.post(`/campaigns/invite/${code}/accept`),
+  getParty: (campaignId: string) => api.get(`/campaigns/${campaignId}/party`),
 }
 
 // Characters
@@ -55,8 +59,8 @@ export const gameApi = {
     api.post('/game/start', { characterId, campaignId }),
   action: (characterId: string, campaignId: string, action: string) =>
     api.post('/game/action', { characterId, campaignId, action }),
-  getHistory: (campaignId: string, characterId: string, limit?: number) =>
-    api.get(`/game/history/${campaignId}/${characterId}${limit ? `?limit=${limit}` : ''}`),
+  getHistory: (campaignId: string, characterId: string, limit?: number, party?: boolean) =>
+    api.get(`/game/history/${campaignId}/${characterId}?limit=${limit || 50}${party ? '&party=true' : ''}`),
   getScene: (campaignId: string, characterId: string) =>
     api.get(`/game/scene/${campaignId}/${characterId}`),
 }

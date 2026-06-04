@@ -142,4 +142,141 @@ router.post('/:id/join', requireAuth, async (req: AuthRequest, res: Response): P
   res.json({ message: 'Joined campaign' });
 });
 
+// Create an invite link for a campaign
+router.post('/:id/invite', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { id } = req.params;
+
+  // Verify membership
+  const { data: membership } = await supabaseAdmin
+    .from('campaign_members')
+    .select('campaign_id')
+    .eq('campaign_id', id)
+    .eq('user_id', req.user!.id)
+    .single();
+
+  if (!membership) {
+    res.status(403).json({ error: 'Not a campaign member' });
+    return;
+  }
+
+  // Generate unique invite code
+  const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+  const { data: invite, error } = await supabaseAdmin
+    .from('party_invites')
+    .insert({
+      campaign_id: id,
+      invited_by: req.user!.id,
+      invite_code: inviteCode,
+    })
+    .select()
+    .single();
+
+  if (error || !invite) {
+    res.status(500).json({ error: 'Failed to create invite' });
+    return;
+  }
+
+  res.json({ invite });
+});
+
+// Accept invite by code
+router.post('/invite/:code/accept', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { code } = req.params;
+
+  const { data: invite } = await supabaseAdmin
+    .from('party_invites')
+    .select('*')
+    .eq('invite_code', code)
+    .single();
+
+  if (!invite) {
+    res.status(404).json({ error: 'Invite not found' });
+    return;
+  }
+
+  if (new Date(invite.expires_at) < new Date()) {
+    res.status(410).json({ error: 'Invite has expired' });
+    return;
+  }
+
+  // Check already a member
+  const { data: existing } = await supabaseAdmin
+    .from('campaign_members')
+    .select('campaign_id')
+    .eq('campaign_id', invite.campaign_id)
+    .eq('user_id', req.user!.id)
+    .single();
+
+  if (!existing) {
+    await supabaseAdmin.from('campaign_members').insert({
+      campaign_id: invite.campaign_id,
+      user_id: req.user!.id,
+    });
+  }
+
+  const { data: campaign } = await supabaseAdmin
+    .from('campaigns')
+    .select('*')
+    .eq('id', invite.campaign_id)
+    .single();
+
+  res.json({ campaign });
+});
+
+// Get invite info (preview before accepting)
+router.get('/invite/:code', async (req, res: Response): Promise<void> => {
+  const { code } = req.params;
+
+  const { data: invite } = await supabaseAdmin
+    .from('party_invites')
+    .select('*, campaigns(name, story_seed), profiles(username)')
+    .eq('invite_code', code)
+    .single();
+
+  if (!invite) {
+    res.status(404).json({ error: 'Invite not found' });
+    return;
+  }
+
+  res.json({ invite });
+});
+
+// Get party members for a campaign
+router.get('/:id/party', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { id } = req.params;
+
+  const { data: members } = await supabaseAdmin
+    .from('campaign_members')
+    .select('user_id, profiles(username)')
+    .eq('campaign_id', id);
+
+  if (!members) {
+    res.json({ members: [] });
+    return;
+  }
+
+  // Get active character for each member
+  const partyData = await Promise.all(
+    members.map(async (m: { user_id: string; profiles: { username: string } | null }) => {
+      const { data: chars } = await supabaseAdmin
+        .from('characters')
+        .select('*')
+        .eq('campaign_id', id)
+        .eq('user_id', m.user_id)
+        .eq('is_alive', true)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      return {
+        userId: m.user_id,
+        username: (m.profiles as { username: string } | null)?.username || 'Unknown',
+        character: chars?.[0] || null,
+      };
+    })
+  );
+
+  res.json({ members: partyData });
+});
+
 export default router;

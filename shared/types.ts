@@ -150,6 +150,21 @@ export interface ActionResult {
   loot?: InventoryItem[];
 }
 
+export interface PartyMember {
+  userId: string;
+  username: string;
+  character: Character;
+}
+
+export interface PartyInvite {
+  id: string;
+  campaign_id: string;
+  invited_by: string;
+  invite_code: string;
+  expires_at: string;
+  created_at: string;
+}
+
 export interface SceneData {
   narrative: string;
   imageUrl?: string;

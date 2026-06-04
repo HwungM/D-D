@@ -73,28 +73,35 @@ router.post('/start', requireAuth, async (req: AuthRequest, res: Response): Prom
 
 router.get('/history/:campaignId/:characterId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { campaignId, characterId } = req.params;
-  const limit = Math.min(parseInt(req.query.limit as string || '20', 10), 100);
+  const limit = Math.min(parseInt(req.query.limit as string || '50', 10), 200);
+  const partyMode = req.query.party === 'true';
 
-  // Verify character ownership
-  const { data: character } = await supabaseAdmin
-    .from('characters')
-    .select('user_id')
-    .eq('id', characterId)
+  // Verify campaign membership
+  const { data: membership } = await supabaseAdmin
+    .from('campaign_members')
+    .select('campaign_id')
+    .eq('campaign_id', campaignId)
     .eq('user_id', req.user!.id)
     .single();
 
-  if (!character) {
+  if (!membership) {
     res.status(403).json({ error: 'Access denied' });
     return;
   }
 
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('story_events')
     .select('*')
     .eq('campaign_id', campaignId)
-    .eq('character_id', characterId)
     .order('created_at', { ascending: true })
     .limit(limit);
+
+  // In solo mode only return this character's events; in party mode return all
+  if (!partyMode) {
+    query = query.eq('character_id', characterId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     res.status(500).json({ error: 'Failed to fetch history' });

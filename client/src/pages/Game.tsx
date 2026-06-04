@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { gameApi, assetApi } from '../lib/api'
-import { useGameStore } from '../lib/store'
+import { gameApi, assetApi, campaignApi } from '../lib/api'
+import { useGameStore, useAuthStore } from '../lib/store'
+import { createClient } from '@supabase/supabase-js'
 import SceneDisplay from '../components/SceneDisplay'
 import ActionPanel from '../components/ActionPanel'
 import CharacterSheet from '../components/CharacterSheet'
@@ -10,8 +11,14 @@ import DiceRoll from '../components/DiceRoll'
 import AudioControls from '../components/AudioControls'
 import LevelUpScreen from '../components/LevelUpScreen'
 import EnemyPopup from '../components/EnemyPopup'
+import LootPopup from '../components/LootPopup'
+import PartyPanel from '../components/PartyPanel'
+import InviteModal from '../components/InviteModal'
 import { audioManager } from '../lib/audio'
-import type { Ability, Character, StoryEvent, ActionResult } from '../../../shared/types'
+import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember } from '../../../shared/types'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 function normalizeEvents(events: StoryEvent[]): StoryEvent[] {
   const result: StoryEvent[] = []
@@ -44,6 +51,7 @@ const DEFAULT_SCENES = [
 export default function Game() {
   const { campaignId, characterId } = useParams<{ campaignId: string; characterId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuthStore()
   const {
     currentCharacter, setCharacter, setLastActionResult, lastActionResult,
     isLoading, setLoading, currentSceneImage, setSceneImage, events, setEvents, addEvent,
@@ -61,10 +69,25 @@ export default function Game() {
   const [enemyPopupName, setEnemyPopupName] = useState('')
   const [inCombat, setInCombat] = useState(false)
 
+  const [lootItems, setLootItems] = useState<InventoryItem[]>([])
+  const [lootGold, setLootGold] = useState<number | undefined>()
+  const [showLoot, setShowLoot] = useState(false)
+
+  const [partyMembers, setPartyMembers] = useState<PartyMember[]>([])
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [campaignName, setCampaignName] = useState('')
+
   useEffect(() => {
     audioManager.startAmbient()
     document.addEventListener('click', () => audioManager.startAmbient(), { once: true })
   }, [])
+
+  const refreshParty = useCallback(() => {
+    if (!campaignId) return
+    campaignApi.getParty(campaignId).then(({ data }) => {
+      setPartyMembers(data.members || [])
+    }).catch(() => {})
+  }, [campaignId])
 
   useEffect(() => {
     if (!campaignId || !characterId) return
@@ -72,13 +95,45 @@ export default function Game() {
       if (data.character) setCharacter(data.character as Character)
       if (!currentSceneImage) setSceneImage(DEFAULT_SCENES[Math.floor(Math.random() * DEFAULT_SCENES.length)])
     })
-    gameApi.getHistory(campaignId, characterId, 50).then(({ data }) => {
+    gameApi.getHistory(campaignId, characterId, 50, true).then(({ data }) => {
       const loaded: StoryEvent[] = data.events || []
       historicalIds.current = new Set(loaded.map(e => e.id))
       setEvents(loaded)
       if (loaded.length > 0) setStarted(true)
     })
+    campaignApi.get(campaignId).then(({ data }) => {
+      setCampaignName(data.campaign.name)
+    }).catch(() => {})
+    refreshParty()
   }, [campaignId, characterId])
+
+  // Supabase Realtime
+  useEffect(() => {
+    if (!campaignId || !supabaseUrl || !supabaseAnonKey) return
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+    const channel = supabase
+      .channel(`campaign:${campaignId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'story_events', filter: `campaign_id=eq.${campaignId}` },
+        (payload) => {
+          const newEvent = payload.new as StoryEvent
+          if (newEvent.character_id && newEvent.character_id !== characterId) {
+            addEvent(newEvent)
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'characters', filter: `campaign_id=eq.${campaignId}` },
+        () => { refreshParty() }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [campaignId, characterId, addEvent, refreshParty])
 
   useEffect(() => {
     if (narratorRef.current) narratorRef.current.scrollTop = narratorRef.current.scrollHeight
@@ -141,6 +196,15 @@ export default function Game() {
       }
       if (result.isVictory) setInCombat(false)
 
+      if ((result.loot && result.loot.length > 0) || (result.characterChanges?.gold && currentCharacter && result.characterChanges.gold > currentCharacter.gold)) {
+        const goldGained = result.characterChanges?.gold !== undefined && currentCharacter
+          ? (result.characterChanges.gold as number) - currentCharacter.gold
+          : undefined
+        setLootItems((result.loot as InventoryItem[]) || [])
+        setLootGold(goldGained && goldGained > 0 ? goldGained : undefined)
+        setShowLoot(true)
+      }
+
       if (result.isLevelUp && result.characterChanges?.level && currentCharacter) {
         const newLevel = result.characterChanges.level as number
         const newMaxHp = (result.characterChanges as Partial<Character>).max_hp ?? currentCharacter.max_hp
@@ -168,6 +232,7 @@ export default function Game() {
         assetApi.generate(result.sceneImagePrompt, `scene-${campaignId}-${Date.now()}`).then(({ data: img }) => setSceneImage(img.url)).catch(() => {})
       }
       if (result.isDeath) setTimeout(() => navigate('/dashboard'), 5000)
+      refreshParty()
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
@@ -194,9 +259,10 @@ export default function Game() {
     )
   }
 
+  const otherPartyMembers = partyMembers.filter(m => m.userId !== user?.id)
+
   return (
     <div className="h-screen bg-slate-950 text-parchment-100 flex flex-col overflow-hidden">
-      {/* Header */}
       <header className="border-b border-slate-800/60 px-4 py-2 flex items-center justify-between shrink-0 bg-slate-950/95 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/dashboard')} className="text-slate-600 hover:text-slate-300 text-sm transition-colors font-serif">← Leave</button>
@@ -222,25 +288,31 @@ export default function Game() {
         </div>
         <div className="flex items-center gap-2">
           <AudioControls />
+          {campaignId && (
+            <button onClick={() => setShowInviteModal(true)} className="text-xs px-3 py-1 border border-slate-700 text-slate-400 hover:border-amber-600/50 hover:text-amber-400 transition-colors font-serif">
+              + Invite
+            </button>
+          )}
           <button onClick={() => setShowSidebar(!showSidebar)} className={`text-xs px-3 py-1 border transition-colors font-serif ${showSidebar ? 'border-ember-500 text-ember-400 bg-ember-600/10' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
             {showSidebar ? 'Hide Sheet' : 'Character Sheet'}
           </button>
         </div>
       </header>
 
+      {otherPartyMembers.length > 0 && (
+        <PartyPanel members={partyMembers} currentUserId={user?.id || ''} />
+      )}
+
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Scene */}
           <div className="shrink-0" style={{ height: '200px' }}>
             <SceneDisplay imageUrl={currentSceneImage} />
           </div>
 
-          {/* Dice */}
           {showDice && lastActionResult?.diceRoll && (
             <DiceRoll rolling={showDice} result={lastActionResult.diceRoll.total} modifier={lastActionResult.diceRoll.modifier} label={lastActionResult.diceRoll.description || 'Roll'} />
           )}
 
-          {/* Combat banner */}
           {inCombat && (
             <div className="shrink-0 flex items-center justify-between px-4 py-1.5" style={{ background: 'linear-gradient(90deg, rgba(127,29,29,0.4), rgba(185,28,28,0.25), rgba(127,29,29,0.4))', borderTop: '1px solid rgba(220,38,38,0.4)', borderBottom: '1px solid rgba(220,38,38,0.4)' }}>
               <div className="flex items-center gap-2">
@@ -251,17 +323,21 @@ export default function Game() {
             </div>
           )}
 
-          {/* Story feed */}
           <div ref={narratorRef} className="flex-1 overflow-y-auto py-4 space-y-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}>
-            {normalizeEvents(events).map((event, i) => (
-              <NarratorBox
-                key={event.id || i}
-                text={event.content}
-                mood={event.event_type === 'narration' ? 'neutral' : 'serious'}
-                isPlayerAction={event.event_type === 'action'}
-                instant={historicalIds.current.has(event.id) || historicalIds.current.has(event.id.replace(/-[an]$/, ''))}
-              />
-            ))}
+            {normalizeEvents(events).map((event, i) => {
+              const isOtherPlayer = event.character_id && event.character_id !== characterId
+              const partyMember = isOtherPlayer ? partyMembers.find(m => m.character?.id === event.character_id) : null
+              return (
+                <NarratorBox
+                  key={event.id || i}
+                  text={event.content}
+                  mood={event.event_type === 'narration' ? 'neutral' : 'serious'}
+                  isPlayerAction={event.event_type === 'action'}
+                  instant={historicalIds.current.has(event.id) || historicalIds.current.has(event.id.replace(/-[an]$/, ''))}
+                  playerName={partyMember?.username}
+                />
+              )
+            })}
             {isLoading && (
               <div className="flex items-center gap-3 px-6 py-2">
                 <div className="w-[60px] h-[60px] rounded-full border border-slate-700 flex items-center justify-center shrink-0">
@@ -286,18 +362,17 @@ export default function Game() {
         )}
       </div>
 
-      {/* Overlays */}
       {showLevelUp && levelUpData && (
-        <LevelUpScreen
-          level={levelUpData.level}
-          hpGained={levelUpData.hpGained}
-          newAbility={levelUpData.newAbility}
-          characterName={levelUpData.characterName}
-          onContinue={() => setShowLevelUp(false)}
-        />
+        <LevelUpScreen level={levelUpData.level} hpGained={levelUpData.hpGained} newAbility={levelUpData.newAbility} characterName={levelUpData.characterName} onContinue={() => setShowLevelUp(false)} />
       )}
       {showEnemyPopup && (
         <EnemyPopup enemyName={enemyPopupName} onDismiss={() => setShowEnemyPopup(false)} />
+      )}
+      {showLoot && (
+        <LootPopup items={lootItems} goldChange={lootGold} onDismiss={() => setShowLoot(false)} />
+      )}
+      {showInviteModal && campaignId && (
+        <InviteModal campaignId={campaignId} campaignName={campaignName} onClose={() => setShowInviteModal(false)} />
       )}
     </div>
   )

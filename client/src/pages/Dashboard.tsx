@@ -112,6 +112,9 @@ export default function Dashboard() {
   const [campaignError, setCampaignError] = useState('')
   const [useCustomPremise, setUseCustomPremise] = useState(false)
   const [customPremise, setCustomPremise] = useState('')
+  const [joinCode, setJoinCode] = useState('')
+  const [joiningByCode, setJoiningByCode] = useState(false)
+  const [joinError, setJoinError] = useState('')
 
   const startAudio = useCallback(() => { audioManager.startAmbient() }, [])
 
@@ -168,6 +171,21 @@ export default function Dashboard() {
       }
     } catch {
       navigate(`/campaign/${campaign.id}/create-character`)
+    }
+  }
+
+  async function joinByCode() {
+    const code = joinCode.trim().toUpperCase()
+    if (!code) return
+    setJoiningByCode(true)
+    setJoinError('')
+    try {
+      const { data } = await campaignApi.acceptInvite(code)
+      navigate(`/campaign/${data.campaign.id}/create-character`)
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+      setJoinError(msg || 'Invalid or expired invite code.')
+      setJoiningByCode(false)
     }
   }
 
@@ -234,6 +252,32 @@ export default function Dashboard() {
               ))}
             </div>
           )}
+        </section>
+
+        {/* Join Campaign by code */}
+        <section className="mb-10">
+          <h2 className="font-fantasy text-xl text-parchment-200 mb-4">Join a Campaign</h2>
+          <div className="border border-slate-800 bg-slate-900/50 p-5">
+            <p className="text-slate-500 font-serif text-sm mb-3 italic">Enter an invite code from your party member.</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={joinCode}
+                onChange={e => { setJoinCode(e.target.value.toUpperCase()); setJoinError('') }}
+                className="fantasy-input flex-1 font-mono tracking-widest text-center uppercase"
+                placeholder="INVITE CODE"
+                maxLength={8}
+              />
+              <button
+                onClick={joinByCode}
+                disabled={joiningByCode || joinCode.trim().length < 6}
+                className="fantasy-btn text-xs px-5 disabled:opacity-50"
+              >
+                {joiningByCode ? 'Joining...' : 'Join'}
+              </button>
+            </div>
+            {joinError && <p className="text-ember-400 text-xs mt-2 font-serif">{joinError}</p>}
+          </div>
         </section>
       </div>
 
