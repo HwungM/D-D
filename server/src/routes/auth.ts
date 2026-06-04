@@ -1,69 +1,66 @@
 import { Router, Request, Response } from 'express';
-import { supabase, supabaseAdmin } from '../services/supabase';
+import { supabaseAdmin } from '../services/supabase';
 import { z } from 'zod';
 
 const router = Router();
 
-const registerSchema = z.object({
-  username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/),
-  password: z.string().min(6),
-});
-
 const loginSchema = z.object({
   username: z.string().min(1),
-  password: z.string(),
+  password: z.string().optional(),
 });
 
+async function getOrCreateUser(username: string): Promise<{ id: string; username: string; session: object } | { error: string }> {
+  const email = `${username.toLowerCase()}@tavern.local`;
+
+  // Find existing user by listing and filtering (admin API)
+  const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+  if (listError) return { error: 'Auth service error' };
+
+  const existing = listData.users.find(u => u.email === email);
+
+  let userId: string;
+
+  if (existing) {
+    userId = existing.id;
+  } else {
+    // Create new user
+    const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: 'tavern2024',
+      email_confirm: true,
+    });
+    if (createError || !created.user) return { error: createError?.message || 'Failed to create user' };
+    userId = created.user.id;
+
+    // Create profile
+    await supabaseAdmin.from('profiles').insert({ id: userId, username });
+  }
+
+  // Ensure profile exists
+  const { data: profile } = await supabaseAdmin.from('profiles').select('username').eq('id', userId).single();
+  if (!profile) {
+    await supabaseAdmin.from('profiles').upsert({ id: userId, username });
+  }
+
+  // Create session via admin (no password needed)
+  const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession({ userId });
+  if (sessionError || !sessionData.session) return { error: 'Failed to create session' };
+
+  return { id: userId, username, session: sessionData.session };
+}
+
 router.post('/register', async (req: Request, res: Response): Promise<void> => {
-  const parse = registerSchema.safeParse(req.body);
+  const parse = z.object({ username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/), password: z.string() }).safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: parse.error.errors[0]?.message || 'Invalid input' });
     return;
   }
-  const { username, password } = parse.data;
-  const email = `${username.toLowerCase()}@tavern.local`;
-
-  const { data: existing } = await supabaseAdmin
-    .from('profiles')
-    .select('id')
-    .eq('username', username)
-    .single();
-
-  if (existing) {
-    res.status(409).json({ error: 'Username already taken' });
+  const result = await getOrCreateUser(parse.data.username);
+  if ('error' in result) {
+    res.status(400).json({ error: result.error });
     return;
   }
-
-  const { data, error } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  });
-
-  if (error || !data.user) {
-    res.status(400).json({ error: error?.message || 'Registration failed' });
-    return;
-  }
-
-  const { error: profileError } = await supabaseAdmin
-    .from('profiles')
-    .insert({ id: data.user.id, username });
-
-  if (profileError) {
-    res.status(500).json({ error: 'Failed to create profile' });
-    return;
-  }
-
-  const { data: signIn, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-  if (signInError || !signIn.session) {
-    res.status(500).json({ error: 'Account created but login failed' });
-    return;
-  }
-
-  res.status(201).json({
-    user: { id: data.user.id, username },
-    session: signIn.session,
-  });
+  res.status(201).json({ user: { id: result.id, username: result.username }, session: result.session });
 });
 
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
@@ -72,32 +69,15 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: 'Invalid input' });
     return;
   }
-  const { username, password } = parse.data;
-  const email = `${username.toLowerCase()}@tavern.local`;
-
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error || !data.user) {
-    res.status(401).json({ error: 'Invalid username or password' });
+  const result = await getOrCreateUser(parse.data.username);
+  if ('error' in result) {
+    res.status(401).json({ error: result.error });
     return;
   }
-
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('username')
-    .eq('id', data.user.id)
-    .single();
-
-  res.json({
-    user: { id: data.user.id, username: profile?.username },
-    session: data.session,
-  });
+  res.json({ user: { id: result.id, username: result.username }, session: result.session });
 });
 
-router.post('/logout', async (req: Request, res: Response): Promise<void> => {
-  const token = req.headers.authorization?.slice(7);
-  if (token) {
-    await supabase.auth.signOut();
-  }
+router.post('/logout', async (_req: Request, res: Response): Promise<void> => {
   res.json({ message: 'Logged out' });
 });
 
