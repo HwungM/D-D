@@ -1,11 +1,74 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration, generateRollOutcome } from './openai';
 import OpenAI from 'openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus } from '../../../shared/types';
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
 
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 import { getAbilityForLevel } from '../../../shared/classAbilities';
+
+function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState>): WorldState {
+  const merged = { ...current };
+
+  // Per-character location — only update the specific character's entry
+  if (changes.characterLocations) {
+    merged.characterLocations = { ...current.characterLocations, ...changes.characterLocations };
+  }
+
+  // currentLocation: only update if provided (for the acting character)
+  if (changes.currentLocation) merged.currentLocation = changes.currentLocation;
+
+  // npcMemory: merge by name (upsert), preserving metCharacters from both sides
+  if (changes.npcMemory) {
+    const existing = new Map((current.npcMemory || []).map(n => [n.name, n]));
+    for (const npc of changes.npcMemory) {
+      const prev = existing.get(npc.name);
+      if (prev) {
+        const metChars = Array.from(new Set([...(prev.metCharacters || []), ...(npc.metCharacters || [])]));
+        existing.set(npc.name, { ...prev, ...npc, metCharacters: metChars });
+      } else {
+        existing.set(npc.name, npc);
+      }
+    }
+    merged.npcMemory = Array.from(existing.values()).slice(-20); // keep last 20 NPCs
+  }
+
+  // activeQuests: merge by title (upsert)
+  if (changes.activeQuests) {
+    const existing = new Map((current.activeQuests || []).map(q => [q.title, q]));
+    for (const q of changes.activeQuests) existing.set(q.title, { ...existing.get(q.title), ...q, startedAt: existing.get(q.title)?.startedAt || new Date().toISOString() });
+    merged.activeQuests = Array.from(existing.values());
+  }
+
+  // discoveredLocations: union
+  if (changes.discoveredLocations) {
+    merged.discoveredLocations = Array.from(new Set([...(current.discoveredLocations || []), ...changes.discoveredLocations]));
+  }
+
+  // factionStandings: merge (last write wins per faction)
+  if (changes.factionStandings) {
+    merged.factionStandings = { ...current.factionStandings, ...changes.factionStandings };
+  }
+
+  // sessionNotes: append new ones only
+  if (changes.sessionNotes) {
+    const existing = new Set(current.sessionNotes || []);
+    const newNotes = changes.sessionNotes.filter(n => !existing.has(n));
+    merged.sessionNotes = [...(current.sessionNotes || []), ...newNotes];
+  }
+
+  // characterLastSeen: merge
+  if (changes.characterLastSeen) {
+    merged.characterLastSeen = { ...current.characterLastSeen, ...changes.characterLastSeen };
+  }
+
+  // Simple scalar fields
+  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory'] as const) {
+    if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
+  }
+
+  return merged;
+}
 
 export function rollDice(sides: number, modifier: number = 0, count: number = 1): DiceRollResult {
   const rolls: number[] = [];
@@ -104,44 +167,9 @@ export async function applyConsequences(
   const updates: Partial<Character> = {};
   let newWorldState = { ...campaign.world_state };
 
-  // Apply world state changes (smart merge for arrays)
+  // Apply world state changes (smart patch merge)
   if (actionResult.worldStateChanges) {
-    const changes = actionResult.worldStateChanges as WorldState;
-
-    // Merge npcMemory: upsert by name
-    if (changes.npcMemory && changes.npcMemory.length > 0) {
-      const existing = newWorldState.npcMemory || [];
-      const merged = [...existing];
-      for (const npc of changes.npcMemory) {
-        const idx = merged.findIndex(n => n.name.toLowerCase() === npc.name.toLowerCase());
-        if (idx >= 0) merged[idx] = { ...merged[idx], ...npc };
-        else merged.push(npc);
-      }
-      newWorldState.npcMemory = merged.slice(-20); // keep last 20 NPCs
-    }
-
-    // Merge activeQuests: upsert by title
-    if (changes.activeQuests && changes.activeQuests.length > 0) {
-      const existing = newWorldState.activeQuests || [];
-      const merged = [...existing];
-      for (const quest of changes.activeQuests) {
-        const idx = merged.findIndex(q => q.title.toLowerCase() === quest.title.toLowerCase());
-        if (idx >= 0) merged[idx] = { ...merged[idx], ...quest };
-        else merged.push({ ...quest, startedAt: new Date().toISOString() });
-      }
-      newWorldState.activeQuests = merged;
-    }
-
-    // Merge discoveredLocations array
-    if (changes.discoveredLocations && changes.discoveredLocations.length > 0) {
-      const existing = new Set(newWorldState.discoveredLocations || []);
-      changes.discoveredLocations.forEach(l => existing.add(l));
-      newWorldState.discoveredLocations = [...existing];
-    }
-
-    // Apply flat fields
-    const { npcMemory: _n, activeQuests: _q, discoveredLocations: _d, ...flatChanges } = changes;
-    newWorldState = { ...newWorldState, ...flatChanges };
+    newWorldState = mergeWorldStateChanges(newWorldState, actionResult.worldStateChanges as Partial<WorldState>);
 
     await supabaseAdmin
       .from('campaigns')
@@ -333,6 +361,35 @@ export async function processAction(
     await supabaseAdmin.from('campaigns').update({ world_state: ws }).eq('id', campaignId);
   }
 
+  // Fetch party members for co-op context
+  const { data: partyMembersData } = await supabaseAdmin
+    .from('campaign_members')
+    .select('character_id')
+    .eq('campaign_id', campaignId)
+    .neq('character_id', characterId);
+
+  const otherCharacters: CharacterOnlineStatus[] = [];
+  for (const member of partyMembersData || []) {
+    const { data: otherChar } = await supabaseAdmin
+      .from('characters')
+      .select('id, name, is_alive')
+      .eq('id', member.character_id)
+      .single();
+    if (!otherChar) continue;
+
+    const lastSeen = ws.characterLastSeen?.[otherChar.id];
+    const isOnline = lastSeen ? (Date.now() - new Date(lastSeen).getTime()) < 15 * 60 * 1000 : false;
+    const lastLocation = ws.characterLocations?.[otherChar.id] || ws.currentLocation || 'Unknown';
+
+    otherCharacters.push({
+      characterId: otherChar.id,
+      characterName: otherChar.name,
+      isOnline,
+      lastSeen: lastSeen || new Date().toISOString(),
+      lastLocation,
+    });
+  }
+
   const campaignContext = {
     journal: ws.campaignJournal || [],
     characterHistory: ws.characterHistory || [],
@@ -340,6 +397,7 @@ export async function processAction(
     centralConflict: wb.centralConflict || '',
     act: campaign.act || 1,
     sessionCount: ws.sessionCount || 1,
+    otherCharacters: otherCharacters.length > 0 ? otherCharacters : undefined,
   };
 
   // Generate narration via GPT-4o
@@ -403,12 +461,29 @@ export async function processAction(
   // Calculate XP for meaningful actions
   const xpGained = success ? Math.floor(Math.random() * 20) + 10 : 5;
 
+  // Always track per-character location and last seen
+  const newLocation = (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation;
+  const locationTracking: Partial<WorldState> = {
+    characterLocations: {
+      ...(ws.characterLocations || {}),
+      [characterId]: newLocation || 'Unknown',
+    },
+    characterLastSeen: {
+      ...(ws.characterLastSeen || {}),
+      [characterId]: new Date().toISOString(),
+    },
+  };
+  const worldStateChangesWithTracking: Partial<WorldState> = {
+    ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
+    ...locationTracking,
+  };
+
   // Apply consequences
   const prevLevel = (character as Character).level;
   const { updatedCharacter, updatedWorldState } = await applyConsequences(
     characterId,
     {
-      worldStateChanges: aiResponse.worldStateChanges as Partial<WorldState>,
+      worldStateChanges: worldStateChangesWithTracking,
       isLevelUp: aiResponse.isLevelUp,
       isDeath: aiResponse.isDeath,
       deathDescription: aiResponse.deathDescription,

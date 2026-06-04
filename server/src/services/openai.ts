@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { supabaseAdmin } from './supabase';
-import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext, CharacterOnlineStatus } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
 
 dotenv.config();
@@ -144,6 +144,15 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   } | null
 }`;
 
+function timeAgo(isoTimestamp: string): string {
+  const diffMs = Date.now() - new Date(isoTimestamp).getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  return `${Math.floor(diffHr / 24)}d ago`;
+}
+
 export async function generateNarration(
   action: string,
   worldState: WorldState,
@@ -157,6 +166,7 @@ export async function generateNarration(
     centralConflict: string;
     act: number;
     sessionCount: number;
+    otherCharacters?: CharacterOnlineStatus[];
   } | null
 ): Promise<{
   narration: string;
@@ -272,7 +282,27 @@ ${campaignContext.characterHistory.slice(-10).map(h => `- [${h.type.toUpperCase(
 ACTIVE ANTAGONISTS:
 ${campaignContext.antagonists.map(a => `- ${a.isRevealed ? a.name : '[UNKNOWN FORCE]'} (${a.power}, ${a.type}): ${a.agenda}. Currently: ${a.currentStep}. Knows about players: ${a.whatTheyKnow}`).join('\n') || 'No antagonists defined yet.'}
 
-NARRATIVE TIER: ${campaignContext.act <= 1 && character.level <= 3 ? 'EMERGING — local stakes, unknown heroes' : character.level <= 6 ? 'KNOWN — regional threats, factions noticing' : character.level <= 10 ? 'FEARED — major powers react, antagonists engage' : 'LEGENDARY — world-shaping, former enemies bow'}` : ''}`;
+NARRATIVE TIER: ${campaignContext.act <= 1 && character.level <= 3 ? 'EMERGING — local stakes, unknown heroes' : character.level <= 6 ? 'KNOWN — regional threats, factions noticing' : character.level <= 10 ? 'FEARED — major powers react, antagonists engage' : 'LEGENDARY — world-shaping, former enemies bow'}${campaignContext.otherCharacters && campaignContext.otherCharacters.length > 0 ? `
+
+PARTY MEMBERS:
+${campaignContext.otherCharacters.map(c => {
+  const myLocation = worldState.characterLocations?.[character.id] || worldState.currentLocation;
+  const together = c.lastLocation === myLocation;
+  const status = c.isOnline ? 'Active' : `Offline (last seen ${timeAgo(c.lastSeen)})`;
+  return `- ${c.characterName}: ${status}, Location: ${c.lastLocation}${together ? ' (TOGETHER with you)' : ' (SEPARATED)'}`;
+}).join('\n')}
+
+PARTY RULES:
+- If a party member is OFFLINE, narrate their absence naturally. They may be resting, occupied, or gone ahead. Never say "the player is offline" — keep it in-world.
+- If SEPARATED, you can reference what the other character might be doing, hearing their distant actions, etc.
+- If TOGETHER, actions can affect both characters. Mention both when relevant.
+- NPCs who have met other party members can reference them. Check npcMemory metCharacters field.
+- When rejoining after separation, the DM should acknowledge it naturally in the story.
+
+NPC CROSS-CHARACTER MEMORY:
+When narrating NPC interactions, check if any NPC in npcMemory has metCharacters that include other party member names.
+If so, the NPC can reference having met them: "You remind me of someone..." or "I met a companion of yours earlier..."
+When this character meets an NPC for the first time, add this character's name to that NPC's metCharacters in the worldStateChanges.npcMemory update.` : ''}` : ''}`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',

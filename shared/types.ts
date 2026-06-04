@@ -74,6 +74,15 @@ export interface NpcMemory {
   lastMet?: string;
   disposition: 'friendly' | 'neutral' | 'hostile' | 'unknown';
   notes: string;
+  metCharacters?: string[];  // character names this NPC has met
+}
+
+export interface CharacterOnlineStatus {
+  characterId: string;
+  characterName: string;
+  isOnline: boolean;
+  lastSeen: string;
+  lastLocation: string;
 }
 
 export interface ActiveQuest {
@@ -98,6 +107,8 @@ export interface WorldState {
   characterHistory?: CharacterHistoryEntry[];
   antagonistProgress?: Record<string, { stepIndex: number; lastAction: string; knowsPlayers: boolean }>;
   sessionCount?: number;
+  characterLocations?: Record<string, string>;  // characterId -> location name
+  characterLastSeen?: Record<string, string>;    // characterId -> ISO timestamp
 }
 
 export interface WorldBible {
