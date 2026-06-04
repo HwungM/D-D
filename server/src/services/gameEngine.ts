@@ -364,16 +364,18 @@ export async function processAction(
   // Fetch party members for co-op context
   const { data: partyMembersData } = await supabaseAdmin
     .from('campaign_members')
-    .select('character_id')
-    .eq('campaign_id', campaignId)
-    .neq('character_id', characterId);
+    .select('user_id')
+    .eq('campaign_id', campaignId);
 
   const otherCharacters: CharacterOnlineStatus[] = [];
   for (const member of partyMembersData || []) {
+    // Find this user's character in this campaign
     const { data: otherChar } = await supabaseAdmin
       .from('characters')
       .select('id, name, is_alive')
-      .eq('id', member.character_id)
+      .eq('campaign_id', campaignId)
+      .eq('user_id', member.user_id)
+      .neq('id', characterId)
       .single();
     if (!otherChar) continue;
 
