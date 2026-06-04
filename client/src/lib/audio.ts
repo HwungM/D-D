@@ -1,17 +1,30 @@
 const AMBIENT_URL = '/audio/ambient.mp3'
 
+const GAMEPLAY_TRACKS = [
+  '/assets/music/4a24cd5e-Sunrise_of_Flutes.mp3',
+  '/assets/music/8648942c-Glowing_in_the_Mist.mp3',
+  '/assets/music/b415b8fa-Marcin_Przybylowicz__Priscillas_Song_Wolven_Storm_Instrumental.mp3',
+  '/assets/music/dd6dc1ea-Clock_Town_from_The_Legend_of_Zelda__Majoras_Mask.mp3',
+  '/assets/music/de14b100-Scarborough_Fair_Celtic_Instrumental_Version.mp3',
+  '/assets/music/cafdc194-Enchantress.mp3',
+  '/assets/music/4aae52b3-Dorian_Concept__Space_II_Official_Video.mp3',
+  '/assets/music/181876ab-Ancient_Stones.mp3',
+]
+
 type AudioTrack = 'combat-1' | 'combat-2' | 'combat-3' | 'victory' | 'level-up'
 
 class AudioManager {
   private tracks: Map<string, HTMLAudioElement> = new Map()
   private currentMusic: HTMLAudioElement | null = null
   private ambientTrack: HTMLAudioElement | null = null
+  private gameplayTrack: HTMLAudioElement | null = null
   private musicEnabled = true
   private sfxEnabled = true
   private musicVolume = 0.4
   private ambientVolume = 0.25
   private sfxVolume = 0.7
   private combatIndex = 0
+  private gameplayIndex = Math.floor(Math.random() * GAMEPLAY_TRACKS.length)
 
   private getOrCreate(key: string, src: string, loop = false): HTMLAudioElement {
     if (!this.tracks.has(key)) {
@@ -70,6 +83,31 @@ class AudioManager {
     this.fadeIn(this.ambientTrack, this.ambientVolume, 2000)
   }
 
+  startGameplay() {
+    if (!this.musicEnabled) return
+    if (this.gameplayTrack && !this.gameplayTrack.paused) return
+    this.playNextGameplayTrack()
+  }
+
+  private playNextGameplayTrack() {
+    if (!this.musicEnabled) return
+    const src = GAMEPLAY_TRACKS[this.gameplayIndex]
+    this.gameplayIndex = (this.gameplayIndex + 1) % GAMEPLAY_TRACKS.length
+    const audio = new Audio(src)
+    audio.volume = 0
+    this.gameplayTrack = audio
+    audio.play().catch(() => {})
+    this.fadeIn(audio, this.musicVolume * 0.7, 3000)
+    audio.onended = () => this.playNextGameplayTrack()
+  }
+
+  async stopGameplay() {
+    if (this.gameplayTrack) {
+      await this.fadeOut(this.gameplayTrack, 2000)
+      this.gameplayTrack = null
+    }
+  }
+
   async playCombat() {
     if (!this.musicEnabled) return
     const tracks: AudioTrack[] = ['combat-1', 'combat-2', 'combat-3']
@@ -78,6 +116,7 @@ class AudioManager {
     const src = srcs[this.combatIndex]
     this.combatIndex = (this.combatIndex + 1) % 3
 
+    await this.stopGameplay()
     await this.pauseAmbient()
     if (this.currentMusic) await this.fadeOut(this.currentMusic)
     const audio = this.getOrCreate(key, src, true)
@@ -91,6 +130,7 @@ class AudioManager {
       this.currentMusic = null
     }
     this.resumeAmbient()
+    this.startGameplay()
   }
 
   playVictory() {
@@ -100,7 +140,7 @@ class AudioManager {
     audio.volume = this.sfxVolume
     audio.currentTime = 0
     audio.play().catch(() => {})
-    audio.onended = () => this.resumeAmbient()
+    audio.onended = () => { this.resumeAmbient(); this.startGameplay() }
   }
 
   playDiceRoll() {
@@ -137,7 +177,12 @@ class AudioManager {
 
   toggleMusic() {
     this.musicEnabled = !this.musicEnabled
-    if (!this.musicEnabled) this.stopMusic()
+    if (!this.musicEnabled) {
+      this.stopMusic()
+      this.stopGameplay()
+    } else {
+      this.startGameplay()
+    }
     return this.musicEnabled
   }
 
@@ -149,6 +194,7 @@ class AudioManager {
   setMusicVolume(vol: number) {
     this.musicVolume = vol
     if (this.currentMusic) this.currentMusic.volume = vol
+    if (this.gameplayTrack) this.gameplayTrack.volume = vol * 0.7
   }
 
   get isMusicEnabled() { return this.musicEnabled }
