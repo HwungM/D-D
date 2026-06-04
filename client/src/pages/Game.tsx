@@ -17,8 +17,12 @@ import PartyPanel from '../components/PartyPanel'
 import InviteModal from '../components/InviteModal'
 import QuestLog from '../components/QuestLog'
 import WorldPanel from '../components/WorldPanel'
+import DeathScreen from '../components/DeathScreen'
+import ShopModal from '../components/ShopModal'
+import ActTransition from '../components/ActTransition'
+import JournalTab from '../components/JournalTab'
 import { audioManager } from '../lib/audio'
-import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember } from '../../../shared/types'
+import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem } from '../../../shared/types'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
@@ -64,7 +68,7 @@ export default function Game() {
   const [started, setStarted] = useState(false)
   const [showDice, setShowDice] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
-  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'world'>('character')
+  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'world' | 'journal'>('character')
   const narratorRef = useRef<HTMLDivElement>(null)
   const historicalIds = useRef<Set<string>>(new Set())
 
@@ -81,6 +85,12 @@ export default function Game() {
   const [partyMembers, setPartyMembers] = useState<PartyMember[]>([])
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [campaignName, setCampaignName] = useState('')
+  const [showDeathScreen, setShowDeathScreen] = useState(false)
+  const [shopItems, setShopItems] = useState<ShopItem[]>([])
+  const [showShop, setShowShop] = useState(false)
+  const [showActTransition, setShowActTransition] = useState(false)
+  const [nextAct, setNextAct] = useState(1)
+  const [recentNarrations, setRecentNarrations] = useState<string[]>([])
 
   useEffect(() => {
     audioManager.startAmbient()
@@ -112,10 +122,18 @@ export default function Game() {
       const loaded: StoryEvent[] = data.events || []
       historicalIds.current = new Set(loaded.map(e => e.id))
       setEvents(loaded)
-      if (loaded.length > 0) setStarted(true)
+      if (loaded.length > 0) {
+        setStarted(true)
+        const recent = loaded
+          .filter(e => e.event_type === 'narration')
+          .slice(-5)
+          .map(e => e.content)
+        setRecentNarrations(recent)
+      }
     })
     campaignApi.get(campaignId).then(({ data }) => {
       setCampaignName(data.campaign.name)
+      setNextAct(data.campaign.act ?? 1)
     }).catch(() => {})
     refreshParty()
   }, [campaignId, characterId])
@@ -252,7 +270,17 @@ export default function Game() {
         if (local) setSceneImage(local)
       }
 
-      if (result.isDeath) setTimeout(() => navigate('/dashboard'), 5000)
+      if (result.isDeath) {
+        setTimeout(() => setShowDeathScreen(true), 1200)
+      }
+      if (result.isMerchant && result.shopItems && result.shopItems.length > 0) {
+        setShopItems(result.shopItems as ShopItem[])
+        setTimeout(() => setShowShop(true), 800)
+      }
+      if (result.advanceAct) {
+        setNextAct(prev => prev + 1)
+        setTimeout(() => setShowActTransition(true), 600)
+      }
       refreshParty()
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
@@ -283,9 +311,24 @@ export default function Game() {
           {campaignName && (
             <p className="font-serif text-sm italic mb-8" style={{ color: 'rgba(180,160,120,0.5)' }}>{campaignName}</p>
           )}
-          <p className="font-serif italic mb-10 leading-relaxed text-sm" style={{ color: 'rgba(160,140,110,0.7)' }}>
-            The Dungeon Master stands ready. When you step through, there is no turning back.
-          </p>
+          {recentNarrations.length > 0 ? (
+            <div className="mb-10 text-left" style={{ border: '1px solid rgba(200,146,42,0.12)', background: 'rgba(200,146,42,0.03)', padding: '16px 20px' }}>
+              <p className="text-xs uppercase tracking-widest mb-3 text-center" style={{ color: 'rgba(200,146,42,0.4)', letterSpacing: '0.2em' }}>
+                The story so far...
+              </p>
+              <div className="space-y-2">
+                {recentNarrations.slice(-3).map((n, i) => (
+                  <p key={i} className="font-serif text-xs leading-relaxed line-clamp-2" style={{ color: 'rgba(160,140,110,0.65)' }}>
+                    {n.slice(0, 180)}{n.length > 180 ? '...' : ''}
+                  </p>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="font-serif italic mb-10 leading-relaxed text-sm" style={{ color: 'rgba(160,140,110,0.7)' }}>
+              The Dungeon Master stands ready. When you step through, there is no turning back.
+            </p>
+          )}
           <button
             onClick={handleStart}
             disabled={isLoading}
@@ -371,8 +414,8 @@ export default function Game() {
               + Invite
             </button>
           )}
-          {(['character', 'quests', 'world'] as const).map(tab => {
-            const labels = { character: 'Sheet', quests: 'Quests', world: 'World' }
+          {(['character', 'quests', 'world', 'journal'] as const).map(tab => {
+            const labels = { character: 'Sheet', quests: 'Quests', world: 'World', journal: 'Journal' }
             const isActive = showSidebar && sidebarTab === tab
             return (
               <button
@@ -433,6 +476,7 @@ export default function Game() {
               {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
               {sidebarTab === 'quests' && <QuestLog worldState={worldState} />}
               {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
+              {sidebarTab === 'journal' && <JournalTab events={events} characterId={characterId} />}
             </div>
           ) : (
             /* Narrative feed */
@@ -497,6 +541,36 @@ export default function Game() {
       )}
       {showInviteModal && campaignId && (
         <InviteModal campaignId={campaignId} campaignName={campaignName} onClose={() => setShowInviteModal(false)} />
+      )}
+      {showDeathScreen && currentCharacter && (
+        <DeathScreen
+          characterName={currentCharacter.name}
+          deathNote={currentCharacter.death_note}
+          campaignId={campaignId!}
+          onRiseAgain={() => navigate(`/campaign/${campaignId}/create-character`)}
+          onReturnToHall={() => navigate('/dashboard')}
+        />
+      )}
+      {showShop && shopItems.length > 0 && currentCharacter && (
+        <ShopModal
+          shopItems={shopItems}
+          playerGold={currentCharacter.gold}
+          playerInventory={currentCharacter.inventory}
+          onBuy={(item) => {
+            const newGold = currentCharacter.gold - item.price
+            const newItem = { id: item.id, name: item.name, description: item.description, quantity: item.quantity, type: item.type as 'weapon' | 'armor' | 'potion' | 'misc' | 'key', value: item.price }
+            setCharacter({ ...currentCharacter, gold: newGold, inventory: [...currentCharacter.inventory, newItem] })
+          }}
+          onSell={(item) => {
+            const sellPrice = Math.floor((item.value || 0) / 2)
+            const newInventory = currentCharacter.inventory.filter(i => i.id !== item.id)
+            setCharacter({ ...currentCharacter, gold: currentCharacter.gold + sellPrice, inventory: newInventory })
+          }}
+          onClose={() => setShowShop(false)}
+        />
+      )}
+      {showActTransition && (
+        <ActTransition actNumber={nextAct} onComplete={() => setShowActTransition(false)} />
       )}
     </div>
   )

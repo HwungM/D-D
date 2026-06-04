@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { Character, CharacterStats } from '../../../shared/types'
-import { XP_THRESHOLDS } from '../../../shared/types'
 
 const XP_THRESHOLDS = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000]
 
@@ -159,6 +158,33 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
             <span className="font-serif font-bold" style={{ color: '#c89228' }}>{character.gold.toLocaleString()} gp</span>
           </div>
         </div>
+
+        {/* Status Effects */}
+        {character.status_effects && character.status_effects.length > 0 && (
+          <div>
+            <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)' }}>Status Effects</p>
+            <div className="flex flex-wrap gap-1.5">
+              {character.status_effects.map((effect, i) => {
+                const color = effect.type === 'buff' ? '#7ae87a' : effect.type === 'debuff' ? '#e87a7a' : '#b09070'
+                return (
+                  <div
+                    key={i}
+                    className="px-2 py-1 text-xs font-serif"
+                    title={effect.description}
+                    style={{
+                      border: `1px solid ${color}40`,
+                      background: `${color}0d`,
+                      color,
+                    }}
+                  >
+                    {effect.type === 'buff' ? '↑' : effect.type === 'debuff' ? '↓' : '~'} {effect.name}
+                    {effect.duration && <span style={{ opacity: 0.5 }}> ({effect.duration})</span>}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Abilities */}
         {character.abilities.length > 0 && (
