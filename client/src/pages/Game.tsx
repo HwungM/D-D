@@ -102,6 +102,7 @@ export default function Game() {
   const [showDiceModal, setShowDiceModal] = useState(false)
   const [diceModalData, setDiceModalData] = useState<{ narration: string; rollContext: RollContext } | null>(null)
   const [isMuted, setIsMuted] = useState(false)
+  const [partyActionMode, setPartyActionMode] = useState(false)
 
   useEffect(() => {
     audioManager.startAmbient()
@@ -288,8 +289,13 @@ export default function Game() {
     setShowHighStakes(false)
     setHighStakesData(null)
 
+    // Prefix with [PARTY ACTION] if party action mode is enabled and party members are present
+    const finalAction = partyActionMode && partyMembersHere.length > 0
+      ? `[PARTY ACTION] ${action}`
+      : action
+
     // Immediate local scene switch based on action text + current location
-    const immediateScene = matchSceneImage(action + ' ' + (worldState?.currentLocation || ''))
+    const immediateScene = matchSceneImage(finalAction + ' ' + (worldState?.currentLocation || ''))
     if (immediateScene) setSceneImage(immediateScene)
 
     addEvent({
@@ -297,12 +303,12 @@ export default function Game() {
       campaign_id: campaignId,
       character_id: characterId,
       event_type: 'action',
-      content: action,
+      content: finalAction,
       metadata: {},
       created_at: new Date().toISOString(),
     })
     try {
-      const { data } = await gameApi.action(characterId, campaignId, action)
+      const { data } = await gameApi.action(characterId, campaignId, finalAction)
       const result = data as ActionResult
       setLastActionResult(result)
 
@@ -474,6 +480,12 @@ export default function Game() {
   }
 
   const otherPartyMembers = partyMembers.filter(m => m.userId !== user?.id)
+  const myLocation = worldState?.characterLocations?.[characterId || ''] || worldState?.currentLocation
+  const partyMembersHere = otherPartyMembers.filter(m => {
+    if (!m.character) return false
+    const theirLocation = worldState?.characterLocations?.[m.character.id]
+    return theirLocation && theirLocation === myLocation
+  })
   const hpPercent = currentCharacter ? (currentCharacter.hp / currentCharacter.max_hp) * 100 : 100
   const hpColor = hpPercent > 60 ? '#22c55e' : hpPercent > 30 ? '#eab308' : '#ef4444'
 
@@ -605,7 +617,7 @@ export default function Game() {
           {/* Party panel below scene */}
           {otherPartyMembers.length > 0 && (
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-              <PartyPanel members={partyMembers} currentUserId={user?.id || ''} />
+              <PartyPanel members={partyMembers} currentUserId={user?.id || ''} worldState={worldState} />
             </div>
           )}
         </div>
@@ -666,6 +678,28 @@ export default function Game() {
             </div>
           )}
 
+          {/* Party Action toggle — only shown when co-op members share same location */}
+          {partyMembersHere.length > 0 && (
+            <div className="px-4 pt-2 pb-0 flex items-center gap-2">
+              <button
+                onClick={() => setPartyActionMode(p => !p)}
+                className="flex items-center gap-1.5 font-serif text-xs px-2.5 py-1 transition-all"
+                style={partyActionMode
+                  ? { border: '1px solid rgba(200,146,42,0.5)', color: 'rgba(200,146,42,0.9)', background: 'rgba(200,146,42,0.08)' }
+                  : { border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.4)' }
+                }
+              >
+                <span style={{ fontSize: 10 }}>⚔</span>
+                Party Action
+                {partyActionMode && <span style={{ color: 'rgba(200,146,42,0.7)', fontSize: 10 }}>ON</span>}
+              </button>
+              {partyActionMode && (
+                <span className="font-serif text-xs" style={{ color: 'rgba(180,160,120,0.4)' }}>
+                  Action affects all present: {partyMembersHere.map(m => m.character?.name).filter(Boolean).join(', ')}
+                </span>
+              )}
+            </div>
+          )}
           <ActionPanel
             suggestedActions={lastActionResult?.suggestedActions || []}
             onAction={handleAction}
