@@ -279,4 +279,27 @@ router.get('/:id/party', requireAuth, async (req: AuthRequest, res: Response): P
   res.json({ members: partyData });
 });
 
+router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { id } = req.params;
+
+  // Verify ownership
+  const { data: campaign } = await supabaseAdmin
+    .from('campaigns')
+    .select('created_by')
+    .eq('id', id)
+    .single();
+
+  if (!campaign || campaign.created_by !== req.user!.id) {
+    res.status(403).json({ error: 'Only the campaign creator can delete it' });
+    return;
+  }
+
+  await supabaseAdmin.from('story_events').delete().eq('campaign_id', id);
+  await supabaseAdmin.from('characters').delete().eq('campaign_id', id);
+  await supabaseAdmin.from('campaign_members').delete().eq('campaign_id', id);
+  await supabaseAdmin.from('campaigns').delete().eq('id', id);
+
+  res.json({ success: true });
+});
+
 export default router;

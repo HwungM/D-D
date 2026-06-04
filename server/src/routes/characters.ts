@@ -17,6 +17,7 @@ const createSchema = z.object({
   class: z.enum(['Fighter', 'Wizard', 'Rogue', 'Cleric', 'Ranger', 'Paladin', 'Barbarian', 'Bard', 'Druid', 'Monk', 'Sorcerer', 'Warlock']),
   backstory: z.string().max(1000).optional(),
   generatePortrait: z.boolean().optional().default(false),
+  portraitUrl: z.string().optional(),
 });
 
 function rollStats(): CharacterStats {
@@ -41,7 +42,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
     res.status(400).json({ error: parse.error.errors });
     return;
   }
-  const { campaignId, name, race, class: characterClass, backstory, generatePortrait } = parse.data;
+  const { campaignId, name, race, class: characterClass, backstory, generatePortrait, portraitUrl: clientPortraitUrl } = parse.data;
 
   // Verify membership
   const { data: membership } = await supabaseAdmin
@@ -72,8 +73,8 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
   const conMod = Math.floor((finalStats.con - 10) / 2);
   const maxHp = baseHp + conMod;
 
-  let portraitUrl: string | undefined;
-  if (generatePortrait) {
+  let portraitUrl: string | undefined = clientPortraitUrl;
+  if (!portraitUrl && generatePortrait) {
     try {
       portraitUrl = await generateCharacterPortrait(name, race, characterClass, backstory);
     } catch (err) {

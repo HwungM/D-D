@@ -51,15 +51,31 @@ export interface Character {
   updated_at: string;
 }
 
+export interface NpcMemory {
+  name: string;
+  lastMet?: string;
+  disposition: 'friendly' | 'neutral' | 'hostile' | 'unknown';
+  notes: string;
+}
+
+export interface ActiveQuest {
+  title: string;
+  description: string;
+  status: 'active' | 'completed' | 'failed';
+  startedAt?: string;
+}
+
 export interface WorldState {
   currentLocation?: string;
   timeOfDay?: 'dawn' | 'day' | 'dusk' | 'night';
   weather?: string;
-  activeQuests?: string[];
+  activeQuests?: ActiveQuest[];
   completedEvents?: string[];
   factionStandings?: Record<string, number>;
   discoveredLocations?: string[];
   globalFlags?: Record<string, boolean | string | number>;
+  npcMemory?: NpcMemory[];
+  sessionNotes?: string[];
 }
 
 export interface WorldBible {

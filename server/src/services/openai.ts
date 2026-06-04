@@ -26,6 +26,13 @@ TONE RULES:
 - Speak in second person ("You see...", "Before you...").
 - Keep narration to 150-250 words unless the moment demands more.
 
+WORLD MEMORY RULES:
+- NPCs are persistent. If you introduce a named NPC, they remember the character in future sessions.
+- Update worldStateChanges.npcMemory when a named NPC is introduced or relationship changes.
+- Update worldStateChanges.activeQuests when a quest begins, progresses, or resolves.
+- Always update worldStateChanges.currentLocation when the party moves to a new place.
+- worldStateChanges follows the same shape as the worldState object — only include fields that actually changed.
+
 LOOT RULES:
 - Only award loot when narratively earned: defeating enemies, looting bodies/containers, finding hidden caches, completing quests.
 - 1-3 items max per loot event. Make items feel meaningful and setting-appropriate.
@@ -109,6 +116,16 @@ export async function generateNarration(
     s.cha >= 15 ? `CHA ${s.cha} → can persuade, deceive, perform, intimidate socially` : s.cha <= 8 ? `CHA ${s.cha} → avoid diplomacy/charm options in suggestedActions` : null,
   ].filter(Boolean).join('; ');
 
+  // Build NPC memory context
+  const npcContext = worldState.npcMemory && worldState.npcMemory.length > 0
+    ? `\nKNOWN NPCs (they remember the character):\n${worldState.npcMemory.slice(0, 6).map(n => `- ${n.name} [${n.disposition}]: ${n.notes}`).join('\n')}`
+    : '';
+
+  // Build quest context
+  const questContext = worldState.activeQuests && worldState.activeQuests.length > 0
+    ? `\nACTIVE QUESTS:\n${worldState.activeQuests.filter(q => q.status === 'active').map(q => `- ${q.title}: ${q.description}`).join('\n')}`
+    : '';
+
   const worldContext = `
 WORLD BIBLE SUMMARY:
 - Era: ${worldBible.era}
@@ -121,18 +138,22 @@ CURRENT WORLD STATE:
 - Location: ${worldState.currentLocation || 'Unknown'}
 - Time: ${worldState.timeOfDay || 'unknown'}
 - Weather: ${worldState.weather || 'unclear'}
+- Discovered locations: ${(worldState.discoveredLocations || []).slice(0, 5).join(', ') || 'none yet'}
+${npcContext}${questContext}
 
 CHARACTER: ${character.name} (${character.race} ${character.class}, Level ${character.level})${unusualNote}
 HP: ${character.hp}/${character.max_hp}
 Gold: ${character.gold}
-Notable inventory: ${character.inventory.slice(0, 3).map(i => i.name).join(', ') || 'nothing special'}
+Notable inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
 ${abilitiesContext}
 STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
 
 RECENT EVENTS:
-${recentHistory.slice(-5).join('\n')}
+${recentHistory.slice(-8).join('\n')}
 
-PLAYER ACTION: ${action}`;
+PLAYER ACTION: ${action}
+
+IMPORTANT: If this action introduces or involves a named NPC, include their name, disposition, and a brief note in worldStateChanges.npcMemory. If a quest begins or progresses, include it in worldStateChanges.activeQuests. Always update worldState.currentLocation if the character moves.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',

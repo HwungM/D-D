@@ -36,6 +36,7 @@ export const campaignApi = {
   getInvite: (code: string) => api.get(`/campaigns/invite/${code}`),
   acceptInvite: (code: string) => api.post(`/campaigns/invite/${code}/accept`),
   getParty: (campaignId: string) => api.get(`/campaigns/${campaignId}/party`),
+  delete: (id: string) => api.delete(`/campaigns/${id}`),
 }
 
 // Characters
@@ -47,6 +48,7 @@ export const characterApi = {
     class: string
     backstory?: string
     generatePortrait?: boolean
+    portraitUrl?: string
   }) => api.post('/characters', data),
   listByCampaign: (campaignId: string) => api.get(`/characters/campaign/${campaignId}`),
   get: (id: string) => api.get(`/characters/${id}`),

@@ -53,9 +53,45 @@ export async function applyConsequences(
   const updates: Partial<Character> = {};
   let newWorldState = { ...campaign.world_state };
 
-  // Apply world state changes
+  // Apply world state changes (smart merge for arrays)
   if (actionResult.worldStateChanges) {
-    newWorldState = { ...newWorldState, ...actionResult.worldStateChanges };
+    const changes = actionResult.worldStateChanges as WorldState;
+
+    // Merge npcMemory: upsert by name
+    if (changes.npcMemory && changes.npcMemory.length > 0) {
+      const existing = newWorldState.npcMemory || [];
+      const merged = [...existing];
+      for (const npc of changes.npcMemory) {
+        const idx = merged.findIndex(n => n.name.toLowerCase() === npc.name.toLowerCase());
+        if (idx >= 0) merged[idx] = { ...merged[idx], ...npc };
+        else merged.push(npc);
+      }
+      newWorldState.npcMemory = merged.slice(-20); // keep last 20 NPCs
+    }
+
+    // Merge activeQuests: upsert by title
+    if (changes.activeQuests && changes.activeQuests.length > 0) {
+      const existing = newWorldState.activeQuests || [];
+      const merged = [...existing];
+      for (const quest of changes.activeQuests) {
+        const idx = merged.findIndex(q => q.title.toLowerCase() === quest.title.toLowerCase());
+        if (idx >= 0) merged[idx] = { ...merged[idx], ...quest };
+        else merged.push({ ...quest, startedAt: new Date().toISOString() });
+      }
+      newWorldState.activeQuests = merged;
+    }
+
+    // Merge discoveredLocations array
+    if (changes.discoveredLocations && changes.discoveredLocations.length > 0) {
+      const existing = new Set(newWorldState.discoveredLocations || []);
+      changes.discoveredLocations.forEach(l => existing.add(l));
+      newWorldState.discoveredLocations = [...existing];
+    }
+
+    // Apply flat fields
+    const { npcMemory: _n, activeQuests: _q, discoveredLocations: _d, ...flatChanges } = changes;
+    newWorldState = { ...newWorldState, ...flatChanges };
+
     await supabaseAdmin
       .from('campaigns')
       .update({ world_state: newWorldState })

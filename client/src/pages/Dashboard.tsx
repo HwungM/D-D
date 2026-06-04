@@ -45,7 +45,7 @@ const ALL_SEEDS: StorySeedOption[] = [
   {
     id: 'seed-6',
     title: 'Salt and Iron',
-    premise: 'The merchant guilds hired you to escort a shipment to a coastal fort. Simple work. Except the ship\'s captain is lying, the cargo is not what they claimed, and the fort stopped responding to ravens two weeks ago.',
+    premise: "The merchant guilds hired you to escort a shipment to a coastal fort. Simple work. Except the ship's captain is lying, the cargo is not what they claimed, and the fort stopped responding to ravens two weeks ago.",
     tone: 'Gritty survival & secrets',
     startingLocation: 'The port of Thornhaven',
   },
@@ -59,13 +59,13 @@ const ALL_SEEDS: StorySeedOption[] = [
   {
     id: 'seed-8',
     title: 'Blood of the Compact',
-    premise: 'A century ago, seven heroes bound themselves in a pact with a death god to seal away a great evil. The pact is breaking. The heroes\' descendants are dying one by one — and you are one of them.',
+    premise: "A century ago, seven heroes bound themselves in a pact with a death god to seal away a great evil. The pact is breaking. The heroes' descendants are dying one by one — and you are one of them.",
     tone: 'Fate, legacy & urgency',
     startingLocation: 'The Shrine of Ash',
   },
   {
     id: 'seed-9',
-    title: 'The Warlord\'s Road',
+    title: "The Warlord's Road",
     premise: 'An unstoppable warlord has united the eastern tribes and is marching west. You have been sent to assassinate them before they reach the mountain pass. You arrive and discover the warlord is twelve years old.',
     tone: 'Moral weight & war',
     startingLocation: 'The eastern border camp',
@@ -93,6 +93,21 @@ const ALL_SEEDS: StorySeedOption[] = [
   },
 ]
 
+const TONE_ICONS: Record<string, string> = {
+  'Political intrigue & betrayal': '👑',
+  'Creeping dread & mystery': '🌑',
+  'Tense investigation & survival': '🕯',
+  'Dark horror & desperate odds': '🩸',
+  'Paranoia & conspiracy': '🎭',
+  'Gritty survival & secrets': '⚓',
+  'Cosmic horror & temptation': '🕳',
+  'Fate, legacy & urgency': '⚔️',
+  'Moral weight & war': '🏹',
+  'Surreal mystery & identity': '🎭',
+  'Survival & epic stakes': '❄️',
+  'Heist & moral compromise': '🗝',
+}
+
 function pickRandom4(exclude: string[] = []): StorySeedOption[] {
   const pool = ALL_SEEDS.filter(s => !exclude.includes(s.id))
   const shuffled = [...pool].sort(() => Math.random() - 0.5)
@@ -115,6 +130,8 @@ export default function Dashboard() {
   const [joinCode, setJoinCode] = useState('')
   const [joiningByCode, setJoiningByCode] = useState(false)
   const [joinError, setJoinError] = useState('')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const startAudio = useCallback(() => { audioManager.startAmbient() }, [])
 
@@ -174,6 +191,19 @@ export default function Dashboard() {
     }
   }
 
+  async function deleteCampaign(id: string) {
+    setDeletingId(id)
+    try {
+      await campaignApi.delete(id)
+      setCampaigns(prev => prev.filter(c => c.id !== id))
+    } catch {
+      // silently fail
+    } finally {
+      setDeletingId(null)
+      setConfirmDeleteId(null)
+    }
+  }
+
   async function joinByCode() {
     const code = joinCode.trim().toUpperCase()
     if (!code) return
@@ -201,181 +231,403 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-parchment-100">
+    <div className="min-h-screen text-parchment-100 relative" style={{ background: '#0a0d12' }}>
+      {/* Background atmospheric layer */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `url('/assets/scenes/tavern.png')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+          opacity: 0.07,
+        }} />
+        <div className="absolute inset-0" style={{
+          background: 'radial-gradient(ellipse at 50% 0%, rgba(120,50,20,0.15) 0%, transparent 60%)',
+        }} />
+        <div className="absolute bottom-0 left-0 right-0 h-64" style={{
+          background: 'linear-gradient(to top, #0a0d12, transparent)',
+        }} />
+      </div>
+
       {/* Header */}
-      <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="font-fantasy text-2xl text-parchment-200">Chronicles of the Fallen Age</h1>
-          <p className="text-slate-500 text-sm font-serif">Welcome back, {user?.username || 'Adventurer'}</p>
+      <header className="relative z-10 px-6 py-5 flex items-center justify-between" style={{
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        background: 'rgba(10,13,18,0.8)',
+        backdropFilter: 'blur(10px)',
+      }}>
+        <div className="flex items-center gap-4">
+          <div className="w-8 h-8 flex items-center justify-center" style={{
+            color: '#c8922a',
+            filter: 'drop-shadow(0 0 8px rgba(200,146,42,0.5))',
+          }}>
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7">
+              <path d="M12 2L14.5 8.5H21L15.7 12.6L17.9 19.5L12 15.5L6.1 19.5L8.3 12.6L3 8.5H9.5L12 2Z"/>
+            </svg>
+          </div>
+          <div>
+            <h1 className="font-fantasy text-xl text-parchment-200 leading-none" style={{ letterSpacing: '0.05em' }}>Chronicles of the Fallen Age</h1>
+            <p className="text-xs font-serif mt-0.5" style={{ color: 'rgba(200,146,42,0.6)', letterSpacing: '0.12em' }}>ADVENTURER'S HALL</p>
+          </div>
         </div>
-        <button onClick={handleLogout} className="fantasy-btn-secondary text-xs">
-          Depart
-        </button>
+        <div className="flex items-center gap-4">
+          <span className="text-xs font-serif" style={{ color: 'rgba(180,160,120,0.5)' }}>{user?.username || 'Adventurer'}</span>
+          <button onClick={handleLogout} className="text-xs font-serif px-3 py-1.5 transition-all" style={{
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: 'rgba(180,160,120,0.6)',
+          }}
+          onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = 'rgba(180,160,120,0.3)'; (e.target as HTMLElement).style.color = 'rgba(220,200,160,0.9)' }}
+          onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; (e.target as HTMLElement).style.color = 'rgba(180,160,120,0.6)' }}
+          >
+            Sign Out
+          </button>
+        </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        {/* Campaigns */}
-        <section className="mb-10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-fantasy text-xl text-parchment-200">Your Campaigns</h2>
-            <button onClick={openNewCampaign} className="fantasy-btn text-xs">
-              + New Campaign
+      <div className="relative z-10 max-w-5xl mx-auto px-6 py-10">
+
+        {/* Your Campaigns */}
+        <section className="mb-14">
+          <div className="flex items-end justify-between mb-6">
+            <div>
+              <h2 className="font-fantasy text-2xl text-parchment-200">Your Campaigns</h2>
+              <p className="text-xs font-serif mt-1" style={{ color: 'rgba(180,160,120,0.5)', letterSpacing: '0.1em' }}>ONGOING LEGENDS</p>
+            </div>
+            <button
+              onClick={openNewCampaign}
+              className="flex items-center gap-2 px-4 py-2 font-serif text-sm transition-all"
+              style={{
+                background: 'linear-gradient(135deg, rgba(192,57,43,0.2), rgba(120,30,20,0.3))',
+                border: '1px solid rgba(192,57,43,0.4)',
+                color: '#e8b89a',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(192,57,43,0.35), rgba(140,40,25,0.4))' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(192,57,43,0.2), rgba(120,30,20,0.3))' }}
+            >
+              <span style={{ color: '#e8855a' }}>+</span> New Campaign
             </button>
           </div>
 
           {loading ? (
-            <p className="text-slate-500 italic font-serif">Consulting the annals...</p>
+            <div className="flex items-center gap-3 py-8" style={{ color: 'rgba(180,160,120,0.4)' }}>
+              <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(200,146,42,0.3)', borderTopColor: 'rgba(200,146,42,0.8)' }} />
+              <span className="text-sm font-serif italic">Consulting the annals...</span>
+            </div>
           ) : campaigns.length === 0 ? (
-            <div className="border border-slate-800 bg-slate-900/50 p-8 text-center">
-              <p className="text-slate-500 font-serif italic mb-3">No campaigns yet. The realm awaits your tale.</p>
-              <button onClick={openNewCampaign} className="fantasy-btn text-xs">
-                Begin a Campaign
-              </button>
+            <div className="py-16 text-center" style={{
+              border: '1px solid rgba(255,255,255,0.05)',
+              background: 'rgba(255,255,255,0.02)',
+            }}>
+              <div className="text-4xl mb-4 opacity-30">⚔</div>
+              <p className="font-serif italic text-sm mb-4" style={{ color: 'rgba(180,160,120,0.5)' }}>No campaigns yet. The realm awaits your tale.</p>
+              <button onClick={openNewCampaign} className="fantasy-btn text-xs">Begin a Campaign</button>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {campaigns.map((campaign) => (
-                <div key={campaign.id} className="border border-slate-700 bg-slate-900 p-5 hover:border-slate-500 transition-colors">
-                  <h3 className="font-fantasy text-lg text-parchment-200 mb-1">{campaign.name}</h3>
-                  <p className="text-slate-400 text-sm font-serif mb-3 line-clamp-2">{campaign.story_seed}</p>
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>Act {campaign.act}</span>
-                    <span>{new Date(campaign.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <button
-                    onClick={() => handleContinue(campaign)}
-                    className="fantasy-btn-secondary text-xs mt-3 w-full"
-                  >
-                    Continue
-                  </button>
-                </div>
+                <CampaignCard
+                  key={campaign.id}
+                  campaign={campaign}
+                  onContinue={() => handleContinue(campaign)}
+                  onDelete={() => setConfirmDeleteId(campaign.id)}
+                />
               ))}
             </div>
           )}
         </section>
 
-        {/* Join Campaign by code */}
-        <section className="mb-10">
-          <h2 className="font-fantasy text-xl text-parchment-200 mb-4">Join a Campaign</h2>
-          <div className="border border-slate-800 bg-slate-900/50 p-5">
-            <p className="text-slate-500 font-serif text-sm mb-3 italic">Enter an invite code from your party member.</p>
+        {/* Join Campaign */}
+        <section className="max-w-md">
+          <div className="mb-4">
+            <h2 className="font-fantasy text-xl text-parchment-200">Join a Party</h2>
+            <p className="text-xs font-serif mt-1" style={{ color: 'rgba(180,160,120,0.5)', letterSpacing: '0.1em' }}>ENTER INVITE CODE</p>
+          </div>
+          <div style={{ border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)', padding: '20px' }}>
+            <p className="text-xs font-serif italic mb-4" style={{ color: 'rgba(180,160,120,0.5)' }}>
+              Your companion will share an 8-letter code from their game.
+            </p>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={joinCode}
                 onChange={e => { setJoinCode(e.target.value.toUpperCase()); setJoinError('') }}
-                className="fantasy-input flex-1 font-mono tracking-widest text-center uppercase"
-                placeholder="INVITE CODE"
+                className="flex-1 bg-transparent font-mono text-center text-lg tracking-[0.3em] uppercase outline-none py-2 px-3"
+                style={{
+                  border: '1px solid rgba(200,146,42,0.25)',
+                  color: '#e8c87a',
+                  background: 'rgba(200,146,42,0.05)',
+                }}
+                placeholder="· · · · · · · ·"
                 maxLength={8}
               />
               <button
                 onClick={joinByCode}
                 disabled={joiningByCode || joinCode.trim().length < 6}
-                className="fantasy-btn text-xs px-5 disabled:opacity-50"
+                className="px-5 py-2 font-serif text-sm transition-all disabled:opacity-40"
+                style={{
+                  background: 'rgba(200,146,42,0.15)',
+                  border: '1px solid rgba(200,146,42,0.3)',
+                  color: '#e8c87a',
+                }}
               >
-                {joiningByCode ? 'Joining...' : 'Join'}
+                {joiningByCode ? '...' : 'Join'}
               </button>
             </div>
-            {joinError && <p className="text-ember-400 text-xs mt-2 font-serif">{joinError}</p>}
+            {joinError && <p className="text-xs font-serif mt-2" style={{ color: '#e87a7a' }}>{joinError}</p>}
           </div>
         </section>
       </div>
 
-      {/* New Campaign Modal */}
-      {showNewCampaign && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-700 p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="font-fantasy text-xl text-parchment-200">Choose Your Fate</h2>
-              <button onClick={() => setShowNewCampaign(false)} className="text-slate-500 hover:text-slate-300 text-xl">✕</button>
-            </div>
-
-            {/* Campaign Name */}
-            <div className="mb-5">
-              <label className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Campaign Name</label>
-              <input
-                type="text"
-                value={campaignName}
-                onChange={e => setCampaignName(e.target.value)}
-                className="fantasy-input w-full"
-                placeholder="Name your legend..."
-              />
-            </div>
-
-            {/* Premise toggle */}
-            <div className="flex items-center gap-3 mb-3">
-              <h3 className="text-xs uppercase tracking-widest text-slate-400 flex-1">
-                {useCustomPremise ? 'Write Your Own Premise' : 'Select a Premise'}
-              </h3>
-              {!useCustomPremise && (
-                <button
-                  onClick={refreshSeeds}
-                  className="text-xs text-slate-500 hover:text-parchment-200 border border-slate-700 hover:border-slate-500 px-2 py-1 transition-colors"
-                  title="Show different premises"
-                >
-                  ↻ Refresh
-                </button>
-              )}
-              <button
-                onClick={() => { setUseCustomPremise(!useCustomPremise); setSelectedSeed(null) }}
-                className="text-xs text-ember-400 hover:text-ember-300 border border-ember-600/40 hover:border-ember-500 px-2 py-1 transition-colors"
-              >
-                {useCustomPremise ? '← Use suggestions' : '✎ Write my own'}
-              </button>
-            </div>
-
-            {useCustomPremise ? (
-              <div className="mb-5">
-                <textarea
-                  value={customPremise}
-                  onChange={e => setCustomPremise(e.target.value)}
-                  className="fantasy-input w-full h-36 resize-none text-sm font-serif"
-                  placeholder="Describe the world, the conflict, the starting situation... The more vivid, the better the Dungeon Master will weave your tale."
-                />
-                <p className="text-slate-600 text-xs mt-1 font-serif italic">
-                  {customPremise.length < 20 ? 'Write at least a sentence or two...' : `${customPremise.length} characters — looks good`}
-                </p>
-              </div>
-            ) : (
-              <div className="mb-5 space-y-3">
-                {seeds.map((seed) => (
-                  <div
-                    key={seed.id}
-                    onClick={() => setSelectedSeed(seed)}
-                    className={`border p-4 cursor-pointer transition-colors ${selectedSeed?.id === seed.id ? 'border-ember-500 bg-ember-600/10' : 'border-slate-700 hover:border-slate-500'}`}
-                  >
-                    <h4 className="font-fantasy text-parchment-200 mb-1">{seed.title}</h4>
-                    <p className="text-slate-300 text-sm font-serif mb-2">{seed.premise}</p>
-                    <div className="flex gap-4 text-xs text-slate-500">
-                      <span>Tone: {seed.tone}</span>
-                      <span>Start: {seed.startingLocation}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {campaignError && (
-              <div className="border border-ember-600 bg-ember-600/10 px-3 py-2 text-ember-400 text-sm mb-3">
-                {campaignError}
-              </div>
-            )}
-
+      {/* Delete confirmation modal */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }}>
+          <div style={{ background: '#111318', border: '1px solid rgba(192,57,43,0.4)', padding: '28px', maxWidth: '380px', width: '100%' }}>
+            <h3 className="font-fantasy text-lg text-parchment-200 mb-2">Destroy This Campaign?</h3>
+            <p className="text-sm font-serif mb-6" style={{ color: 'rgba(180,160,120,0.7)' }}>
+              All progress, characters, and story will be lost forever. This cannot be undone.
+            </p>
             <div className="flex gap-3">
-              <button onClick={() => { setShowNewCampaign(false); setCampaignError('') }} className="fantasy-btn-secondary flex-1 text-xs">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="flex-1 py-2 text-sm font-serif transition-all"
+                style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.7)' }}
+              >
                 Cancel
               </button>
               <button
-                onClick={createCampaign}
-                disabled={!canCreate}
-                className="fantasy-btn flex-1 text-xs disabled:opacity-50"
+                onClick={() => deleteCampaign(confirmDeleteId)}
+                disabled={!!deletingId}
+                className="flex-1 py-2 text-sm font-serif transition-all disabled:opacity-50"
+                style={{ background: 'rgba(192,57,43,0.2)', border: '1px solid rgba(192,57,43,0.5)', color: '#e87a7a' }}
               >
-                Begin Campaign
+                {deletingId ? 'Deleting...' : 'Delete Forever'}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* New Campaign Modal */}
+      {showNewCampaign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.9)' }}>
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{
+            background: '#0e1118',
+            border: '1px solid rgba(200,146,42,0.2)',
+            boxShadow: '0 0 60px rgba(200,146,42,0.08)',
+          }}>
+            {/* Modal header */}
+            <div className="flex justify-between items-center px-6 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div>
+                <h2 className="font-fantasy text-xl text-parchment-200">Begin a New Legend</h2>
+                <p className="text-xs font-serif mt-1" style={{ color: 'rgba(200,146,42,0.5)', letterSpacing: '0.1em' }}>CHOOSE YOUR FATE</p>
+              </div>
+              <button onClick={() => setShowNewCampaign(false)} style={{ color: 'rgba(180,160,120,0.4)' }} className="text-xl hover:text-parchment-300 transition-colors">✕</button>
+            </div>
+
+            <div className="px-6 py-5">
+              {/* Campaign name */}
+              <div className="mb-6">
+                <label className="block text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(200,146,42,0.7)', letterSpacing: '0.12em' }}>Campaign Name</label>
+                <input
+                  type="text"
+                  value={campaignName}
+                  onChange={e => setCampaignName(e.target.value)}
+                  className="w-full bg-transparent outline-none py-2.5 px-3 font-serif text-parchment-200"
+                  style={{ border: '1px solid rgba(200,146,42,0.25)', background: 'rgba(200,146,42,0.04)' }}
+                  placeholder="Name your legend..."
+                />
+              </div>
+
+              {/* Premise toggle */}
+              <div className="flex items-center justify-between mb-4">
+                <label className="text-xs uppercase tracking-widest" style={{ color: 'rgba(180,160,120,0.6)', letterSpacing: '0.12em' }}>
+                  {useCustomPremise ? 'Write Your Premise' : 'Choose a Premise'}
+                </label>
+                <div className="flex gap-2">
+                  {!useCustomPremise && (
+                    <button
+                      onClick={refreshSeeds}
+                      className="text-xs font-serif px-2 py-1 transition-all"
+                      style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.5)' }}
+                    >
+                      ↻ More
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setUseCustomPremise(!useCustomPremise); setSelectedSeed(null) }}
+                    className="text-xs font-serif px-2 py-1 transition-all"
+                    style={{ border: '1px solid rgba(192,57,43,0.3)', color: 'rgba(220,130,100,0.8)' }}
+                  >
+                    {useCustomPremise ? '← Browse' : '✎ Write My Own'}
+                  </button>
+                </div>
+              </div>
+
+              {useCustomPremise ? (
+                <div className="mb-6">
+                  <textarea
+                    value={customPremise}
+                    onChange={e => setCustomPremise(e.target.value)}
+                    className="w-full bg-transparent outline-none py-3 px-3 font-serif text-sm resize-none"
+                    style={{ border: '1px solid rgba(200,146,42,0.2)', background: 'rgba(200,146,42,0.03)', minHeight: '140px', color: '#d4c5a0' }}
+                    placeholder="Describe the world, the conflict, the opening scene... The Dungeon Master will weave your words into a living campaign."
+                  />
+                  <p className="text-xs font-serif mt-1.5" style={{ color: customPremise.length < 20 ? 'rgba(220,100,80,0.6)' : 'rgba(120,160,100,0.7)' }}>
+                    {customPremise.length < 20 ? 'Write at least a sentence...' : `${customPremise.length} characters — the Dungeon Master is intrigued`}
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-6 space-y-2.5">
+                  {seeds.map((seed) => (
+                    <button
+                      key={seed.id}
+                      onClick={() => setSelectedSeed(seed)}
+                      className="w-full text-left p-4 transition-all"
+                      style={selectedSeed?.id === seed.id
+                        ? { background: 'rgba(192,57,43,0.12)', border: '1px solid rgba(192,57,43,0.45)' }
+                        : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }
+                      }
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-lg mt-0.5 shrink-0">{TONE_ICONS[seed.tone] || '📜'}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <h4 className="font-fantasy text-base text-parchment-200">{seed.title}</h4>
+                            {selectedSeed?.id === seed.id && (
+                              <span className="text-xs shrink-0" style={{ color: 'rgba(192,57,43,0.9)' }}>Selected ✓</span>
+                            )}
+                          </div>
+                          <p className="text-sm font-serif leading-relaxed mb-2" style={{ color: 'rgba(200,185,155,0.8)' }}>{seed.premise}</p>
+                          <div className="flex gap-3 text-xs font-serif" style={{ color: 'rgba(150,140,110,0.6)' }}>
+                            <span>{seed.tone}</span>
+                            <span>·</span>
+                            <span>{seed.startingLocation}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {campaignError && (
+                <div className="px-3 py-2 mb-4 text-sm font-serif" style={{ background: 'rgba(192,57,43,0.1)', border: '1px solid rgba(192,57,43,0.3)', color: '#e87a7a' }}>
+                  {campaignError}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowNewCampaign(false); setCampaignError('') }}
+                  className="flex-1 py-2.5 text-sm font-serif transition-all"
+                  style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.6)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={createCampaign}
+                  disabled={!canCreate}
+                  className="flex-1 py-2.5 text-sm font-serif transition-all disabled:opacity-40"
+                  style={{
+                    background: canCreate ? 'linear-gradient(135deg, rgba(192,57,43,0.3), rgba(140,30,20,0.4))' : 'transparent',
+                    border: '1px solid rgba(192,57,43,0.4)',
+                    color: '#e8b09a',
+                  }}
+                >
+                  Begin the Legend
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CampaignCard({ campaign, onContinue, onDelete }: {
+  campaign: Campaign
+  onContinue: () => void
+  onDelete: () => void
+}) {
+  const [hovered, setHovered] = useState(false)
+
+  const backgroundScenes: Record<number, string> = {
+    1: '/assets/scenes/tavern.png',
+    2: '/assets/scenes/forest-road.png',
+    3: '/assets/scenes/dungeon-corridor.png',
+    4: '/assets/scenes/castle-gate.png',
+    5: '/assets/scenes/ancient-ruins.png',
+  }
+  const sceneIndex = (campaign.name.charCodeAt(0) % 5) + 1
+  const bgScene = backgroundScenes[sceneIndex] || backgroundScenes[1]
+
+  return (
+    <div
+      className="relative overflow-hidden cursor-pointer transition-all duration-300"
+      style={{
+        border: hovered ? '1px solid rgba(200,146,42,0.35)' : '1px solid rgba(255,255,255,0.07)',
+        background: '#0d1017',
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 8px 30px rgba(0,0,0,0.5)' : '0 2px 10px rgba(0,0,0,0.3)',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Scene thumbnail */}
+      <div className="h-28 relative overflow-hidden">
+        <div
+          className="absolute inset-0 transition-transform duration-700"
+          style={{
+            backgroundImage: `url('${bgScene}')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            transform: hovered ? 'scale(1.05)' : 'scale(1)',
+            opacity: 0.5,
+          }}
+        />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(13,16,23,0.2) 0%, rgba(13,16,23,0.7) 100%)' }} />
+        <div className="absolute bottom-2 left-3 right-3">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1 h-1 rounded-full" style={{ background: '#16a34a', boxShadow: '0 0 4px #16a34a' }} />
+            <span className="text-xs font-serif" style={{ color: 'rgba(180,230,180,0.7)', letterSpacing: '0.08em' }}>Act {campaign.act}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-4">
+        <h3 className="font-fantasy text-base text-parchment-200 mb-1.5 leading-tight">{campaign.name}</h3>
+        <p className="text-xs font-serif leading-relaxed mb-3 line-clamp-2" style={{ color: 'rgba(180,160,120,0.6)' }}>
+          {campaign.story_seed}
+        </p>
+        <div className="flex items-center justify-between text-xs font-serif mb-3" style={{ color: 'rgba(150,140,110,0.5)' }}>
+          <span>{new Date(campaign.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={e => { e.stopPropagation(); onContinue() }}
+            className="flex-1 py-2 text-xs font-serif transition-all"
+            style={{
+              background: 'rgba(192,57,43,0.15)',
+              border: '1px solid rgba(192,57,43,0.35)',
+              color: '#e8a090',
+            }}
+          >
+            Continue
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onDelete() }}
+            className="px-3 py-2 text-xs font-serif transition-all"
+            style={{
+              border: '1px solid rgba(255,255,255,0.07)',
+              color: 'rgba(180,160,120,0.35)',
+            }}
+            title="Delete campaign"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

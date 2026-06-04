@@ -9,6 +9,7 @@ interface NarratorBoxProps {
   mood?: Mood
   isPlayerAction?: boolean
   playerName?: string
+  playerPortrait?: string
   onComplete?: () => void
 }
 
@@ -30,7 +31,7 @@ const MOOD_BORDER_COLOR: Record<Mood, string> = {
   pleased: 'rgba(150,180,100,0.4)',
 }
 
-export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = false, instant = false, playerName, onComplete }: NarratorBoxProps) {
+export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = false, instant = false, playerName, playerPortrait, onComplete }: NarratorBoxProps) {
   const [displayed, setDisplayed] = useState('')
   const [typing, setTyping] = useState(false)
   const indexRef = useRef(0)
@@ -68,13 +69,15 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
     return (
       <div className="animate-fade-in flex items-start gap-3 px-2 py-1">
         <div
-          className="shrink-0 w-7 h-7 rounded-full border flex items-center justify-center text-xs font-fantasy"
+          className="shrink-0 w-8 h-8 rounded-full border overflow-hidden flex items-center justify-center text-xs font-fantasy"
           style={isOtherPlayer
             ? { background: 'rgba(139,92,246,0.15)', borderColor: 'rgba(139,92,246,0.5)', color: '#a78bfa' }
             : { background: 'rgba(100,116,139,0.3)', borderColor: 'rgba(100,116,139,0.5)', color: '#cbd5e1' }
           }
         >
-          ⚔
+          {playerPortrait ? (
+            <img src={playerPortrait} alt="" className="w-full h-full object-cover object-top" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          ) : '⚔'}
         </div>
         <div
           className="flex-1 border px-3 py-2"

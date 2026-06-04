@@ -239,20 +239,41 @@ export default function Game() {
 
   if (!started) {
     return (
-      <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: 'radial-gradient(ellipse at center, #0f1923 0%, #070d14 100%)' }}>
-        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url(${DEFAULT_SCENES[0]})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.15, filter: 'blur(2px)' }} />
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 20%, rgba(7,13,20,0.9) 100%)' }} />
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: '#060a0f' }}>
+        <div className="absolute inset-0" style={{ backgroundImage: `url(${DEFAULT_SCENES[0]})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.12, filter: 'blur(3px)' }} />
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, rgba(180,80,30,0.08) 0%, #060a0f 65%)' }} />
         <div className="relative z-10 text-center max-w-lg px-8">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-full border-2 border-ember-400/50 flex items-center justify-center" style={{ animation: 'torchFlicker 2s ease-in-out infinite', boxShadow: '0 0 40px rgba(192,57,43,0.4)' }}>
-            <span className="font-fantasy text-3xl text-ember-400">⚔</span>
-          </div>
-          <h2 className="font-fantasy text-4xl text-parchment-200 mb-3" style={{ textShadow: '0 0 30px rgba(192,57,43,0.4)' }}>Your Adventure Awaits</h2>
-          {currentCharacter && (
-            <p className="text-ember-400/70 font-serif text-sm uppercase tracking-widest mb-4">{currentCharacter.name} · {currentCharacter.race} {currentCharacter.class}</p>
+          {currentCharacter?.portrait_url ? (
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full overflow-hidden border-2" style={{ borderColor: 'rgba(192,57,43,0.5)', boxShadow: '0 0 40px rgba(192,57,43,0.3)' }}>
+              <img src={currentCharacter.portrait_url} alt="" className="w-full h-full object-cover object-top" />
+            </div>
+          ) : (
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full border-2 border-ember-400/40 flex items-center justify-center" style={{ animation: 'torchFlicker 2s ease-in-out infinite', boxShadow: '0 0 40px rgba(192,57,43,0.3)' }}>
+              <span className="font-fantasy text-3xl text-ember-400">⚔</span>
+            </div>
           )}
-          <p className="text-slate-400 font-serif italic mb-10 leading-relaxed">The Dungeon Master stands ready. When you step through, there is no turning back.</p>
-          <button onClick={handleStart} disabled={isLoading} className="fantasy-btn text-base px-10 py-3 disabled:opacity-50">
-            {isLoading ? <span className="animate-pulse">The world stirs...</span> : 'Begin Your Story'}
+          <h2 className="font-fantasy text-4xl text-parchment-200 mb-2" style={{ textShadow: '0 0 40px rgba(192,57,43,0.3)' }}>Your Adventure Awaits</h2>
+          {currentCharacter && (
+            <p className="font-serif text-sm uppercase tracking-widest mb-6" style={{ color: 'rgba(200,146,42,0.6)', letterSpacing: '0.15em' }}>
+              {currentCharacter.name} · {currentCharacter.race} {currentCharacter.class}
+            </p>
+          )}
+          {campaignName && (
+            <p className="font-serif text-sm italic mb-8" style={{ color: 'rgba(180,160,120,0.5)' }}>{campaignName}</p>
+          )}
+          <p className="font-serif italic mb-10 leading-relaxed text-sm" style={{ color: 'rgba(160,140,110,0.7)' }}>The Dungeon Master stands ready. When you step through, there is no turning back.</p>
+          <button
+            onClick={handleStart}
+            disabled={isLoading}
+            className="font-serif text-base px-12 py-3 transition-all disabled:opacity-50"
+            style={{
+              background: 'linear-gradient(135deg, rgba(192,57,43,0.25), rgba(140,30,20,0.35))',
+              border: '1px solid rgba(192,57,43,0.45)',
+              color: '#e8b09a',
+              letterSpacing: '0.08em',
+            }}
+          >
+            {isLoading ? <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>The world stirs...</span> : 'Enter the Story'}
           </button>
         </div>
       </div>
@@ -260,28 +281,50 @@ export default function Game() {
   }
 
   const otherPartyMembers = partyMembers.filter(m => m.userId !== user?.id)
+  const hpPercent = currentCharacter ? (currentCharacter.hp / currentCharacter.max_hp) * 100 : 100
+  const hpColor = hpPercent > 60 ? '#22c55e' : hpPercent > 30 ? '#eab308' : '#ef4444'
 
   return (
-    <div className="h-screen bg-slate-950 text-parchment-100 flex flex-col overflow-hidden">
-      <header className="border-b border-slate-800/60 px-4 py-2 flex items-center justify-between shrink-0 bg-slate-950/95 backdrop-blur-sm">
+    <div className="h-screen text-parchment-100 flex flex-col overflow-hidden" style={{ background: '#08090e' }}>
+      {/* Top bar */}
+      <header className="shrink-0 flex items-center justify-between px-4 py-2.5" style={{
+        background: 'rgba(8,9,14,0.97)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        backdropFilter: 'blur(10px)',
+      }}>
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/dashboard')} className="text-slate-600 hover:text-slate-300 text-sm transition-colors font-serif">← Leave</button>
-          <span className="text-slate-800">|</span>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="font-serif text-xs transition-colors px-2 py-1"
+            style={{ color: 'rgba(180,160,120,0.45)' }}
+            onMouseEnter={e => (e.target as HTMLElement).style.color = 'rgba(220,200,160,0.8)'}
+            onMouseLeave={e => (e.target as HTMLElement).style.color = 'rgba(180,160,120,0.45)'}
+          >
+            ← Hall
+          </button>
+          <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.08)' }} />
           {currentCharacter && (
-            <div className="flex items-center gap-2">
-              <img src={`/assets/races/${currentCharacter.race.toLowerCase().replace(/['\s]/g, '-')}.png`} alt="" className="w-6 h-6 rounded-full object-cover object-top border border-slate-700" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-              <span className="text-sm font-serif text-slate-400">
-                <span className="text-parchment-300">{currentCharacter.name}</span>
-                <span className="text-slate-600 mx-1">·</span>
-                {currentCharacter.race} {currentCharacter.class}
-                <span className="text-slate-600 mx-1">·</span>
-                <span className="text-ember-400">Lv.{currentCharacter.level}</span>
-              </span>
-              <div className="flex items-center gap-1 ml-2">
-                <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(currentCharacter.hp / currentCharacter.max_hp) * 100}%`, background: currentCharacter.hp > currentCharacter.max_hp * 0.6 ? '#16a34a' : currentCharacter.hp > currentCharacter.max_hp * 0.3 ? '#ca8a04' : '#dc2626' }} />
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-full overflow-hidden shrink-0" style={{ border: '1px solid rgba(200,146,42,0.3)' }}>
+                <img
+                  src={currentCharacter.portrait_url || `/assets/races/${currentCharacter.race.toLowerCase().replace(/['\s]/g, '-')}.png`}
+                  alt=""
+                  className="w-full h-full object-cover object-top"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-serif text-sm" style={{ color: '#d4c5a0' }}>{currentCharacter.name}</span>
+                <span style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
+                <span className="font-serif text-xs" style={{ color: 'rgba(180,160,120,0.5)' }}>{currentCharacter.race} {currentCharacter.class}</span>
+                <span style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
+                <span className="font-serif text-xs" style={{ color: 'rgba(200,146,42,0.8)' }}>Lv {currentCharacter.level}</span>
+              </div>
+              <div className="flex items-center gap-1.5 ml-1">
+                <div className="w-20 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${hpPercent}%`, background: hpColor, boxShadow: `0 0 6px ${hpColor}80` }} />
                 </div>
-                <span className="text-xs text-slate-600">{currentCharacter.hp}/{currentCharacter.max_hp}</span>
+                <span className="font-mono text-xs" style={{ color: 'rgba(160,140,110,0.5)', fontSize: '10px' }}>{currentCharacter.hp}/{currentCharacter.max_hp}</span>
               </div>
             </div>
           )}
@@ -289,12 +332,25 @@ export default function Game() {
         <div className="flex items-center gap-2">
           <AudioControls />
           {campaignId && (
-            <button onClick={() => setShowInviteModal(true)} className="text-xs px-3 py-1 border border-slate-700 text-slate-400 hover:border-amber-600/50 hover:text-amber-400 transition-colors font-serif">
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="font-serif text-xs px-2.5 py-1 transition-all"
+              style={{ border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(180,160,120,0.5)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,146,42,0.3)'; (e.currentTarget as HTMLElement).style.color = 'rgba(200,146,42,0.8)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.color = 'rgba(180,160,120,0.5)' }}
+            >
               + Invite
             </button>
           )}
-          <button onClick={() => setShowSidebar(!showSidebar)} className={`text-xs px-3 py-1 border transition-colors font-serif ${showSidebar ? 'border-ember-500 text-ember-400 bg-ember-600/10' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>
-            {showSidebar ? 'Hide Sheet' : 'Character Sheet'}
+          <button
+            onClick={() => setShowSidebar(!showSidebar)}
+            className="font-serif text-xs px-2.5 py-1 transition-all"
+            style={showSidebar
+              ? { border: '1px solid rgba(192,57,43,0.4)', color: 'rgba(232,176,154,0.9)', background: 'rgba(192,57,43,0.08)' }
+              : { border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(180,160,120,0.5)' }
+            }
+          >
+            {showSidebar ? 'Hide Sheet' : 'Sheet'}
           </button>
         </div>
       </header>
@@ -303,30 +359,39 @@ export default function Game() {
         <PartyPanel members={partyMembers} currentUserId={user?.id || ''} />
       )}
 
+      {inCombat && (
+        <div className="shrink-0 flex items-center justify-between px-5 py-1" style={{
+          background: 'linear-gradient(90deg, rgba(127,10,10,0.0), rgba(200,20,20,0.15), rgba(127,10,10,0.0))',
+          borderBottom: '1px solid rgba(220,38,38,0.25)',
+        }}>
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#f87171', boxShadow: '0 0 6px #f87171', animation: 'pulse 1s ease-in-out infinite' }} />
+            <span className="font-sans text-xs uppercase tracking-widest" style={{ color: '#f87171', letterSpacing: '0.2em' }}>Combat</span>
+          </div>
+          <span className="font-serif text-xs italic" style={{ color: 'rgba(220,100,100,0.5)' }}>Fight, flee, or find another way</span>
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-col flex-1 overflow-hidden">
-          <div className="shrink-0" style={{ height: '200px' }}>
+          {/* Scene image — taller and more cinematic */}
+          <div className="shrink-0 relative" style={{ height: '220px' }}>
             <SceneDisplay imageUrl={currentSceneImage} />
+            {/* Bottom gradient to blend into content */}
+            <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none" style={{
+              background: 'linear-gradient(to top, #08090e, transparent)',
+            }} />
           </div>
 
           {showDice && lastActionResult?.diceRoll && (
             <DiceRoll rolling={showDice} result={lastActionResult.diceRoll.total} modifier={lastActionResult.diceRoll.modifier} label={lastActionResult.diceRoll.description || 'Roll'} />
           )}
 
-          {inCombat && (
-            <div className="shrink-0 flex items-center justify-between px-4 py-1.5" style={{ background: 'linear-gradient(90deg, rgba(127,29,29,0.4), rgba(185,28,28,0.25), rgba(127,29,29,0.4))', borderTop: '1px solid rgba(220,38,38,0.4)', borderBottom: '1px solid rgba(220,38,38,0.4)' }}>
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-                <span className="text-xs uppercase tracking-widest text-red-400 font-sans">Combat Active</span>
-              </div>
-              <span className="text-xs text-red-600/70 font-serif italic">Fight, flee, or find another way</span>
-            </div>
-          )}
-
-          <div ref={narratorRef} className="flex-1 overflow-y-auto py-4 space-y-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}>
+          <div ref={narratorRef} className="flex-1 overflow-y-auto py-3 space-y-1.5" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.06) transparent' }}>
             {normalizeEvents(events).map((event, i) => {
               const isOtherPlayer = event.character_id && event.character_id !== characterId
               const partyMember = isOtherPlayer ? partyMembers.find(m => m.character?.id === event.character_id) : null
+              const isMyAction = event.event_type === 'action' && event.character_id === characterId
               return (
                 <NarratorBox
                   key={event.id || i}
@@ -335,17 +400,18 @@ export default function Game() {
                   isPlayerAction={event.event_type === 'action'}
                   instant={historicalIds.current.has(event.id) || historicalIds.current.has(event.id.replace(/-[an]$/, ''))}
                   playerName={partyMember?.username}
+                  playerPortrait={isMyAction ? currentCharacter?.portrait_url || undefined : partyMember?.character?.portrait_url || undefined}
                 />
               )
             })}
             {isLoading && (
-              <div className="flex items-center gap-3 px-6 py-2">
-                <div className="w-[60px] h-[60px] rounded-full border border-slate-700 flex items-center justify-center shrink-0">
-                  <img src="/assets/dm/dm-neutral.png" alt="DM" className="w-full h-full rounded-full object-cover opacity-50" />
+              <div className="flex items-center gap-3 px-5 py-3">
+                <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border" style={{ borderColor: 'rgba(192,57,43,0.3)' }}>
+                  <img src="/assets/dm/dm-neutral.png" alt="DM" className="w-full h-full object-cover opacity-40" />
                 </div>
-                <div className="flex gap-1.5">
-                  {[0, 1, 2].map(i => (
-                    <div key={i} className="w-2 h-2 rounded-full bg-ember-400/50" style={{ animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />
+                <div className="flex gap-1.5 items-center">
+                  {[0, 1, 2].map(j => (
+                    <div key={j} className="w-2 h-2 rounded-full" style={{ background: 'rgba(192,57,43,0.5)', animation: `bounce 1.2s ease-in-out ${j * 0.2}s infinite` }} />
                   ))}
                 </div>
               </div>
@@ -356,7 +422,7 @@ export default function Game() {
         </div>
 
         {showSidebar && currentCharacter && (
-          <aside className="w-72 border-l border-slate-800 overflow-y-auto shrink-0 bg-slate-950">
+          <aside className="w-72 shrink-0 overflow-y-auto" style={{ borderLeft: '1px solid rgba(255,255,255,0.06)', background: '#0a0b10' }}>
             <CharacterSheet character={currentCharacter} />
           </aside>
         )}
