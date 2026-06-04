@@ -109,6 +109,7 @@ export interface WorldState {
   sessionCount?: number;
   characterLocations?: Record<string, string>;  // characterId -> location name
   characterLastSeen?: Record<string, string>;    // characterId -> ISO timestamp
+  fallenHeroes?: { name: string; race: string; class: string; level: number; cause: string; diedAt: string; location?: string }[];
 }
 
 export interface WorldBible {

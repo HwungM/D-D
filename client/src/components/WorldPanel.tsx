@@ -40,6 +40,7 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
     ? Object.entries(worldState.factionStandings)
     : []
   const sessionNotes = Array.isArray(worldState.sessionNotes) ? worldState.sessionNotes : []
+  const fallenHeroes = Array.isArray(worldState.fallenHeroes) ? worldState.fallenHeroes : []
   const journal = Array.isArray((worldState as Record<string, unknown>).campaignJournal)
     ? ((worldState as Record<string, unknown>).campaignJournal as unknown[])
     : []
@@ -134,6 +135,31 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
       )}
 
       {/* Session notes / DM notes */}
+      {fallenHeroes.length > 0 && (
+        <div>
+          <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)', letterSpacing: '0.15em' }}>Fallen Heroes</p>
+          <div className="space-y-2">
+            {fallenHeroes.map((hero, i) => (
+              <div key={i} className="px-3 py-2" style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span style={{ color: 'rgba(239,68,68,0.6)', fontSize: 10 }}>☠</span>
+                  <span className="font-serif text-xs font-semibold" style={{ color: 'rgba(220,160,140,0.8)' }}>
+                    {safeStr(hero.name)}
+                  </span>
+                  <span className="font-mono text-xs" style={{ color: 'rgba(160,130,110,0.5)' }}>
+                    Lv.{hero.level} {safeStr(hero.race)} {safeStr(hero.class)}
+                  </span>
+                </div>
+                <p className="font-serif text-xs italic" style={{ color: 'rgba(180,140,130,0.6)' }}>
+                  {safeStr(hero.cause)}
+                  {hero.location ? ` — ${safeStr(hero.location)}` : ''}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {sessionNotes.length > 0 && (
         <div>
           <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)' }}>DM Notes</p>
