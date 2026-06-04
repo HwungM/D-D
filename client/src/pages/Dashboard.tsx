@@ -176,17 +176,13 @@ export default function Dashboard() {
   }
 
   async function handleContinue(campaign: Campaign) {
-    try {
-      const { data } = await characterApi.listByCampaign(campaign.id)
-      const chars = data.characters || []
-      const alive = chars.find((c: { is_alive: boolean }) => c.is_alive)
-      const char = alive || chars[chars.length - 1]
-      if (char) {
-        navigate(`/campaign/${campaign.id}/play/${char.id}`)
-      } else {
-        navigate(`/campaign/${campaign.id}/create-character`)
-      }
-    } catch {
+    const { data } = await characterApi.listByCampaign(campaign.id)
+    const chars = data.characters || []
+    const alive = chars.find((c: { is_alive: boolean }) => c.is_alive)
+    const char = alive || chars[chars.length - 1]
+    if (char) {
+      navigate(`/campaign/${campaign.id}/play/${char.id}`)
+    } else {
       navigate(`/campaign/${campaign.id}/create-character`)
     }
   }
