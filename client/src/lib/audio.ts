@@ -14,7 +14,6 @@ const GAMEPLAY_TRACKS = [
   '/assets/music/840874c1-Lost_Woods_Harp_Lullaby_Version.mp3',
 ]
 
-// Location-based ambient tracks
 const AMBIENT_TRACKS: Record<string, string[]> = {
   dungeon: ['/assets/music/65a3d146-dungeon_ambience_loop.mp3'],
   forest: [
@@ -91,7 +90,6 @@ class AudioManager {
     const srcs = AMBIENT_TRACKS[type] ?? AMBIENT_TRACKS.default
     const src = srcs[Math.floor(Math.random() * srcs.length)]
 
-    // Only swap if type changed or not playing
     if (type !== this.currentAmbientType || !this.ambientTrack || this.ambientTrack.paused) {
       this.currentAmbientType = type
       if (this.ambientTrack && !this.ambientTrack.paused) {
