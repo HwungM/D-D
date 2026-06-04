@@ -6,6 +6,9 @@ const GAMEPLAY_TRACKS = [
   '/assets/music/b415b8fa-Marcin_Przybylowicz__Priscillas_Song_Wolven_Storm_Instrumental.mp3',
   '/assets/music/dd6dc1ea-Clock_Town_from_The_Legend_of_Zelda__Majoras_Mask.mp3',
   '/assets/music/de14b100-Scarborough_Fair_Celtic_Instrumental_Version.mp3',
+  '/assets/music/cafdc194-Enchantress.mp3',
+  '/assets/music/4aae52b3-Dorian_Concept__Space_II_Official_Video.mp3',
+  '/assets/music/181876ab-Ancient_Stones.mp3',
 ]
 
 type AudioTrack = 'combat-1' | 'combat-2' | 'combat-3' | 'victory' | 'level-up'
