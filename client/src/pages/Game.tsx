@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { gameApi, assetApi, campaignApi } from '../lib/api'
 import { useGameStore, useAuthStore } from '../lib/store'
+import QuestLog from '../components/QuestLog'
+import WorldPanel from '../components/WorldPanel'
 import { createClient } from '@supabase/supabase-js'
 import SceneDisplay from '../components/SceneDisplay'
 import ActionPanel from '../components/ActionPanel'
@@ -55,11 +57,13 @@ export default function Game() {
   const {
     currentCharacter, setCharacter, setLastActionResult, lastActionResult,
     isLoading, setLoading, currentSceneImage, setSceneImage, events, setEvents, addEvent,
+    worldState, setWorldState, mergeWorldState,
   } = useGameStore()
 
   const [started, setStarted] = useState(false)
   const [showDice, setShowDice] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
+  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'world'>('character')
   const narratorRef = useRef<HTMLDivElement>(null)
   const historicalIds = useRef<Set<string>>(new Set())
 
@@ -93,6 +97,7 @@ export default function Game() {
     if (!campaignId || !characterId) return
     gameApi.getScene(campaignId, characterId).then(({ data }) => {
       if (data.character) setCharacter(data.character as Character)
+      if (data.worldState) setWorldState(data.worldState)
       if (!currentSceneImage) setSceneImage(DEFAULT_SCENES[Math.floor(Math.random() * DEFAULT_SCENES.length)])
     })
     gameApi.getHistory(campaignId, characterId, 50, true).then(({ data }) => {
@@ -228,6 +233,7 @@ export default function Game() {
       })
 
       if (result.characterChanges) setCharacter({ ...currentCharacter!, ...result.characterChanges } as Character)
+      if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
       if (result.sceneImagePrompt) {
         assetApi.generate(result.sceneImagePrompt, `scene-${campaignId}-${Date.now()}`).then(({ data: img }) => setSceneImage(img.url)).catch(() => {})
       }
@@ -342,16 +348,23 @@ export default function Game() {
               + Invite
             </button>
           )}
-          <button
-            onClick={() => setShowSidebar(!showSidebar)}
-            className="font-serif text-xs px-2.5 py-1 transition-all"
-            style={showSidebar
-              ? { border: '1px solid rgba(192,57,43,0.4)', color: 'rgba(232,176,154,0.9)', background: 'rgba(192,57,43,0.08)' }
-              : { border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(180,160,120,0.5)' }
-            }
-          >
-            {showSidebar ? 'Hide Sheet' : 'Sheet'}
-          </button>
+          {(['character', 'quests', 'world'] as const).map(tab => {
+            const labels = { character: 'Sheet', quests: 'Quests', world: 'World' }
+            const isActive = showSidebar && sidebarTab === tab
+            return (
+              <button
+                key={tab}
+                onClick={() => { setSidebarTab(tab); setShowSidebar(sidebarTab !== tab || !showSidebar) }}
+                className="font-serif text-xs px-2.5 py-1 transition-all"
+                style={isActive
+                  ? { border: '1px solid rgba(192,57,43,0.4)', color: 'rgba(232,176,154,0.9)', background: 'rgba(192,57,43,0.08)' }
+                  : { border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(180,160,120,0.5)' }
+                }
+              >
+                {labels[tab]}
+              </button>
+            )
+          })}
         </div>
       </header>
 
@@ -421,9 +434,11 @@ export default function Game() {
           <ActionPanel suggestedActions={lastActionResult?.suggestedActions || []} onAction={handleAction} disabled={isLoading || currentCharacter?.is_alive === false} />
         </div>
 
-        {showSidebar && currentCharacter && (
+        {showSidebar && (
           <aside className="w-72 shrink-0 overflow-y-auto" style={{ borderLeft: '1px solid rgba(255,255,255,0.06)', background: '#0a0b10' }}>
-            <CharacterSheet character={currentCharacter} />
+            {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
+            {sidebarTab === 'quests' && <QuestLog worldState={worldState} />}
+            {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
           </aside>
         )}
       </div>
