@@ -1,62 +1,75 @@
-import { api } from './api'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { useAuthStore } from './store'
 
 class TtsManager {
   enabled: boolean = true
-  private currentSource: AudioBufferSourceNode | null = null
-  private audioContext: AudioContext | null = null
-
-  private getContext(): AudioContext {
-    if (!this.audioContext) {
-      this.audioContext = new AudioContext()
-    }
-    return this.audioContext
-  }
+  private currentAudio: HTMLAudioElement | null = null
+  private currentObjectUrl: string | null = null
 
   toggle(): boolean {
     this.enabled = !this.enabled
-    if (!this.enabled) {
-      this.stop()
-    }
+    if (!this.enabled) this.stop()
     return this.enabled
   }
 
   stop(): void {
-    if (this.currentSource) {
-      try {
-        this.currentSource.stop()
-      } catch {
-        // already stopped
-      }
-      this.currentSource = null
+    if (this.currentAudio) {
+      this.currentAudio.pause()
+      this.currentAudio.src = ''
+      this.currentAudio = null
+    }
+    if (this.currentObjectUrl) {
+      URL.revokeObjectURL(this.currentObjectUrl)
+      this.currentObjectUrl = null
     }
   }
 
   async speak(text: string): Promise<void> {
     if (!this.enabled) return
-
-    // Cancel any currently playing audio
     this.stop()
 
-    try {
-      const response = await api.post('/tts', { text }, { responseType: 'arraybuffer' })
-      if (!this.enabled) return // check again after async
+    const token = useAuthStore.getState().session?.access_token
+    if (!token) return
 
-      const ctx = this.getContext()
-      if (ctx.state === 'suspended') {
-        await ctx.resume()
+    try {
+      const response = await fetch(`${API_URL}/api/tts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text }),
+      })
+
+      if (!response.ok || !response.body) return
+      if (!this.enabled) return
+
+      // Stream response body into chunks — server sends bytes as OpenAI generates them
+      const reader = response.body.getReader()
+      const chunks: Uint8Array[] = []
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        if (!this.enabled) { reader.cancel(); return }
+        chunks.push(value)
       }
 
-      const audioBuffer = await ctx.decodeAudioData(response.data as ArrayBuffer)
-      const source = ctx.createBufferSource()
-      source.buffer = audioBuffer
-      source.connect(ctx.destination)
-      source.onended = () => {
-        if (this.currentSource === source) {
-          this.currentSource = null
+      if (!this.enabled || chunks.length === 0) return
+
+      const blob = new Blob(chunks, { type: 'audio/mpeg' })
+      const url = URL.createObjectURL(blob)
+      this.currentObjectUrl = url
+
+      const audio = new Audio(url)
+      this.currentAudio = audio
+      audio.onended = () => {
+        if (this.currentObjectUrl === url) {
+          URL.revokeObjectURL(url)
+          this.currentObjectUrl = null
         }
       }
-      this.currentSource = source
-      source.start(0)
+      audio.play().catch(() => {})
     } catch (err) {
       console.error('[TTS] Error:', err)
     }

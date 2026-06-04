@@ -26,10 +26,12 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
       input: text,
     });
 
-    const buffer = Buffer.from(await mp3.arrayBuffer());
     res.set('Content-Type', 'audio/mpeg');
-    res.set('Content-Length', String(buffer.length));
-    res.send(buffer);
+    res.set('Transfer-Encoding', 'chunked');
+    // Stream directly — client starts receiving audio immediately
+    const stream = mp3.body as unknown as NodeJS.ReadableStream;
+    stream.pipe(res);
+    stream.on('error', () => res.end());
   } catch (err) {
     const message = err instanceof Error ? err.message : 'TTS generation failed';
     res.status(500).json({ error: message });
