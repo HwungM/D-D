@@ -121,6 +121,7 @@ export default function Game() {
       if (data.character) setCharacter(data.character as Character)
       if (data.worldState) {
         setWorldState(data.worldState)
+        if (data.worldState.currentLocation) audioManager.setLocation(data.worldState.currentLocation)
         const localScene = matchSceneImage(
           [data.worldState.currentLocation, data.worldState.weather].filter(Boolean).join(' ')
         )
@@ -369,7 +370,10 @@ export default function Game() {
       ttsManager.speak(result.narration)
 
       if (result.characterChanges) setCharacter({ ...currentCharacter!, ...result.characterChanges } as Character)
-      if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
+      if (result.worldStateChanges) {
+        mergeWorldState(result.worldStateChanges)
+        if (result.worldStateChanges.currentLocation) audioManager.setLocation(result.worldStateChanges.currentLocation)
+      }
 
       // Scene: try AI prompt match first, then async AI generation
       if (result.sceneImagePrompt) {
