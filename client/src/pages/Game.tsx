@@ -23,8 +23,9 @@ import ActTransition from '../components/ActTransition'
 import JournalTab from '../components/JournalTab'
 import HighStakesChoice from '../components/HighStakesChoice'
 import SidebarErrorBoundary from '../components/SidebarErrorBoundary'
+import DiceRollModal from '../components/DiceRollModal'
 import { audioManager } from '../lib/audio'
-import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType } from '../../../shared/types'
+import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType, RollContext } from '../../../shared/types'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
@@ -96,6 +97,8 @@ export default function Game() {
   const [showHighStakes, setShowHighStakes] = useState(false)
   const [highStakesData, setHighStakesData] = useState<{ narration: string; choices: HighStakesChoiceType[] } | null>(null)
   const [proactiveNarration, setProactiveNarration] = useState<string | null>(null)
+  const [showDiceModal, setShowDiceModal] = useState(false)
+  const [diceModalData, setDiceModalData] = useState<{ narration: string; rollContext: RollContext } | null>(null)
 
   useEffect(() => {
     audioManager.startAmbient()
@@ -202,6 +205,74 @@ export default function Game() {
     return () => clearTimeout(timer)
   }, [started])
 
+  async function handleRollComplete(rollResult: number, rollTotal: number, success: boolean, isCritSuccess: boolean, isCritFail: boolean) {
+    if (!campaignId || !characterId || !diceModalData) return
+    setShowDiceModal(false)
+    setLoading(true)
+    try {
+      const { data } = await gameApi.resolveRoll({
+        characterId,
+        campaignId,
+        rollResult,
+        rollTotal,
+        dc: diceModalData.rollContext.dc,
+        success,
+        isCritSuccess,
+        isCritFail,
+        rollContext: diceModalData.rollContext,
+      })
+      const result = data as ActionResult
+      setLastActionResult(result)
+
+      if (result.isCombat) audioManager.playCombat()
+      if (result.isVictory) audioManager.playVictory()
+      if (result.loot?.length) audioManager.playItemPickup()
+
+      if (result.isCombat && result.enemyName) {
+        setInCombat(true)
+        setEnemyPopupName(result.enemyName)
+        setShowEnemyPopup(true)
+      }
+      if (result.isVictory) setInCombat(false)
+
+      if ((result.loot && result.loot.length > 0) || (result.characterChanges?.gold && currentCharacter && (result.characterChanges.gold as number) > currentCharacter.gold)) {
+        const goldGained = result.characterChanges?.gold !== undefined && currentCharacter
+          ? (result.characterChanges.gold as number) - currentCharacter.gold
+          : undefined
+        setLootItems((result.loot as InventoryItem[]) || [])
+        setLootGold(goldGained && goldGained > 0 ? goldGained : undefined)
+        setShowLoot(true)
+      }
+
+      addEvent({
+        id: `roll-dm-${Date.now()}`,
+        campaign_id: campaignId,
+        character_id: characterId,
+        event_type: 'narration',
+        content: result.narration,
+        metadata: { suggestedActions: result.suggestedActions, fromRoll: true },
+        created_at: new Date().toISOString(),
+      })
+
+      if (result.characterChanges) setCharacter({ ...currentCharacter!, ...result.characterChanges } as Character)
+      if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
+
+      if (result.sceneImagePrompt) {
+        const local = matchSceneImage(result.sceneImagePrompt)
+        if (local) setSceneImage(local)
+        assetApi.generate(result.sceneImagePrompt, `scene-${campaignId}-${Date.now()}`).then(({ data: img }) => setSceneImage(img.url)).catch(() => {})
+      }
+
+      if (result.isDeath) {
+        setTimeout(() => setShowDeathScreen(true), 1200)
+      }
+
+      setDiceModalData(null)
+      refreshParty()
+    } catch (err) { console.error(err) }
+    finally { setLoading(false) }
+  }
+
   async function handleStart() {
     if (!campaignId || !characterId) return
     setLoading(true)
@@ -256,6 +327,22 @@ export default function Game() {
       const { data } = await gameApi.action(characterId, campaignId, action)
       const result = data as ActionResult
       setLastActionResult(result)
+
+      // Player-driven dice roll
+      if (result.awaitingRoll && result.rollContext) {
+        addEvent({
+          id: `temp-dm-${Date.now()}`,
+          campaign_id: campaignId,
+          character_id: characterId,
+          event_type: 'narration',
+          content: result.narration,
+          metadata: { awaitingRoll: true, suggestedActions: result.suggestedActions },
+          created_at: new Date().toISOString(),
+        })
+        setDiceModalData({ narration: result.narration, rollContext: result.rollContext })
+        setShowDiceModal(true)
+        return
+      }
 
       if (result.diceRoll) setShowDice(true)
       if (result.isCombat) audioManager.playCombat()
@@ -624,6 +711,14 @@ export default function Game() {
       )}
       {showActTransition && (
         <ActTransition actNumber={nextAct} onComplete={() => setShowActTransition(false)} />
+      )}
+      {showDiceModal && diceModalData && currentCharacter && (
+        <DiceRollModal
+          narration={diceModalData.narration}
+          rollContext={diceModalData.rollContext}
+          characterName={currentCharacter.name}
+          onRoll={handleRollComplete}
+        />
       )}
       {showHighStakes && highStakesData && (
         <HighStakesChoice

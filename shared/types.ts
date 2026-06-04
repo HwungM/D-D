@@ -175,8 +175,23 @@ export interface DiceRollResult {
   description?: string;
 }
 
+export interface RollContext {
+  stat: string;
+  dc: number;
+  diceType: string;
+  description: string;
+  successDescription: string;
+  failDescription: string;
+  critSuccessDescription?: string;
+  critFailDescription?: string;
+  isDramatic: boolean;
+  modifier: number;
+}
+
 export interface ActionResult {
   narration: string;
+  awaitingRoll?: boolean;
+  rollContext?: RollContext;
   diceRoll?: DiceRollResult;
   worldStateChanges?: Partial<WorldState>;
   characterChanges?: Partial<Character>;

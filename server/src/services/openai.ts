@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { supabaseAdmin } from './supabase';
-import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
 
 dotenv.config();
@@ -84,6 +84,22 @@ CAMPAIGN JOURNAL AWARENESS:
 PROACTIVE WORLD EVENTS:
 - Sometimes (not always, use judgment), set proactiveEvent: true and include a worldEvent in the narration preamble — something the WORLD did, not the player. The antagonist advanced their plan. A faction moved. A rumor reached town. Something changed without the player causing it.
 
+DICE ROLLING RULES:
+- When an action requires a skill check or attack, set awaitingRoll: true instead of narrating the outcome.
+- Populate rollContext with: stat (str/dex/con/int/wis/cha), dc (difficulty 8-25), diceType (almost always "d20"), description (what the player is attempting), successDescription (evocative hint at success, not a spoiler), failDescription (evocative hint at failure), isDramatic (true for high-stakes moments: saving throws vs death, critical attacks, unlocking the final door).
+- When awaitingRoll: true, write a short tense setup narration (50-80 words) that builds to the roll — DO NOT resolve the outcome.
+- Use diceRequired: false when awaitingRoll: true (these are different systems).
+- Call for rolls more often: any attack, stealth attempt, persuasion, lock picking, climbing, knowledge check, saving throw.
+- modifier: the relevant stat modifier (-5 to +5)
+
+ITEM RULES:
+- Items in the character's inventory are story hooks and tools. Build situations where they become relevant.
+- Named/unique items (keys, orbs, runes, letters) MUST eventually have a purpose built around them.
+- Consumable items (potions, scrolls, food, torches) get removed from inventory when used — set characterChanges.inventory to reflect this.
+- Item durability matters: on a critical failure (roll of 1), fragile items break and are removed from inventory. Normal items have a small chance. Sturdy and indestructible items never break.
+- When a character uses a weapon, reference its damage type. When they use a potion, describe the specific effect.
+- Arrows and bolts deplete with use.
+
 RESPONSE FORMAT: Always respond with valid JSON matching this schema:
 {
   "narration": "string — the story text the player sees",
@@ -112,7 +128,20 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "choiceCards": [{"title": "string", "description": "string", "consequenceHint": "string"}] | null,
   "characterHistoryNote": {"type": "choice|ally|enemy|oath|deed|loss", "description": "string", "impact": "string"} | null,
   "antagonistUpdate": {"name": "string", "newStep": "string|null", "lastAction": "string", "nowKnowsPlayers": boolean} | null,
-  "proactiveEvent": boolean
+  "proactiveEvent": boolean,
+  "awaitingRoll": boolean,
+  "rollContext": {
+    "stat": "str|dex|con|int|wis|cha",
+    "dc": number,
+    "diceType": "d20",
+    "description": "string",
+    "successDescription": "string (evocative, vague)",
+    "failDescription": "string (evocative, vague)",
+    "critSuccessDescription": "string | null",
+    "critFailDescription": "string | null",
+    "isDramatic": boolean,
+    "modifier": number
+  } | null
 }`;
 
 export async function generateNarration(
@@ -157,6 +186,8 @@ export async function generateNarration(
   characterHistoryNote?: { type: string; description: string; impact: string };
   antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
   proactiveEvent?: boolean;
+  awaitingRoll?: boolean;
+  rollContext?: RollContext;
 }> {
   // Build unusual race/class combo note
   const unusualCombos: Record<string, string[]> = {
@@ -284,6 +315,84 @@ NARRATIVE TIER: ${campaignContext.act <= 1 && character.level <= 3 ? 'EMERGING �
     characterHistoryNote: parsed.characterHistoryNote || undefined,
     antagonistUpdate: parsed.antagonistUpdate || undefined,
     proactiveEvent: parsed.proactiveEvent || false,
+    awaitingRoll: parsed.awaitingRoll || false,
+    rollContext: parsed.rollContext || undefined,
+  };
+}
+
+export async function generateRollOutcome(
+  rollResult: number,
+  rollTotal: number,
+  dc: number,
+  success: boolean,
+  isCritSuccess: boolean,
+  isCritFail: boolean,
+  rollContext: { stat: string; description: string; successDescription: string; failDescription: string; critSuccessDescription?: string; critFailDescription?: string },
+  worldState: WorldState,
+  character: Character,
+  recentHistory: string[]
+): Promise<{ narration: string; worldStateChanges?: Partial<WorldState>; hpChange?: number; goldChange?: number; suggestedActions: string[]; sceneImagePrompt: string; isDeath?: boolean; isVictory?: boolean; isCombat?: boolean; loot?: unknown[] }> {
+  const resultLabel = isCritSuccess ? 'CRITICAL SUCCESS (natural 20)' : isCritFail ? 'CRITICAL FAILURE (natural 1)' : success ? 'SUCCESS' : 'FAILURE';
+  const flavorHint = isCritSuccess && rollContext.critSuccessDescription
+    ? rollContext.critSuccessDescription
+    : isCritFail && rollContext.critFailDescription
+      ? rollContext.critFailDescription
+      : success
+        ? rollContext.successDescription
+        : rollContext.failDescription;
+
+  const prompt = `You are a DM resolving the outcome of a dice roll.
+The player attempted: ${rollContext.description}
+They rolled ${rollResult} + ${rollTotal - rollResult} (${rollContext.stat.toUpperCase()} modifier) = ${rollTotal} vs DC ${dc} — ${resultLabel}.
+Flavor hint for this outcome: "${flavorHint}"
+
+Character: ${character.name} (${character.race} ${character.class}, Level ${character.level})
+HP: ${character.hp}/${character.max_hp} | Location: ${worldState.currentLocation || 'unknown'}
+Recent history:
+${recentHistory.slice(-4).join('\n')}
+
+Write vivid outcome narration (100-150 words) that matches the ${resultLabel} result.
+${isCritFail ? 'A critical failure is dramatic and costly — something goes very wrong.' : ''}
+${isCritSuccess ? 'A critical success is extraordinary — exceed expectations dramatically.' : ''}
+
+Respond with JSON:
+{
+  "narration": "string",
+  "worldStateChanges": object | null,
+  "hpChange": number | null,
+  "goldChange": number | null,
+  "suggestedActions": ["action1", "action2", "action3"],
+  "sceneImagePrompt": "string",
+  "isDeath": boolean,
+  "isVictory": boolean,
+  "isCombat": boolean,
+  "loot": [{"id":"uid","name":"item","description":"desc","quantity":1,"type":"weapon|armor|potion|misc|key","value":10}] | null
+}`;
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: 'You are a master Dungeon Master resolving dice roll outcomes in a dark fantasy RPG. Respond with valid JSON only.' },
+      { role: 'user', content: prompt },
+    ],
+    temperature: 0.85,
+    response_format: { type: 'json_object' },
+  });
+
+  const content = response.choices[0].message.content || '{}';
+  const parsed = JSON.parse(content);
+
+  return {
+    narration: parsed.narration || 'The outcome unfolds...',
+    worldStateChanges: parsed.worldStateChanges || undefined,
+    hpChange: parsed.hpChange ?? undefined,
+    goldChange: parsed.goldChange ?? undefined,
+    suggestedActions: parsed.suggestedActions || [],
+    sceneImagePrompt: parsed.sceneImagePrompt || '',
+    isDeath: parsed.isDeath || false,
+    isVictory: parsed.isVictory || false,
+    isCombat: parsed.isCombat || false,
+    loot: parsed.loot || undefined,
   };
 }
 

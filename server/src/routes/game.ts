@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
-import { processAction, getOpeningScene } from '../services/gameEngine';
+import { processAction, getOpeningScene, resolveRollAction } from '../services/gameEngine';
 import { generateProactiveEvent } from '../services/openai';
 import type { WorldState, WorldBible, Character } from '../../../shared/types';
 import { z } from 'zod';
@@ -40,6 +40,58 @@ router.post('/action', requireAuth, async (req: AuthRequest, res: Response): Pro
     res.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Game engine error';
+    res.status(500).json({ error: message });
+  }
+});
+
+const resolveRollSchema = z.object({
+  characterId: z.string().uuid(),
+  campaignId: z.string().uuid(),
+  rollResult: z.number().int().min(1).max(20),
+  rollTotal: z.number().int(),
+  dc: z.number().int(),
+  success: z.boolean(),
+  isCritSuccess: z.boolean(),
+  isCritFail: z.boolean(),
+  rollContext: z.object({
+    stat: z.string(),
+    dc: z.number(),
+    diceType: z.string(),
+    description: z.string(),
+    successDescription: z.string(),
+    failDescription: z.string(),
+    critSuccessDescription: z.string().optional(),
+    critFailDescription: z.string().optional(),
+    isDramatic: z.boolean(),
+    modifier: z.number(),
+  }),
+});
+
+router.post('/resolve-roll', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const parse = resolveRollSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: parse.error.errors });
+    return;
+  }
+  const { characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, rollContext } = parse.data;
+
+  const { data: character } = await supabaseAdmin
+    .from('characters')
+    .select('user_id')
+    .eq('id', characterId)
+    .eq('user_id', req.user!.id)
+    .single();
+
+  if (!character) {
+    res.status(403).json({ error: 'Character not found or not yours' });
+    return;
+  }
+
+  try {
+    const result = await resolveRollAction(characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, rollContext);
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to resolve roll';
     res.status(500).json({ error: message });
   }
 });
