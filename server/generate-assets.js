@@ -218,6 +218,53 @@ const ASSETS = [
   { file: 'items/arrows.png', prompt: `${STYLE} Item icon: a bundle of arrows tied together, black feather fletching, iron tips. Square icon, dark background.` },
   { file: 'items/bolts.png', prompt: `${STYLE} Item icon: a bundle of crossbow bolts, shorter than arrows, tied in a quiver. Square icon, dark background.` },
   { file: 'items/arrows-magic.png', prompt: `${STYLE} Item icon: a single magic arrow glowing blue, runes along the shaft, crackling tip. Square icon, dark background.` },
+
+  // Enemies — Humanoids
+  { file: 'enemies/goblin.png', prompt: `${STYLE} Portrait of a goblin enemy, small green-skinned creature, beady yellow eyes, jagged teeth, wearing scraps of leather armor, clutching a rusty dagger. Menacing expression. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/goblin-shaman.png', prompt: `${STYLE} Portrait of a goblin shaman, green skin, glowing red eyes, bone piercings, tattered robes, holding a crude staff topped with a skull. Eerie torchlight. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/orc-warrior.png', prompt: `${STYLE} Portrait of an orc warrior, massive grey-green muscular figure, tusks, war paint, wearing spiked iron armor, axe over shoulder. Brutal and intimidating. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/orc-warchief.png', prompt: `${STYLE} Portrait of an orc warchief, enormous scarred green figure, huge curved horns on helmet, commanding presence, heavy black plate armor, eyes burning with fury. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/bandit.png', prompt: `${STYLE} Portrait of a human bandit, scarred face, hood pulled low, cold eyes, leather armor, a knife visible at the collar. Untrustworthy, dangerous. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/bandit-leader.png', prompt: `${STYLE} Portrait of a bandit leader, weathered human face with a deep scar across one eye, calculating cold gaze, studded leather armor, multiple weapons visible. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/cultist.png', prompt: `${STYLE} Portrait of a dark cultist, pale human face with black hollow eyes, dark robes with an ominous symbol on the chest, disturbing calm expression. Candlelit. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/dark-knight.png', prompt: `${STYLE} Portrait of a dark knight, full black plate armor with red trim, visor closed, ominous red glow from eye slits, imposing and silent. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/assassin.png', prompt: `${STYLE} Portrait of an assassin, face half-masked in shadow, one visible eye cold and calculating, dark fitted armor, daggers at the collar. Barely visible. Shoulder-up portrait, dark background.` },
+
+  // Enemies — Undead
+  { file: 'enemies/skeleton.png', prompt: `${STYLE} Portrait of an animated skeleton warrior, yellowed bones, empty dark eye sockets with faint orange glow, wearing rusted armor, clutching a sword. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/skeleton-archer.png', prompt: `${STYLE} Portrait of a skeleton archer, bare bones with a cracked skull, glowing eye sockets, tattered leather armor, a longbow in hand. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/zombie.png', prompt: `${STYLE} Portrait of a zombie, rotting grey flesh, milky dead eyes, torn clothing, dried blood, expressionless horrifying face. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/ghost.png', prompt: `${STYLE} Portrait of a ghost, translucent pale figure, anguished face, hollow eyes, wispy ethereal form, barely visible against the darkness. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/wight.png', prompt: `${STYLE} Portrait of a wight, gaunt undead figure with sunken black eyes, cracked grey skin, wearing ancient decayed armor, radiating cold dread. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/vampire.png', prompt: `${STYLE} Portrait of a vampire, aristocratic pale face, red glowing eyes, slicked dark hair, elegant dark clothing, fangs slightly visible in a cold smile. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/lich.png', prompt: `${STYLE} Portrait of a lich, skeletal face with glowing purple eye sockets, ancient decayed skin, ornate dark robes, an aura of death surrounding them. Shoulder-up portrait, dark background.` },
+
+  // Enemies — Beasts
+  { file: 'enemies/wolf.png', prompt: `${STYLE} Portrait of a dire wolf, massive grey wolf with yellow eyes, scarred muzzle, snarling to reveal huge teeth, dark fur standing on end. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/giant-spider.png', prompt: `${STYLE} Portrait of a giant spider, black hairy body, eight glowing red eyes, mandibles dripping venom, emerging from darkness. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/troll.png', prompt: `${STYLE} Portrait of a troll, enormous lumpy green creature, tiny red eyes, huge crooked nose, warty skin, claws raised, drooling. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/ogre.png', prompt: `${STYLE} Portrait of an ogre, massive brown brutish creature, small stupid eyes, club over shoulder, wearing animal hide, intimidating size. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/wyvern.png', prompt: `${STYLE} Portrait of a wyvern, dragon-like creature with two wings and a barbed tail, green-black scales, yellow slit eyes, snarling. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/giant-rat.png', prompt: `${STYLE} Portrait of a giant rat, huge diseased rodent, red beady eyes, yellow teeth, matted dirty fur, aggressive posture. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/harpy.png', prompt: `${STYLE} Portrait of a harpy, woman's face twisted in rage, bird wings, taloned feet, wild hair, screaming with fury. Shoulder-up portrait, dark background.` },
+
+  // Enemies — Demons & Dark Creatures
+  { file: 'enemies/imp.png', prompt: `${STYLE} Portrait of an imp, small red demonic creature, tiny curved horns, bat wings, glowing orange eyes, needle-like teeth, mischievous and dangerous. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/demon.png', prompt: `${STYLE} Portrait of a demon, large red muscular figure, curved black horns, burning orange eyes, black armor grown from its skin, radiating malice. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/shadow-demon.png', prompt: `${STYLE} Portrait of a shadow demon, a figure of pure darkness with glowing white eyes, vaguely humanoid, edges dissolving into shadow. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/succubus.png', prompt: `${STYLE} Portrait of a succubus, unnervingly beautiful pale figure with small horns and bat wings folded behind, glowing red eyes hiding malice behind a smile. Shoulder-up portrait, dark background.` },
+
+  // Enemies — Dragons
+  { file: 'enemies/dragon-young.png', prompt: `${STYLE} Portrait of a young dragon, red scales, fierce amber eyes, smoke rising from nostrils, sharp horns, dangerous but not yet fully grown. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/dragon-ancient.png', prompt: `${STYLE} Portrait of an ancient dragon, massive black-scaled head, glowing red eyes like furnaces, scars from centuries of battle, emanating overwhelming power. Shoulder-up portrait, dark background.` },
+
+  // Enemies — Boss Villains
+  { file: 'enemies/dark-wizard.png', prompt: `${STYLE} Portrait of a dark wizard, gaunt human face with sunken eyes glowing purple, long dark robes covered in arcane symbols, arcane energy crackling at his fingertips. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/warlord.png', prompt: `${STYLE} Portrait of a warlord, scarred battle-hardened human face, full plate armor, cold calculating eyes, a general who has never lost. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/necromancer.png', prompt: `${STYLE} Portrait of a necromancer, pale gaunt face, dead eyes with a faint purple glow, black robes with bone motifs, surrounded by wisps of dark energy. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/fallen-paladin.png', prompt: `${STYLE} Portrait of a fallen paladin, once-holy warrior now corrupted, cracked black armor with faded holy symbols, eyes glowing sickly green, expression of tortured rage. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/sea-monster.png', prompt: `${STYLE} Portrait of a sea monster, massive tentacled creature rising from dark water, enormous yellow eyes, barnacled skin, ancient and terrifying. Shoulder-up portrait, dark background.` },
+  { file: 'enemies/mind-flayer.png', prompt: `${STYLE} Portrait of a mind flayer, alien humanoid with a purple octopus-like face, four tentacles where a mouth should be, pale skin, glowing white eyes, wearing dark robes. Deeply unsettling. Shoulder-up portrait, dark background.` },
 ];
 
 function downloadImage(url, filepath) {
