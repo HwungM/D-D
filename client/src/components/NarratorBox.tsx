@@ -4,6 +4,7 @@ import { audioManager } from '../lib/audio'
 type Mood = 'neutral' | 'amused' | 'serious' | 'menacing' | 'surprised' | 'pleased'
 
 interface NarratorBoxProps {
+  instant?: boolean
   text: string
   mood?: Mood
   isPlayerAction?: boolean
@@ -28,13 +29,19 @@ const MOOD_BORDER_COLOR: Record<Mood, string> = {
   pleased: 'rgba(150,180,100,0.4)',
 }
 
-export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = false, onComplete }: NarratorBoxProps) {
+export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = false, instant = false, onComplete }: NarratorBoxProps) {
   const [displayed, setDisplayed] = useState('')
   const [typing, setTyping] = useState(false)
   const indexRef = useRef(0)
 
   useEffect(() => {
     if (!text) return
+    // Historical events show instantly — no animation, no sound
+    if (instant) {
+      setDisplayed(text)
+      setTyping(false)
+      return
+    }
     indexRef.current = 0
     setDisplayed('')
     setTyping(true)

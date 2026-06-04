@@ -186,12 +186,19 @@ export async function processAction(
     { id: campaignId, world_state: campaign.world_state as WorldState }
   );
 
-  // Log the story event
+  // Log player action and DM narration as separate events
   await supabaseAdmin.from('story_events').insert({
     campaign_id: campaignId,
     character_id: characterId,
     event_type: 'action',
-    content: `ACTION: ${action}\nNARRATION: ${aiResponse.narration}`,
+    content: action,
+    metadata: { diceResult, success },
+  });
+  await supabaseAdmin.from('story_events').insert({
+    campaign_id: campaignId,
+    character_id: characterId,
+    event_type: 'narration',
+    content: aiResponse.narration,
     metadata: {
       action,
       diceResult,
@@ -221,5 +228,33 @@ export async function getOpeningScene(
   characterId: string,
   campaignId: string
 ): Promise<ActionResult> {
-  return processAction(characterId, 'BEGIN_CAMPAIGN_OPENING', campaignId);
+  const { data: character } = await supabaseAdmin.from('characters').select('*').eq('id', characterId).single();
+  if (!character) throw new Error('Character not found');
+  const { data: campaign } = await supabaseAdmin.from('campaigns').select('*').eq('id', campaignId).single();
+  if (!campaign) throw new Error('Campaign not found');
+
+  const aiResponse = await generateNarration(
+    'OPENING_SCENE',
+    campaign.world_state as WorldState,
+    campaign.world_bible as WorldBible,
+    character as Character,
+    []
+  );
+
+  // Save just the narration — no player action event for the opening
+  await supabaseAdmin.from('story_events').insert({
+    campaign_id: campaignId,
+    character_id: characterId,
+    event_type: 'narration',
+    content: aiResponse.narration,
+    metadata: { suggestedActions: aiResponse.suggestedActions, isOpening: true },
+  });
+
+  return {
+    narration: aiResponse.narration,
+    sceneImagePrompt: aiResponse.sceneImagePrompt,
+    suggestedActions: aiResponse.suggestedActions,
+    isDeath: false,
+    isLevelUp: false,
+  };
 }
