@@ -417,6 +417,18 @@ export default function Game() {
     finally { setLoading(false) }
   }
 
+  async function handleDevKill() {
+    if (!currentCharacter) return
+    if (!confirm(`Kill ${currentCharacter.name}? This is for testing the death flow.`)) return
+    try {
+      await gameApi.devKill(currentCharacter.id)
+      setCharacter({ ...currentCharacter, hp: 0, is_alive: false, death_note: 'Slain by mysterious forces during a dev test.' } as Character)
+      setTimeout(() => setShowDeathScreen(true), 500)
+    } catch (err) {
+      console.error('Dev kill failed:', err)
+    }
+  }
+
   // ── Start screen ──────────────────────────────────────────────────────────
   if (!started) {
     return (
@@ -558,6 +570,18 @@ export default function Game() {
             {isMuted ? '🔇' : '🔊'}
           </button>
           <AudioControls />
+          {import.meta.env.DEV && currentCharacter?.is_alive !== false && (
+            <button
+              onClick={handleDevKill}
+              className="font-mono text-xs px-2 py-1 transition-all"
+              style={{ border: '1px solid rgba(239,68,68,0.3)', color: 'rgba(239,68,68,0.5)', background: 'rgba(239,68,68,0.05)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239,68,68,0.7)'; (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.9)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239,68,68,0.3)'; (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.5)' }}
+              title="DEV: instantly kill character"
+            >
+              ☠ die
+            </button>
+          )}
           {campaignId && (
             <button
               onClick={() => setShowInviteModal(true)}

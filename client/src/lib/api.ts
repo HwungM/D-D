@@ -79,6 +79,7 @@ export const gameApi = {
     api.get(`/game/scene/${campaignId}/${characterId}`),
   resolveRoll: (data: { characterId: string; campaignId: string; rollResult: number; rollTotal: number; dc: number; success: boolean; isCritSuccess: boolean; isCritFail: boolean; rollContext: unknown }) =>
     api.post('/game/resolve-roll', data),
+  devKill: (characterId: string) => api.post(`/game/dev-kill/${characterId}`),
 }
 
 // TTS
