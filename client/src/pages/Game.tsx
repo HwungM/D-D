@@ -640,21 +640,6 @@ export default function Game() {
           }}
         />
       )}
-      {proactiveNarration && !showHighStakes && (
-        <div
-          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-30 px-4 py-2 text-xs font-serif italic"
-          style={{
-            background: 'rgba(6,8,13,0.85)',
-            border: '1px solid rgba(200,146,42,0.2)',
-            color: 'rgba(200,146,42,0.6)',
-            maxWidth: '320px',
-            textAlign: 'center',
-            pointerEvents: 'none',
-          }}
-        >
-          The world stirs...
-        </div>
-      )}
     </div>
   )
 }
