@@ -2,8 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { gameApi, assetApi, campaignApi } from '../lib/api'
 import { useGameStore, useAuthStore } from '../lib/store'
-import QuestLog from '../components/QuestLog'
-import WorldPanel from '../components/WorldPanel'
+import { matchSceneImage, inferMood } from '../lib/sceneUtils'
 import { createClient } from '@supabase/supabase-js'
 import SceneDisplay from '../components/SceneDisplay'
 import ActionPanel from '../components/ActionPanel'
@@ -16,11 +15,21 @@ import EnemyPopup from '../components/EnemyPopup'
 import LootPopup from '../components/LootPopup'
 import PartyPanel from '../components/PartyPanel'
 import InviteModal from '../components/InviteModal'
+import QuestLog from '../components/QuestLog'
+import WorldPanel from '../components/WorldPanel'
 import { audioManager } from '../lib/audio'
 import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember } from '../../../shared/types'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+
+const DEFAULT_SCENES = [
+  '/assets/scenes/tavern.png',
+  '/assets/scenes/forest-road.png',
+  '/assets/scenes/dungeon-corridor.png',
+  '/assets/scenes/castle-gate.png',
+  '/assets/scenes/ancient-ruins.png',
+]
 
 function normalizeEvents(events: StoryEvent[]): StoryEvent[] {
   const result: StoryEvent[] = []
@@ -41,14 +50,6 @@ function normalizeEvents(events: StoryEvent[]): StoryEvent[] {
   }
   return result
 }
-
-const DEFAULT_SCENES = [
-  '/assets/scenes/tavern.png',
-  '/assets/scenes/forest-road.png',
-  '/assets/scenes/dungeon-corridor.png',
-  '/assets/scenes/castle-gate.png',
-  '/assets/scenes/ancient-ruins.png',
-]
 
 export default function Game() {
   const { campaignId, characterId } = useParams<{ campaignId: string; characterId: string }>()
@@ -97,8 +98,15 @@ export default function Game() {
     if (!campaignId || !characterId) return
     gameApi.getScene(campaignId, characterId).then(({ data }) => {
       if (data.character) setCharacter(data.character as Character)
-      if (data.worldState) setWorldState(data.worldState)
-      if (!currentSceneImage) setSceneImage(DEFAULT_SCENES[Math.floor(Math.random() * DEFAULT_SCENES.length)])
+      if (data.worldState) {
+        setWorldState(data.worldState)
+        const localScene = matchSceneImage(
+          [data.worldState.currentLocation, data.worldState.weather].filter(Boolean).join(' ')
+        )
+        setSceneImage(localScene || DEFAULT_SCENES[Math.floor(Math.random() * DEFAULT_SCENES.length)])
+      } else if (!currentSceneImage) {
+        setSceneImage(DEFAULT_SCENES[Math.floor(Math.random() * DEFAULT_SCENES.length)])
+      }
     })
     gameApi.getHistory(campaignId, characterId, 50, true).then(({ data }) => {
       const loaded: StoryEvent[] = data.events || []
@@ -115,28 +123,19 @@ export default function Game() {
   // Supabase Realtime
   useEffect(() => {
     if (!campaignId || !supabaseUrl || !supabaseAnonKey) return
-
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
     const channel = supabase
       .channel(`campaign:${campaignId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'story_events', filter: `campaign_id=eq.${campaignId}` },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'story_events', filter: `campaign_id=eq.${campaignId}` },
         (payload) => {
           const newEvent = payload.new as StoryEvent
-          if (newEvent.character_id && newEvent.character_id !== characterId) {
-            addEvent(newEvent)
-          }
+          if (newEvent.character_id && newEvent.character_id !== characterId) addEvent(newEvent)
         }
       )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'characters', filter: `campaign_id=eq.${campaignId}` },
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'characters', filter: `campaign_id=eq.${campaignId}` },
         () => { refreshParty() }
       )
       .subscribe()
-
     return () => { supabase.removeChannel(channel) }
   }, [campaignId, characterId, addEvent, refreshParty])
 
@@ -163,7 +162,10 @@ export default function Game() {
           created_at: new Date().toISOString(),
         })
       }
+      if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
       if (result.sceneImagePrompt) {
+        const local = matchSceneImage(result.sceneImagePrompt)
+        if (local) setSceneImage(local)
         assetApi.generate(result.sceneImagePrompt, `scene-${campaignId}-start`).then(({ data: img }) => setSceneImage(img.url)).catch(() => {})
       }
     } catch (err) { console.error(err) }
@@ -174,6 +176,11 @@ export default function Game() {
     if (!campaignId || !characterId || isLoading) return
     setLoading(true)
     setShowDice(false)
+
+    // Immediate local scene switch based on action text + current location
+    const immediateScene = matchSceneImage(action + ' ' + (worldState?.currentLocation || ''))
+    if (immediateScene) setSceneImage(immediateScene)
+
     addEvent({
       id: `temp-${Date.now()}`,
       campaign_id: campaignId,
@@ -201,7 +208,7 @@ export default function Game() {
       }
       if (result.isVictory) setInCombat(false)
 
-      if ((result.loot && result.loot.length > 0) || (result.characterChanges?.gold && currentCharacter && result.characterChanges.gold > currentCharacter.gold)) {
+      if ((result.loot && result.loot.length > 0) || (result.characterChanges?.gold && currentCharacter && (result.characterChanges.gold as number) > currentCharacter.gold)) {
         const goldGained = result.characterChanges?.gold !== undefined && currentCharacter
           ? (result.characterChanges.gold as number) - currentCharacter.gold
           : undefined
@@ -234,15 +241,24 @@ export default function Game() {
 
       if (result.characterChanges) setCharacter({ ...currentCharacter!, ...result.characterChanges } as Character)
       if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
+
+      // Scene: try AI prompt match first, then async AI generation
       if (result.sceneImagePrompt) {
+        const local = matchSceneImage(result.sceneImagePrompt)
+        if (local) setSceneImage(local)
         assetApi.generate(result.sceneImagePrompt, `scene-${campaignId}-${Date.now()}`).then(({ data: img }) => setSceneImage(img.url)).catch(() => {})
+      } else if (result.worldStateChanges?.currentLocation) {
+        const local = matchSceneImage(result.worldStateChanges.currentLocation)
+        if (local) setSceneImage(local)
       }
+
       if (result.isDeath) setTimeout(() => navigate('/dashboard'), 5000)
       refreshParty()
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
 
+  // ── Start screen ──────────────────────────────────────────────────────────
   if (!started) {
     return (
       <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: '#060a0f' }}>
@@ -250,36 +266,39 @@ export default function Game() {
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, rgba(180,80,30,0.08) 0%, #060a0f 65%)' }} />
         <div className="relative z-10 text-center max-w-lg px-8">
           {currentCharacter?.portrait_url ? (
-            <div className="w-24 h-24 mx-auto mb-6 rounded-full overflow-hidden border-2" style={{ borderColor: 'rgba(192,57,43,0.5)', boxShadow: '0 0 40px rgba(192,57,43,0.3)' }}>
+            <div className="w-28 h-28 mx-auto mb-6 rounded-full overflow-hidden border-2" style={{ borderColor: 'rgba(192,57,43,0.5)', boxShadow: '0 0 50px rgba(192,57,43,0.3)' }}>
               <img src={currentCharacter.portrait_url} alt="" className="w-full h-full object-cover object-top" />
             </div>
           ) : (
-            <div className="w-24 h-24 mx-auto mb-6 rounded-full border-2 border-ember-400/40 flex items-center justify-center" style={{ animation: 'torchFlicker 2s ease-in-out infinite', boxShadow: '0 0 40px rgba(192,57,43,0.3)' }}>
-              <span className="font-fantasy text-3xl text-ember-400">⚔</span>
+            <div className="w-28 h-28 mx-auto mb-6 rounded-full border-2 border-ember-400/40 flex items-center justify-center" style={{ boxShadow: '0 0 50px rgba(192,57,43,0.3)' }}>
+              <span className="font-fantasy text-4xl text-ember-400">⚔</span>
             </div>
           )}
-          <h2 className="font-fantasy text-4xl text-parchment-200 mb-2" style={{ textShadow: '0 0 40px rgba(192,57,43,0.3)' }}>Your Adventure Awaits</h2>
+          <h2 className="font-fantasy text-5xl text-parchment-200 mb-2" style={{ textShadow: '0 0 40px rgba(192,57,43,0.3)' }}>Your Adventure Awaits</h2>
           {currentCharacter && (
-            <p className="font-serif text-sm uppercase tracking-widest mb-6" style={{ color: 'rgba(200,146,42,0.6)', letterSpacing: '0.15em' }}>
+            <p className="font-serif text-sm uppercase tracking-widest mb-4" style={{ color: 'rgba(200,146,42,0.6)', letterSpacing: '0.15em' }}>
               {currentCharacter.name} · {currentCharacter.race} {currentCharacter.class}
             </p>
           )}
           {campaignName && (
             <p className="font-serif text-sm italic mb-8" style={{ color: 'rgba(180,160,120,0.5)' }}>{campaignName}</p>
           )}
-          <p className="font-serif italic mb-10 leading-relaxed text-sm" style={{ color: 'rgba(160,140,110,0.7)' }}>The Dungeon Master stands ready. When you step through, there is no turning back.</p>
+          <p className="font-serif italic mb-10 leading-relaxed text-sm" style={{ color: 'rgba(160,140,110,0.7)' }}>
+            The Dungeon Master stands ready. When you step through, there is no turning back.
+          </p>
           <button
             onClick={handleStart}
             disabled={isLoading}
-            className="font-serif text-base px-12 py-3 transition-all disabled:opacity-50"
+            className="font-serif text-base px-14 py-3.5 transition-all disabled:opacity-50"
             style={{
-              background: 'linear-gradient(135deg, rgba(192,57,43,0.25), rgba(140,30,20,0.35))',
+              background: 'linear-gradient(135deg, rgba(192,57,43,0.25), rgba(140,30,20,0.4))',
               border: '1px solid rgba(192,57,43,0.45)',
               color: '#e8b09a',
               letterSpacing: '0.08em',
+              boxShadow: '0 0 30px rgba(192,57,43,0.15)',
             }}
           >
-            {isLoading ? <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>The world stirs...</span> : 'Enter the Story'}
+            {isLoading ? <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>The world stirs…</span> : 'Enter the Story'}
           </button>
         </div>
       </div>
@@ -290,27 +309,32 @@ export default function Game() {
   const hpPercent = currentCharacter ? (currentCharacter.hp / currentCharacter.max_hp) * 100 : 100
   const hpColor = hpPercent > 60 ? '#22c55e' : hpPercent > 30 ? '#eab308' : '#ef4444'
 
+  // ── Main game layout ──────────────────────────────────────────────────────
   return (
-    <div className="h-screen text-parchment-100 flex flex-col overflow-hidden" style={{ background: '#08090e' }}>
-      {/* Top bar */}
-      <header className="shrink-0 flex items-center justify-between px-4 py-2.5" style={{
-        background: 'rgba(8,9,14,0.97)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: '#06080d', color: '#d4c5a0' }}>
+
+      {/* ── Header ── */}
+      <header className="shrink-0 flex items-center justify-between px-4 py-2" style={{
+        background: 'rgba(6,8,13,0.97)',
+        borderBottom: '1px solid rgba(255,255,255,0.055)',
         backdropFilter: 'blur(10px)',
+        zIndex: 20,
       }}>
-        <div className="flex items-center gap-3">
+        {/* Left: nav + character */}
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => navigate('/dashboard')}
-            className="font-serif text-xs transition-colors px-2 py-1"
-            style={{ color: 'rgba(180,160,120,0.45)' }}
-            onMouseEnter={e => (e.target as HTMLElement).style.color = 'rgba(220,200,160,0.8)'}
-            onMouseLeave={e => (e.target as HTMLElement).style.color = 'rgba(180,160,120,0.45)'}
+            className="font-serif text-xs shrink-0 transition-colors"
+            style={{ color: 'rgba(180,160,120,0.4)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(220,200,160,0.8)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(180,160,120,0.4)' }}
           >
             ← Hall
           </button>
-          <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.08)' }} />
+          <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.07)', flexShrink: 0 }} />
+
           {currentCharacter && (
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-7 h-7 rounded-full overflow-hidden shrink-0" style={{ border: '1px solid rgba(200,146,42,0.3)' }}>
                 <img
                   src={currentCharacter.portrait_url || `/assets/races/${currentCharacter.race.toLowerCase().replace(/['\s]/g, '-')}.png`}
@@ -319,31 +343,30 @@ export default function Game() {
                   onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                 />
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-serif text-sm" style={{ color: '#d4c5a0' }}>{currentCharacter.name}</span>
-                <span style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
-                <span className="font-serif text-xs" style={{ color: 'rgba(180,160,120,0.5)' }}>{currentCharacter.race} {currentCharacter.class}</span>
-                <span style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
-                <span className="font-serif text-xs" style={{ color: 'rgba(200,146,42,0.8)' }}>Lv {currentCharacter.level}</span>
-              </div>
-              <div className="flex items-center gap-1.5 ml-1">
-                <div className="w-20 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${hpPercent}%`, background: hpColor, boxShadow: `0 0 6px ${hpColor}80` }} />
+              <span className="font-serif text-sm truncate" style={{ color: '#d4c5a0' }}>{currentCharacter.name}</span>
+              <span style={{ color: 'rgba(255,255,255,0.12)', flexShrink: 0 }}>·</span>
+              <span className="font-serif text-xs shrink-0" style={{ color: 'rgba(200,146,42,0.8)' }}>Lv {currentCharacter.level}</span>
+              <span style={{ color: 'rgba(255,255,255,0.12)', flexShrink: 0 }}>·</span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${hpPercent}%`, background: hpColor, boxShadow: `0 0 5px ${hpColor}70` }} />
                 </div>
-                <span className="font-mono text-xs" style={{ color: 'rgba(160,140,110,0.5)', fontSize: '10px' }}>{currentCharacter.hp}/{currentCharacter.max_hp}</span>
+                <span className="font-mono text-xs" style={{ color: 'rgba(160,140,110,0.45)', fontSize: '10px' }}>{currentCharacter.hp}/{currentCharacter.max_hp}</span>
               </div>
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* Right: controls */}
+        <div className="flex items-center gap-1.5 shrink-0">
           <AudioControls />
           {campaignId && (
             <button
               onClick={() => setShowInviteModal(true)}
               className="font-serif text-xs px-2.5 py-1 transition-all"
-              style={{ border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(180,160,120,0.5)' }}
+              style={{ border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.4)' }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,146,42,0.3)'; (e.currentTarget as HTMLElement).style.color = 'rgba(200,146,42,0.8)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLElement).style.color = 'rgba(180,160,120,0.5)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'; (e.currentTarget as HTMLElement).style.color = 'rgba(180,160,120,0.4)' }}
             >
               + Invite
             </button>
@@ -357,8 +380,8 @@ export default function Game() {
                 onClick={() => { setSidebarTab(tab); setShowSidebar(sidebarTab !== tab || !showSidebar) }}
                 className="font-serif text-xs px-2.5 py-1 transition-all"
                 style={isActive
-                  ? { border: '1px solid rgba(192,57,43,0.4)', color: 'rgba(232,176,154,0.9)', background: 'rgba(192,57,43,0.08)' }
-                  : { border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(180,160,120,0.5)' }
+                  ? { border: '1px solid rgba(192,57,43,0.4)', color: '#e8b09a', background: 'rgba(192,57,43,0.1)' }
+                  : { border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.45)' }
                 }
               >
                 {labels[tab]}
@@ -368,81 +391,101 @@ export default function Game() {
         </div>
       </header>
 
-      {otherPartyMembers.length > 0 && (
-        <PartyPanel members={partyMembers} currentUserId={user?.id || ''} />
-      )}
-
+      {/* Combat banner */}
       {inCombat && (
-        <div className="shrink-0 flex items-center justify-between px-5 py-1" style={{
-          background: 'linear-gradient(90deg, rgba(127,10,10,0.0), rgba(200,20,20,0.15), rgba(127,10,10,0.0))',
-          borderBottom: '1px solid rgba(220,38,38,0.25)',
+        <div className="shrink-0 flex items-center justify-between px-5 py-1.5" style={{
+          background: 'linear-gradient(90deg, rgba(127,10,10,0), rgba(200,20,20,0.18), rgba(127,10,10,0))',
+          borderBottom: '1px solid rgba(220,38,38,0.2)',
         }}>
           <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#f87171', boxShadow: '0 0 6px #f87171', animation: 'pulse 1s ease-in-out infinite' }} />
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#f87171', boxShadow: '0 0 8px #f87171', animation: 'pulse 1s ease-in-out infinite' }} />
             <span className="font-sans text-xs uppercase tracking-widest" style={{ color: '#f87171', letterSpacing: '0.2em' }}>Combat</span>
           </div>
-          <span className="font-serif text-xs italic" style={{ color: 'rgba(220,100,100,0.5)' }}>Fight, flee, or find another way</span>
+          <span className="font-serif text-xs italic" style={{ color: 'rgba(220,100,100,0.45)' }}>Fight, flee, or find another way</span>
         </div>
       )}
 
+      {/* ── Main content area ── */}
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Scene image — taller and more cinematic */}
-          <div className="shrink-0 relative" style={{ height: '220px' }}>
-            <SceneDisplay imageUrl={currentSceneImage} />
-            {/* Bottom gradient to blend into content */}
-            <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none" style={{
-              background: 'linear-gradient(to top, #08090e, transparent)',
-            }} />
-          </div>
 
-          {showDice && lastActionResult?.diceRoll && (
-            <DiceRoll rolling={showDice} result={lastActionResult.diceRoll.total} modifier={lastActionResult.diceRoll.modifier} label={lastActionResult.diceRoll.description || 'Roll'} />
+        {/* ── LEFT: Persistent scene panel ── */}
+        <div className="flex flex-col shrink-0 overflow-hidden" style={{ width: '420px', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+          <SceneDisplay
+            imageUrl={currentSceneImage}
+            location={worldState?.currentLocation}
+            timeOfDay={worldState?.timeOfDay}
+          />
+
+          {/* Party panel below scene */}
+          {otherPartyMembers.length > 0 && (
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <PartyPanel members={partyMembers} currentUserId={user?.id || ''} />
+            </div>
           )}
-
-          <div ref={narratorRef} className="flex-1 overflow-y-auto py-3 space-y-1.5" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.06) transparent' }}>
-            {normalizeEvents(events).map((event, i) => {
-              const isOtherPlayer = event.character_id && event.character_id !== characterId
-              const partyMember = isOtherPlayer ? partyMembers.find(m => m.character?.id === event.character_id) : null
-              const isMyAction = event.event_type === 'action' && event.character_id === characterId
-              return (
-                <NarratorBox
-                  key={event.id || i}
-                  text={event.content}
-                  mood={event.event_type === 'narration' ? 'neutral' : 'serious'}
-                  isPlayerAction={event.event_type === 'action'}
-                  instant={historicalIds.current.has(event.id) || historicalIds.current.has(event.id.replace(/-[an]$/, ''))}
-                  playerName={partyMember?.username}
-                  playerPortrait={isMyAction ? currentCharacter?.portrait_url || undefined : partyMember?.character?.portrait_url || undefined}
-                />
-              )
-            })}
-            {isLoading && (
-              <div className="flex items-center gap-3 px-5 py-3">
-                <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border" style={{ borderColor: 'rgba(192,57,43,0.3)' }}>
-                  <img src="/assets/dm/dm-neutral.png" alt="DM" className="w-full h-full object-cover opacity-40" />
-                </div>
-                <div className="flex gap-1.5 items-center">
-                  {[0, 1, 2].map(j => (
-                    <div key={j} className="w-2 h-2 rounded-full" style={{ background: 'rgba(192,57,43,0.5)', animation: `bounce 1.2s ease-in-out ${j * 0.2}s infinite` }} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <ActionPanel suggestedActions={lastActionResult?.suggestedActions || []} onAction={handleAction} disabled={isLoading || currentCharacter?.is_alive === false} />
         </div>
 
-        {showSidebar && (
-          <aside className="w-72 shrink-0 overflow-y-auto" style={{ borderLeft: '1px solid rgba(255,255,255,0.06)', background: '#0a0b10' }}>
-            {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
-            {sidebarTab === 'quests' && <QuestLog worldState={worldState} />}
-            {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
-          </aside>
-        )}
+        {/* ── RIGHT: Narrative / Sidebar ── */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+
+          {showSidebar ? (
+            /* Sidebar content */
+            <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.06) transparent' }}>
+              {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
+              {sidebarTab === 'quests' && <QuestLog worldState={worldState} />}
+              {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
+            </div>
+          ) : (
+            /* Narrative feed */
+            <div ref={narratorRef} className="flex-1 overflow-y-auto py-2 space-y-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.06) transparent' }}>
+
+              {showDice && lastActionResult?.diceRoll && (
+                <div className="px-4">
+                  <DiceRoll rolling={showDice} result={lastActionResult.diceRoll.total} modifier={lastActionResult.diceRoll.modifier} label={lastActionResult.diceRoll.description || 'Roll'} />
+                </div>
+              )}
+
+              {normalizeEvents(events).map((event, i) => {
+                const isOtherPlayer = event.character_id && event.character_id !== characterId
+                const partyMember = isOtherPlayer ? partyMembers.find(m => m.character?.id === event.character_id) : null
+                const isMyAction = event.event_type === 'action' && event.character_id === characterId
+                const mood = event.event_type === 'narration' ? inferMood(event.content) : 'serious'
+                return (
+                  <NarratorBox
+                    key={event.id || i}
+                    text={event.content}
+                    mood={mood}
+                    isPlayerAction={event.event_type === 'action'}
+                    instant={historicalIds.current.has(event.id) || historicalIds.current.has(event.id.replace(/-[an]$/, ''))}
+                    playerName={partyMember?.username}
+                    playerPortrait={isMyAction ? currentCharacter?.portrait_url || undefined : partyMember?.character?.portrait_url || undefined}
+                  />
+                )
+              })}
+
+              {isLoading && (
+                <div className="flex items-center gap-3 px-5 py-3">
+                  <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border" style={{ borderColor: 'rgba(192,57,43,0.3)' }}>
+                    <img src="/assets/dm/dm-neutral.png" alt="DM" className="w-full h-full object-cover opacity-50" />
+                  </div>
+                  <div className="flex gap-1.5 items-center">
+                    {[0, 1, 2].map(j => (
+                      <div key={j} className="w-2 h-2 rounded-full" style={{ background: 'rgba(192,57,43,0.5)', animation: `bounce 1.2s ease-in-out ${j * 0.2}s infinite` }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <ActionPanel
+            suggestedActions={lastActionResult?.suggestedActions || []}
+            onAction={handleAction}
+            disabled={isLoading || currentCharacter?.is_alive === false}
+          />
+        </div>
       </div>
 
+      {/* Overlays */}
       {showLevelUp && levelUpData && (
         <LevelUpScreen level={levelUpData.level} hpGained={levelUpData.hpGained} newAbility={levelUpData.newAbility} characterName={levelUpData.characterName} onContinue={() => setShowLevelUp(false)} />
       )}
