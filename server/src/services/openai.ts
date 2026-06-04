@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { supabaseAdmin } from './supabase';
-import type { Character, WorldState, WorldBible, StorySeedOption } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
 
 dotenv.config();
@@ -57,6 +57,33 @@ ACT PROGRESSION RULES:
 - This signals a chapter transition — use it sparingly, only for truly pivotal moments.
 - When advancing act, write a more dramatic, conclusive narration that wraps the current chapter.
 
+NARRATIVE TIER RULES (based on character level):
+- Level 1-3 (EMERGING): Local threats only. NPCs don't know the character yet. Stakes are personal.
+- Level 4-6 (KNOWN): Regional threats. Faction scouts notice the party. Antagonists hear rumors.
+- Level 7-10 (FEARED): Major factions react to the party. Antagonists take personal interest. The party shapes events.
+- Level 11+ (LEGENDARY): The party IS the news. Former enemies negotiate. New threats emerge because of their power.
+
+ANTAGONIST AWARENESS RULES:
+- If an antagonist's isRevealed is false, NEVER name them directly. Drop hints, use their pawns, create dread.
+- If isRevealed is true, they can appear, send agents, react to the party's actions.
+- Always advance the current antagonist step subtly in background events when narratively appropriate.
+- Set antagonistUpdate in response when antagonist situation changes.
+
+HIGH STAKES DETECTION:
+- Set isHighStakes: true when the moment is a major pivot: moral dilemma with no right answer, irreversible act, betrayal, major sacrifice, meeting a primary antagonist agent for the first time.
+- When isHighStakes: true, generate choiceCards (2-3 options). Each has title (3-5 words), description (1 sentence, evocative), consequenceHint (vague, ominous, not a spoiler).
+- When isHighStakes: true, keep narration shorter and more tense. Build to the choice.
+
+CHARACTER HISTORY RULES:
+- Set characterHistoryNote when the player makes a significant choice that should echo forward: sparing/killing someone important, making an oath, gaining a powerful enemy, doing something morally significant.
+
+CAMPAIGN JOURNAL AWARENESS:
+- You have access to the full campaign journal. Reference past events naturally. NPCs remember. The world has changed.
+- If the journal mentions the player burned a village, villagers in new areas have heard. If they saved a lord, his allies are warmer.
+
+PROACTIVE WORLD EVENTS:
+- Sometimes (not always, use judgment), set proactiveEvent: true and include a worldEvent in the narration preamble — something the WORLD did, not the player. The antagonist advanced their plan. A faction moved. A rumor reached town. Something changed without the player causing it.
+
 RESPONSE FORMAT: Always respond with valid JSON matching this schema:
 {
   "narration": "string — the story text the player sees",
@@ -80,7 +107,12 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "shopItems": [{"id": "item-id", "name": "item name", "description": "one sentence", "type": "weapon|armor|potion|misc|key", "price": 10, "quantity": 1}] | null,
   "advanceAct": boolean,
   "statusEffectChanges": {"add": [{"name": "string", "description": "string", "type": "buff|debuff|neutral", "duration": number | null}], "remove": ["effect name"]} | null,
-  "sessionNote": "string — one sentence summary of what happened, added to DM notes" | null
+  "sessionNote": "string — one sentence summary of what happened, added to DM notes" | null,
+  "isHighStakes": boolean,
+  "choiceCards": [{"title": "string", "description": "string", "consequenceHint": "string"}] | null,
+  "characterHistoryNote": {"type": "choice|ally|enemy|oath|deed|loss", "description": "string", "impact": "string"} | null,
+  "antagonistUpdate": {"name": "string", "newStep": "string|null", "lastAction": "string", "nowKnowsPlayers": boolean} | null,
+  "proactiveEvent": boolean
 }`;
 
 export async function generateNarration(
@@ -88,7 +120,15 @@ export async function generateNarration(
   worldState: WorldState,
   worldBible: WorldBible,
   character: Character,
-  recentHistory: string[]
+  recentHistory: string[],
+  campaignContext?: {
+    journal: CampaignJournalEntry[];
+    characterHistory: CharacterHistoryEntry[];
+    antagonists: Antagonist[];
+    centralConflict: string;
+    act: number;
+    sessionCount: number;
+  } | null
 ): Promise<{
   narration: string;
   diceRequired: boolean;
@@ -112,6 +152,11 @@ export async function generateNarration(
   advanceAct?: boolean;
   statusEffectChanges?: { add?: { name: string; description: string; type: string; duration?: number }[]; remove?: string[] };
   sessionNote?: string;
+  isHighStakes?: boolean;
+  choiceCards?: { title: string; description: string; consequenceHint: string }[];
+  characterHistoryNote?: { type: string; description: string; impact: string };
+  antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
+  proactiveEvent?: boolean;
 }> {
   // Build unusual race/class combo note
   const unusualCombos: Record<string, string[]> = {
@@ -181,7 +226,22 @@ ${recentHistory.slice(-8).join('\n')}
 
 PLAYER ACTION: ${action}
 
-IMPORTANT: If this action introduces or involves a named NPC, include their name, disposition, and a brief note in worldStateChanges.npcMemory. If a quest begins or progresses, include it in worldStateChanges.activeQuests. Always update worldState.currentLocation if the character moves.`;
+IMPORTANT: If this action introduces or involves a named NPC, include their name, disposition, and a brief note in worldStateChanges.npcMemory. If a quest begins or progresses, include it in worldStateChanges.activeQuests. Always update worldState.currentLocation if the character moves.${campaignContext ? `
+
+CAMPAIGN CONTEXT:
+Central Conflict: ${campaignContext.centralConflict}
+Act: ${campaignContext.act} | Session: ${campaignContext.sessionCount}
+
+CAMPAIGN JOURNAL (story so far):
+${campaignContext.journal.slice(-5).map(j => `[Act ${j.actNumber}, Session ${j.sessionNumber}] ${j.summary}. Key decisions: ${j.keyDecisions.join('; ')}`).join('\n') || 'No journal entries yet.'}
+
+CHARACTER HISTORY (decisions that echo forward):
+${campaignContext.characterHistory.slice(-10).map(h => `- [${h.type.toUpperCase()}] ${h.description} → ${h.impact}`).join('\n') || 'No significant history yet.'}
+
+ACTIVE ANTAGONISTS:
+${campaignContext.antagonists.map(a => `- ${a.isRevealed ? a.name : '[UNKNOWN FORCE]'} (${a.power}, ${a.type}): ${a.agenda}. Currently: ${a.currentStep}. Knows about players: ${a.whatTheyKnow}`).join('\n') || 'No antagonists defined yet.'}
+
+NARRATIVE TIER: ${campaignContext.act <= 1 && character.level <= 3 ? 'EMERGING — local stakes, unknown heroes' : character.level <= 6 ? 'KNOWN — regional threats, factions noticing' : character.level <= 10 ? 'FEARED — major powers react, antagonists engage' : 'LEGENDARY — world-shaping, former enemies bow'}` : ''}`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -219,6 +279,11 @@ IMPORTANT: If this action introduces or involves a named NPC, include their name
     advanceAct: parsed.advanceAct || false,
     statusEffectChanges: parsed.statusEffectChanges || undefined,
     sessionNote: parsed.sessionNote || undefined,
+    isHighStakes: parsed.isHighStakes || false,
+    choiceCards: parsed.choiceCards || undefined,
+    characterHistoryNote: parsed.characterHistoryNote || undefined,
+    antagonistUpdate: parsed.antagonistUpdate || undefined,
+    proactiveEvent: parsed.proactiveEvent || false,
   };
 }
 
