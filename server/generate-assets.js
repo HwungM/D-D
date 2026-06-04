@@ -106,15 +106,16 @@ async function generateAsset(asset, index, total) {
   try {
     console.log(`[${index}/${total}] Generating: ${asset.file}`);
     const response = await client.images.generate({
-      model: 'dall-e-3',
+      model: 'gpt-image-1',
       prompt: asset.prompt,
       n: 1,
       size: '1024x1024',
       quality: 'standard',
+      output_format: 'png',
     });
 
-    const imageUrl = response.data[0].url;
-    await downloadImage(imageUrl, outputPath);
+    const b64 = response.data[0].b64_json;
+    fs.writeFileSync(outputPath, Buffer.from(b64, 'base64'));
     console.log(`[${index}/${total}] ✓ ${asset.file}`);
     await new Promise(r => setTimeout(r, 800));
   } catch (err) {
