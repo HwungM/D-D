@@ -5,25 +5,24 @@ import { z } from 'zod';
 const router = Router();
 
 const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
   username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/),
+  password: z.string().min(6),
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  username: z.string().min(1),
   password: z.string(),
 });
 
 router.post('/register', async (req: Request, res: Response): Promise<void> => {
   const parse = registerSchema.safeParse(req.body);
   if (!parse.success) {
-    res.status(400).json({ error: parse.error.errors });
+    res.status(400).json({ error: parse.error.errors[0]?.message || 'Invalid input' });
     return;
   }
-  const { email, password, username } = parse.data;
+  const { username, password } = parse.data;
+  const email = `${username.toLowerCase()}@tavern.local`;
 
-  // Check username availability
   const { data: existing } = await supabaseAdmin
     .from('profiles')
     .select('id')
@@ -35,13 +34,17 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+
   if (error || !data.user) {
     res.status(400).json({ error: error?.message || 'Registration failed' });
     return;
   }
 
-  // Create profile
   const { error: profileError } = await supabaseAdmin
     .from('profiles')
     .insert({ id: data.user.id, username });
@@ -51,23 +54,30 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  const { data: signIn, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+  if (signInError || !signIn.session) {
+    res.status(500).json({ error: 'Account created but login failed' });
+    return;
+  }
+
   res.status(201).json({
-    user: { id: data.user.id, email: data.user.email, username },
-    session: data.session,
+    user: { id: data.user.id, username },
+    session: signIn.session,
   });
 });
 
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
   const parse = loginSchema.safeParse(req.body);
   if (!parse.success) {
-    res.status(400).json({ error: parse.error.errors });
+    res.status(400).json({ error: 'Invalid input' });
     return;
   }
-  const { email, password } = parse.data;
+  const { username, password } = parse.data;
+  const email = `${username.toLowerCase()}@tavern.local`;
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !data.user) {
-    res.status(401).json({ error: 'Invalid credentials' });
+    res.status(401).json({ error: 'Invalid username or password' });
     return;
   }
 
@@ -78,7 +88,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     .single();
 
   res.json({
-    user: { id: data.user.id, email: data.user.email, username: profile?.username },
+    user: { id: data.user.id, username: profile?.username },
     session: data.session,
   });
 });

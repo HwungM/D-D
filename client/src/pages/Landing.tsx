@@ -9,7 +9,6 @@ export default function Landing() {
   const navigate = useNavigate()
   const { setSession, setUser } = useAuthStore()
   const [mode, setMode] = useState<Mode>('login')
-  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
   const [error, setError] = useState('')
@@ -21,11 +20,11 @@ export default function Landing() {
     setLoading(true)
     try {
       if (mode === 'register') {
-        const { data } = await authApi.register(email, password, username)
+        const { data } = await authApi.register(username, password, username)
         setSession(data.session)
         setUser(data.user)
       } else {
-        const { data } = await authApi.login(email, password)
+        const { data } = await authApi.login(username, password)
         setSession(data.session)
         setUser(data.user)
       }
@@ -98,17 +97,19 @@ export default function Landing() {
                 />
               </div>
             )}
-            <div>
-              <label className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Scroll Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="fantasy-input w-full"
-                placeholder="you@realm.com"
-                required
-              />
-            </div>
+            {mode === 'login' && (
+              <div>
+                <label className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Adventurer Name</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  className="fantasy-input w-full"
+                  placeholder="your_name"
+                  required
+                />
+              </div>
+            )}
             <div>
               <label className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Passphrase</label>
               <input

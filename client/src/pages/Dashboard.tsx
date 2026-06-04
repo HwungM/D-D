@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [campaignName, setCampaignName] = useState('')
   const [creatingCampaign, setCreatingCampaign] = useState(false)
   const [loadingSeeds, setLoadingSeeds] = useState(false)
+  const [campaignError, setCampaignError] = useState('')
 
   useEffect(() => {
     campaignApi.list().then(({ data }) => {
@@ -41,12 +42,13 @@ export default function Dashboard() {
   async function createCampaign() {
     if (!selectedSeed || !campaignName.trim()) return
     setCreatingCampaign(true)
+    setCampaignError('')
     try {
       const { data } = await campaignApi.create(campaignName, selectedSeed.premise)
       navigate(`/campaign/${data.campaign.id}/create-character`)
-    } catch (err) {
-      console.error(err)
-    } finally {
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to create campaign. Try again.'
+      setCampaignError(typeof msg === 'string' ? msg : 'Failed to create campaign.')
       setCreatingCampaign(false)
     }
   }
@@ -158,8 +160,20 @@ export default function Dashboard() {
               )}
             </div>
 
+            {campaignError && (
+              <div className="border border-ember-600 bg-ember-600/10 px-3 py-2 text-ember-400 text-sm mb-3">
+                {campaignError}
+              </div>
+            )}
+
+            {creatingCampaign && (
+              <div className="text-center py-4">
+                <p className="text-slate-400 font-serif italic text-sm animate-pulse">The AI is weaving your world... this may take 15-30 seconds.</p>
+              </div>
+            )}
+
             <div className="flex gap-3">
-              <button onClick={() => setShowNewCampaign(false)} className="fantasy-btn-secondary flex-1 text-xs">
+              <button onClick={() => { setShowNewCampaign(false); setCampaignError('') }} className="fantasy-btn-secondary flex-1 text-xs" disabled={creatingCampaign}>
                 Cancel
               </button>
               <button
