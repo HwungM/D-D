@@ -83,27 +83,141 @@ const ASSETS = [
   { file: 'scenes/wizard-tower.png', prompt: `${STYLE} Interior of a wizard tower laboratory, shelves of glowing vials and ancient tomes, a celestial orrery turning slowly, arcane diagrams on the floor, night sky through a circular window. Wide landscape format.` },
   { file: 'scenes/battlefield.png', prompt: `${STYLE} The aftermath of a great battle on an open plain, broken weapons in muddy earth, ravens, smoke from distant fires, storm clouds rolling in, a single surviving banner. Wide landscape format.` },
 
-  // Item Icons
-  { file: 'items/sword-common.png', prompt: `${STYLE} Item icon: a plain iron longsword, simple crossguard, worn leather grip, slightly pitted blade. Square icon, dark background.` },
-  { file: 'items/sword-rare.png', prompt: `${STYLE} Item icon: an elegant silver longsword with a sapphire in the crossguard, runes etched along the blade, soft blue glow. Square icon, dark background.` },
-  { file: 'items/sword-legendary.png', prompt: `${STYLE} Item icon: a legendary flaming greatsword, blade wreathed in fire, ornate gold hilt with a dragon motif, ancient runes glowing orange. Square icon, dark background.` },
-  { file: 'items/staff-arcane.png', prompt: `${STYLE} Item icon: a gnarled wooden wizard staff topped with a crackling orb of purple arcane energy, carved sigils along the shaft. Square icon, dark background.` },
-  { file: 'items/dagger.png', prompt: `${STYLE} Item icon: a slim assassin dagger, dark serrated blade, black wrapped handle, traces of poison on the tip. Square icon, dark background.` },
-  { file: 'items/bow.png', prompt: `${STYLE} Item icon: an elegant recurve bow of dark yew wood, silver-tipped limbs, quiver of black-feathered arrows. Square icon, dark background.` },
-  { file: 'items/axe.png', prompt: `${STYLE} Item icon: a brutal bearded battle-axe, notched blade, blood-stained, wrapped leather handle with iron studs. Square icon, dark background.` },
+  // Item Icons — Swords
+  { file: 'items/sword-iron.png', prompt: `${STYLE} Item icon: a plain iron longsword, simple crossguard, worn leather grip, slightly pitted blade. Square icon, dark background.` },
+  { file: 'items/sword-steel.png', prompt: `${STYLE} Item icon: a well-forged steel longsword, polished blade, ornate crossguard, leather-wrapped grip with gold wire. Square icon, dark background.` },
+  { file: 'items/sword-silver.png', prompt: `${STYLE} Item icon: a silver longsword with a sapphire in the crossguard, runes etched along the blade, soft blue glow. Square icon, dark background.` },
+  { file: 'items/sword-enchanted.png', prompt: `${STYLE} Item icon: an enchanted longsword crackling with purple arcane energy along the blade, glowing sigils on the crossguard. Square icon, dark background.` },
+  { file: 'items/sword-cursed.png', prompt: `${STYLE} Item icon: a cursed black longsword, blade like obsidian, dark smoke drifting from the edge, ominous red runes. Square icon, dark background.` },
+  { file: 'items/sword-legendary.png', prompt: `${STYLE} Item icon: a legendary greatsword wreathed in golden fire, ornate dragon-motif hilt, ancient glowing runes. Square icon, dark background.` },
+
+  // Item Icons — Axes
+  { file: 'items/axe-hand.png', prompt: `${STYLE} Item icon: a small hand axe, worn iron blade, short wooden handle wrapped in leather. Square icon, dark background.` },
+  { file: 'items/axe-battle.png', prompt: `${STYLE} Item icon: a brutal bearded battle-axe, notched blood-stained blade, wrapped leather handle with iron studs. Square icon, dark background.` },
+  { file: 'items/axe-great.png', prompt: `${STYLE} Item icon: a massive greataxe with a double-bladed head, thick iron construction, skull carved into the blade. Square icon, dark background.` },
+
+  // Item Icons — Daggers
+  { file: 'items/dagger-common.png', prompt: `${STYLE} Item icon: a simple iron dagger, short straight blade, basic wooden handle. Square icon, dark background.` },
+  { file: 'items/dagger-poison.png', prompt: `${STYLE} Item icon: a slim assassin dagger, dark serrated blade, black wrapped handle, green poison glistening on the tip. Square icon, dark background.` },
+  { file: 'items/dagger-enchanted.png', prompt: `${STYLE} Item icon: an elegant enchanted dagger, blade shimmering with frost, silver handle with a moonstone pommel. Square icon, dark background.` },
+
+  // Item Icons — Bows
+  { file: 'items/bow-short.png', prompt: `${STYLE} Item icon: a simple shortbow of pale wood, plain string, small and light. Square icon, dark background.` },
+  { file: 'items/bow-long.png', prompt: `${STYLE} Item icon: an elegant longbow of dark yew wood, silver-tipped limbs, with a quiver of black-feathered arrows. Square icon, dark background.` },
+  { file: 'items/bow-enchanted.png', prompt: `${STYLE} Item icon: an enchanted elven bow, glowing green runes along the limbs, arrows that shimmer with arcane light. Square icon, dark background.` },
+
+  // Item Icons — Staves
+  { file: 'items/staff-wooden.png', prompt: `${STYLE} Item icon: a simple gnarled wooden walking staff, worn smooth at the grip, iron-capped at the base. Square icon, dark background.` },
+  { file: 'items/staff-arcane.png', prompt: `${STYLE} Item icon: a wizard staff topped with a crackling orb of purple arcane energy, carved sigils along the shaft. Square icon, dark background.` },
+  { file: 'items/staff-elemental.png', prompt: `${STYLE} Item icon: an elemental staff with flames at the top, the shaft scorched black, embers drifting from it. Square icon, dark background.` },
+
+  // Item Icons — Wands
+  { file: 'items/wand-basic.png', prompt: `${STYLE} Item icon: a slender wand of pale wood, silver tip, faint magical shimmer. Square icon, dark background.` },
+  { file: 'items/wand-enchanted.png', prompt: `${STYLE} Item icon: an ornate enchanted wand, dark wood with gold filigree, a pulsing gem at the tip. Square icon, dark background.` },
+
+  // Item Icons — Maces & Hammers
+  { file: 'items/mace.png', prompt: `${STYLE} Item icon: a heavy iron mace, flanged head with impact dents, leather-wrapped handle. Square icon, dark background.` },
+  { file: 'items/warhammer.png', prompt: `${STYLE} Item icon: a massive warhammer, broad flat iron head, thick wooden handle bound in steel rings. Square icon, dark background.` },
+
+  // Item Icons — Spears & Polearms
+  { file: 'items/spear.png', prompt: `${STYLE} Item icon: a steel-tipped spear, long ash shaft, dried blood near the tip. Square icon, dark background.` },
+  { file: 'items/halberd.png', prompt: `${STYLE} Item icon: a halberd with a broad axe blade and spike, ornate crossguard, long wooden pole. Square icon, dark background.` },
+
+  // Item Icons — Shields
+  { file: 'items/shield-wooden.png', prompt: `${STYLE} Item icon: a round wooden shield with an iron rim, painted crest faded from battle. Square icon, dark background.` },
+  { file: 'items/shield-iron.png', prompt: `${STYLE} Item icon: a battered iron kite shield, iron boss in center, sword cuts along the rim. Square icon, dark background.` },
+  { file: 'items/shield-enchanted.png', prompt: `${STYLE} Item icon: an enchanted shield glowing with a soft blue ward, runes etched around the rim, pristine despite battle. Square icon, dark background.` },
+
+  // Item Icons — Light Armor
   { file: 'items/armor-leather.png', prompt: `${STYLE} Item icon: worn brown leather armor chest piece, reinforced with studs, battle-scarred. Square icon, dark background.` },
+  { file: 'items/armor-studded.png', prompt: `${STYLE} Item icon: dark studded leather armor, iron rivets across the chest, tight fitting. Square icon, dark background.` },
+
+  // Item Icons — Medium Armor
+  { file: 'items/armor-chain.png', prompt: `${STYLE} Item icon: a chainmail hauberk, interlocked iron rings, heavy and worn. Square icon, dark background.` },
+  { file: 'items/armor-breastplate.png', prompt: `${STYLE} Item icon: a steel breastplate, hammered smooth, engraved with a sun motif, battle-worn. Square icon, dark background.` },
+
+  // Item Icons — Heavy Armor
   { file: 'items/armor-plate.png', prompt: `${STYLE} Item icon: gleaming full plate armor chest piece, etched with battle honors, polished steel with deep scratches. Square icon, dark background.` },
-  { file: 'items/shield.png', prompt: `${STYLE} Item icon: a battered kite shield, iron boss in center, faded family crest, sword cuts along the rim. Square icon, dark background.` },
-  { file: 'items/potion-health.png', prompt: `${STYLE} Item icon: a small glass vial of glowing crimson liquid, corked with wax seal, warm inner light. Square icon, dark background.` },
-  { file: 'items/potion-mana.png', prompt: `${STYLE} Item icon: a small glass vial of swirling cobalt blue liquid, silver stopper, faint arcane shimmer. Square icon, dark background.` },
-  { file: 'items/scroll.png', prompt: `${STYLE} Item icon: a rolled parchment scroll tied with red ribbon, aged and yellowed, arcane glyphs on the exposed edge. Square icon, dark background.` },
-  { file: 'items/gold-pouch.png', prompt: `${STYLE} Item icon: a leather coin pouch tied with cord, bulging with coins, a few gold coins spilling out. Square icon, dark background.` },
-  { file: 'items/key.png', prompt: `${STYLE} Item icon: an ornate iron key with a skull-shaped bow, ancient and heavy, engraved symbols. Square icon, dark background.` },
+  { file: 'items/armor-dark-plate.png', prompt: `${STYLE} Item icon: dark black plate armor, spiked pauldrons, ominous red runes etched across the chest. Square icon, dark background.` },
+
+  // Item Icons — Helmets
+  { file: 'items/helmet-iron.png', prompt: `${STYLE} Item icon: a dented iron helmet, nasal guard, leather liner showing at the edges. Square icon, dark background.` },
+  { file: 'items/helmet-horned.png', prompt: `${STYLE} Item icon: a dark steel horned helmet, two curved horns, intimidating visor. Square icon, dark background.` },
+
+  // Item Icons — Gloves
+  { file: 'items/gloves-leather.png', prompt: `${STYLE} Item icon: worn leather archer gloves, finger-cut, laced at the wrist. Square icon, dark background.` },
+  { file: 'items/gauntlets-iron.png', prompt: `${STYLE} Item icon: heavy iron gauntlets, articulated fingers, knuckle plates, battle-worn. Square icon, dark background.` },
+
+  // Item Icons — Boots
+  { file: 'items/boots-leather.png', prompt: `${STYLE} Item icon: ranger soft leather boots, dark brown, mud-stained, reinforced toe and ankle. Square icon, dark background.` },
+  { file: 'items/boots-enchanted.png', prompt: `${STYLE} Item icon: elegant enchanted boots, dark leather with glowing blue runes on the sole, feather-light. Square icon, dark background.` },
+
+  // Item Icons — Cloaks
+  { file: 'items/cloak-common.png', prompt: `${STYLE} Item icon: a worn brown travelling cloak, frayed edges, simple clasp. Square icon, dark background.` },
+  { file: 'items/cloak-elvish.png', prompt: `${STYLE} Item icon: a deep forest-green elvish cloak, silver leaf clasp, shimmers slightly as if alive. Square icon, dark background.` },
+  { file: 'items/cloak-shadow.png', prompt: `${STYLE} Item icon: a shadow cloak of pure black, edges dissolving into darkness, impossible to fully see. Square icon, dark background.` },
+
+  // Item Icons — Rings
+  { file: 'items/ring-iron.png', prompt: `${STYLE} Item icon: a plain iron ring, rough-forged, worn smooth. Square icon, dark background.` },
+  { file: 'items/ring-gold.png', prompt: `${STYLE} Item icon: a gold ring with intricate filigree work, small ruby set in center. Square icon, dark background.` },
+  { file: 'items/ring-enchanted.png', prompt: `${STYLE} Item icon: an enchanted ring glowing with green gemstone, strange carved symbols on the band. Square icon, dark background.` },
+
+  // Item Icons — Amulets
+  { file: 'items/amulet-bone.png', prompt: `${STYLE} Item icon: a bone amulet carved into a skull, leather cord, primitive and ominous. Square icon, dark background.` },
+  { file: 'items/amulet-silver.png', prompt: `${STYLE} Item icon: a silver amulet on a fine chain, sun-cross design, holy symbol. Square icon, dark background.` },
+  { file: 'items/amulet-enchanted.png', prompt: `${STYLE} Item icon: a dark enchanted amulet, purple gemstone at center, faint otherworldly glow, strange carved symbols. Square icon, dark background.` },
+
+  // Item Icons — Potions
+  { file: 'items/potion-health-small.png', prompt: `${STYLE} Item icon: a tiny glass vial of glowing crimson liquid, cork stopper, warm light within. Square icon, dark background.` },
+  { file: 'items/potion-health-medium.png', prompt: `${STYLE} Item icon: a medium flask of glowing crimson liquid, wax seal, pulsing warm light. Square icon, dark background.` },
+  { file: 'items/potion-health-large.png', prompt: `${STYLE} Item icon: a large bottle of intensely glowing crimson liquid, iron stopper, radiating heat. Square icon, dark background.` },
+  { file: 'items/potion-mana-small.png', prompt: `${STYLE} Item icon: a tiny vial of swirling cobalt blue liquid, silver stopper, faint arcane shimmer. Square icon, dark background.` },
+  { file: 'items/potion-mana-medium.png', prompt: `${STYLE} Item icon: a medium flask of glowing blue arcane liquid, swirling motes inside, silver cap. Square icon, dark background.` },
+  { file: 'items/potion-mana-large.png', prompt: `${STYLE} Item icon: a large bottle of intensely glowing blue liquid, crackling with arcane energy inside. Square icon, dark background.` },
+  { file: 'items/potion-poison.png', prompt: `${STYLE} Item icon: a dark vial of sickly green liquid, skull etched on the glass, bubbling faintly. Square icon, dark background.` },
+  { file: 'items/potion-invisibility.png', prompt: `${STYLE} Item icon: a vial of completely clear liquid that seems to make what's behind it invisible, ethereal shimmer. Square icon, dark background.` },
+  { file: 'items/potion-strength.png', prompt: `${STYLE} Item icon: a thick vial of deep red liquid, almost viscous, glowing with inner fire. Square icon, dark background.` },
+  { file: 'items/potion-speed.png', prompt: `${STYLE} Item icon: a vial of golden liquid with lightning crackling inside, blurred motion effect around it. Square icon, dark background.` },
+
+  // Item Icons — Scrolls
+  { file: 'items/scroll-spell.png', prompt: `${STYLE} Item icon: a rolled parchment scroll tied with red ribbon, arcane glyphs on the exposed edge, faint glow. Square icon, dark background.` },
+  { file: 'items/scroll-map.png', prompt: `${STYLE} Item icon: a rolled map scroll, worn edges, a red X visible on the exposed corner. Square icon, dark background.` },
+  { file: 'items/scroll-ancient.png', prompt: `${STYLE} Item icon: an ancient scroll, crumbling edges, black ink symbols of an unknown language, tied with a black cord. Square icon, dark background.` },
+
+  // Item Icons — Food & Drink
+  { file: 'items/food-bread.png', prompt: `${STYLE} Item icon: a round dark bread loaf, crusty, sitting on a cloth. Square icon, dark background.` },
+  { file: 'items/food-meat.png', prompt: `${STYLE} Item icon: a cooked leg of meat on a bone, charred from fire. Square icon, dark background.` },
+  { file: 'items/drink-ale.png', prompt: `${STYLE} Item icon: a wooden tankard of dark ale, foam at the brim. Square icon, dark background.` },
+  { file: 'items/drink-wine.png', prompt: `${STYLE} Item icon: a dark glass bottle of red wine, wax-sealed cork, dusty label. Square icon, dark background.` },
+
+  // Item Icons — Tools
+  { file: 'items/tool-rope.png', prompt: `${STYLE} Item icon: a coiled length of hemp rope, knotted at the end, well-worn. Square icon, dark background.` },
+  { file: 'items/tool-torch.png', prompt: `${STYLE} Item icon: a wooden torch, wrapped in oiled cloth, burning with orange flame. Square icon, dark background.` },
+  { file: 'items/tool-lockpick.png', prompt: `${STYLE} Item icon: a set of slim iron lockpicks in a leather roll, various sizes. Square icon, dark background.` },
+  { file: 'items/tool-grapple.png', prompt: `${STYLE} Item icon: an iron grappling hook with three prongs, attached to a coiled rope. Square icon, dark background.` },
+
+  // Item Icons — Quest Items
+  { file: 'items/quest-key.png', prompt: `${STYLE} Item icon: an ornate iron key with a skull-shaped bow, ancient and heavy, engraved symbols. Square icon, dark background.` },
+  { file: 'items/quest-orb.png', prompt: `${STYLE} Item icon: a mysterious glowing orb, swirling darkness inside, pulsing with purple light. Square icon, dark background.` },
+  { file: 'items/quest-rune.png', prompt: `${STYLE} Item icon: an ancient stone rune tablet, glowing carvings, cracked at one corner. Square icon, dark background.` },
+  { file: 'items/quest-letter.png', prompt: `${STYLE} Item icon: a sealed letter with a black wax seal bearing an unknown crest, slightly crumpled. Square icon, dark background.` },
+  { file: 'items/quest-gem.png', prompt: `${STYLE} Item icon: a large uncut gemstone, deep blue, glowing faintly from within. Square icon, dark background.` },
+
+  // Item Icons — Currency
+  { file: 'items/gold-coin.png', prompt: `${STYLE} Item icon: a stack of gold coins, stamped with a crown, gleaming. Square icon, dark background.` },
+  { file: 'items/silver-coin.png', prompt: `${STYLE} Item icon: a small pile of silver coins, worn smooth from use. Square icon, dark background.` },
+  { file: 'items/gem-currency.png', prompt: `${STYLE} Item icon: a cut ruby gemstone, brilliant red, facets catching light. Square icon, dark background.` },
+  { file: 'items/treasure-chest.png', prompt: `${STYLE} Item icon: a small wooden treasure chest, iron-banded, open slightly to reveal gold glinting inside. Square icon, dark background.` },
+
+  // Item Icons — Books & Tomes
   { file: 'items/tome.png', prompt: `${STYLE} Item icon: a heavy leather-bound spellbook, iron clasp, arcane symbol embossed on cover, gold-edged pages. Square icon, dark background.` },
-  { file: 'items/ring.png', prompt: `${STYLE} Item icon: a gold ring with a glowing green gemstone, fine filigree work. Square icon, dark background.` },
-  { file: 'items/amulet.png', prompt: `${STYLE} Item icon: a silver amulet on a chain, dark purple gemstone at center, strange carved symbols, faint otherworldly glow. Square icon, dark background.` },
-  { file: 'items/boots.png', prompt: `${STYLE} Item icon: ranger soft leather boots, dark brown, silent-soled, mud-stained, reinforced toe and ankle. Square icon, dark background.` },
-  { file: 'items/cloak.png', prompt: `${STYLE} Item icon: a deep forest-green hooded cloak, silver leaf clasp, edges slightly frayed, stained with travel. Square icon, dark background.` },
+  { file: 'items/journal.png', prompt: `${STYLE} Item icon: a worn leather journal, strap clasp, pages bulging with loose notes and pressed items. Square icon, dark background.` },
+  { file: 'items/tome-ancient.png', prompt: `${STYLE} Item icon: an ancient tome, cracked leather cover, unknown symbols burned into it, chained shut. Square icon, dark background.` },
+
+  // Item Icons — Ammo
+  { file: 'items/arrows.png', prompt: `${STYLE} Item icon: a bundle of arrows tied together, black feather fletching, iron tips. Square icon, dark background.` },
+  { file: 'items/bolts.png', prompt: `${STYLE} Item icon: a bundle of crossbow bolts, shorter than arrows, tied in a quiver. Square icon, dark background.` },
+  { file: 'items/arrows-magic.png', prompt: `${STYLE} Item icon: a single magic arrow glowing blue, runes along the shaft, crackling tip. Square icon, dark background.` },
 ];
 
 function downloadImage(url, filepath) {
