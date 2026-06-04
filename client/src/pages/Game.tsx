@@ -7,6 +7,8 @@ import ActionPanel from '../components/ActionPanel'
 import CharacterSheet from '../components/CharacterSheet'
 import NarratorBox from '../components/NarratorBox'
 import DiceRoll from '../components/DiceRoll'
+import AudioControls from '../components/AudioControls'
+import { audioManager } from '../lib/audio'
 import type { Character, StoryEvent, ActionResult } from '../../../shared/types'
 
 export default function Game() {
@@ -89,6 +91,11 @@ export default function Game() {
 
       if (result.diceRoll) setShowDice(true)
 
+      // Audio triggers
+      if (result.isCombat) audioManager.playCombat()
+      if (result.isVictory) audioManager.playVictory()
+      if (result.levelUp) audioManager.playLevelUp()
+
       const dmEvent: StoryEvent = {
         id: `temp-dm-${Date.now()}`,
         campaign_id: campaignId,
@@ -153,9 +160,12 @@ export default function Game() {
             </span>
           )}
         </div>
-        <button onClick={() => setShowSidebar(!showSidebar)} className="fantasy-btn-secondary text-xs">
-          {showSidebar ? 'Hide Sheet' : 'Character Sheet'}
-        </button>
+        <div className="flex items-center gap-3">
+          <AudioControls />
+          <button onClick={() => setShowSidebar(!showSidebar)} className="fantasy-btn-secondary text-xs">
+            {showSidebar ? 'Hide Sheet' : 'Character Sheet'}
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
