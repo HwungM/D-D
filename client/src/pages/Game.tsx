@@ -68,6 +68,19 @@ export default function Game() {
       setLastActionResult(result)
       setStarted(true)
 
+      // Add opening narration to the story feed
+      if (result.narration) {
+        addEvent({
+          id: `start-${Date.now()}`,
+          campaign_id: campaignId,
+          character_id: characterId,
+          event_type: 'narration',
+          content: result.narration,
+          metadata: { suggestedActions: result.suggestedActions },
+          created_at: new Date().toISOString(),
+        })
+      }
+
       if (result.sceneImagePrompt) {
         const cacheKey = `scene-${campaignId}-start`
         assetApi.generate(result.sceneImagePrompt, cacheKey).then(({ data: img }) => {

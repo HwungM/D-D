@@ -30,20 +30,17 @@ const MOOD_BORDER_COLOR: Record<Mood, string> = {
 
 export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = false, onComplete }: NarratorBoxProps) {
   const [displayed, setDisplayed] = useState('')
-  const [typing, setTyping] = useState(true)
+  const [typing, setTyping] = useState(false)
   const indexRef = useRef(0)
-  const prevText = useRef('')
 
   useEffect(() => {
-    if (prevText.current === text) return
-    prevText.current = text
+    if (!text) return
     indexRef.current = 0
     setDisplayed('')
     setTyping(true)
 
     if (!isPlayerAction) audioManager.playPageTurn()
 
-    const speed = isPlayerAction ? 10 : 18
     const interval = setInterval(() => {
       indexRef.current += 1
       setDisplayed(text.slice(0, indexRef.current))
@@ -52,10 +49,11 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
         setTyping(false)
         onComplete?.()
       }
-    }, speed)
+    }, isPlayerAction ? 10 : 18)
 
     return () => clearInterval(interval)
-  }, [text, onComplete, isPlayerAction])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text])
 
   if (isPlayerAction) {
     return (
