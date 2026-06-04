@@ -28,6 +28,30 @@ const ASSETS = [
   { file: 'races/tiefling.png', prompt: `${STYLE} Portrait of a tiefling, deep crimson skin, small curved black horns, glowing gold eyes with no pupils, elegant features, wearing dark arcane robes. Mysterious purple light. Shoulder-up portrait.` },
   { file: 'races/dragonborn.png', prompt: `${STYLE} Portrait of a dragonborn, scaled dark bronze skin, reptilian amber eyes, regal angular face, subtle horns sweeping back, wearing ornate scaled armor. Dramatic torchlight. Shoulder-up portrait.` },
 
+  // Female Race Portraits
+  { file: 'races/human-f.png', prompt: `${STYLE} Portrait of a noble human female warrior, strong determined face, weathered features, brown eyes, dark hair pulled back, wearing battered leather armor. Dramatic side lighting. Shoulder-up portrait.` },
+  { file: 'races/elf-f.png', prompt: `${STYLE} Portrait of an elven female, sharp elegant features, long silver hair, piercing violet eyes, pointed ears, wearing fine forest-green garb. Soft ethereal light. Shoulder-up portrait.` },
+  { file: 'races/dwarf-f.png', prompt: `${STYLE} Portrait of a dwarven female warrior, thick braided auburn hair with iron rings, broad strong face, deep-set grey eyes, wearing hammered steel pauldrons. Forge-lit from below. Shoulder-up portrait.` },
+  { file: 'races/halfling-f.png', prompt: `${STYLE} Portrait of a halfling female, large tight curly auburn hair, bright green curious eyes, rosy cheeks, small frame, wearing a patched traveling cloak. Warm tavern light. Shoulder-up portrait.` },
+  { file: 'races/gnome-f.png', prompt: `${STYLE} Portrait of a gnome female inventor, wild white curly hair, enormous amber goggles pushed up on forehead, bright inquisitive eyes, mechanical components on collar. Workshop lighting. Shoulder-up portrait.` },
+  { file: 'races/half-orc-f.png', prompt: `${STYLE} Portrait of a half-orc female, grey-green skin, small upward tusks, strong jaw, amber eyes, shaved sides with ritual scars, wearing iron-plated armor. Harsh torchlight. Shoulder-up portrait.` },
+  { file: 'races/tiefling-f.png', prompt: `${STYLE} Portrait of a tiefling female, deep crimson skin, small curved black horns, glowing gold eyes with no pupils, elegant features, wearing dark arcane robes. Mysterious purple light. Shoulder-up portrait.` },
+  { file: 'races/dragonborn-f.png', prompt: `${STYLE} Portrait of a dragonborn female, scaled dark bronze skin, reptilian amber eyes, regal angular face, subtle horns sweeping back, wearing ornate scaled armor. Dramatic torchlight. Shoulder-up portrait.` },
+
+  // Black Female Race Portraits
+  { file: 'races/human-f-black.png', prompt: `${STYLE} Portrait of a noble Black human female warrior, deep brown skin, tight curly dark hair, strong determined face, dark eyes, wearing battered leather armor. Dramatic side lighting. Shoulder-up portrait.` },
+  { file: 'races/elf-f-black.png', prompt: `${STYLE} Portrait of a Black elven female, deep brown skin, tight coily dark hair with silver accents, sharp elegant features, pointed ears, glowing violet eyes, wearing fine forest-green garb. Soft ethereal light. Shoulder-up portrait.` },
+  { file: 'races/dwarf-f-black.png', prompt: `${STYLE} Portrait of a Black dwarven female warrior, deep brown skin, thick tight curly black hair braided with iron rings, strong broad face, deep-set eyes, wearing hammered steel pauldrons. Forge-lit from below. Shoulder-up portrait.` },
+  { file: 'races/halfling-f-black.png', prompt: `${STYLE} Portrait of a Black halfling female, deep brown skin, large voluminous tight curly black hair, bright curious eyes, rosy cheeks, small frame, wearing a patched traveling cloak. Warm tavern light. Shoulder-up portrait.` },
+  { file: 'races/gnome-f-black.png', prompt: `${STYLE} Portrait of a Black gnome female inventor, deep brown skin, wild tight curly black hair, enormous amber goggles pushed up on forehead, bright inquisitive eyes, mechanical components on collar. Workshop lighting. Shoulder-up portrait.` },
+
+  // Black Male Race Portraits
+  { file: 'races/human-m-black.png', prompt: `${STYLE} Portrait of a noble Black human male warrior, deep brown skin, short cropped dark hair, strong jaw, weathered determined face, dark eyes, wearing battered leather armor. Dramatic side lighting. Shoulder-up portrait.` },
+  { file: 'races/elf-m-black.png', prompt: `${STYLE} Portrait of a Black elven male, deep brown skin, short cropped dark hair with silver accents, sharp angular features, pointed ears, glowing violet eyes, wearing fine forest-green garb. Soft ethereal light. Shoulder-up portrait.` },
+  { file: 'races/dwarf-m-black.png', prompt: `${STYLE} Portrait of a Black dwarven male warrior, deep brown skin, thick braided black beard with iron rings, broad strong face, deep-set eyes, wearing hammered steel pauldrons. Forge-lit from below. Shoulder-up portrait.` },
+  { file: 'races/halfling-m-black.png', prompt: `${STYLE} Portrait of a Black halfling male, deep brown skin, short tight curly black hair, bright curious eyes, rosy cheeks, small frame, wearing a patched traveling cloak. Warm tavern light. Shoulder-up portrait.` },
+  { file: 'races/gnome-m-black.png', prompt: `${STYLE} Portrait of a Black gnome male inventor, deep brown skin, short tight curly black hair, enormous amber goggles pushed up on forehead, bright inquisitive eyes, mechanical components on collar. Workshop lighting. Shoulder-up portrait.` },
+
   // Class Icons
   { file: 'classes/fighter.png', prompt: `${STYLE} Icon illustration of a battle-worn sword and kite shield crossed, etched with campaign scars, steel with gold trim on worn leather backing. Square icon format, centered on dark stone texture.` },
   { file: 'classes/wizard.png', prompt: `${STYLE} Icon illustration of an ancient spellbook open to a glowing arcane rune, orbited by three floating motes of light, pages yellowed. Square icon format, centered on dark stone texture.` },
