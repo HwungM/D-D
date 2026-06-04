@@ -21,8 +21,9 @@ import DeathScreen from '../components/DeathScreen'
 import ShopModal from '../components/ShopModal'
 import ActTransition from '../components/ActTransition'
 import JournalTab from '../components/JournalTab'
+import HighStakesChoice from '../components/HighStakesChoice'
 import { audioManager } from '../lib/audio'
-import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem } from '../../../shared/types'
+import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType } from '../../../shared/types'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
@@ -91,6 +92,9 @@ export default function Game() {
   const [showActTransition, setShowActTransition] = useState(false)
   const [nextAct, setNextAct] = useState(1)
   const [recentNarrations, setRecentNarrations] = useState<string[]>([])
+  const [showHighStakes, setShowHighStakes] = useState(false)
+  const [highStakesData, setHighStakesData] = useState<{ narration: string; choices: HighStakesChoiceType[] } | null>(null)
+  const [proactiveNarration, setProactiveNarration] = useState<string | null>(null)
 
   useEffect(() => {
     audioManager.startAmbient()
@@ -161,6 +165,35 @@ export default function Game() {
     if (narratorRef.current) narratorRef.current.scrollTop = narratorRef.current.scrollHeight
   }, [events])
 
+  // Proactive event polling — every 90 seconds after game starts
+  useEffect(() => {
+    if (!started || !campaignId || !characterId) return
+    const interval = setInterval(async () => {
+      if (isLoading) return
+      try {
+        const { data, status } = await gameApi.getProactiveEvent(campaignId, characterId)
+        if (status === 200 && data?.narration) {
+          setProactiveNarration(data.narration)
+          addEvent({
+            id: `proactive-${Date.now()}`,
+            campaign_id: campaignId,
+            character_id: characterId,
+            event_type: 'narration',
+            content: data.narration,
+            metadata: { isProactiveEvent: true, suggestedActions: data.suggestedActions },
+            created_at: new Date().toISOString(),
+          })
+          if (data.suggestedActions?.length) {
+            setLastActionResult({ ...lastActionResult, suggestedActions: data.suggestedActions } as ActionResult)
+          }
+        }
+      } catch {
+        // Silently ignore — proactive events are best-effort
+      }
+    }, 90 * 1000)
+    return () => clearInterval(interval)
+  }, [started, campaignId, characterId, isLoading])
+
   async function handleStart() {
     if (!campaignId || !characterId) return
     setLoading(true)
@@ -194,6 +227,9 @@ export default function Game() {
     if (!campaignId || !characterId || isLoading) return
     setLoading(true)
     setShowDice(false)
+    setShowHighStakes(false)
+    setHighStakesData(null)
+    setProactiveNarration(null)
 
     // Immediate local scene switch based on action text + current location
     const immediateScene = matchSceneImage(action + ' ' + (worldState?.currentLocation || ''))
@@ -281,6 +317,13 @@ export default function Game() {
         setNextAct(prev => prev + 1)
         setTimeout(() => setShowActTransition(true), 600)
       }
+
+      // High stakes choice overlay
+      if (result.isHighStakes && result.choiceCards && result.choiceCards.length > 0) {
+        setHighStakesData({ narration: result.narration, choices: result.choiceCards as HighStakesChoiceType[] })
+        setShowHighStakes(true)
+      }
+
       refreshParty()
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
@@ -571,6 +614,36 @@ export default function Game() {
       )}
       {showActTransition && (
         <ActTransition actNumber={nextAct} onComplete={() => setShowActTransition(false)} />
+      )}
+      {showHighStakes && highStakesData && (
+        <HighStakesChoice
+          narration={highStakesData.narration}
+          choices={highStakesData.choices}
+          onChoose={(choiceTitle) => {
+            setShowHighStakes(false)
+            setHighStakesData(null)
+            handleAction(choiceTitle)
+          }}
+          onCustom={() => {
+            setShowHighStakes(false)
+            setHighStakesData(null)
+          }}
+        />
+      )}
+      {proactiveNarration && !showHighStakes && (
+        <div
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-30 px-4 py-2 text-xs font-serif italic"
+          style={{
+            background: 'rgba(6,8,13,0.85)',
+            border: '1px solid rgba(200,146,42,0.2)',
+            color: 'rgba(200,146,42,0.6)',
+            maxWidth: '320px',
+            textAlign: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          The world stirs...
+        </div>
       )}
     </div>
   )

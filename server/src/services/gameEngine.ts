@@ -1,7 +1,10 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration } from './openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem } from '../../../shared/types';
+import OpenAI from 'openai';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry } from '../../../shared/types';
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
+
+const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 import { getAbilityForLevel } from '../../../shared/classAbilities';
 
 export function rollDice(sides: number, modifier: number = 0, count: number = 1): DiceRollResult {
@@ -33,6 +36,50 @@ export function checkLevelUp(character: Character): { leveledUp: boolean; newLev
   return { leveledUp: false };
 }
 
+export async function compressToJournalEntry(
+  _campaignId: string,
+  sessionNotes: string[],
+  actNumber: number,
+  sessionCount: number
+): Promise<CampaignJournalEntry> {
+  const response = await openaiClient.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a campaign journal scribe. Compress session notes into a brief journal entry. Respond with valid JSON only.',
+      },
+      {
+        role: 'user',
+        content: `Compress these session notes into a journal entry. Extract key decisions and notable NPCs introduced.
+
+Session notes:
+${sessionNotes.join('\n')}
+
+Return JSON:
+{
+  "summary": "2-3 sentence summary of the session",
+  "keyDecisions": ["decision 1", "decision 2"],
+  "majorNPCsIntroduced": ["npc name 1", "npc name 2"]
+}`,
+      },
+    ],
+    temperature: 0.7,
+    response_format: { type: 'json_object' },
+  });
+
+  const content = response.choices[0].message.content || '{}';
+  const parsed = JSON.parse(content);
+  return {
+    actNumber,
+    sessionNumber: sessionCount,
+    summary: parsed.summary || 'Session events recorded.',
+    keyDecisions: parsed.keyDecisions || [],
+    majorNPCsIntroduced: parsed.majorNPCsIntroduced || [],
+    createdAt: new Date().toISOString(),
+  };
+}
+
 export async function applyConsequences(
   characterId: string,
   actionResult: {
@@ -48,9 +95,11 @@ export async function applyConsequences(
     diceDC?: number;
     statusEffectChanges?: { add?: { name: string; description: string; type: string; duration?: number }[]; remove?: string[] };
     sessionNote?: string;
+    characterHistoryNote?: CharacterHistoryEntry;
+    antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
   },
   currentCharacter: Character,
-  campaign: { id: string; world_state: WorldState }
+  campaign: { id: string; world_state: WorldState; act?: number }
 ): Promise<{ updatedCharacter: Character; updatedWorldState: WorldState }> {
   const updates: Partial<Character> = {};
   let newWorldState = { ...campaign.world_state };
@@ -174,8 +223,44 @@ export async function applyConsequences(
 
   // Add session note to world state
   if (actionResult.sessionNote) {
-    const notes = [...(newWorldState.sessionNotes || []), actionResult.sessionNote].slice(-10);
+    let notes = [...(newWorldState.sessionNotes || []), actionResult.sessionNote];
+    // Compress to journal entry when we have 8+ session notes
+    if (notes.length >= 8) {
+      try {
+        const actNumber = campaign.act ?? 1;
+        const sessionCount = (newWorldState.sessionCount ?? 0) + 1;
+        const entry = await compressToJournalEntry(campaign.id, notes, actNumber, sessionCount);
+        newWorldState.campaignJournal = [...(newWorldState.campaignJournal || []), entry];
+        notes = []; // clear after compression
+      } catch (e) {
+        notes = notes.slice(-10); // fallback: keep last 10
+      }
+    }
     newWorldState.sessionNotes = notes;
+    await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
+  }
+
+  // Log characterHistoryNote
+  if (actionResult.characterHistoryNote) {
+    const history = [...(newWorldState.characterHistory || []), {
+      ...actionResult.characterHistoryNote,
+      createdAt: new Date().toISOString(),
+    }];
+    newWorldState.characterHistory = history.slice(-50); // keep last 50
+    await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
+  }
+
+  // Update antagonistProgress
+  if (actionResult.antagonistUpdate) {
+    const au = actionResult.antagonistUpdate;
+    const progress = { ...(newWorldState.antagonistProgress || {}) };
+    const existing = progress[au.name] || { stepIndex: 0, lastAction: '', knowsPlayers: false };
+    progress[au.name] = {
+      stepIndex: au.newStep ? existing.stepIndex + 1 : existing.stepIndex,
+      lastAction: au.lastAction || existing.lastAction,
+      knowsPlayers: au.nowKnowsPlayers ?? existing.knowsPlayers,
+    };
+    newWorldState.antagonistProgress = progress;
     await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
   }
 
@@ -238,13 +323,33 @@ export async function processAction(
 
   const recentHistory = await getRecentHistory(campaignId, characterId);
 
+  // Build campaign context for narrative enrichment
+  const ws = campaign.world_state as WorldState;
+  const wb = campaign.world_bible as WorldBible;
+
+  // Increment session count on first action (rough proxy)
+  if (!ws.sessionCount) {
+    ws.sessionCount = 1;
+    await supabaseAdmin.from('campaigns').update({ world_state: ws }).eq('id', campaignId);
+  }
+
+  const campaignContext = {
+    journal: ws.campaignJournal || [],
+    characterHistory: ws.characterHistory || [],
+    antagonists: wb.antagonistRoster || (wb.primaryAntagonist ? [wb.primaryAntagonist] : []),
+    centralConflict: wb.centralConflict || '',
+    act: campaign.act || 1,
+    sessionCount: ws.sessionCount || 1,
+  };
+
   // Generate narration via GPT-4o
   const aiResponse = await generateNarration(
     action,
-    campaign.world_state as WorldState,
-    campaign.world_bible as WorldBible,
+    ws,
+    wb,
     character as Character,
-    recentHistory
+    recentHistory,
+    campaignContext
   );
 
   // Handle dice roll if required
@@ -284,9 +389,11 @@ export async function processAction(
       loot: aiResponse.loot,
       statusEffectChanges: aiResponse.statusEffectChanges,
       sessionNote: aiResponse.sessionNote,
+      characterHistoryNote: aiResponse.characterHistoryNote as CharacterHistoryEntry | undefined,
+      antagonistUpdate: aiResponse.antagonistUpdate,
     },
     character as Character,
-    { id: campaignId, world_state: campaign.world_state as WorldState }
+    { id: campaignId, world_state: campaign.world_state as WorldState, act: campaign.act }
   );
 
   // Advance act if triggered
@@ -344,6 +451,10 @@ export async function processAction(
     isMerchant: aiResponse.isMerchant,
     advanceAct: aiResponse.advanceAct,
     statusEffectChanges: aiResponse.statusEffectChanges as ActionResult['statusEffectChanges'],
+    isHighStakes: aiResponse.isHighStakes,
+    choiceCards: aiResponse.choiceCards,
+    characterHistoryNote: aiResponse.characterHistoryNote as ActionResult['characterHistoryNote'],
+    antagonistUpdate: aiResponse.antagonistUpdate,
   };
 }
 
@@ -356,12 +467,24 @@ export async function getOpeningScene(
   const { data: campaign } = await supabaseAdmin.from('campaigns').select('*').eq('id', campaignId).single();
   if (!campaign) throw new Error('Campaign not found');
 
+  const openingWs = campaign.world_state as WorldState;
+  const openingWb = campaign.world_bible as WorldBible;
+  const openingContext = {
+    journal: openingWs.campaignJournal || [],
+    characterHistory: openingWs.characterHistory || [],
+    antagonists: openingWb.antagonistRoster || (openingWb.primaryAntagonist ? [openingWb.primaryAntagonist] : []),
+    centralConflict: openingWb.centralConflict || '',
+    act: campaign.act || 1,
+    sessionCount: openingWs.sessionCount || 1,
+  };
+
   const aiResponse = await generateNarration(
     'OPENING_SCENE',
-    campaign.world_state as WorldState,
-    campaign.world_bible as WorldBible,
+    openingWs,
+    openingWb,
     character as Character,
-    []
+    [],
+    openingContext
   );
 
   // Save just the narration — no player action event for the opening

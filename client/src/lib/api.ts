@@ -77,6 +77,8 @@ export const gameApi = {
     api.get(`/game/history/${campaignId}/${characterId}?limit=${limit || 50}${party ? '&party=true' : ''}`),
   getScene: (campaignId: string, characterId: string) =>
     api.get(`/game/scene/${campaignId}/${characterId}`),
+  getProactiveEvent: (campaignId: string, characterId: string) =>
+    api.get(`/game/proactive/${campaignId}/${characterId}`),
 }
 
 // Assets

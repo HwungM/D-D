@@ -389,10 +389,30 @@ Return JSON matching exactly:
   "forbiddenLoreHooks": ["mystery 1", "mystery 2", "mystery 3", "mystery 4"],
   "factions": [
     {"name": "faction name", "publicFace": "what they claim to be", "secretAgenda": "what they actually want", "power": "weak|moderate|strong"}
+  ],
+  "primaryAntagonist": {
+    "name": "A cryptic title or name (not their true name yet)",
+    "trueName": "Their real name, kept secret",
+    "type": "primary",
+    "agenda": "Their goal in 1-2 sentences — concrete but vague enough to be mysterious",
+    "currentStep": "The first step of their plan currently in progress",
+    "planSteps": ["step 1", "step 2", "step 3", "step 4", "step 5"],
+    "whatTheyKnow": "Nothing yet — the players are unknown to them",
+    "isRevealed": false,
+    "power": "legendary",
+    "allies": ["ally faction or name 1", "ally faction or name 2"],
+    "weaknesses": ["weakness 1", "weakness 2"]
+  },
+  "centralConflict": "2-3 sentences describing the broad shape of the campaign conflict — no specifics, just the emotional and thematic core",
+  "antagonistRoster": [],
+  "openingHooks": [
+    "A subtle rumor, strange occurrence, or NPC warning that hints at the antagonist without naming them",
+    "A second breadcrumb — different in nature (visual, heard, felt)",
+    "A third early omen that can be seeded in the first session"
   ]
 }
 
-Include 5-7 geography entries, 5-6 gods, exactly 4 tone rules, 3-4 forbidden lore hooks, exactly 3 factions.`,
+Include 5-7 geography entries, 5-6 gods, exactly 4 tone rules, 3-4 forbidden lore hooks, exactly 3 factions. The antagonistRoster should be an empty array — secondary antagonists emerge during play. The primaryAntagonist should be legendary in power.`,
       },
     ],
     temperature: 0.85,
@@ -400,5 +420,56 @@ Include 5-7 geography entries, 5-6 gods, exactly 4 tone rules, 3-4 forbidden lor
   });
 
   const content = response.choices[0].message.content || '{}';
-  return JSON.parse(content) as WorldBible;
+  const parsed = JSON.parse(content) as WorldBible;
+  // Ensure antagonistRoster includes primaryAntagonist
+  if (parsed.primaryAntagonist && (!parsed.antagonistRoster || parsed.antagonistRoster.length === 0)) {
+    parsed.antagonistRoster = [parsed.primaryAntagonist];
+  }
+  return parsed;
+}
+
+export async function generateProactiveEvent(
+  worldState: WorldState,
+  worldBible: WorldBible,
+  character: Character
+): Promise<{ narration: string; sceneImagePrompt: string; suggestedActions: string[] }> {
+  const antagonistContext = worldBible.antagonistRoster && worldBible.antagonistRoster.length > 0
+    ? `Active antagonists: ${worldBible.antagonistRoster.map(a => `${a.isRevealed ? a.name : '[Unknown Force]'} — ${a.currentStep}`).join('; ')}`
+    : '';
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'system',
+        content: `You are a DM injecting a proactive world event. Something happened in the world without the player doing anything. Make it atmospheric, brief (2-3 sentences), and connected to the antagonist's agenda or world state. NOT a combat encounter. A rumor, an observation, something found, a messenger arriving, distant sounds. End with 2-3 suggested reactions. Respond with valid JSON only.`,
+      },
+      {
+        role: 'user',
+        content: `The world stirs while ${character.name} (${character.race} ${character.class}, Level ${character.level}) rests or travels.
+
+Current location: ${worldState.currentLocation || 'unknown'}
+Time: ${worldState.timeOfDay || 'unknown'}
+Central conflict: ${worldBible.centralConflict || 'unknown'}
+${antagonistContext}
+
+Return JSON:
+{
+  "narration": "2-3 sentence atmospheric world event the character observes or hears about",
+  "sceneImagePrompt": "brief scene description",
+  "suggestedActions": ["reaction 1", "reaction 2", "reaction 3"]
+}`,
+      },
+    ],
+    temperature: 0.9,
+    response_format: { type: 'json_object' },
+  });
+
+  const content = response.choices[0].message.content || '{}';
+  const parsed = JSON.parse(content);
+  return {
+    narration: parsed.narration || 'Something stirs in the distance...',
+    sceneImagePrompt: parsed.sceneImagePrompt || '',
+    suggestedActions: parsed.suggestedActions || [],
+  };
 }
