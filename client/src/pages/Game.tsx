@@ -103,6 +103,7 @@ export default function Game() {
   const [diceModalData, setDiceModalData] = useState<{ narration: string; rollContext: RollContext } | null>(null)
   const [isMuted, setIsMuted] = useState(false)
   const [partyActionMode, setPartyActionMode] = useState(false)
+  const [isNewCharacter, setIsNewCharacter] = useState(false)
 
   useEffect(() => {
     audioManager.startAmbient()
@@ -143,6 +144,7 @@ export default function Game() {
       setEvents(loaded)
       // Only auto-start if THIS character has their own history — not just party members'
       const myEvents = loaded.filter(e => e.character_id === characterId)
+      if (myEvents.length === 0) setIsNewCharacter(true)
       if (myEvents.length > 0) {
         setStarted(true)
         const recent = loaded
@@ -466,7 +468,7 @@ export default function Game() {
           {campaignName && (
             <p className="font-serif text-sm italic mb-8" style={{ color: 'rgba(180,160,120,0.5)' }}>{campaignName}</p>
           )}
-          {recentNarrations.length > 0 ? (
+          {recentNarrations.length > 0 && !isNewCharacter ? (
             <div className="mb-10 text-left" style={{ border: '1px solid rgba(200,146,42,0.12)', background: 'rgba(200,146,42,0.03)', padding: '16px 20px' }}>
               <p className="text-xs uppercase tracking-widest mb-3 text-center" style={{ color: 'rgba(200,146,42,0.4)', letterSpacing: '0.2em' }}>
                 The story so far...
@@ -681,7 +683,7 @@ export default function Game() {
                 </div>
               )}
 
-              {normalizeEvents(events).map((event, i) => {
+              {normalizeEvents(events.filter(e => !e.character_id || e.character_id === characterId)).map((event, i) => {
                 const isOtherPlayer = event.character_id && event.character_id !== characterId
                 const partyMember = isOtherPlayer ? partyMembers.find(m => m.character?.id === event.character_id) : null
                 const isMyAction = event.event_type === 'action' && event.character_id === characterId
