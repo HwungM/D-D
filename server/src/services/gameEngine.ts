@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabase';
-import { generateNarration, generateRollOutcome, generateSceneSummary } from './openai';
+import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove } from './openai';
 import OpenAI from 'openai';
 import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus } from '../../../shared/types';
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
@@ -65,8 +65,27 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
     merged.characterLastSeen = { ...current.characterLastSeen, ...changes.characterLastSeen };
   }
 
+  // foreshadowingLedger: merge by id (upsert)
+  if (changes.foreshadowingLedger) {
+    const existing = new Map((current.foreshadowingLedger || []).map(f => [f.id, f]));
+    for (const entry of changes.foreshadowingLedger) existing.set(entry.id, { ...existing.get(entry.id), ...entry });
+    merged.foreshadowingLedger = Array.from(existing.values()).slice(-50);
+  }
+
+  // backstoryHooks: merge by characterId+hook (upsert by hook text)
+  if (changes.backstoryHooks) {
+    const existing = new Map((current.backstoryHooks || []).map(h => [`${h.characterId}:${h.hook}`, h]));
+    for (const hook of changes.backstoryHooks) existing.set(`${hook.characterId}:${hook.hook}`, { ...existing.get(`${hook.characterId}:${hook.hook}`), ...hook });
+    merged.backstoryHooks = Array.from(existing.values());
+  }
+
+  // actGoalsAchieved: union
+  if (changes.actGoalsAchieved) {
+    merged.actGoalsAchieved = Array.from(new Set([...(current.actGoalsAchieved || []), ...changes.actGoalsAchieved]));
+  }
+
   // Simple scalar fields
-  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState'] as const) {
+  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
   }
 
@@ -416,6 +435,10 @@ export async function processAction(
     act: campaign.act || 1,
     sessionCount: ws.sessionCount || 1,
     otherCharacters: otherCharacters.length > 0 ? otherCharacters : undefined,
+    roadmap: wb.dmRoadmap,
+    foreshadowingLedger: ws.foreshadowingLedger,
+    backstoryHooks: ws.backstoryHooks,
+    actGoalsAchieved: ws.actGoalsAchieved,
   };
 
   // Compute force-complication flag before calling AI
@@ -524,6 +547,40 @@ export async function processAction(
     } catch { /* non-critical, keep old summary */ }
   }
 
+  // Update foreshadowing ledger from AI response
+  const ledgerChanges: import('../../../shared/types').ForeshadowingEntry[] = [];
+  if (aiResponse.newForeshadowing) {
+    for (const f of aiResponse.newForeshadowing) {
+      ledgerChanges.push({
+        id: f.id || crypto.randomUUID(),
+        description: f.description,
+        type: f.type as import('../../../shared/types').ForeshadowingEntry['type'],
+        introducedInAct: campaign.act || 1,
+        payoffStatus: 'planted',
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+  if (aiResponse.paidOffForeshadowing) {
+    const existing = ws.foreshadowingLedger || [];
+    for (const id of aiResponse.paidOffForeshadowing) {
+      const entry = existing.find(f => f.id === id);
+      if (entry) ledgerChanges.push({ ...entry, payoffStatus: 'paid_off', payoffDescription: 'Resolved in story' });
+    }
+  }
+
+  // Update backstory hooks
+  const hookChanges: import('../../../shared/types').BackstoryHook[] = [];
+  if (aiResponse.backstoryHookActivated) {
+    const hooks = ws.backstoryHooks || [];
+    const dormant = hooks.find(h => h.characterId === aiResponse.backstoryHookActivated && h.status === 'dormant');
+    if (dormant) hookChanges.push({ ...dormant, status: 'active', seededAt: new Date().toISOString() });
+  }
+
+  // Track act goal achievements
+  const goalChanges: string[] = [];
+  if (aiResponse.actGoalAchieved) goalChanges.push(aiResponse.actGoalAchieved);
+
   // Update scene state pacing tracker
   const prevSceneState = ws.sceneState;
   const aiMomentum = aiResponse.sceneMomentum || 'advancing';
@@ -549,6 +606,9 @@ export async function processAction(
     currentSceneSummary,
     actionsSinceLastSummary,
     sceneState: newSceneState,
+    ...(ledgerChanges.length > 0 ? { foreshadowingLedger: ledgerChanges } : {}),
+    ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
+    ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
   };
 
   // Apply consequences
@@ -731,6 +791,27 @@ export async function getOpeningScene(
 
   const openingWs = campaign.world_state as WorldState;
   const openingWb = campaign.world_bible as WorldBible;
+
+  // Check if the villain should make a proactive move — every 3 sessions or on first return
+  const villainMoveCount = openingWs.villainMoveCount ?? 0;
+  const sessionCount = openingWs.sessionCount ?? 0;
+  const villainMoveDue = sessionCount > 0 && (sessionCount % 3 === 0 || villainMoveCount === 0) && sessionCount > villainMoveCount * 3;
+  let villainMovePreamble = '';
+  if (villainMoveDue && openingWb.primaryAntagonist) {
+    try {
+      const move = await generateVillainMove(openingWs, openingWb, campaign.act || 1);
+      villainMovePreamble = `\n\nWHILE YOU WERE AWAY:\n${move.narration}`;
+      // Save the villain move to world state
+      const updatedWs = {
+        ...openingWs,
+        villainMoveCount: villainMoveCount + 1,
+        sessionNotes: [...(openingWs.sessionNotes || []), move.sessionNote],
+      };
+      await supabaseAdmin.from('campaigns').update({ world_state: updatedWs }).eq('id', campaignId);
+      Object.assign(openingWs, updatedWs);
+    } catch { /* non-critical */ }
+  }
+
   const openingContext = {
     journal: openingWs.campaignJournal || [],
     characterHistory: openingWs.characterHistory || [],
@@ -738,12 +819,16 @@ export async function getOpeningScene(
     centralConflict: openingWb.centralConflict || '',
     act: campaign.act || 1,
     sessionCount: openingWs.sessionCount || 1,
+    roadmap: openingWb.dmRoadmap,
+    foreshadowingLedger: openingWs.foreshadowingLedger,
+    backstoryHooks: openingWs.backstoryHooks,
+    actGoalsAchieved: openingWs.actGoalsAchieved,
   };
 
   const fallenHeroes = openingWs.fallenHeroes || [];
   const openingAction = fallenHeroes.length > 0
-    ? `SUCCESSOR_ENTRY: A new hero enters the world. The previous hero ${fallenHeroes[fallenHeroes.length - 1].name} (${fallenHeroes[fallenHeroes.length - 1].race} ${fallenHeroes[fallenHeroes.length - 1].class}, level ${fallenHeroes[fallenHeroes.length - 1].level}) fell — ${fallenHeroes[fallenHeroes.length - 1].cause}. The new hero is ${character.name}, ${character.race} ${character.class}. Acknowledge the fallen in a way that fits the world. NPCs who knew the previous hero may reference them.`
-    : 'OPENING_SCENE';
+    ? `SUCCESSOR_ENTRY: A new hero enters the world. The previous hero ${fallenHeroes[fallenHeroes.length - 1].name} (${fallenHeroes[fallenHeroes.length - 1].race} ${fallenHeroes[fallenHeroes.length - 1].class}, level ${fallenHeroes[fallenHeroes.length - 1].level}) fell — ${fallenHeroes[fallenHeroes.length - 1].cause}. The new hero is ${character.name}, ${character.race} ${character.class}. Acknowledge the fallen in a way that fits the world. NPCs who knew the previous hero may reference them.${villainMovePreamble}`
+    : `OPENING_SCENE${villainMovePreamble}`;
 
   const aiResponse = await generateNarration(
     openingAction,

@@ -1,5 +1,35 @@
 // Shared types between client and server
 
+export interface ForeshadowingEntry {
+  id: string;
+  description: string;
+  type: 'npc' | 'rumor' | 'object' | 'event' | 'place';
+  introducedInAct: number;
+  payoffStatus: 'planted' | 'developing' | 'paid_off';
+  payoffDescription?: string;
+  createdAt: string;
+}
+
+export interface BackstoryHook {
+  characterId: string;
+  characterName: string;
+  hook: string;
+  status: 'dormant' | 'active' | 'resolved';
+  seededAt?: string;
+}
+
+export interface DmRoadmap {
+  act1Goals: string[];
+  act1MustIntroduce: string[];
+  act1ClimaxEvent: string;
+  act2Goals: string[];
+  act2VillainEscalation: string;
+  act2ClimaxEvent: string;
+  act3ConvergenceThreads: string[];
+  act3ClimaxEvent: string;
+  act3ResolutionOptions: string[];
+}
+
 export interface StatusEffect {
   name: string;
   description: string;
@@ -107,6 +137,10 @@ export interface WorldState {
   characterHistory?: CharacterHistoryEntry[];
   antagonistProgress?: Record<string, { stepIndex: number; lastAction: string; knowsPlayers: boolean }>;
   sessionCount?: number;
+  foreshadowingLedger?: ForeshadowingEntry[];
+  backstoryHooks?: BackstoryHook[];
+  villainMoveCount?: number;
+  actGoalsAchieved?: string[];
   characterLocations?: Record<string, string>;  // characterId -> location name
   characterLastSeen?: Record<string, string>;    // characterId -> ISO timestamp
   fallenHeroes?: { name: string; race: string; class: string; level: number; cause: string; diedAt: string; location?: string }[];
@@ -139,6 +173,7 @@ export interface WorldBible {
   centralConflict: string;
   antagonistRoster: Antagonist[];
   openingHooks: string[];
+  dmRoadmap?: DmRoadmap;
 }
 
 export interface GeographyEntry {

@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
-import { generateCharacterPortrait } from '../services/openai';
+import { generateCharacterPortrait, extractBackstoryHooks } from '../services/openai';
 import { z } from 'zod';
 import { RACE_STAT_BONUSES, CLASS_BASE_HP } from '../../../shared/types';
 import type { CharacterStats, Race, CharacterClass } from '../../../shared/types';
@@ -114,6 +114,26 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
     return;
   }
 
+  // Extract backstory hooks and store in campaign world state (non-blocking)
+  if (backstory && backstory.length > 20) {
+    (async () => {
+      try {
+        const { data: campaign } = await supabaseAdmin.from('campaigns').select('world_state, world_bible').eq('id', campaignId).single();
+        if (!campaign) return;
+        const worldBible = campaign.world_bible as import('../../../shared/types').WorldBible;
+        const hooks = await extractBackstoryHooks(backstory, name, race, characterClass, worldBible, character.id);
+        if (hooks.length === 0) return;
+        const ws = campaign.world_state as import('../../../shared/types').WorldState;
+        const existing = new Map((ws.backstoryHooks || []).map((h: import('../../../shared/types').BackstoryHook) => [`${h.characterId}:${h.hook}`, h]));
+        for (const hook of hooks) existing.set(`${hook.characterId}:${hook.hook}`, hook);
+        ws.backstoryHooks = Array.from(existing.values());
+        await supabaseAdmin.from('campaigns').update({ world_state: ws }).eq('id', campaignId);
+      } catch (err) {
+        console.error('Backstory hook extraction failed (non-critical):', err);
+      }
+    })();
+  }
+
   res.status(201).json({ character });
 });
 
@@ -154,7 +174,7 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
 
 router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const allowedFields = ['name', 'backstory', 'portrait_url'];
+  const allowedFields = ['name', 'backstory', 'portrait_url', 'hp', 'gold'];
   const updates: Record<string, unknown> = {};
 
   for (const field of allowedFields) {
