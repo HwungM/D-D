@@ -214,6 +214,30 @@ class AudioManager {
     audio.play().catch(() => {})
   }
 
+  playMagic() {
+    if (!this.sfxEnabled) return
+    const audio = this.getOrCreate('magic', '/audio/magic.mp3', false)
+    audio.volume = this.sfxVolume * 0.7
+    audio.currentTime = 0
+    audio.play().catch(() => {})
+  }
+
+  playGold() {
+    if (!this.sfxEnabled) return
+    const audio = this.getOrCreate('gold', '/audio/gold.mp3', false)
+    audio.volume = this.sfxVolume * 0.7
+    audio.currentTime = 0
+    audio.play().catch(() => {})
+  }
+
+  playDoorOpen() {
+    if (!this.sfxEnabled) return
+    const audio = this.getOrCreate('door', '/audio/door.mp3', false)
+    audio.volume = this.sfxVolume * 0.6
+    audio.currentTime = 0
+    audio.play().catch(() => {})
+  }
+
   toggleMusic() {
     this.musicEnabled = !this.musicEnabled
     if (!this.musicEnabled) {

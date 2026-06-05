@@ -82,8 +82,9 @@ export const useGameStore = create<GameState>()((set) => ({
 
       // npcMemory: upsert by name, preserve metCharacters from both sides
       if (changes.npcMemory) {
+        const npcArray = Array.isArray(changes.npcMemory) ? changes.npcMemory : Object.values(changes.npcMemory);
         const existing = new Map((current.npcMemory || []).map(n => [n.name, n]));
-        for (const npc of changes.npcMemory) {
+        for (const npc of npcArray) {
           const prev = existing.get(npc.name);
           if (prev) {
             const metChars = Array.from(new Set([...(prev.metCharacters || []), ...(npc.metCharacters || [])]));
