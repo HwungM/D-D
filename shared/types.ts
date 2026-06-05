@@ -112,6 +112,12 @@ export interface WorldState {
   fallenHeroes?: { name: string; race: string; class: string; level: number; cause: string; diedAt: string; location?: string }[];
   currentSceneSummary?: string;
   actionsSinceLastSummary?: number;
+  sceneState?: {
+    purpose: 'explore' | 'gather_info' | 'combat' | 'social' | 'travel' | 'rest' | 'climax';
+    exchangeCount: number;
+    stalledCount: number;
+    pacingMode: 'exploration' | 'tension' | 'climax' | 'resolution';
+  };
   combatState?: {
     inCombat: boolean;
     enemyName: string;

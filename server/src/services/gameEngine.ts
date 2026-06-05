@@ -66,7 +66,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   }
 
   // Simple scalar fields
-  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary'] as const) {
+  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
   }
 
@@ -418,6 +418,10 @@ export async function processAction(
     otherCharacters: otherCharacters.length > 0 ? otherCharacters : undefined,
   };
 
+  // Compute force-complication flag before calling AI
+  const currentSceneState = ws.sceneState;
+  const forceComplication = (currentSceneState?.stalledCount ?? 0) >= 3;
+
   // Generate narration via GPT-4o
   const aiResponse = await generateNarration(
     action,
@@ -425,7 +429,8 @@ export async function processAction(
     wb,
     character as Character,
     recentHistory,
-    campaignContext
+    campaignContext,
+    forceComplication
   );
 
   // If AI wants player to roll, return early with setup narration + rollContext
@@ -519,12 +524,31 @@ export async function processAction(
     } catch { /* non-critical, keep old summary */ }
   }
 
+  // Update scene state pacing tracker
+  const prevSceneState = ws.sceneState;
+  const aiMomentum = aiResponse.sceneMomentum || 'advancing';
+  const isTransitioning = aiMomentum === 'transitioning';
+  const newSceneState: WorldState['sceneState'] = isTransitioning
+    ? {
+        purpose: aiResponse.scenePurpose || 'explore',
+        exchangeCount: 0,
+        stalledCount: 0,
+        pacingMode: aiResponse.pacingMode || 'exploration',
+      }
+    : {
+        purpose: aiResponse.scenePurpose || prevSceneState?.purpose || 'explore',
+        exchangeCount: (prevSceneState?.exchangeCount ?? 0) + 1,
+        stalledCount: aiMomentum === 'stalling' ? (prevSceneState?.stalledCount ?? 0) + 1 : 0,
+        pacingMode: aiResponse.pacingMode || prevSceneState?.pacingMode || 'exploration',
+      };
+
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
     ...locationTracking,
     combatState,
     currentSceneSummary,
     actionsSinceLastSummary,
+    sceneState: newSceneState,
   };
 
   // Apply consequences
