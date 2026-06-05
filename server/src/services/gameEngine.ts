@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabase';
-import { generateNarration, generateRollOutcome } from './openai';
+import { generateNarration, generateRollOutcome, generateSceneSummary } from './openai';
 import OpenAI from 'openai';
 import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus } from '../../../shared/types';
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
@@ -66,7 +66,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   }
 
   // Simple scalar fields
-  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory'] as const) {
+  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
   }
 
@@ -326,7 +326,7 @@ export async function applyConsequences(
   };
 }
 
-export async function getRecentHistory(campaignId: string, characterId: string, limit = 10): Promise<string[]> {
+export async function getRecentHistory(campaignId: string, characterId: string, limit = 20): Promise<string[]> {
   const { data } = await supabaseAdmin
     .from('story_events')
     .select('event_type, content, created_at')
@@ -491,9 +491,40 @@ export async function processAction(
       [characterId]: new Date().toISOString(),
     },
   };
+
+  // Update combat state
+  let combatState = ws.combatState ?? null;
+  if (aiResponse.isCombat && aiResponse.enemyName) {
+    if (!combatState?.inCombat) {
+      // Combat just started
+      combatState = { inCombat: true, enemyName: aiResponse.enemyName, enemyCondition: 'healthy', roundNumber: 1, playerActionsAttempted: [action] };
+    } else {
+      // Ongoing combat — increment round, log action, estimate condition from hp
+      const hpPct = character.hp / character.max_hp;
+      const enemyCondition = hpPct > 0.6 ? 'healthy' : hpPct > 0.25 ? 'wounded' : 'critical';
+      combatState = { ...combatState, roundNumber: combatState.roundNumber + 1, enemyCondition, playerActionsAttempted: [...(combatState.playerActionsAttempted || []).slice(-8), action] };
+    }
+  } else if (aiResponse.isVictory || (!aiResponse.isCombat && combatState?.inCombat)) {
+    combatState = null; // combat ended
+  }
+
+  // Scene summary — regenerate every 4 actions (cheap GPT-4o-mini call)
+  const actionCount = (ws.actionsSinceLastSummary || 0) + 1;
+  let currentSceneSummary = ws.currentSceneSummary;
+  let actionsSinceLastSummary = actionCount;
+  if (actionCount >= 4) {
+    try {
+      currentSceneSummary = await generateSceneSummary(recentHistory, ws.currentLocation || 'Unknown', character.name, combatState);
+      actionsSinceLastSummary = 0;
+    } catch { /* non-critical, keep old summary */ }
+  }
+
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
     ...locationTracking,
+    combatState,
+    currentSceneSummary,
+    actionsSinceLastSummary,
   };
 
   // Apply consequences
