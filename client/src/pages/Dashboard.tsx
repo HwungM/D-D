@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { campaignApi, characterApi } from '../lib/api'
 import { useAuthStore } from '../lib/store'
@@ -135,16 +135,18 @@ export default function Dashboard() {
   const [continuingId, setContinuingId] = useState<string | null>(null)
   const [creatingTestWorld, setCreatingTestWorld] = useState(false)
 
-  const startAudio = useCallback(() => { audioManager.startAmbient() }, [])
+  const [audioUnlocked, setAudioUnlocked] = useState(false)
+
+  function unlockAudio() {
+    audioManager.startAmbient()
+    setAudioUnlocked(true)
+  }
 
   useEffect(() => {
-    audioManager.startAmbient()
-    document.addEventListener('click', startAudio, { once: true })
     campaignApi.list().then(({ data }) => {
       setCampaigns(data.campaigns || [])
     }).finally(() => setLoading(false))
-    return () => document.removeEventListener('click', startAudio)
-  }, [startAudio])
+  }, [])
 
   function openNewCampaign() {
     setSeeds(pickRandom4())
@@ -242,6 +244,36 @@ export default function Dashboard() {
 
   if (creatingCampaign) {
     return <LoadingScreen mode="campaign" />
+  }
+
+  if (!audioUnlocked) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center cursor-pointer"
+        style={{ background: '#0a0d12' }}
+        onClick={unlockAudio}
+      >
+        <div className="absolute inset-0" style={{
+          backgroundImage: `url('/assets/scenes/tavern.png')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center top',
+          opacity: 0.1,
+        }} />
+        <div className="relative z-10 text-center select-none">
+          <div className="w-16 h-16 mx-auto mb-8 flex items-center justify-center" style={{ color: '#c8922a', filter: 'drop-shadow(0 0 20px rgba(200,146,42,0.6))' }}>
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-14 h-14">
+              <path d="M12 2L14.5 8.5H21L15.7 12.6L17.9 19.5L12 15.5L6.1 19.5L8.3 12.6L3 8.5H9.5L12 2Z"/>
+            </svg>
+          </div>
+          <h1 className="font-fantasy text-5xl text-parchment-200 mb-4" style={{ textShadow: '0 0 40px rgba(200,146,42,0.4)', letterSpacing: '0.05em' }}>
+            Chronicles of the Fallen Age
+          </h1>
+          <p className="font-serif text-sm mt-6" style={{ color: 'rgba(200,146,42,0.5)', letterSpacing: '0.2em', animation: 'pulse 2s ease-in-out infinite' }}>
+            CLICK TO ENTER
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
