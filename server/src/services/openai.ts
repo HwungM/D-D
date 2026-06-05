@@ -81,6 +81,33 @@ CAMPAIGN JOURNAL AWARENESS:
 - You have access to the full campaign journal. Reference past events naturally. NPCs remember. The world has changed.
 - If the journal mentions the player burned a village, villagers in new areas have heard. If they saved a lord, his allies are warmer.
 
+PACING AND MOMENTUM RULES:
+Every scene has a PURPOSE. When the purpose is fulfilled, close the scene and move the story forward.
+- gather_info scenes: end after the key information is delivered (3-4 exchanges max). NPC doesn't need to repeat themselves.
+- social scenes: end when a relationship shift occurs, a deal is struck, or an impasse is reached.
+- exploration scenes: end when the key discovery is made, or when danger emerges.
+- rest/travel scenes: 1-2 exchanges max, then something happens.
+- combat: ends on victory, escape, or death — do not drag it out past resolution.
+- climax scenes: every exchange must escalate. No filler. No repetition.
+
+PACING MODES — match your narration style to the current mode:
+- exploration: patient, sensory-rich, 150-250 words, rewards curiosity
+- tension: shorter punchy sentences, 100-150 words, each beat escalates something
+- climax: urgent, visceral, 80-120 words, every action has weight
+- resolution: slower, emotional, 150-200 words, let the moment breathe
+
+MOMENTUM RULE — the most important rule:
+If the scene has stalled (player is circling, nothing is changing), you MUST introduce a complication THIS turn.
+Someone arrives. Something breaks. A sound from outside. The NPC reveals something unexpected. The situation changes.
+NEVER let a scene stay static for more than 3 exchanges. Forward motion is your job.
+
+SCENE EXIT SIGNALS: When a scene's purpose is complete, write a natural narrative door — a time-skip cue, a sensory shift, a clear opening toward the next beat. Example: "The innkeeper has told you everything he knows. The road north grows darker by the hour." Don't end mid-scene without offering a direction.
+
+In your JSON response, always include:
+- "sceneMomentum": "advancing" | "stalling" | "transitioning" — your honest assessment of whether this exchange moved the story
+- "pacingMode": "exploration" | "tension" | "climax" | "resolution" — what mode you used for this response
+- "scenePurpose": "explore" | "gather_info" | "combat" | "social" | "travel" | "rest" | "climax" — what this scene is currently about
+
 PROACTIVE WORLD EVENTS:
 - Sometimes (not always, use judgment), set proactiveEvent: true and include a worldEvent in the narration preamble — something the WORLD did, not the player. The antagonist advanced their plan. A faction moved. A rumor reached town. Something changed without the player causing it.
 
@@ -129,6 +156,9 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "characterHistoryNote": {"type": "choice|ally|enemy|oath|deed|loss", "description": "string", "impact": "string"} | null,
   "antagonistUpdate": {"name": "string", "newStep": "string|null", "lastAction": "string", "nowKnowsPlayers": boolean} | null,
   "proactiveEvent": boolean,
+  "sceneMomentum": "advancing" | "stalling" | "transitioning",
+  "pacingMode": "exploration" | "tension" | "climax" | "resolution",
+  "scenePurpose": "explore" | "gather_info" | "combat" | "social" | "travel" | "rest" | "climax",
   "awaitingRoll": boolean,
   "rollContext": {
     "stat": "str|dex|con|int|wis|cha",
@@ -191,7 +221,8 @@ export async function generateNarration(
     act: number;
     sessionCount: number;
     otherCharacters?: CharacterOnlineStatus[];
-  } | null
+  } | null,
+  forceComplication?: boolean
 ): Promise<{
   narration: string;
   diceRequired: boolean;
@@ -222,6 +253,9 @@ export async function generateNarration(
   proactiveEvent?: boolean;
   awaitingRoll?: boolean;
   rollContext?: RollContext;
+  sceneMomentum?: 'advancing' | 'stalling' | 'transitioning';
+  pacingMode?: 'exploration' | 'tension' | 'climax' | 'resolution';
+  scenePurpose?: 'explore' | 'gather_info' | 'combat' | 'social' | 'travel' | 'rest' | 'climax';
 }> {
   // Build unusual race/class combo note
   const unusualCombos: Record<string, string[]> = {
@@ -276,6 +310,18 @@ COMBAT RULE: Maintain enemy continuity. The ${combatState.enemyName} remembers e
 CURRENT SITUATION (summary of what is happening RIGHT NOW):
 ${worldState.currentSceneSummary}` : '';
 
+  const sceneState = worldState.sceneState;
+  const autoPackingMode = sceneState?.pacingMode || (
+    combatState?.inCombat ? 'climax' :
+    (campaignContext?.act ?? 1) >= 3 ? 'tension' :
+    'exploration'
+  );
+  const pacingBlock = `
+━━━ PACING DIRECTIVE ━━━
+Scene purpose: ${sceneState?.purpose || 'explore'} | Exchanges in scene: ${sceneState?.exchangeCount ?? 0} | Pacing mode: ${autoPackingMode.toUpperCase()}${sceneState && sceneState.stalledCount >= 2 ? `
+⚠ STALL DETECTED (${sceneState.stalledCount} consecutive exchanges without story advancement)${forceComplication ? '\n🔴 FORCE COMPLICATION THIS TURN — something must change RIGHT NOW. Introduce an interruption, revelation, or threat. Do not let the scene continue as-is.' : ' — consider introducing a complication.'}` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━`;
+
   const worldContext = `
 WORLD BIBLE:
 - Era: ${worldBible.era} | Magic: ${worldBible.magicSystem}
@@ -313,6 +359,7 @@ RECENT HISTORY:
 ${recentHistory.join('\n')}
 ${sceneSummaryBlock}
 ${combatBlock}
+${pacingBlock}
 ━━━ PLAYER ACTION NOW ━━━
 CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATION: ${worldState.currentLocation || 'Unknown'}
 ACTION: ${action}
@@ -363,6 +410,9 @@ IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older co
     proactiveEvent: parsed.proactiveEvent || false,
     awaitingRoll: parsed.awaitingRoll || false,
     rollContext: parsed.rollContext || undefined,
+    sceneMomentum: parsed.sceneMomentum || 'advancing',
+    pacingMode: parsed.pacingMode || 'exploration',
+    scenePurpose: parsed.scenePurpose || 'explore',
   };
 }
 
