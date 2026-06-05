@@ -24,6 +24,7 @@ import JournalTab from '../components/JournalTab'
 import HighStakesChoice from '../components/HighStakesChoice'
 import SidebarErrorBoundary from '../components/SidebarErrorBoundary'
 import DiceRollModal from '../components/DiceRollModal'
+import DevPanel from '../components/DevPanel'
 import { audioManager } from '../lib/audio'
 import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType, RollContext } from '../../../shared/types'
 
@@ -103,6 +104,7 @@ export default function Game() {
   const [partyActionMode, setPartyActionMode] = useState(false)
   const [isNewCharacter, setIsNewCharacter] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
+  const [campaignType, setCampaignType] = useState<'adventure' | 'testing'>('adventure')
 
   useEffect(() => {
     audioManager.startAmbient()
@@ -168,6 +170,7 @@ export default function Game() {
     campaignApi.get(campaignId).then(({ data }) => {
       setCampaignName(data.campaign.name)
       setNextAct(data.campaign.act ?? 1)
+      if (data.campaign.campaign_type) setCampaignType(data.campaign.campaign_type)
     }).catch(() => {})
     refreshParty()
   }, [campaignId, characterId])
@@ -577,30 +580,6 @@ export default function Game() {
         {/* Right: controls */}
         <div className="flex items-center gap-1.5 shrink-0">
           <AudioControls />
-          {import.meta.env.DEV && currentCharacter?.is_alive !== false && (
-            <>
-              <button
-                onClick={handleDevKill}
-                className="font-mono text-xs px-2 py-1 transition-all"
-                style={{ border: '1px solid rgba(239,68,68,0.3)', color: 'rgba(239,68,68,0.5)', background: 'rgba(239,68,68,0.05)' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239,68,68,0.7)'; (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.9)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239,68,68,0.3)'; (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.5)' }}
-                title="DEV: instantly kill character"
-              >
-                ☠ die
-              </button>
-              <button
-                onClick={handleDevClearCombat}
-                className="font-mono text-xs px-2 py-1 transition-all"
-                style={{ border: '1px solid rgba(100,150,239,0.3)', color: 'rgba(100,150,239,0.5)', background: 'rgba(100,150,239,0.05)' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(100,150,239,0.7)'; (e.currentTarget as HTMLElement).style.color = 'rgba(100,150,239,0.9)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(100,150,239,0.3)'; (e.currentTarget as HTMLElement).style.color = 'rgba(100,150,239,0.5)' }}
-                title="DEV: clear stuck combat state"
-              >
-                ⚔ clear
-              </button>
-            </>
-          )}
           {campaignId && (
             <button
               onClick={() => setShowInviteModal(true)}
@@ -644,6 +623,18 @@ export default function Game() {
           </div>
           <span className="font-serif text-xs italic" style={{ color: 'rgba(220,100,100,0.45)' }}>Fight, flee, or find another way</span>
         </div>
+      )}
+
+      {/* ── Dev Panel (testing campaigns only) ── */}
+      {campaignType === 'testing' && campaignId && currentCharacter && (
+        <DevPanel
+          campaignId={campaignId}
+          character={currentCharacter}
+          inCombat={inCombat}
+          onKill={handleDevKill}
+          onClearCombat={handleDevClearCombat}
+          onCharacterUpdate={(updates) => setCharacter({ ...currentCharacter, ...updates } as Character)}
+        />
       )}
 
       {/* ── Main content area ── */}

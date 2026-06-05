@@ -162,6 +162,7 @@ export interface Campaign {
   world_state: WorldState;
   world_bible: WorldBible;
   act: number;
+  campaign_type?: 'adventure' | 'testing';
   created_at: string;
   updated_at: string;
 }

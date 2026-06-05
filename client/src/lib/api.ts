@@ -40,7 +40,7 @@ export const authApi = {
 // Campaigns
 export const campaignApi = {
   getSeeds: () => api.get('/campaigns/seeds'),
-  create: (name: string, storySeed: string) => api.post('/campaigns', { name, storySeed }),
+  create: (name: string, storySeed: string, campaignType?: 'adventure' | 'testing') => api.post('/campaigns', { name, storySeed, campaignType }),
   list: () => api.get('/campaigns'),
   get: (id: string) => api.get(`/campaigns/${id}`),
   join: (id: string) => api.post(`/campaigns/${id}/join`),
