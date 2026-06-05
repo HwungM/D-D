@@ -16,6 +16,7 @@ const ART_STYLE_PREFIX =
 const DM_SYSTEM_PROMPT = `You are a master Dungeon Master running a dark fantasy tabletop RPG campaign.
 Your style is immersive, morally complex, and gritty — inspired by classic fantasy like Gemmell, Abercrombie, and Cook.
 
+
 TONE RULES:
 - No easy redemption arcs. Actions have lasting consequences.
 - NPCs have hidden motives. Trust is earned, not given.
@@ -127,6 +128,19 @@ ITEM RULES:
 - When a character uses a weapon, reference its damage type. When they use a potion, describe the specific effect.
 - Arrows and bolts deplete with use.
 
+ABILITY SYSTEM RULES:
+- CHARACTER ABILITIES are listed in the world context with their exact mechanical effects.
+- Use available abilities proactively when it makes narrative sense — don't wait for the player to ask.
+- When you use an ability, set "abilityUsed" to the exact ability name so the cooldown is tracked.
+- NEVER use an ability marked [ON COOLDOWN]. It is not available.
+- Apply the mechanic description exactly — set the appropriate hpChange, statusEffectChanges, etc.
+- When the character rests (sleeps, takes a short rest, camps), set "isRest": true to reset cooldowns.
+
+ENDGAME RULES:
+- When endgamePhase is "approaching": the villain's plan is nearly complete. Start converging all plotlines. Urgency increases. Begin weaving backstory hooks toward their payoff. Set pacing to "tension" or "climax". Suggest actions that drive toward the final confrontation.
+- When endgamePhase is "confrontation": THIS IS THE FINAL BATTLE. No escape. Every action has ultimate weight. Make the villain feel overwhelming but beatable. After the player wins (isVictory: true), set "endgameResolved": true.
+- When the story naturally builds to the final confrontation (villain is revealed, final location reached, all threads converging), set "triggerFinalConfrontation": true.
+
 RESPONSE FORMAT: Always respond with valid JSON matching this schema:
 {
   "narration": "string — the story text the player sees",
@@ -175,7 +189,11 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
     "critFailDescription": "string | null",
     "isDramatic": boolean,
     "modifier": number
-  } | null
+  } | null,
+  "abilityUsed": "Ability Name" | null,
+  "isRest": boolean,
+  "triggerFinalConfrontation": boolean,
+  "endgameResolved": boolean
 }`;
 
 export async function generateSceneSummary(
@@ -211,27 +229,7 @@ function timeAgo(isoTimestamp: string): string {
   return `${Math.floor(diffHr / 24)}d ago`;
 }
 
-export async function generateNarration(
-  action: string,
-  worldState: WorldState,
-  worldBible: WorldBible,
-  character: Character,
-  recentHistory: string[],
-  campaignContext?: {
-    journal: CampaignJournalEntry[];
-    characterHistory: CharacterHistoryEntry[];
-    antagonists: Antagonist[];
-    centralConflict: string;
-    act: number;
-    sessionCount: number;
-    otherCharacters?: CharacterOnlineStatus[];
-    roadmap?: import('../../../shared/types').DmRoadmap;
-    foreshadowingLedger?: import('../../../shared/types').ForeshadowingEntry[];
-    backstoryHooks?: import('../../../shared/types').BackstoryHook[];
-    actGoalsAchieved?: string[];
-  } | null,
-  forceComplication?: boolean
-): Promise<{
+export type NarrationResult = {
   narration: string;
   diceRequired: boolean;
   diceType?: string;
@@ -268,8 +266,35 @@ export async function generateNarration(
   paidOffForeshadowing?: string[];
   backstoryHookActivated?: string;
   actGoalAchieved?: string;
-}> {
-  // Build unusual race/class combo note
+  abilityUsed?: string;
+  isRest?: boolean;
+  triggerFinalConfrontation?: boolean;
+  endgameResolved?: boolean;
+};
+
+export type NarrationCampaignContext = {
+  journal: CampaignJournalEntry[];
+  characterHistory: CharacterHistoryEntry[];
+  antagonists: Antagonist[];
+  centralConflict: string;
+  act: number;
+  sessionCount: number;
+  otherCharacters?: CharacterOnlineStatus[];
+  roadmap?: import('../../../shared/types').DmRoadmap;
+  foreshadowingLedger?: import('../../../shared/types').ForeshadowingEntry[];
+  backstoryHooks?: import('../../../shared/types').BackstoryHook[];
+  actGoalsAchieved?: string[];
+  forceComplication?: boolean;
+};
+
+function buildNarrationMessages(
+  action: string,
+  worldState: WorldState,
+  worldBible: WorldBible,
+  character: Character,
+  recentHistory: string[],
+  campaignContext?: NarrationCampaignContext | null
+): { role: 'system' | 'user'; content: string }[] {
   const unusualCombos: Record<string, string[]> = {
     Barbarian: ['Gnome', 'Elf'],
     Wizard: ['Half-Orc', 'Dragonborn'],
@@ -281,13 +306,24 @@ export async function generateNarration(
     ? `\n⚠ UNUSUAL COMBO: ${character.race} ${character.class} — the DM may acknowledge this in-world with subtle reactions from NPCs.`
     : '';
 
-  // Build abilities context
-  const classAbilityMap = CLASS_ABILITIES[character.class] || {};
-  const allAbilityNames = Object.values(classAbilityMap).map(a => a.name);
-  const knownAbilities = character.abilities?.map(a => a.name) || [];
-  const abilitiesContext = knownAbilities.length > 0
-    ? `Known abilities: ${knownAbilities.join(', ')}`
-    : `No special abilities yet (class abilities to come: ${allAbilityNames.slice(0, 2).join(', ')}, ...)`;
+  // Build abilities block
+  const knownAbilities = character.abilities || [];
+  let abilitiesBlock = '';
+  if (knownAbilities.length > 0) {
+    const available = knownAbilities.filter(a => !a.currentCooldown || a.currentCooldown <= 0);
+    const onCooldown = knownAbilities.filter(a => a.currentCooldown && a.currentCooldown > 0);
+    abilitiesBlock = `
+━━━ CHARACTER ABILITIES ━━━
+AVAILABLE:
+${available.length > 0 ? available.map(a => `- ${a.name}: ${a.mechanic || a.description}`).join('\n') : '(none available)'}
+ON COOLDOWN (cannot use):
+${onCooldown.length > 0 ? onCooldown.map(a => `- ${a.name} [ON COOLDOWN]`).join('\n') : '(none on cooldown)'}
+━━━━━━━━━━━━━━━━━━━━━━━━━`;
+  } else {
+    const classAbilityMap = CLASS_ABILITIES[character.class] || {};
+    const allAbilityNames = Object.values(classAbilityMap).map(a => a.name);
+    abilitiesBlock = `No special abilities yet (class abilities to come: ${allAbilityNames.slice(0, 2).join(', ')}, ...)`;
+  }
 
   // Build stat context
   const s = character.stats;
@@ -323,6 +359,7 @@ CURRENT SITUATION (summary of what is happening RIGHT NOW):
 ${worldState.currentSceneSummary}` : '';
 
   const sceneState = worldState.sceneState;
+  const forceComplication = campaignContext?.forceComplication;
   const autoPackingMode = sceneState?.pacingMode || (
     combatState?.inCombat ? 'climax' :
     (campaignContext?.act ?? 1) >= 3 ? 'tension' :
@@ -333,6 +370,25 @@ ${worldState.currentSceneSummary}` : '';
 Scene purpose: ${sceneState?.purpose || 'explore'} | Exchanges in scene: ${sceneState?.exchangeCount ?? 0} | Pacing mode: ${autoPackingMode.toUpperCase()}${sceneState && sceneState.stalledCount >= 2 ? `
 ⚠ STALL DETECTED (${sceneState.stalledCount} consecutive exchanges without story advancement)${forceComplication ? '\n🔴 FORCE COMPLICATION THIS TURN — something must change RIGHT NOW. Introduce an interruption, revelation, or threat. Do not let the scene continue as-is.' : ' — consider introducing a complication.'}` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━`;
+
+  // Endgame block
+  const endgamePhase = worldState.endgamePhase;
+  let endgameBlock = '';
+  if (endgamePhase && endgamePhase !== 'none') {
+    if (endgamePhase === 'approaching') {
+      endgameBlock = `\n━━━ ENDGAME PHASE: APPROACHING ━━━
+The villain's plan is nearly complete. All plotlines must converge NOW. Urgency is maximal.
+Weave backstory hooks toward their payoff. Set pacingMode to "tension" or "climax".
+Every suggested action should drive toward the final confrontation.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+    } else if (endgamePhase === 'confrontation') {
+      endgameBlock = `\n━━━ ENDGAME PHASE: CONFRONTATION ━━━
+THIS IS THE FINAL BATTLE. No escape. No retreat. Every action carries ultimate weight.
+Make the villain feel overwhelming but beatable. The fate of everything hangs here.
+After the player achieves victory (isVictory: true), set "endgameResolved": true.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+    }
+  }
 
   const worldContext = `
 WORLD BIBLE:
@@ -345,17 +401,23 @@ WORLD STATE:
 - Discovered: ${(worldState.discoveredLocations || []).slice(0, 5).join(', ') || 'none yet'}
 ${npcContext}${questContext}
 
-CHARACTER: ${character.name} (${character.race} ${character.class}, Lv${character.level})${unusualNote}
-${character.backstory ? `BACKSTORY: ${character.backstory.slice(0, 200)}` : ''}
-${character.status_effects && character.status_effects.length > 0 ? `STATUS EFFECTS: ${character.status_effects.map(e => `${e.name} (${e.type})`).join(', ')}` : ''}
-Inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
-${abilitiesContext} | STATS: ${statHints || 'balanced'}
+CHARACTER: ${character.name} (${character.race} ${character.class}, Level ${character.level})${unusualNote}
+HP: ${character.hp}/${character.max_hp} | Gold: ${character.gold}
+${character.backstory ? `BACKSTORY: ${character.backstory.slice(0, 300)} — weave this into narration and NPC reactions where relevant.` : ''}
+${character.status_effects && character.status_effects.length > 0 ? `ACTIVE STATUS EFFECTS: ${character.status_effects.map(e => `${e.name} (${e.type})`).join(', ')} — these affect what the character can do.` : ''}
+Notable inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
+STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
+${abilitiesBlock}
+${endgameBlock}
 
 ${campaignContext ? `CAMPAIGN: Act ${campaignContext.act} | ${campaignContext.centralConflict}
 JOURNAL: ${campaignContext.journal.slice(-3).map(j => `[Act ${j.actNumber}] ${j.summary}`).join(' | ') || 'none yet'}
 HISTORY: ${campaignContext.characterHistory.slice(-5).map(h => `${h.description} → ${h.impact}`).join(' | ') || 'none'}
 ANTAGONISTS: ${campaignContext.antagonists.map(a => `${a.isRevealed ? a.name : '[UNKNOWN]'}: ${a.agenda}`).join(' | ') || 'none'}
 NARRATIVE TIER: ${campaignContext.act <= 1 && character.level <= 3 ? 'EMERGING — local stakes' : character.level <= 6 ? 'KNOWN — regional threats' : character.level <= 10 ? 'FEARED — major powers react' : 'LEGENDARY'}` : ''}
+
+RECENT HISTORY:
+${recentHistory.slice(-8).join('\n')}
 
 ${campaignContext?.roadmap ? `━━━ DM ROADMAP ━━━
 Act ${campaignContext.act} goals (steer the story toward these):
@@ -387,10 +449,10 @@ ${campaignContext.otherCharacters.map(c => {
   return `- ${c.characterName}: ${status}, ${c.lastLocation}${together ? ' (TOGETHER)' : ' (SEPARATED)'}`;
 }).join('\n')}
 PARTY RULES: Offline = narrate absence in-world. Together = actions affect both.
-NPC CROSS-MEMORY: Check npcMemory.metCharacters for NPCs who met other party members.` : ''}
-
-RECENT HISTORY:
-${recentHistory.join('\n')}
+NPC CROSS-MEMORY: Check npcMemory.metCharacters for NPCs who met other party members.
+- If a party member is OFFLINE, narrate their absence naturally.
+- If SEPARATED, you can reference what the other character might be doing.
+- If TOGETHER, actions can affect both characters. Mention both when relevant.` : ''}
 ${sceneSummaryBlock}
 ${combatBlock}
 ${pacingBlock}
@@ -401,57 +463,153 @@ ACTION: ${action}
 
 IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older context. Update worldStateChanges.npcMemory for named NPCs. Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.`;
 
+  return [
+    { role: 'system', content: DM_SYSTEM_PROMPT },
+    { role: 'user', content: worldContext },
+  ];
+}
+
+function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResult {
+  return {
+    narration: (parsed.narration as string) || 'The world holds its breath...',
+    diceRequired: (parsed.diceRequired as boolean) || false,
+    diceType: parsed.diceType as string | undefined,
+    diceDC: parsed.diceDC as number | undefined,
+    diceDescription: parsed.diceDescription as string | undefined,
+    worldStateChanges: parsed.worldStateChanges as Partial<WorldState> | undefined,
+    suggestedActions: (parsed.suggestedActions as string[]) || [],
+    sceneImagePrompt: (parsed.sceneImagePrompt as string) || '',
+    isLevelUp: (parsed.isLevelUp as boolean) || false,
+    isDeath: (parsed.isDeath as boolean) || false,
+    deathDescription: parsed.deathDescription as string | undefined,
+    isCombat: (parsed.isCombat as boolean) || false,
+    isVictory: (parsed.isVictory as boolean) || false,
+    enemyName: (parsed.enemyName as string) || undefined,
+    loot: (parsed.loot as NarrationResult['loot']) || undefined,
+    goldChange: (parsed.goldChange as number) ?? undefined,
+    hpChange: (parsed.hpChange as number) ?? undefined,
+    isMerchant: (parsed.isMerchant as boolean) || false,
+    shopItems: (parsed.shopItems as NarrationResult['shopItems']) || undefined,
+    advanceAct: (parsed.advanceAct as boolean) || false,
+    statusEffectChanges: (parsed.statusEffectChanges as NarrationResult['statusEffectChanges']) || undefined,
+    sessionNote: (parsed.sessionNote as string) || undefined,
+    isHighStakes: (parsed.isHighStakes as boolean) || false,
+    choiceCards: (parsed.choiceCards as NarrationResult['choiceCards']) || undefined,
+    characterHistoryNote: (parsed.characterHistoryNote as NarrationResult['characterHistoryNote']) || undefined,
+    antagonistUpdate: (parsed.antagonistUpdate as NarrationResult['antagonistUpdate']) || undefined,
+    proactiveEvent: (parsed.proactiveEvent as boolean) || false,
+    awaitingRoll: (parsed.awaitingRoll as boolean) || false,
+    rollContext: (parsed.rollContext as RollContext) || undefined,
+    sceneMomentum: (parsed.sceneMomentum as NarrationResult['sceneMomentum']) || 'advancing',
+    pacingMode: (parsed.pacingMode as NarrationResult['pacingMode']) || 'exploration',
+    scenePurpose: (parsed.scenePurpose as NarrationResult['scenePurpose']) || 'explore',
+    newForeshadowing: (parsed.newForeshadowing as NarrationResult['newForeshadowing']) || undefined,
+    paidOffForeshadowing: (parsed.paidOffForeshadowing as string[]) || undefined,
+    backstoryHookActivated: (parsed.backstoryHookActivated as string) || undefined,
+    actGoalAchieved: (parsed.actGoalAchieved as string) || undefined,
+    abilityUsed: (parsed.abilityUsed as string) || undefined,
+    isRest: (parsed.isRest as boolean) || false,
+    triggerFinalConfrontation: (parsed.triggerFinalConfrontation as boolean) || false,
+    endgameResolved: (parsed.endgameResolved as boolean) || false,
+  };
+}
+
+export async function generateNarration(
+  action: string,
+  worldState: WorldState,
+  worldBible: WorldBible,
+  character: Character,
+  recentHistory: string[],
+  campaignContext?: NarrationCampaignContext | null
+): Promise<NarrationResult> {
+  const messages = buildNarrationMessages(action, worldState, worldBible, character, recentHistory, campaignContext);
+
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
-    messages: [
-      { role: 'system', content: DM_SYSTEM_PROMPT },
-      { role: 'user', content: worldContext },
-    ],
+    messages,
     temperature: 0.85,
     response_format: { type: 'json_object' },
   });
 
   const content = response.choices[0].message.content || '{}';
-  const parsed = JSON.parse(content);
+  return parseNarrationResponse(JSON.parse(content));
+}
 
-  return {
-    narration: parsed.narration || 'The world holds its breath...',
-    diceRequired: parsed.diceRequired || false,
-    diceType: parsed.diceType,
-    diceDC: parsed.diceDC,
-    diceDescription: parsed.diceDescription,
-    worldStateChanges: parsed.worldStateChanges,
-    suggestedActions: parsed.suggestedActions || [],
-    sceneImagePrompt: parsed.sceneImagePrompt || '',
-    isLevelUp: parsed.isLevelUp || false,
-    isDeath: parsed.isDeath || false,
-    deathDescription: parsed.deathDescription,
-    isCombat: parsed.isCombat || false,
-    isVictory: parsed.isVictory || false,
-    enemyName: parsed.enemyName || undefined,
-    loot: parsed.loot || undefined,
-    goldChange: parsed.goldChange ?? undefined,
-    hpChange: parsed.hpChange ?? undefined,
-    isMerchant: parsed.isMerchant || false,
-    shopItems: parsed.shopItems || undefined,
-    advanceAct: parsed.advanceAct || false,
-    statusEffectChanges: parsed.statusEffectChanges || undefined,
-    sessionNote: parsed.sessionNote || undefined,
-    isHighStakes: parsed.isHighStakes || false,
-    choiceCards: parsed.choiceCards || undefined,
-    characterHistoryNote: parsed.characterHistoryNote || undefined,
-    antagonistUpdate: parsed.antagonistUpdate || undefined,
-    proactiveEvent: parsed.proactiveEvent || false,
-    awaitingRoll: parsed.awaitingRoll || false,
-    rollContext: parsed.rollContext || undefined,
-    sceneMomentum: parsed.sceneMomentum || 'advancing',
-    pacingMode: parsed.pacingMode || 'exploration',
-    scenePurpose: parsed.scenePurpose || 'explore',
-    newForeshadowing: parsed.newForeshadowing || undefined,
-    paidOffForeshadowing: parsed.paidOffForeshadowing || undefined,
-    backstoryHookActivated: parsed.backstoryHookActivated || undefined,
-    actGoalAchieved: parsed.actGoalAchieved || undefined,
-  };
+export async function* generateNarrationStreaming(
+  action: string,
+  worldState: WorldState,
+  worldBible: WorldBible,
+  character: Character,
+  recentHistory: string[],
+  campaignContext?: NarrationCampaignContext | null
+): AsyncGenerator<{ type: 'token'; token: string } | { type: 'done'; result: NarrationResult }> {
+  const messages = buildNarrationMessages(action, worldState, worldBible, character, recentHistory, campaignContext);
+
+  const stream = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages,
+    temperature: 0.85,
+    response_format: { type: 'json_object' },
+    stream: true,
+  });
+
+  let fullBuffer = '';
+  let state: 'scanning' | 'in_narration' | 'done' = 'scanning';
+  let escapeNext = false;
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content || '';
+    fullBuffer += delta;
+
+    if (state === 'scanning') {
+      // Look for "narration":" in buffer
+      const marker = '"narration":"';
+      const idx = fullBuffer.indexOf(marker);
+      if (idx !== -1) {
+        state = 'in_narration';
+        // Start yielding from after the marker
+        const start = idx + marker.length;
+        const remaining = fullBuffer.slice(start);
+        for (const ch of remaining) {
+          if (escapeNext) {
+            escapeNext = false;
+            if (ch === '"') { yield { type: 'token', token: '"' }; continue; }
+            if (ch === '\\') { yield { type: 'token', token: '\\' }; continue; }
+            if (ch === 'n') { yield { type: 'token', token: '\n' }; continue; }
+            if (ch === 't') { yield { type: 'token', token: '\t' }; continue; }
+            yield { type: 'token', token: ch };
+            continue;
+          }
+          if (ch === '\\') { escapeNext = true; continue; }
+          if (ch === '"') { state = 'done'; break; }
+          yield { type: 'token', token: ch };
+        }
+      }
+    } else if (state === 'in_narration') {
+      for (const ch of delta) {
+        if (escapeNext) {
+          escapeNext = false;
+          if (ch === '"') { yield { type: 'token', token: '"' }; continue; }
+          if (ch === '\\') { yield { type: 'token', token: '\\' }; continue; }
+          if (ch === 'n') { yield { type: 'token', token: '\n' }; continue; }
+          if (ch === 't') { yield { type: 'token', token: '\t' }; continue; }
+          yield { type: 'token', token: ch };
+          continue;
+        }
+        if (ch === '\\') { escapeNext = true; continue; }
+        if (ch === '"') { state = 'done'; break; }
+        yield { type: 'token', token: ch };
+      }
+    }
+  }
+
+  // Parse full buffer and yield done event
+  try {
+    const parsed = JSON.parse(fullBuffer);
+    yield { type: 'done', result: parseNarrationResponse(parsed) };
+  } catch {
+    yield { type: 'done', result: parseNarrationResponse({ narration: 'The world holds its breath...' }) };
+  }
 }
 
 export async function generateRollOutcome(
@@ -840,4 +998,60 @@ Return JSON:
     sceneImagePrompt: parsed.sceneImagePrompt || '',
     suggestedActions: parsed.suggestedActions || [],
   };
+}
+
+export async function generateEpilogue(
+  worldState: WorldState,
+  worldBible: WorldBible,
+  character: Character,
+  victory: boolean
+): Promise<string> {
+  const fallenHeroes = worldState.fallenHeroes || [];
+  const npcMemory = worldState.npcMemory || [];
+  const factionStandings = worldState.factionStandings || {};
+  const journal = worldState.campaignJournal || [];
+
+  const prompt = `You are the narrator writing the final epilogue of a dark fantasy campaign. The age has ended.
+
+CHARACTER: ${character.name}, ${character.race} ${character.class}, Level ${character.level}
+OUTCOME: ${victory ? 'VICTORY — the darkness was stopped' : 'DEFEAT — the darkness prevailed'}
+
+CAMPAIGN JOURNAL (what happened):
+${journal.slice(-5).map(j => `[Act ${j.actNumber}] ${j.summary}`).join('\n') || 'A hero walked through fire and shadow.'}
+
+FALLEN HEROES who came before:
+${fallenHeroes.map(h => `- ${h.name} (${h.race} ${h.class}, Lv${h.level}): ${h.cause}`).join('\n') || 'None fell before this hero.'}
+
+KEY NPCs encountered:
+${npcMemory.slice(-10).map(n => `- ${n.name} [${n.disposition}]: ${n.notes}`).join('\n') || 'Many faces, many names.'}
+
+FACTION STANDINGS:
+${Object.entries(factionStandings).map(([f, v]) => `- ${f}: ${v > 0 ? 'Allied' : v < 0 ? 'Hostile' : 'Neutral'} (${v})`).join('\n') || 'The factions shifted like tides.'}
+
+WORLD: ${worldBible.era} | ${worldBible.centralConflict}
+PRIMARY ANTAGONIST: ${worldBible.primaryAntagonist?.name || 'The darkness'} — ${worldBible.primaryAntagonist?.agenda || 'sought to unmake the world'}
+
+Write a rich 400-600 word epilogue in the style of the final page of a dark fantasy novel. Include:
+1. What happened to the world after the conflict ended
+2. The fate of 2-3 key NPCs the hero knew
+3. The villain's ultimate fate (death, imprisonment, fled into shadow)
+4. The character's legacy — what songs will be sung, what statues built, or what they chose to do next
+5. How the world changed because of their specific choices
+6. A bittersweet final note — victory always costs something, defeat leaves something behind
+
+Write in second person ("You...") for an immersive final address to the player. Tone: melancholic, earned, final. Like the last ember of a fire — still warm, but fading.
+
+Return plain text only. No JSON. No formatting markers.`;
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: 'You are a master narrator writing the final epilogue of a dark fantasy campaign. Write beautifully. This is the last thing the player will read. Make it matter.' },
+      { role: 'user', content: prompt },
+    ],
+    temperature: 0.9,
+    max_tokens: 800,
+  });
+
+  return response.choices[0].message.content?.trim() || 'The age ends. The stories live on.';
 }
