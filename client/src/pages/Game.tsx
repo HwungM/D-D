@@ -25,7 +25,6 @@ import HighStakesChoice from '../components/HighStakesChoice'
 import SidebarErrorBoundary from '../components/SidebarErrorBoundary'
 import DiceRollModal from '../components/DiceRollModal'
 import { audioManager } from '../lib/audio'
-import { ttsManager } from '../lib/ttsManager'
 import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType, RollContext } from '../../../shared/types'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
@@ -101,7 +100,6 @@ export default function Game() {
 
   const [showDiceModal, setShowDiceModal] = useState(false)
   const [diceModalData, setDiceModalData] = useState<{ narration: string; rollContext: RollContext } | null>(null)
-  const [isMuted, setIsMuted] = useState(false)
   const [partyActionMode, setPartyActionMode] = useState(false)
   const [isNewCharacter, setIsNewCharacter] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
@@ -247,7 +245,6 @@ export default function Game() {
         metadata: { suggestedActions: result.suggestedActions, fromRoll: true },
         created_at: new Date().toISOString(),
       })
-      ttsManager.speak(result.narration)
 
       if (result.characterChanges) setCharacter({ ...currentCharacter!, ...result.characterChanges } as Character)
       if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
@@ -276,6 +273,7 @@ export default function Game() {
       const result = data as ActionResult
       setLastActionResult(result)
       setStarted(true)
+      setIsNewCharacter(false)
       if (result.narration) {
         addEvent({
           id: `start-${Date.now()}`,
@@ -286,7 +284,6 @@ export default function Game() {
           metadata: { suggestedActions: result.suggestedActions },
           created_at: new Date().toISOString(),
         })
-        ttsManager.speak(result.narration)
       }
       if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
       if (result.sceneImagePrompt) {
@@ -299,10 +296,12 @@ export default function Game() {
   }
 
   async function handleAction(action: string) {
-    if (!campaignId || !characterId || isLoading) return
+    if (!campaignId || !characterId || isLoading || isTyping) return
     setLoading(true)
     setShowDice(false)
     setShowHighStakes(false)
+    // Clear stale suggested actions immediately so old choices don't persist
+    setLastActionResult(null)
     setHighStakesData(null)
 
     // Prefix with [PARTY ACTION] if party action mode is enabled and party members are present
@@ -341,7 +340,6 @@ export default function Game() {
         })
         setDiceModalData({ narration: result.narration, rollContext: result.rollContext })
         setShowDiceModal(true)
-        ttsManager.speak(result.narration)
         setLoading(false)
         return
       }
@@ -349,6 +347,8 @@ export default function Game() {
       if (result.diceRoll) setShowDice(true)
       if (result.isCombat) audioManager.playCombat()
       if (result.isVictory) audioManager.playVictory()
+      // If we were in combat but this action is neither combat nor victory, combat ended (escape/retreat)
+      if (inCombat && !result.isCombat && !result.isVictory) audioManager.stopMusic()
       if (result.isLevelUp) audioManager.playLevelUp()
       if (result.loot?.length) audioManager.playItemPickup()
       if (result.isMerchant) audioManager.playGold()
@@ -393,7 +393,6 @@ export default function Game() {
         metadata: { diceRoll: result.diceRoll, suggestedActions: result.suggestedActions },
         created_at: new Date().toISOString(),
       })
-      ttsManager.speak(result.narration)
 
       if (result.characterChanges) setCharacter({ ...currentCharacter!, ...result.characterChanges } as Character)
       if (result.worldStateChanges) {
@@ -568,24 +567,6 @@ export default function Game() {
 
         {/* Right: controls */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            onClick={() => {
-              const nowEnabled = ttsManager.toggle()
-              setIsMuted(!nowEnabled)
-            }}
-            title={isMuted ? 'Unmute narrator' : 'Mute narrator'}
-            className="font-serif text-sm px-2 py-1 transition-all"
-            style={{
-              border: '1px solid rgba(255,255,255,0.07)',
-              color: isMuted ? 'rgba(140,120,80,0.4)' : 'rgba(200,146,42,0.8)',
-              background: 'transparent',
-              lineHeight: 1,
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,146,42,0.3)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
-          >
-            {isMuted ? '🔇' : '🔊'}
-          </button>
           <AudioControls />
           {import.meta.env.DEV && currentCharacter?.is_alive !== false && (
             <button
@@ -671,7 +652,7 @@ export default function Game() {
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.06) transparent' }}>
               <SidebarErrorBoundary tabName={sidebarTab}>
                 {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
-                {sidebarTab === 'quests' && <QuestLog worldState={worldState} />}
+                {sidebarTab === 'quests' && <QuestLog worldState={isNewCharacter ? null : worldState} />}
                 {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
                 {sidebarTab === 'journal' && <JournalTab events={events} characterId={characterId} />}
               </SidebarErrorBoundary>
@@ -704,7 +685,10 @@ export default function Game() {
                       instant={isInstant}
                       playerName={partyMember?.username}
                       playerPortrait={isMyAction ? currentCharacter?.portrait_url || undefined : partyMember?.character?.portrait_url || undefined}
-                      onComplete={isLast && !isInstant ? () => setIsTyping(false) : undefined}
+                      onComplete={isLast && !isInstant ? () => {
+                        setIsTyping(false)
+                        historicalIds.current.add(event.id)
+                      } : undefined}
                     />
                   )
                 })
