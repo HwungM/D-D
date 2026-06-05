@@ -133,6 +133,7 @@ export default function Dashboard() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [continuingId, setContinuingId] = useState<string | null>(null)
+  const [creatingTestWorld, setCreatingTestWorld] = useState(false)
 
   const startAudio = useCallback(() => { audioManager.startAmbient() }, [])
 
@@ -161,19 +162,30 @@ export default function Dashboard() {
     setSeeds(pickRandom4(currentIds))
   }
 
-  async function createCampaign() {
+  async function createCampaign(type: 'adventure' | 'testing' = 'adventure') {
     const premise = useCustomPremise ? customPremise.trim() : selectedSeed?.premise
     if (!premise || !campaignName.trim()) return
     setCreatingCampaign(true)
     setCampaignError('')
     try {
-      const { data } = await campaignApi.create(campaignName, premise)
+      const { data } = await campaignApi.create(campaignName, premise, type)
       navigate(`/campaign/${data.campaign.id}/create-character`)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to create campaign. Try again.'
       setCampaignError(typeof msg === 'string' ? msg : 'Failed to create campaign.')
       setCreatingCampaign(false)
     }
+  }
+
+  function openNewTestWorld() {
+    setSeeds(pickRandom4())
+    setSelectedSeed(null)
+    setCampaignName('')
+    setUseCustomPremise(false)
+    setCustomPremise('')
+    setCampaignError('')
+    setCreatingTestWorld(true)
+    setShowNewCampaign(true)
   }
 
   async function handleContinue(campaign: Campaign) {
@@ -286,7 +298,7 @@ export default function Dashboard() {
 
       <div className="relative z-10 max-w-5xl mx-auto px-6 py-10">
 
-        {/* Your Campaigns */}
+        {/* Adventures */}
         <section className="mb-14">
           <div className="flex items-end justify-between mb-6">
             <div>
@@ -313,7 +325,7 @@ export default function Dashboard() {
               <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(200,146,42,0.3)', borderTopColor: 'rgba(200,146,42,0.8)' }} />
               <span className="text-sm font-serif italic">Consulting the annals...</span>
             </div>
-          ) : campaigns.length === 0 ? (
+          ) : campaigns.filter(c => c.campaign_type !== 'testing').length === 0 ? (
             <div className="py-16 text-center" style={{
               border: '1px solid rgba(255,255,255,0.05)',
               background: 'rgba(255,255,255,0.02)',
@@ -324,13 +336,59 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {campaigns.map((campaign) => (
+              {campaigns.filter(c => c.campaign_type !== 'testing').map((campaign) => (
                 <CampaignCard
                   key={campaign.id}
                   campaign={campaign}
                   onContinue={() => handleContinue(campaign)}
                   onDelete={() => setConfirmDeleteId(campaign.id)}
                   isContinuing={continuingId === campaign.id}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Testing Worlds */}
+        <section className="mb-14">
+          <div className="flex items-end justify-between mb-6">
+            <div>
+              <h2 className="font-fantasy text-2xl" style={{ color: 'rgba(196,181,253,0.9)' }}>Testing Worlds</h2>
+              <p className="text-xs font-serif mt-1" style={{ color: 'rgba(147,51,234,0.5)', letterSpacing: '0.1em' }}>DEV SANDBOX</p>
+            </div>
+            <button
+              onClick={openNewTestWorld}
+              className="flex items-center gap-2 px-4 py-2 font-serif text-sm transition-all"
+              style={{
+                background: 'linear-gradient(135deg, rgba(88,28,135,0.2), rgba(60,10,100,0.3))',
+                border: '1px solid rgba(147,51,234,0.4)',
+                color: '#c4b5fd',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(88,28,135,0.35), rgba(60,10,100,0.4))' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(88,28,135,0.2), rgba(60,10,100,0.3))' }}
+            >
+              <span style={{ color: '#a78bfa' }}>+</span> New Test World
+            </button>
+          </div>
+
+          {loading ? null : campaigns.filter(c => c.campaign_type === 'testing').length === 0 ? (
+            <div className="py-10 text-center" style={{
+              border: '1px solid rgba(147,51,234,0.08)',
+              background: 'rgba(147,51,234,0.03)',
+            }}>
+              <div className="text-3xl mb-3 opacity-20">⚙</div>
+              <p className="font-serif italic text-sm" style={{ color: 'rgba(147,51,234,0.4)' }}>No test worlds yet. Create one to access dev tools.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {campaigns.filter(c => c.campaign_type === 'testing').map((campaign) => (
+                <CampaignCard
+                  key={campaign.id}
+                  campaign={campaign}
+                  onContinue={() => handleContinue(campaign)}
+                  onDelete={() => setConfirmDeleteId(campaign.id)}
+                  isContinuing={continuingId === campaign.id}
+                  isTesting
                 />
               ))}
             </div>
@@ -419,10 +477,10 @@ export default function Dashboard() {
             {/* Modal header */}
             <div className="flex justify-between items-center px-6 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
               <div>
-                <h2 className="font-fantasy text-xl text-parchment-200">Begin a New Legend</h2>
-                <p className="text-xs font-serif mt-1" style={{ color: 'rgba(200,146,42,0.5)', letterSpacing: '0.1em' }}>CHOOSE YOUR FATE</p>
+                <h2 className="font-fantasy text-xl text-parchment-200">{creatingTestWorld ? 'New Test World' : 'Begin a New Legend'}</h2>
+                <p className="text-xs font-serif mt-1" style={{ color: creatingTestWorld ? 'rgba(147,51,234,0.6)' : 'rgba(200,146,42,0.5)', letterSpacing: '0.1em' }}>{creatingTestWorld ? 'TESTING ENVIRONMENT' : 'CHOOSE YOUR FATE'}</p>
               </div>
-              <button onClick={() => setShowNewCampaign(false)} style={{ color: 'rgba(180,160,120,0.4)' }} className="text-xl hover:text-parchment-300 transition-colors">✕</button>
+              <button onClick={() => { setShowNewCampaign(false); setCreatingTestWorld(false) }} style={{ color: 'rgba(180,160,120,0.4)' }} className="text-xl hover:text-parchment-300 transition-colors">✕</button>
             </div>
 
             <div className="px-6 py-5">
@@ -519,23 +577,23 @@ export default function Dashboard() {
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => { setShowNewCampaign(false); setCampaignError('') }}
+                  onClick={() => { setShowNewCampaign(false); setCampaignError(''); setCreatingTestWorld(false) }}
                   className="flex-1 py-2.5 text-sm font-serif transition-all"
                   style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.6)' }}
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={createCampaign}
+                  onClick={() => createCampaign(creatingTestWorld ? 'testing' : 'adventure')}
                   disabled={!canCreate}
                   className="flex-1 py-2.5 text-sm font-serif transition-all disabled:opacity-40"
                   style={{
-                    background: canCreate ? 'linear-gradient(135deg, rgba(192,57,43,0.3), rgba(140,30,20,0.4))' : 'transparent',
-                    border: '1px solid rgba(192,57,43,0.4)',
-                    color: '#e8b09a',
+                    background: canCreate ? (creatingTestWorld ? 'linear-gradient(135deg, rgba(88,28,135,0.3), rgba(60,10,100,0.4))' : 'linear-gradient(135deg, rgba(192,57,43,0.3), rgba(140,30,20,0.4))') : 'transparent',
+                    border: creatingTestWorld ? '1px solid rgba(147,51,234,0.4)' : '1px solid rgba(192,57,43,0.4)',
+                    color: creatingTestWorld ? '#c4b5fd' : '#e8b09a',
                   }}
                 >
-                  Begin the Legend
+                  {creatingTestWorld ? 'Create Test World' : 'Begin the Legend'}
                 </button>
               </div>
             </div>
@@ -546,11 +604,12 @@ export default function Dashboard() {
   )
 }
 
-function CampaignCard({ campaign, onContinue, onDelete, isContinuing = false }: {
+function CampaignCard({ campaign, onContinue, onDelete, isContinuing = false, isTesting = false }: {
   campaign: Campaign
   onContinue: () => void
   onDelete: () => void
   isContinuing?: boolean
+  isTesting?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
 
@@ -591,8 +650,10 @@ function CampaignCard({ campaign, onContinue, onDelete, isContinuing = false }: 
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(13,16,23,0.2) 0%, rgba(13,16,23,0.7) 100%)' }} />
         <div className="absolute bottom-2 left-3 right-3">
           <div className="flex items-center gap-1.5">
-            <span className="w-1 h-1 rounded-full" style={{ background: '#16a34a', boxShadow: '0 0 4px #16a34a' }} />
-            <span className="text-xs font-serif" style={{ color: 'rgba(180,230,180,0.7)', letterSpacing: '0.08em' }}>Act {campaign.act}</span>
+            <span className="w-1 h-1 rounded-full" style={{ background: isTesting ? '#a78bfa' : '#16a34a', boxShadow: `0 0 4px ${isTesting ? '#a78bfa' : '#16a34a'}` }} />
+            <span className="text-xs font-serif" style={{ color: isTesting ? 'rgba(196,181,253,0.7)' : 'rgba(180,230,180,0.7)', letterSpacing: '0.08em' }}>
+              {isTesting ? 'Test World' : `Act ${campaign.act}`}
+            </span>
           </div>
         </div>
       </div>
@@ -612,11 +673,10 @@ function CampaignCard({ campaign, onContinue, onDelete, isContinuing = false }: 
             onClick={e => { e.stopPropagation(); onContinue() }}
             disabled={isContinuing}
             className="flex-1 py-2 text-xs font-serif transition-all disabled:opacity-60"
-            style={{
-              background: 'rgba(192,57,43,0.15)',
-              border: '1px solid rgba(192,57,43,0.35)',
-              color: '#e8a090',
-            }}
+            style={isTesting
+              ? { background: 'rgba(88,28,135,0.15)', border: '1px solid rgba(147,51,234,0.35)', color: '#c4b5fd' }
+              : { background: 'rgba(192,57,43,0.15)', border: '1px solid rgba(192,57,43,0.35)', color: '#e8a090' }
+            }
           >
             {isContinuing ? (
               <span className="flex items-center justify-center gap-1.5">

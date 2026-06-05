@@ -18,6 +18,7 @@ router.get('/seeds', requireAuth, async (_req: AuthRequest, res: Response): Prom
 const createSchema = z.object({
   name: z.string().min(1).max(100),
   storySeed: z.string().min(1),
+  campaignType: z.enum(['adventure', 'testing']).optional().default('adventure'),
 });
 
 router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
@@ -26,7 +27,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
     res.status(400).json({ error: parse.error.errors });
     return;
   }
-  const { name, storySeed } = parse.data;
+  const { name, storySeed, campaignType } = parse.data;
 
   try {
     const worldBible = await generateWorldBible(storySeed);
@@ -49,6 +50,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
         },
         world_bible: worldBible,
         act: 1,
+        campaign_type: campaignType,
       })
       .select()
       .single();
