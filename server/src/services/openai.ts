@@ -144,6 +144,30 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   } | null
 }`;
 
+export async function generateSceneSummary(
+  recentHistory: string[],
+  currentLocation: string,
+  characterName: string,
+  combatState: WorldState['combatState']
+): Promise<string> {
+  const historyText = recentHistory.slice(-8).join('\n');
+  const combatContext = combatState?.inCombat
+    ? `\nCurrently in combat with ${combatState.enemyName} (${combatState.enemyCondition}, round ${combatState.roundNumber}).`
+    : '';
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{
+      role: 'user',
+      content: `Summarize what is CURRENTLY happening in this RPG scene in 2-3 sentences. Be specific: who is present, what just happened, what the immediate situation is. Focus on the last few actions.${combatContext}\n\nLocation: ${currentLocation}\nCharacter: ${characterName}\n\nRecent events:\n${historyText}\n\nWrite ONLY the summary, no preamble.`,
+    }],
+    max_tokens: 150,
+    temperature: 0.3,
+  });
+
+  return response.choices[0].message.content?.trim() || '';
+}
+
 function timeAgo(isoTimestamp: string): string {
   const diffMs = Date.now() - new Date(isoTimestamp).getTime();
   const diffMin = Math.floor(diffMs / 60000);
@@ -239,70 +263,62 @@ export async function generateNarration(
     ? `\nACTIVE QUESTS:\n${worldState.activeQuests.filter(q => q.status === 'active').map(q => `- ${q.title}: ${q.description}`).join('\n')}`
     : '';
 
+  const combatState = worldState.combatState;
+  const combatBlock = combatState?.inCombat ? `
+━━━ ACTIVE COMBAT ━━━
+ENEMY: ${combatState.enemyName} — Condition: ${combatState.enemyCondition.toUpperCase()} | Round: ${combatState.roundNumber}
+PLAYER HP: ${character.hp}/${character.max_hp}
+ACTIONS ALREADY TRIED: ${combatState.playerActionsAttempted.slice(-5).join(', ') || 'none yet'}
+COMBAT RULE: Maintain enemy continuity. The ${combatState.enemyName} remembers every action taken so far. Do NOT reset the fight.
+━━━━━━━━━━━━━━━━━━━━━` : '';
+
+  const sceneSummaryBlock = worldState.currentSceneSummary ? `
+CURRENT SITUATION (summary of what is happening RIGHT NOW):
+${worldState.currentSceneSummary}` : '';
+
   const worldContext = `
-WORLD BIBLE SUMMARY:
-- Era: ${worldBible.era}
-- Magic: ${worldBible.magicSystem}
+WORLD BIBLE:
+- Era: ${worldBible.era} | Magic: ${worldBible.magicSystem}
 - Factions: ${worldBible.factions.map(f => f.name).join(', ')}
-- Pantheon: ${worldBible.pantheon.map(g => g.name).join(', ')}
 - Tone: ${worldBible.toneRules.slice(0, 2).join('; ')}
 
-CURRENT WORLD STATE:
-- Location: ${worldState.currentLocation || 'Unknown'}
-- Time: ${worldState.timeOfDay || 'unknown'}
-- Weather: ${worldState.weather || 'unclear'}
-- Discovered locations: ${(worldState.discoveredLocations || []).slice(0, 5).join(', ') || 'none yet'}
+WORLD STATE:
+- Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
+- Discovered: ${(worldState.discoveredLocations || []).slice(0, 5).join(', ') || 'none yet'}
 ${npcContext}${questContext}
 
-CHARACTER: ${character.name} (${character.race} ${character.class}, Level ${character.level})${unusualNote}
-HP: ${character.hp}/${character.max_hp} | Gold: ${character.gold}
-${character.backstory ? `BACKSTORY: ${character.backstory.slice(0, 300)} — weave this into narration and NPC reactions where relevant.` : ''}
-${character.status_effects && character.status_effects.length > 0 ? `ACTIVE STATUS EFFECTS: ${character.status_effects.map(e => `${e.name} (${e.type})`).join(', ')} — these affect what the character can do.` : ''}
-Notable inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
-${abilitiesContext}
-STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
+CHARACTER: ${character.name} (${character.race} ${character.class}, Lv${character.level})${unusualNote}
+${character.backstory ? `BACKSTORY: ${character.backstory.slice(0, 200)}` : ''}
+${character.status_effects && character.status_effects.length > 0 ? `STATUS EFFECTS: ${character.status_effects.map(e => `${e.name} (${e.type})`).join(', ')}` : ''}
+Inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
+${abilitiesContext} | STATS: ${statHints || 'balanced'}
 
-RECENT EVENTS:
-${recentHistory.slice(-8).join('\n')}
+${campaignContext ? `CAMPAIGN: Act ${campaignContext.act} | ${campaignContext.centralConflict}
+JOURNAL: ${campaignContext.journal.slice(-3).map(j => `[Act ${j.actNumber}] ${j.summary}`).join(' | ') || 'none yet'}
+HISTORY: ${campaignContext.characterHistory.slice(-5).map(h => `${h.description} → ${h.impact}`).join(' | ') || 'none'}
+ANTAGONISTS: ${campaignContext.antagonists.map(a => `${a.isRevealed ? a.name : '[UNKNOWN]'}: ${a.agenda}`).join(' | ') || 'none'}
+NARRATIVE TIER: ${campaignContext.act <= 1 && character.level <= 3 ? 'EMERGING — local stakes' : character.level <= 6 ? 'KNOWN — regional threats' : character.level <= 10 ? 'FEARED — major powers react' : 'LEGENDARY'}` : ''}
 
-PLAYER ACTION: ${action}
-
-IMPORTANT: If this action introduces or involves a named NPC, include their name, disposition, and a brief note in worldStateChanges.npcMemory. If a quest begins or progresses, include it in worldStateChanges.activeQuests. Always update worldState.currentLocation if the character moves.${campaignContext ? `
-
-CAMPAIGN CONTEXT:
-Central Conflict: ${campaignContext.centralConflict}
-Act: ${campaignContext.act} | Session: ${campaignContext.sessionCount}
-
-CAMPAIGN JOURNAL (story so far):
-${campaignContext.journal.slice(-5).map(j => `[Act ${j.actNumber}, Session ${j.sessionNumber}] ${j.summary}. Key decisions: ${j.keyDecisions.join('; ')}`).join('\n') || 'No journal entries yet.'}
-
-CHARACTER HISTORY (decisions that echo forward):
-${campaignContext.characterHistory.slice(-10).map(h => `- [${h.type.toUpperCase()}] ${h.description} → ${h.impact}`).join('\n') || 'No significant history yet.'}
-
-ACTIVE ANTAGONISTS:
-${campaignContext.antagonists.map(a => `- ${a.isRevealed ? a.name : '[UNKNOWN FORCE]'} (${a.power}, ${a.type}): ${a.agenda}. Currently: ${a.currentStep}. Knows about players: ${a.whatTheyKnow}`).join('\n') || 'No antagonists defined yet.'}
-
-NARRATIVE TIER: ${campaignContext.act <= 1 && character.level <= 3 ? 'EMERGING — local stakes, unknown heroes' : character.level <= 6 ? 'KNOWN — regional threats, factions noticing' : character.level <= 10 ? 'FEARED — major powers react, antagonists engage' : 'LEGENDARY — world-shaping, former enemies bow'}${campaignContext.otherCharacters && campaignContext.otherCharacters.length > 0 ? `
-
-PARTY MEMBERS:
+${campaignContext?.otherCharacters && campaignContext.otherCharacters.length > 0 ? `PARTY:
 ${campaignContext.otherCharacters.map(c => {
   const myLocation = worldState.characterLocations?.[character.id] || worldState.currentLocation;
   const together = c.lastLocation === myLocation;
-  const status = c.isOnline ? 'Active' : `Offline (last seen ${timeAgo(c.lastSeen)})`;
-  return `- ${c.characterName}: ${status}, Location: ${c.lastLocation}${together ? ' (TOGETHER with you)' : ' (SEPARATED)'}`;
+  const status = c.isOnline ? 'Active' : `Offline (${timeAgo(c.lastSeen)})`;
+  return `- ${c.characterName}: ${status}, ${c.lastLocation}${together ? ' (TOGETHER)' : ' (SEPARATED)'}`;
 }).join('\n')}
+PARTY RULES: Offline = narrate absence in-world. Together = actions affect both.
+NPC CROSS-MEMORY: Check npcMemory.metCharacters for NPCs who met other party members.` : ''}
 
-PARTY RULES:
-- If a party member is OFFLINE, narrate their absence naturally. They may be resting, occupied, or gone ahead. Never say "the player is offline" — keep it in-world.
-- If SEPARATED, you can reference what the other character might be doing, hearing their distant actions, etc.
-- If TOGETHER, actions can affect both characters. Mention both when relevant.
-- NPCs who have met other party members can reference them. Check npcMemory metCharacters field.
-- When rejoining after separation, the DM should acknowledge it naturally in the story.
+RECENT HISTORY:
+${recentHistory.join('\n')}
+${sceneSummaryBlock}
+${combatBlock}
+━━━ PLAYER ACTION NOW ━━━
+CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATION: ${worldState.currentLocation || 'Unknown'}
+ACTION: ${action}
+━━━━━━━━━━━━━━━━━━━━━━━━
 
-NPC CROSS-CHARACTER MEMORY:
-When narrating NPC interactions, check if any NPC in npcMemory has metCharacters that include other party member names.
-If so, the NPC can reference having met them: "You remind me of someone..." or "I met a companion of yours earlier..."
-When this character meets an NPC for the first time, add this character's name to that NPC's metCharacters in the worldStateChanges.npcMemory update.` : ''}` : ''}`;
+IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older context. Update worldStateChanges.npcMemory for named NPCs. Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.`;
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
