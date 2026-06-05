@@ -159,6 +159,10 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "sceneMomentum": "advancing" | "stalling" | "transitioning",
   "pacingMode": "exploration" | "tension" | "climax" | "resolution",
   "scenePurpose": "explore" | "gather_info" | "combat" | "social" | "travel" | "rest" | "climax",
+  "newForeshadowing": [{"id": "unique-id", "description": "what was planted", "type": "npc|rumor|object|event|place"}] | null,
+  "paidOffForeshadowing": ["foreshadowing-id-being-resolved"] | null,
+  "backstoryHookActivated": "characterId if seeding a dormant hook this turn" | null,
+  "actGoalAchieved": "exact text of an act goal from the roadmap if one was fulfilled this turn" | null,
   "awaitingRoll": boolean,
   "rollContext": {
     "stat": "str|dex|con|int|wis|cha",
@@ -221,6 +225,10 @@ export async function generateNarration(
     act: number;
     sessionCount: number;
     otherCharacters?: CharacterOnlineStatus[];
+    roadmap?: import('../../../shared/types').DmRoadmap;
+    foreshadowingLedger?: import('../../../shared/types').ForeshadowingEntry[];
+    backstoryHooks?: import('../../../shared/types').BackstoryHook[];
+    actGoalsAchieved?: string[];
   } | null,
   forceComplication?: boolean
 ): Promise<{
@@ -256,6 +264,10 @@ export async function generateNarration(
   sceneMomentum?: 'advancing' | 'stalling' | 'transitioning';
   pacingMode?: 'exploration' | 'tension' | 'climax' | 'resolution';
   scenePurpose?: 'explore' | 'gather_info' | 'combat' | 'social' | 'travel' | 'rest' | 'climax';
+  newForeshadowing?: { id: string; description: string; type: string }[];
+  paidOffForeshadowing?: string[];
+  backstoryHookActivated?: string;
+  actGoalAchieved?: string;
 }> {
   // Build unusual race/class combo note
   const unusualCombos: Record<string, string[]> = {
@@ -345,6 +357,28 @@ HISTORY: ${campaignContext.characterHistory.slice(-5).map(h => `${h.description}
 ANTAGONISTS: ${campaignContext.antagonists.map(a => `${a.isRevealed ? a.name : '[UNKNOWN]'}: ${a.agenda}`).join(' | ') || 'none'}
 NARRATIVE TIER: ${campaignContext.act <= 1 && character.level <= 3 ? 'EMERGING — local stakes' : character.level <= 6 ? 'KNOWN — regional threats' : character.level <= 10 ? 'FEARED — major powers react' : 'LEGENDARY'}` : ''}
 
+${campaignContext?.roadmap ? `━━━ DM ROADMAP ━━━
+Act ${campaignContext.act} goals (steer the story toward these):
+${(campaignContext.act === 1 ? campaignContext.roadmap.act1Goals : campaignContext.act === 2 ? campaignContext.roadmap.act2Goals : campaignContext.roadmap.act3ConvergenceThreads).map(g => `  ${(campaignContext.actGoalsAchieved || []).includes(g) ? '[DONE]' : '[ ]'} ${g}`).join('\n')}
+${campaignContext.act === 1 && campaignContext.roadmap.act1ClimaxEvent ? `Act 1 climax (build toward): ${campaignContext.roadmap.act1ClimaxEvent}` : ''}
+${campaignContext.act === 2 && campaignContext.roadmap.act2VillainEscalation ? `Act 2 villain move (make real): ${campaignContext.roadmap.act2VillainEscalation}` : ''}
+${campaignContext.act === 3 ? `Convergence — weave these threads: ${campaignContext.roadmap.act3ConvergenceThreads.join(' | ')}` : ''}
+━━━━━━━━━━━━━━━━━━` : ''}
+
+${campaignContext?.foreshadowingLedger && campaignContext.foreshadowingLedger.filter(f => f.payoffStatus !== 'paid_off').length > 0 ? `━━━ FORESHADOWING LEDGER ━━━
+PLANTED — pay these off when dramatically right:
+${campaignContext.foreshadowingLedger.filter(f => f.payoffStatus !== 'paid_off').slice(0, 8).map(f => `  [${f.type.toUpperCase()}] ${f.description}`).join('\n')}
+When you introduce something new that should echo later, include it in newForeshadowing[].
+When you pay off a planted item, include its id in paidOffForeshadowing[].
+━━━━━━━━━━━━━━━━━━━━━━━━━━━` : ''}
+
+${campaignContext?.backstoryHooks && campaignContext.backstoryHooks.filter(h => h.status !== 'resolved').length > 0 ? `━━━ BACKSTORY HOOKS ━━━
+These character backstory threads must eventually be woven into the main plot:
+${campaignContext.backstoryHooks.filter(h => h.status !== 'resolved').map(h => `  [${h.characterName}] ${h.hook} — STATUS: ${h.status.toUpperCase()}`).join('\n')}
+Dormant = not yet seeded. Active = player has encountered it. Resolved = paid off.
+When you seed a dormant hook, set backstoryHookActivated to the characterId.
+━━━━━━━━━━━━━━━━━━━━━━` : ''}
+
 ${campaignContext?.otherCharacters && campaignContext.otherCharacters.length > 0 ? `PARTY:
 ${campaignContext.otherCharacters.map(c => {
   const myLocation = worldState.characterLocations?.[character.id] || worldState.currentLocation;
@@ -413,6 +447,10 @@ IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older co
     sceneMomentum: parsed.sceneMomentum || 'advancing',
     pacingMode: parsed.pacingMode || 'exploration',
     scenePurpose: parsed.scenePurpose || 'explore',
+    newForeshadowing: parsed.newForeshadowing || undefined,
+    paidOffForeshadowing: parsed.paidOffForeshadowing || undefined,
+    backstoryHookActivated: parsed.backstoryHookActivated || undefined,
+    actGoalAchieved: parsed.actGoalAchieved || undefined,
   };
 }
 
@@ -538,6 +576,102 @@ export async function generateCharacterPortrait(
   return generateImage(description, cacheKey);
 }
 
+export async function extractBackstoryHooks(
+  backstory: string,
+  characterName: string,
+  race: string,
+  characterClass: string,
+  worldBible: WorldBible,
+  characterId: string
+): Promise<import('../../../shared/types').BackstoryHook[]> {
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{
+      role: 'user',
+      content: `You are a DM extracting plot hooks from a character backstory to weave into the campaign.
+
+CHARACTER: ${characterName}, ${race} ${characterClass}
+BACKSTORY: ${backstory}
+
+CAMPAIGN CONTEXT:
+Central conflict: ${worldBible.centralConflict}
+Primary antagonist agenda: ${worldBible.primaryAntagonist?.agenda || 'unknown'}
+Factions: ${worldBible.factions?.map(f => f.name).join(', ')}
+
+Extract 2-3 specific plot hooks from this backstory that can be seeded into the campaign.
+Each hook should connect the character's personal history to the world's conflict.
+Be specific — name people, places, grudges, losses, secrets.
+
+Return JSON:
+{
+  "hooks": [
+    {
+      "hook": "Specific 1-2 sentence hook that ties backstory to the main conflict. E.g: 'Elarion's murdered mentor was killed by agents of the Shadow Court — the same faction now serving the primary antagonist.'",
+      "seedTiming": "act1" | "act2" | "act3"
+    }
+  ]
+}`,
+    }],
+    max_tokens: 400,
+    temperature: 0.8,
+    response_format: { type: 'json_object' },
+  });
+
+  const parsed = JSON.parse(response.choices[0].message.content || '{"hooks":[]}');
+  return (parsed.hooks || []).map((h: { hook: string }) => ({
+    characterId,
+    characterName,
+    hook: h.hook,
+    status: 'dormant' as const,
+  }));
+}
+
+export async function generateVillainMove(
+  worldState: WorldState,
+  worldBible: WorldBible,
+  actNumber: number
+): Promise<{ narration: string; sessionNote: string }> {
+  const antagonist = worldBible.primaryAntagonist;
+  const progress = worldState.antagonistProgress?.[antagonist?.name || ''];
+  const stepIndex = progress?.stepIndex ?? 0;
+  const currentStep = antagonist?.planSteps?.[stepIndex] || antagonist?.currentStep || 'advancing their plan';
+  const roadmap = worldBible.dmRoadmap;
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{
+      role: 'system',
+      content: 'You are a DM narrating what the villain did while the hero was away. Write in second person. Be atmospheric and ominous. 2-4 sentences max. The players did NOT cause this — the world moved without them. Respond with valid JSON only.',
+    }, {
+      role: 'user',
+      content: `The villain has made a move while the hero was away.
+
+Antagonist: ${antagonist?.isRevealed ? antagonist.name : '[Unknown Force]'}
+Current plan step: ${currentStep}
+Act: ${actNumber}
+${actNumber === 2 && roadmap ? `Act 2 escalation: ${roadmap.act2VillainEscalation}` : ''}
+World state: ${worldState.currentLocation || 'unknown location'}, ${worldState.timeOfDay || 'unknown time'}
+Central conflict: ${worldBible.centralConflict}
+
+Write a short atmospheric narration of what the villain did — something the hero discovers or hears about when they return. It should feel ominous and advance the threat. Do NOT name the villain if isRevealed is false.
+
+Return JSON:
+{
+  "narration": "2-4 sentence atmospheric description of what changed while the hero was away",
+  "sessionNote": "1 sentence DM note: what the villain actually did mechanically"
+}`,
+    }],
+    temperature: 0.85,
+    response_format: { type: 'json_object' },
+  });
+
+  const parsed = JSON.parse(response.choices[0].message.content || '{}');
+  return {
+    narration: parsed.narration || 'Something has changed in the world while you were away.',
+    sessionNote: parsed.sessionNote || 'Villain advanced their plan.',
+  };
+}
+
 export async function generateStorySeed(): Promise<StorySeedOption[]> {
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -614,10 +748,39 @@ Return JSON matching exactly:
     "A subtle rumor, strange occurrence, or NPC warning that hints at the antagonist without naming them",
     "A second breadcrumb — different in nature (visual, heard, felt)",
     "A third early omen that can be seeded in the first session"
-  ]
+  ],
+  "dmRoadmap": {
+    "act1Goals": [
+      "Establish the central threat through indirect consequences, not direct confrontation",
+      "Give the player a personal reason to care — tie the conflict to someone or something they value",
+      "Introduce at least one NPC who will matter deeply later",
+      "Make the villain feel real without revealing them"
+    ],
+    "act1MustIntroduce": ["name of key NPC 1", "name of key location", "name of key faction contact"],
+    "act1ClimaxEvent": "The specific event that ends Act 1 and makes retreat impossible — a revelation, a loss, a crossing of the point of no return",
+    "act2Goals": [
+      "Force the player to make a choice that costs them something",
+      "Reveal one layer of the villain's true plan",
+      "Turn one alliance into a betrayal or one enemy into an unexpected ally",
+      "Escalate the personal stake established in Act 1"
+    ],
+    "act2VillainEscalation": "The specific action the villain takes in Act 2 that makes them undeniable — something visible, something terrible, something personal",
+    "act2ClimaxEvent": "The darkest moment — the low point where the player questions whether victory is possible",
+    "act3ConvergenceThreads": [
+      "The NPC introduced in Act 1 reappears with crucial information or aid",
+      "The personal backstory hook becomes the key to defeating the villain",
+      "The choice from Act 2 has a consequence that shapes the ending"
+    ],
+    "act3ClimaxEvent": "The final confrontation — describe the shape of it without predicting the outcome",
+    "act3ResolutionOptions": [
+      "Victory: the villain is stopped, but at a permanent cost",
+      "Pyrrhic victory: the immediate threat ends but the world is fundamentally changed",
+      "Tragic victory: the player saves the world but loses what they cared about most"
+    ]
+  }
 }
 
-Include 5-7 geography entries, 5-6 gods, exactly 4 tone rules, 3-4 forbidden lore hooks, exactly 3 factions. The antagonistRoster should be an empty array — secondary antagonists emerge during play. The primaryAntagonist should be legendary in power.`,
+Include 5-7 geography entries, 5-6 gods, exactly 4 tone rules, 3-4 forbidden lore hooks, exactly 3 factions. The antagonistRoster should be an empty array — secondary antagonists emerge during play. The primaryAntagonist should be legendary in power. Make the dmRoadmap specific to THIS campaign's premise — not generic.`,
       },
     ],
     temperature: 0.85,
