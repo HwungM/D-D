@@ -80,6 +80,7 @@ export const gameApi = {
   resolveRoll: (data: { characterId: string; campaignId: string; rollResult: number; rollTotal: number; dc: number; success: boolean; isCritSuccess: boolean; isCritFail: boolean; rollContext: unknown }) =>
     api.post('/game/resolve-roll', data),
   devKill: (characterId: string) => api.post(`/game/dev-kill/${characterId}`),
+  devClearCombat: (campaignId: string) => api.post(`/game/dev-clear-combat/${campaignId}`),
 }
 
 // TTS

@@ -247,4 +247,25 @@ router.post('/dev-kill/:characterId', requireAuth, async (req: AuthRequest, res:
   res.json({ success: true, message: 'Character has met their end.' });
 });
 
+// DEV ONLY: clear stuck combat state
+router.post('/dev-clear-combat/:campaignId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_DEV_ENDPOINTS) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+
+  const { campaignId } = req.params;
+
+  const { data: campaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaignId).single();
+  if (!campaign) { res.status(404).json({ error: 'Campaign not found' }); return; }
+
+  const ws = campaign.world_state as Record<string, unknown>;
+  ws.combatState = null;
+  ws.currentSceneSummary = null;
+  ws.actionsSinceLastSummary = 0;
+
+  await supabaseAdmin.from('campaigns').update({ world_state: ws }).eq('id', campaignId);
+  res.json({ success: true });
+});
+
 export default router;

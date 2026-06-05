@@ -433,6 +433,15 @@ export default function Game() {
     finally { setLoading(false) }
   }
 
+  async function handleDevClearCombat() {
+    if (!campaignId) return
+    try {
+      await gameApi.devClearCombat(campaignId)
+      setInCombat(false)
+      audioManager.stopMusic()
+    } catch (err) { console.error('Dev clear combat failed:', err) }
+  }
+
   async function handleDevKill() {
     if (!currentCharacter) return
     if (!confirm(`Kill ${currentCharacter.name}? This is for testing the death flow.`)) return
@@ -569,16 +578,28 @@ export default function Game() {
         <div className="flex items-center gap-1.5 shrink-0">
           <AudioControls />
           {import.meta.env.DEV && currentCharacter?.is_alive !== false && (
-            <button
-              onClick={handleDevKill}
-              className="font-mono text-xs px-2 py-1 transition-all"
-              style={{ border: '1px solid rgba(239,68,68,0.3)', color: 'rgba(239,68,68,0.5)', background: 'rgba(239,68,68,0.05)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239,68,68,0.7)'; (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.9)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239,68,68,0.3)'; (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.5)' }}
-              title="DEV: instantly kill character"
-            >
-              ☠ die
-            </button>
+            <>
+              <button
+                onClick={handleDevKill}
+                className="font-mono text-xs px-2 py-1 transition-all"
+                style={{ border: '1px solid rgba(239,68,68,0.3)', color: 'rgba(239,68,68,0.5)', background: 'rgba(239,68,68,0.05)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239,68,68,0.7)'; (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.9)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(239,68,68,0.3)'; (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.5)' }}
+                title="DEV: instantly kill character"
+              >
+                ☠ die
+              </button>
+              <button
+                onClick={handleDevClearCombat}
+                className="font-mono text-xs px-2 py-1 transition-all"
+                style={{ border: '1px solid rgba(100,150,239,0.3)', color: 'rgba(100,150,239,0.5)', background: 'rgba(100,150,239,0.05)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(100,150,239,0.7)'; (e.currentTarget as HTMLElement).style.color = 'rgba(100,150,239,0.9)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(100,150,239,0.3)'; (e.currentTarget as HTMLElement).style.color = 'rgba(100,150,239,0.5)' }}
+                title="DEV: clear stuck combat state"
+              >
+                ⚔ clear
+              </button>
+            </>
           )}
           {campaignId && (
             <button
