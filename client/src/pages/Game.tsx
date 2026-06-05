@@ -104,6 +104,7 @@ export default function Game() {
   const [isMuted, setIsMuted] = useState(false)
   const [partyActionMode, setPartyActionMode] = useState(false)
   const [isNewCharacter, setIsNewCharacter] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
 
   useEffect(() => {
     audioManager.startAmbient()
@@ -236,6 +237,7 @@ export default function Game() {
         setShowLoot(true)
       }
 
+      setIsTyping(true)
       addEvent({
         id: `roll-dm-${Date.now()}`,
         campaign_id: campaignId,
@@ -308,8 +310,8 @@ export default function Game() {
       ? `[PARTY ACTION] ${action}`
       : action
 
-    // Immediate local scene switch based on action text + current location
-    const immediateScene = matchSceneImage(finalAction + ' ' + (worldState?.currentLocation || ''))
+    // Only switch scene immediately based on location — not action text (avoids wrong images)
+    const immediateScene = matchSceneImage(worldState?.currentLocation || '')
     if (immediateScene) setSceneImage(immediateScene)
 
     addEvent({
@@ -381,6 +383,7 @@ export default function Game() {
         setShowLevelUp(true)
       }
 
+      setIsTyping(true)
       addEvent({
         id: `temp-dm-${Date.now()}`,
         campaign_id: campaignId,
@@ -488,7 +491,7 @@ export default function Game() {
           )}
           <button
             onClick={handleStart}
-            disabled={isLoading}
+            disabled={isLoading || isTyping}
             className="font-serif text-base px-14 py-3.5 transition-all disabled:opacity-50"
             style={{
               background: 'linear-gradient(135deg, rgba(192,57,43,0.25), rgba(140,30,20,0.4))',
@@ -683,23 +686,29 @@ export default function Game() {
                 </div>
               )}
 
-              {normalizeEvents(events.filter(e => !e.character_id || e.character_id === characterId)).map((event, i) => {
-                const isOtherPlayer = event.character_id && event.character_id !== characterId
-                const partyMember = isOtherPlayer ? partyMembers.find(m => m.character?.id === event.character_id) : null
-                const isMyAction = event.event_type === 'action' && event.character_id === characterId
-                const mood = event.event_type === 'narration' ? inferMood(event.content) : 'serious'
-                return (
-                  <NarratorBox
-                    key={event.id || i}
-                    text={event.content}
-                    mood={mood}
-                    isPlayerAction={event.event_type === 'action'}
-                    instant={historicalIds.current.has(event.id) || historicalIds.current.has(event.id.replace(/-[an]$/, ''))}
-                    playerName={partyMember?.username}
-                    playerPortrait={isMyAction ? currentCharacter?.portrait_url || undefined : partyMember?.character?.portrait_url || undefined}
-                  />
-                )
-              })}
+              {(() => {
+                const filtered = normalizeEvents(events.filter(e => !e.character_id || e.character_id === characterId))
+                return filtered.map((event, i) => {
+                  const isLast = i === filtered.length - 1
+                  const isInstant = historicalIds.current.has(event.id) || historicalIds.current.has(event.id.replace(/-[an]$/, ''))
+                  const isOtherPlayer = event.character_id && event.character_id !== characterId
+                  const partyMember = isOtherPlayer ? partyMembers.find(m => m.character?.id === event.character_id) : null
+                  const isMyAction = event.event_type === 'action' && event.character_id === characterId
+                  const mood = event.event_type === 'narration' ? inferMood(event.content) : 'serious'
+                  return (
+                    <NarratorBox
+                      key={event.id || i}
+                      text={event.content}
+                      mood={mood}
+                      isPlayerAction={event.event_type === 'action'}
+                      instant={isInstant}
+                      playerName={partyMember?.username}
+                      playerPortrait={isMyAction ? currentCharacter?.portrait_url || undefined : partyMember?.character?.portrait_url || undefined}
+                      onComplete={isLast && !isInstant ? () => setIsTyping(false) : undefined}
+                    />
+                  )
+                })
+              })()}
 
               {isLoading && (
                 <div className="flex items-center gap-3 px-5 py-3">
@@ -741,7 +750,7 @@ export default function Game() {
           <ActionPanel
             suggestedActions={lastActionResult?.suggestedActions || []}
             onAction={handleAction}
-            disabled={isLoading || currentCharacter?.is_alive === false}
+            disabled={isLoading || isTyping || currentCharacter?.is_alive === false}
           />
         </div>
       </div>
