@@ -1,7 +1,19 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Session } from '@supabase/supabase-js'
-import type { Character, Campaign, StoryEvent, ActionResult, WorldState } from '../../../shared/types'
+import type { Character, Campaign, StoryEvent, ActionResult, WorldState, NpcMemory, ActiveQuest } from '../../../shared/types'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isNpcMemory(value: unknown): value is NpcMemory {
+  return isRecord(value) && typeof value.name === 'string' && typeof value.notes === 'string'
+}
+
+function isActiveQuest(value: unknown): value is ActiveQuest {
+  return isRecord(value) && typeof value.title === 'string' && typeof value.description === 'string'
+}
 
 interface AuthState {
   session: Session | null
@@ -85,7 +97,7 @@ export const useGameStore = create<GameState>()((set) => ({
 
       // npcMemory: upsert by name, preserve metCharacters from both sides
       if (changes.npcMemory) {
-        const npcArray = Array.isArray(changes.npcMemory) ? changes.npcMemory : Object.values(changes.npcMemory);
+        const npcArray = (Array.isArray(changes.npcMemory) ? changes.npcMemory : Object.values(changes.npcMemory)).filter(isNpcMemory);
         const existing = new Map((current.npcMemory || []).map(n => [n.name, n]));
         for (const npc of npcArray) {
           const prev = existing.get(npc.name);
@@ -102,7 +114,7 @@ export const useGameStore = create<GameState>()((set) => ({
       // activeQuests: upsert by title
       if (changes.activeQuests) {
         const existing = new Map((current.activeQuests || []).map(q => [q.title, q]));
-        for (const q of changes.activeQuests) existing.set(q.title, { ...existing.get(q.title), ...q });
+        for (const q of changes.activeQuests.filter(isActiveQuest)) existing.set(q.title, { ...existing.get(q.title), ...q });
         merged.activeQuests = Array.from(existing.values());
       }
 
