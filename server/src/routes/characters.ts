@@ -71,7 +71,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
 
   const baseHp = CLASS_BASE_HP[characterClass as CharacterClass] || 8;
   const conMod = Math.floor((finalStats.con - 10) / 2);
-  const maxHp = baseHp + conMod;
+  const maxHp = Math.max(1, baseHp + conMod);
 
   let portraitUrl: string | undefined = clientPortraitUrl;
   if (!portraitUrl && generatePortrait) {
