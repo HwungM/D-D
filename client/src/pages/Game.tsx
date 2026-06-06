@@ -77,6 +77,7 @@ export default function Game() {
   const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'world' | 'journal'>('character')
   const narratorRef = useRef<HTMLDivElement>(null)
   const historicalIds = useRef<Set<string>>(new Set())
+  const coopWaitingRef = useRef(false)
 
 
   const [showLevelUp, setShowLevelUp] = useState(false)
@@ -109,6 +110,9 @@ export default function Game() {
   const [isNewCharacter, setIsNewCharacter] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const [campaignType, setCampaignType] = useState<'adventure' | 'testing'>('adventure')
+  const [coopWaiting, setCoopWaitingState] = useState(false)
+  const [coopPartnerName, setCoopPartnerName] = useState('')
+  function setCoopWaiting(val: boolean) { coopWaitingRef.current = val; setCoopWaitingState(val) }
 
   useEffect(() => {
     audioManager.startAmbient()
@@ -118,9 +122,13 @@ export default function Game() {
   const refreshParty = useCallback(() => {
     if (!campaignId) return
     campaignApi.getParty(campaignId).then(({ data }) => {
-      setPartyMembers(data.members || [])
+      const members: PartyMember[] = data.members || []
+      setPartyMembers(members)
+      // Find partner's character name for co-op waiting banner
+      const partner = members.find(m => m.userId !== user?.id)
+      if (partner?.character?.name) setCoopPartnerName(partner.character.name)
     }).catch(() => {})
-  }, [campaignId])
+  }, [campaignId, user?.id])
 
   useEffect(() => {
     if (!campaignId || !characterId) return
@@ -196,7 +204,11 @@ export default function Game() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'story_events', filter: `campaign_id=eq.${campaignId}` },
         (payload) => {
           const newEvent = payload.new as StoryEvent
-          if (newEvent.character_id && newEvent.character_id !== characterId) addEvent(newEvent)
+          if (newEvent.character_id && newEvent.character_id !== characterId) {
+            addEvent(newEvent)
+            // Partner submitted — clear co-op waiting state
+            if (coopWaitingRef.current) setCoopWaiting(false)
+          }
         }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'characters', filter: `campaign_id=eq.${campaignId}` },
@@ -339,8 +351,19 @@ export default function Game() {
     })
     try {
       const { data } = await gameApi.action(characterId, campaignId, finalAction)
-      const result = data as ActionResult
+      const result = data as ActionResult & { status?: string }
       setLastActionResult(result)
+
+      // Co-op waiting — partner hasn't submitted yet
+      if (result.status === 'waiting') {
+        setCoopWaiting(true)
+        setLoading(false)
+        return
+      }
+      // Co-op complete — partner submitted, we got the combined narration
+      if (result.status === 'complete') {
+        setCoopWaiting(false)
+      }
 
       // Player-driven dice roll
       if (result.awaitingRoll && result.rollContext) {
@@ -805,18 +828,29 @@ export default function Game() {
               )}
             </div>
           )}
+          {coopWaiting && (
+            <div className="px-4 py-2 flex items-center gap-2 shrink-0" style={{
+              background: 'rgba(200,146,42,0.05)',
+              borderTop: '1px solid rgba(200,146,42,0.15)',
+            }}>
+              <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#c8922a', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <span className="font-serif text-xs" style={{ color: 'rgba(200,146,42,0.7)' }}>
+                {coopPartnerName ? `Waiting for ${coopPartnerName}...` : 'Waiting for your party...'}
+              </span>
+            </div>
+          )}
           {inCombat && currentCharacter && (
             <CombatPanel
               combatState={worldState?.combatState}
               abilities={currentCharacter.abilities || []}
               onAction={handleAction}
-              disabled={isLoading || isTyping}
+              disabled={isLoading || isTyping || coopWaiting}
             />
           )}
           <ActionPanel
             suggestedActions={lastActionResult?.suggestedActions || []}
             onAction={handleAction}
-            disabled={isLoading || isTyping || currentCharacter?.is_alive === false}
+            disabled={isLoading || isTyping || currentCharacter?.is_alive === false || coopWaiting}
           />
         </div>
       </div>
