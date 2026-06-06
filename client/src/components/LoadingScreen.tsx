@@ -120,7 +120,7 @@ export default function LoadingScreen({ mode = 'generic', message }: LoadingScre
         <h1 className="font-fantasy text-3xl md:text-4xl text-parchment-100 mb-2 text-center" style={{
           textShadow: '0 0 40px rgba(192,57,43,0.5)',
         }}>
-          {isCampaign ? 'Forging Your World' : 'Chronicles of the Fallen Age'}
+          {isCampaign ? 'Forging Your World' : 'The Everrealm'}
         </h1>
         <p className="text-slate-500 font-serif italic text-sm mb-10 text-center">
           {message || (isCampaign ? 'The Dungeon Master is breathing life into your realm...' : 'Loading...')}

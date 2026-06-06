@@ -263,7 +263,7 @@ export default function Dashboard() {
             </svg>
           </div>
           <h1 className="font-fantasy text-5xl text-parchment-200 mb-4" style={{ textShadow: '0 0 40px rgba(200,146,42,0.4)', letterSpacing: '0.05em' }}>
-            Chronicles of the Fallen Age
+            The Everrealm
           </h1>
           <p className="font-serif text-sm mt-6" style={{ color: 'rgba(200,146,42,0.5)', letterSpacing: '0.2em', animation: 'pulse 2s ease-in-out infinite' }}>
             CLICK TO ENTER
@@ -307,7 +307,7 @@ export default function Dashboard() {
             </svg>
           </div>
           <div>
-            <h1 className="font-fantasy text-xl text-parchment-200 leading-none" style={{ letterSpacing: '0.05em' }}>Chronicles of the Fallen Age</h1>
+            <h1 className="font-fantasy text-xl text-parchment-200 leading-none" style={{ letterSpacing: '0.05em' }}>The Everrealm</h1>
             <p className="text-xs font-serif mt-0.5" style={{ color: 'rgba(200,146,42,0.6)', letterSpacing: '0.12em' }}>ADVENTURER'S HALL</p>
           </div>
         </div>
