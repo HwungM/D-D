@@ -61,6 +61,11 @@ function normalizeEvents(events: StoryEvent[]): StoryEvent[] {
   return result
 }
 
+function getErrorMessage(err: unknown): string {
+  const responseMessage = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+  return responseMessage || 'The action could not be resolved. Try again.'
+}
+
 export default function Game() {
   const { campaignId, characterId } = useParams<{ campaignId: string; characterId: string }>()
   const navigate = useNavigate()
@@ -353,13 +358,15 @@ export default function Game() {
     const immediateScene = matchSceneImage(worldState?.currentLocation || '')
     if (immediateScene) setSceneImage(immediateScene)
 
+    const clientRequestId = `action-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const optimisticActionId = `temp-${clientRequestId}`
     addEvent({
-      id: `temp-${Date.now()}`,
+      id: optimisticActionId,
       campaign_id: campaignId,
       character_id: characterId,
       event_type: 'action',
       content: finalAction,
-      metadata: {},
+      metadata: { optimistic: true, clientRequestId },
       created_at: new Date().toISOString(),
     })
     try {
@@ -492,7 +499,23 @@ export default function Game() {
       }
 
       refreshParty()
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      const message = getErrorMessage(err)
+      const currentEvents = useGameStore.getState().events
+      setEvents(currentEvents.filter(event => event.id !== optimisticActionId))
+      setCoopWaiting(false)
+      setIsTyping(false)
+      addEvent({
+        id: `action-error-${clientRequestId}`,
+        campaign_id: campaignId,
+        character_id: characterId,
+        event_type: 'narration',
+        content: `The table pauses: ${message}`,
+        metadata: { error: true, clientRequestId },
+        created_at: new Date().toISOString(),
+      })
+    }
     finally { setLoading(false) }
   }
 
