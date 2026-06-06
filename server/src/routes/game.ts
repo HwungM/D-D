@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
 import { processAction, getOpeningScene, resolveRollAction } from '../services/gameEngine';
+import { generateEpilogue } from '../services/openai';
 import type { WorldState, WorldBible, Character } from '../../../shared/types';
 import { z } from 'zod';
 
@@ -188,9 +189,14 @@ router.get('/scene/:campaignId/:characterId', requireAuth, async (req: AuthReque
     .eq('id', characterId)
     .single();
 
+  if (!campaign || !character) {
+    res.status(404).json({ error: 'Campaign or character not found' });
+    return;
+  }
+
   res.json({
     lastEvent,
-    worldState: campaign?.world_state,
+    worldState: campaign.world_state,
     character,
   });
 });
@@ -229,8 +235,6 @@ router.post('/dev-kill/:characterId', requireAuth, async (req: AuthRequest, res:
 
   // Record death in world state
   if (char) {
-    const { data: campaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', req.body.campaignId || '').single();
-    // Try to find campaign via character
     const { data: charCampaign } = await supabaseAdmin.from('characters').select('campaign_id').eq('id', characterId).single();
     if (charCampaign) {
       const { data: camp } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', charCampaign.campaign_id).single();
@@ -266,6 +270,34 @@ router.post('/dev-clear-combat/:campaignId', requireAuth, async (req: AuthReques
 
   await supabaseAdmin.from('campaigns').update({ world_state: ws }).eq('id', campaignId);
   res.json({ success: true });
+});
+
+router.post('/epilogue/:campaignId/:characterId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { campaignId, characterId } = req.params;
+  const { victory } = req.body;
+
+  const [{ data: campaign }, { data: character }] = await Promise.all([
+    supabaseAdmin.from('campaigns').select('world_state, world_bible').eq('id', campaignId).single(),
+    supabaseAdmin.from('characters').select('*').eq('id', characterId).single(),
+  ]);
+
+  if (!campaign || !character) {
+    res.status(404).json({ error: 'Campaign or character not found' });
+    return;
+  }
+
+  try {
+    const epilogue = await generateEpilogue(
+      campaign.world_state as WorldState,
+      campaign.world_bible as WorldBible,
+      character as Character,
+      !!victory
+    );
+    res.json({ epilogue });
+  } catch (err) {
+    console.error('Epilogue generation failed:', err);
+    res.status(500).json({ error: 'Failed to generate epilogue' });
+  }
 });
 
 export default router;

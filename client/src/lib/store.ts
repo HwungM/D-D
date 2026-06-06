@@ -152,8 +152,24 @@ export const useGameStore = create<GameState>()((set) => ({
       // activeNPC: direct set
       if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 
+      // fallenHeroes: append new entries
+      if (changes.fallenHeroes) {
+        const existingNames = new Set((current.fallenHeroes || []).map(h => `${h.name}:${h.diedAt}`));
+        const newFallen = changes.fallenHeroes.filter(h => !existingNames.has(`${h.name}:${h.diedAt}`));
+        merged.fallenHeroes = [...(current.fallenHeroes || []), ...newFallen];
+      }
+
+      // keyNPCs: merge by name (same upsert logic as npcMemory but never pruned)
+      if (changes.keyNPCs) {
+        const existing = new Map((current.keyNPCs || []).map(n => [n.name, n]));
+        for (const npc of changes.keyNPCs) {
+          existing.set(npc.name, { ...existing.get(npc.name), ...npc });
+        }
+        merged.keyNPCs = Array.from(existing.values()).slice(-8);
+      }
+
       // Simple scalar fields
-      const scalarFields = ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'sceneState', 'currentSceneSummary', 'actionsSinceLastSummary', 'villainMoveCount', 'endgamePhase', 'actionCount'] as const;
+      const scalarFields = ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'sceneState', 'currentSceneSummary', 'actionsSinceLastSummary', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct'] as const;
       for (const key of scalarFields) {
         if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
       }
