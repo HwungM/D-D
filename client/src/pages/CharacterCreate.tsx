@@ -261,11 +261,14 @@ export default function CharacterCreate() {
     if (!lobbyState || !campaignId || !supabaseUrl || !supabaseAnonKey) return
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    const countReadyCharacters = async () => {
+      const { data } = await campaignApi.getParty(campaignId)
+      return (data.members || []).filter((m: { character: { is_alive?: boolean } | null }) => m.character?.is_alive !== false && m.character).length
+    }
 
     // Check immediately in case the partner already created their character
-    characterApi.listByCampaign(campaignId).then(({ data }) => {
-      const aliveChars = (data.characters || []).filter((c: { is_alive: boolean }) => c.is_alive)
-      if (aliveChars.length >= lobbyState.expectedPlayers) {
+    countReadyCharacters().then((readyCount) => {
+      if (readyCount >= lobbyState.expectedPlayers) {
         navigate(`/campaign/${campaignId}/play/${lobbyState.characterId}`)
       }
     }).catch(() => {})
@@ -279,9 +282,8 @@ export default function CharacterCreate() {
         table: 'characters',
         filter: `campaign_id=eq.${campaignId}`,
       }, () => {
-        characterApi.listByCampaign(campaignId).then(({ data }) => {
-          const aliveChars = (data.characters || []).filter((c: { is_alive: boolean }) => c.is_alive)
-          if (aliveChars.length >= lobbyState.expectedPlayers) {
+        countReadyCharacters().then((readyCount) => {
+          if (readyCount >= lobbyState.expectedPlayers) {
             navigate(`/campaign/${campaignId}/play/${lobbyState.characterId}`)
           }
         }).catch(() => {})
@@ -319,9 +321,9 @@ export default function CharacterCreate() {
         const expectedPlayers = campData.campaign.world_bible?.playerPreferences?.playerCount || 1
         if (expectedPlayers > 1) {
           // Check current character count
-          const { data: charData } = await characterApi.listByCampaign(campaignId)
-          const aliveChars = (charData.characters || []).filter((c: { is_alive: boolean }) => c.is_alive)
-          if (aliveChars.length >= expectedPlayers) {
+          const { data: partyData } = await campaignApi.getParty(campaignId)
+          const readyCount = (partyData.members || []).filter((m: { character: { is_alive?: boolean } | null }) => m.character?.is_alive !== false && m.character).length
+          if (readyCount >= expectedPlayers) {
             navigate(`/campaign/${campaignId}/play/${characterId}`)
           } else {
             setLobbyState({ characterId, expectedPlayers })
