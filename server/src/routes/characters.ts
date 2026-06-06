@@ -18,6 +18,14 @@ const createSchema = z.object({
   backstory: z.string().max(1000).optional(),
   generatePortrait: z.boolean().optional().default(false),
   portraitUrl: z.string().optional(),
+  stats: z.object({
+    str: z.number().int().min(3).max(20),
+    dex: z.number().int().min(3).max(20),
+    con: z.number().int().min(3).max(20),
+    int: z.number().int().min(3).max(20),
+    wis: z.number().int().min(3).max(20),
+    cha: z.number().int().min(3).max(20),
+  }).optional(),
 });
 
 function rollStats(): CharacterStats {
@@ -42,7 +50,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
     res.status(400).json({ error: parse.error.errors });
     return;
   }
-  const { campaignId, name, race, class: characterClass, backstory, generatePortrait, portraitUrl: clientPortraitUrl } = parse.data;
+  const { campaignId, name, race, class: characterClass, backstory, generatePortrait, portraitUrl: clientPortraitUrl, stats: submittedStats } = parse.data;
 
   // Verify membership
   const { data: membership } = await supabaseAdmin
@@ -57,17 +65,21 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
     return;
   }
 
-  // Roll stats with racial bonuses
-  const baseStats = rollStats();
-  const racialBonuses = RACE_STAT_BONUSES[race as Race] || {};
-  const finalStats: CharacterStats = {
-    str: baseStats.str + (racialBonuses.str || 0),
-    dex: baseStats.dex + (racialBonuses.dex || 0),
-    con: baseStats.con + (racialBonuses.con || 0),
-    int: baseStats.int + (racialBonuses.int || 0),
-    wis: baseStats.wis + (racialBonuses.wis || 0),
-    cha: baseStats.cha + (racialBonuses.cha || 0),
-  };
+  let finalStats: CharacterStats;
+  if (submittedStats) {
+    finalStats = submittedStats;
+  } else {
+    const baseStats = rollStats();
+    const racialBonuses = RACE_STAT_BONUSES[race as Race] || {};
+    finalStats = {
+      str: baseStats.str + (racialBonuses.str || 0),
+      dex: baseStats.dex + (racialBonuses.dex || 0),
+      con: baseStats.con + (racialBonuses.con || 0),
+      int: baseStats.int + (racialBonuses.int || 0),
+      wis: baseStats.wis + (racialBonuses.wis || 0),
+      cha: baseStats.cha + (racialBonuses.cha || 0),
+    };
+  }
 
   const baseHp = CLASS_BASE_HP[characterClass as CharacterClass] || 8;
   const conMod = Math.floor((finalStats.con - 10) / 2);
