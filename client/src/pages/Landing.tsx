@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../lib/api'
 import { useAuthStore } from '../lib/store'
 import EmberParticles from '../components/EmberParticles'
@@ -14,6 +14,7 @@ const CHARACTERS = [
 
 export default function Landing() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { setSession, setUser } = useAuthStore()
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -25,13 +26,15 @@ export default function Landing() {
     audioManager.startAmbient()
     // Sanitize: remove spaces, lowercase for API key
     const apiUsername = displayName.replace(/\s+/g, '').toLowerCase()
+    const redirect = searchParams.get('redirect')
+    const destination = redirect?.startsWith('/') ? redirect : '/dashboard'
     try {
       // Always try login first
       try {
         const { data } = await authApi.login(apiUsername, HARDCODED_PASSWORD)
         setSession(data.session)
         setUser({ ...data.user, username: displayName })
-        navigate('/dashboard')
+        navigate(destination)
         return
       } catch {
         // Login failed — try register
@@ -41,7 +44,7 @@ export default function Landing() {
         const { data } = await authApi.register(apiUsername, HARDCODED_PASSWORD, apiUsername)
         setSession(data.session)
         setUser({ ...data.user, username: displayName })
-        navigate('/dashboard')
+        navigate(destination)
         return
       } catch {
         // Register failed — account likely exists with old credentials, force recreate
