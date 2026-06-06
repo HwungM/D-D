@@ -54,7 +54,10 @@ export const useGameStore = create<GameState>()((set) => ({
   worldState: null,
   setCampaign: (campaign) => set({ currentCampaign: campaign }),
   setCharacter: (character) => set({ currentCharacter: character }),
-  addEvent: (event) => set((state) => ({ events: [...state.events, event] })),
+  addEvent: (event) => set((state) => {
+    if (state.events.some(existing => existing.id === event.id)) return state;
+    return { events: [...state.events, event] };
+  }),
   setEvents: (events) => set({ events }),
   setLoading: (loading) => set({ isLoading: loading }),
   setLastActionResult: (result) => set({ lastActionResult: result }),
