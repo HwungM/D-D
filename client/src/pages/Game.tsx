@@ -241,20 +241,13 @@ export default function Game() {
   }, [events])
 
 
-  async function handleRollComplete(rollResult: number, rollTotal: number, success: boolean, isCritSuccess: boolean, isCritFail: boolean) {
-    if (!campaignId || !characterId || !diceModalData) return
-    setShowDiceModal(false)
+  async function handleRollComplete() {
+    if (!campaignId || !characterId || !diceModalData) throw new Error('Roll context missing')
     setLoading(true)
     try {
       const { data } = await gameApi.resolveRoll({
         characterId,
         campaignId,
-        rollResult,
-        rollTotal,
-        dc: diceModalData.rollContext.dc,
-        success,
-        isCritSuccess,
-        isCritFail,
         rollContext: diceModalData.rollContext,
       })
       const result = data as ActionResult
@@ -304,10 +297,19 @@ export default function Game() {
         setTimeout(() => setShowDeathScreen(true), 1200)
       }
 
-      setDiceModalData(null)
       refreshParty()
-    } catch (err) { console.error(err) }
-    finally { setLoading(false) }
+      return {
+        rollResult: result.diceRoll?.rolls?.[0] ?? 1,
+        rollTotal: result.diceRoll?.total ?? 1,
+        dc: diceModalData.rollContext.dc,
+        success: (result.diceRoll?.total ?? 0) >= diceModalData.rollContext.dc,
+        isCritSuccess: result.diceRoll?.rolls?.[0] === 20,
+        isCritFail: result.diceRoll?.rolls?.[0] === 1,
+      }
+    } catch (err) {
+      console.error(err)
+      throw err
+    } finally { setLoading(false) }
   }
 
   async function handleStart() {
@@ -951,6 +953,10 @@ export default function Game() {
           rollContext={diceModalData.rollContext}
           characterName={currentCharacter.name}
           onRoll={handleRollComplete}
+          onContinue={() => {
+            setShowDiceModal(false)
+            setDiceModalData(null)
+          }}
         />
       )}
       {showHighStakes && highStakesData && (
