@@ -204,10 +204,23 @@ export default function Game() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'story_events', filter: `campaign_id=eq.${campaignId}` },
         (payload) => {
           const newEvent = payload.new as StoryEvent
-          if (newEvent.character_id && newEvent.character_id !== characterId) {
+          const isOwnEvent = newEvent.character_id === characterId
+          const isPartnerEvent = !!newEvent.character_id && newEvent.character_id !== characterId
+
+          if (coopWaitingRef.current && isOwnEvent && newEvent.event_type === 'narration') {
             addEvent(newEvent)
-            // Partner submitted — clear co-op waiting state
-            if (coopWaitingRef.current) setCoopWaiting(false)
+            setCoopWaiting(false)
+            setLoading(false)
+            setIsTyping(true)
+            const suggestedActions = Array.isArray(newEvent.metadata?.suggestedActions)
+              ? newEvent.metadata.suggestedActions as string[]
+              : undefined
+            setLastActionResult({ narration: newEvent.content, suggestedActions } as ActionResult)
+            return
+          }
+
+          if (isPartnerEvent && newEvent.event_type === 'action') {
+            addEvent(newEvent)
           }
         }
       )
@@ -767,7 +780,7 @@ export default function Game() {
               )}
 
               {(() => {
-                const filtered = normalizeEvents(events.filter(e => !e.character_id || e.character_id === characterId))
+                const filtered = normalizeEvents(events.filter(e => !e.character_id || e.character_id === characterId || e.event_type === 'action'))
                 return filtered.map((event, i) => {
                   const isLast = i === filtered.length - 1
                   const isInstant = historicalIds.current.has(event.id) || historicalIds.current.has(event.id.replace(/-[an]$/, ''))
