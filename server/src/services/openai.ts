@@ -54,6 +54,11 @@ SHOP/MERCHANT RULES:
 - IMPORTANT: A merchant's inventory does NOT change between visits. If the player has visited this merchant before (check npcMemory), use the SAME items they had before. Only generate new items for a brand new merchant never seen before.
 - The player can then choose to buy items (handled separately). Do not auto-deduct gold.
 
+NPC NAMING RULES:
+- Every NPC must have a proper name. NEVER refer to an NPC as "the merchant", "a guard", "an old woman", "the innkeeper", or any unnamed generic. Give them a name immediately upon introduction (e.g. "Varen, a grizzled merchant", "Sister Ileth, the gate guard").
+- Names should fit the dark fantasy setting — Germanic, Nordic, or archaic English roots work well.
+- Once named, always use that name consistently.
+
 NPC CONVERSATION TRACKING:
 - When the character begins talking to a specific NPC, set worldStateChanges.activeNPC to that NPC's name.
 - When the character leaves a conversation (walks away, changes scene), set worldStateChanges.activeNPC to null.
