@@ -161,6 +161,8 @@ export interface WorldState {
   } | null;
   activeNPC?: string | null;
   shopInventory?: Record<string, ShopItem[]>;
+  endgamePhase?: 'none' | 'approaching' | 'confrontation';
+  actionCount?: number; // total actions taken this campaign, used for villain move timing
 }
 
 export interface WorldBible {

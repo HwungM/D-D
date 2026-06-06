@@ -65,6 +65,10 @@ export const characterApi = {
   listByCampaign: (campaignId: string) => api.get(`/characters/campaign/${campaignId}`),
   get: (id: string) => api.get(`/characters/${id}`),
   update: (id: string, data: Record<string, unknown>) => api.patch(`/characters/${id}`, data),
+  purchase: (id: string, item: { id: string; name: string; description: string; type: string; price: number; quantity: number }, campaignId: string) =>
+    api.post(`/characters/${id}/purchase`, { item, campaignId }),
+  sell: (id: string, itemName: string, sellPrice: number) =>
+    api.post(`/characters/${id}/sell`, { itemName, sellPrice }),
 }
 
 // Game
