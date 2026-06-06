@@ -232,24 +232,38 @@ router.post('/:id/purchase', requireAuth, async (req: AuthRequest, res: Response
   }
 
   // Verify item exists in current shop inventory for this campaign/location
+  const targetCampaignId = campaignId || character.campaign_id;
+  if (targetCampaignId !== character.campaign_id) {
+    res.status(403).json({ error: 'Character is not in this campaign' });
+    return;
+  }
+
   const { data: campaign } = await supabaseAdmin
     .from('campaigns')
     .select('world_state')
-    .eq('id', campaignId || character.campaign_id)
+    .eq('id', targetCampaignId)
     .single();
 
+  let purchasePrice = item.price;
   if (campaign?.world_state) {
     const ws = campaign.world_state as { shopInventory?: Record<string, { id: string; name: string; price: number }[]>; currentLocation?: string };
     const currentLocation = ws.currentLocation || '';
     const shopItems = ws.shopInventory?.[currentLocation] || [];
     const shopItem = shopItems.find((s: { id: string; name: string; price: number }) => s.name.toLowerCase() === item.name.toLowerCase());
+    if (shopItems.length > 0 && !shopItem) {
+      res.status(400).json({ error: 'Item is not available in this shop' });
+      return;
+    }
+    if (shopItem) {
+      purchasePrice = shopItem.price;
+    }
     if (shopItem && shopItem.price !== item.price) {
       res.status(400).json({ error: 'Item price mismatch' });
       return;
     }
   }
 
-  if (character.gold < item.price) {
+  if (character.gold < purchasePrice) {
     res.status(400).json({ error: 'Insufficient gold' });
     return;
   }
@@ -261,7 +275,7 @@ router.post('/:id/purchase', requireAuth, async (req: AuthRequest, res: Response
     description: item.description || '',
     quantity: 1,
     type: validTypes.has(item.type) ? item.type : 'misc',
-    value: item.price,
+    value: purchasePrice,
   };
 
   const existingInventory = (character.inventory as typeof newItem[]) || [];
@@ -275,7 +289,7 @@ router.post('/:id/purchase', requireAuth, async (req: AuthRequest, res: Response
 
   const { data: updated, error: updateError } = await supabaseAdmin
     .from('characters')
-    .update({ gold: character.gold - item.price, inventory: merged })
+    .update({ gold: character.gold - purchasePrice, inventory: merged })
     .eq('id', id)
     .select()
     .single();
@@ -291,9 +305,9 @@ router.post('/:id/purchase', requireAuth, async (req: AuthRequest, res: Response
 // Validated sell — server verifies item exists before applying
 router.post('/:id/sell', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const { itemName, sellPrice } = req.body as { itemName: string; sellPrice: number };
+  const { itemName } = req.body as { itemName: string; sellPrice: number };
 
-  if (!itemName || typeof sellPrice !== 'number' || sellPrice < 0) {
+  if (!itemName) {
     res.status(400).json({ error: 'Invalid sell request' });
     return;
   }
@@ -310,13 +324,15 @@ router.post('/:id/sell', requireAuth, async (req: AuthRequest, res: Response): P
     return;
   }
 
-  const inventory = (character.inventory as { name: string; quantity: number }[]) || [];
+  const inventory = (character.inventory as { name: string; quantity: number; value?: number; price?: number }[]) || [];
   const itemIndex = inventory.findIndex(i => i.name.toLowerCase() === itemName.toLowerCase());
   if (itemIndex === -1) {
     res.status(400).json({ error: 'Item not in inventory' });
     return;
   }
 
+  const itemValue = inventory[itemIndex].value ?? inventory[itemIndex].price ?? 1;
+  const sellPrice = Math.max(1, Math.floor(itemValue * 0.5));
   const updatedInventory = [...inventory];
   if (updatedInventory[itemIndex].quantity > 1) {
     updatedInventory[itemIndex] = { ...updatedInventory[itemIndex], quantity: updatedInventory[itemIndex].quantity - 1 };
