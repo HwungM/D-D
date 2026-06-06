@@ -198,10 +198,10 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
         <div className="px-4 pb-3 -mt-10 relative z-10">
           <h3 className="font-fantasy text-xl" style={{ color: '#e8d4a8', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>{character.name}</h3>
           <p className="font-serif text-xs mt-0.5" style={{ color: 'rgba(200,146,42,0.7)' }}>
-            {character.race} {character.class}{character.subclass ? ` · ${character.subclass}` : ''} · Level {character.level}
+            {character.race} {character.class}{character.subclass ? ` Â· ${character.subclass}` : ''} Â· Level {character.level}
           </p>
           {!character.is_alive && (
-            <p className="font-sans text-xs font-bold uppercase tracking-widest mt-1" style={{ color: '#f87171' }}>✝ Fallen</p>
+            <p className="font-sans text-xs font-bold uppercase tracking-widest mt-1" style={{ color: '#f87171' }}>âœ Fallen</p>
           )}
         </div>
       </div>
@@ -241,12 +241,11 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
             {(Object.keys(STAT_LABELS) as (keyof CharacterStats)[]).map(stat => {
               const val = character.stats[stat]
               const mod = Math.floor((val - 10) / 2)
-              const modStr = mod >= 0 ? `+${mod}` : `${mod}`
               return (
                 <div key={stat} className="text-center py-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
                   <div className="text-xs mb-0.5" style={{ color: 'rgba(160,140,110,0.45)', letterSpacing: '0.1em' }}>{STAT_LABELS[stat]}</div>
                   <div className="font-serif text-xl leading-none" style={{ color: '#d4c5a0' }}>{val}</div>
-                  <div className="text-xs mt-0.5 font-mono" style={{ color: mod >= 0 ? 'rgba(100,180,100,0.7)' : 'rgba(220,80,80,0.7)' }}>{modStr}</div>
+                  <div className="text-xs mt-0.5 font-mono" style={{ color: mod >= 0 ? 'rgba(100,180,100,0.7)' : 'rgba(220,80,80,0.7)' }}>{statMod(val)}</div>
                 </div>
               )
             })}
@@ -280,7 +279,7 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
                       color,
                     }}
                   >
-                    {effect.type === 'buff' ? '↑' : effect.type === 'debuff' ? '↓' : '~'} {effect.name}
+                    {effect.type === 'buff' ? 'â†‘' : effect.type === 'debuff' ? 'â†“' : '~'} {effect.name}
                     {effect.duration && <span style={{ opacity: 0.5 }}> ({effect.duration})</span>}
                   </div>
                 )
@@ -297,7 +296,7 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
               className="w-full flex items-center justify-between mb-2"
             >
               <span className="text-xs uppercase tracking-widest" style={{ color: 'rgba(160,140,110,0.45)' }}>Abilities</span>
-              <span className="text-xs" style={{ color: 'rgba(160,140,110,0.3)' }}>{abilitiesOpen ? '▲' : `▼ ${character.abilities.length}`}</span>
+              <span className="text-xs" style={{ color: 'rgba(160,140,110,0.3)' }}>{abilitiesOpen ? 'â–²' : `â–¼ ${character.abilities.length}`}</span>
             </button>
             {abilitiesOpen && (
               <div className="space-y-1.5">
@@ -323,7 +322,7 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
           >
             <span className="text-xs uppercase tracking-widest" style={{ color: 'rgba(160,140,110,0.45)' }}>Inventory</span>
             <span className="text-xs" style={{ color: 'rgba(160,140,110,0.3)' }}>
-              {inventoryOpen ? '▲ Hide' : `▼ ${character.inventory.length} items`}
+              {inventoryOpen ? 'â–² Hide' : `â–¼ ${character.inventory.length} items`}
             </span>
           </button>
           {inventoryOpen && (
@@ -364,7 +363,7 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
                         )}
                         {props?.effect && (
                           <p className="text-xs truncate" style={{ color: 'rgba(160,140,110,0.5)', fontSize: '10px' }}>
-                            {props.effect.slice(0, 60)}{props.effect.length > 60 ? '…' : ''}
+                            {props.effect.slice(0, 60)}{props.effect.length > 60 ? 'â€¦' : ''}
                           </p>
                         )}
                         {!props?.effect && item.description && (
@@ -374,7 +373,7 @@ export default function CharacterSheet({ character }: CharacterSheetProps) {
                           <p className="text-xs" style={{ color: 'rgba(160,120,80,0.5)', fontSize: '9px' }}>Single use</p>
                         )}
                       </div>
-                      {item.quantity > 1 && <span className="text-xs shrink-0" style={{ color: 'rgba(160,140,110,0.4)' }}>×{item.quantity}</span>}
+                      {item.quantity > 1 && <span className="text-xs shrink-0" style={{ color: 'rgba(160,140,110,0.4)' }}>Ã—{item.quantity}</span>}
                     </div>
                   )
                 })}
