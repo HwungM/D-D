@@ -84,6 +84,14 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
     merged.actGoalsAchieved = Array.from(new Set([...(current.actGoalsAchieved || []), ...changes.actGoalsAchieved]));
   }
 
+  // shopInventory: merge by location key
+  if (changes.shopInventory) {
+    merged.shopInventory = { ...(current.shopInventory || {}), ...changes.shopInventory };
+  }
+
+  // activeNPC: direct set
+  if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
+
   // Simple scalar fields
   for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
@@ -599,9 +607,29 @@ export async function processAction(
         pacingMode: aiResponse.pacingMode || prevSceneState?.pacingMode || 'exploration',
       };
 
+  // Track active NPC from AI response
+  const activeNPCChange: Partial<WorldState> = {};
+  if (aiResponse.activeNPC !== undefined) {
+    activeNPCChange.activeNPC = aiResponse.activeNPC;
+  }
+
+  // Persist shop inventory per location so it doesn't regenerate each visit
+  const shopInventoryChange: Partial<WorldState> = {};
+  if (aiResponse.isMerchant && aiResponse.shopItems && aiResponse.shopItems.length > 0) {
+    const location = (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation || 'unknown';
+    const existingInventory = ws.shopInventory?.[location];
+    if (!existingInventory) {
+      shopInventoryChange.shopInventory = { ...(ws.shopInventory || {}), [location]: aiResponse.shopItems as ShopItem[] };
+    } else {
+      aiResponse.shopItems = existingInventory;
+    }
+  }
+
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
     ...locationTracking,
+    ...activeNPCChange,
+    ...shopInventoryChange,
     combatState,
     currentSceneSummary,
     actionsSinceLastSummary,
