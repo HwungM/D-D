@@ -189,6 +189,8 @@ export interface WorldState {
   pendingTurn?: {
     actions: { characterId: string; userId: string; action: string; characterName: string; submittedAt: string }[];
     roundId: string;
+    createdAt?: string;
+    expiresAt?: string;
   } | null;
 }
 
