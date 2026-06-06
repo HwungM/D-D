@@ -51,7 +51,14 @@ STATUS EFFECTS RULES:
 SHOP/MERCHANT RULES:
 - When the character encounters a merchant, trader, or shop, set isMerchant: true and populate shopItems.
 - shopItems: array of {id, name, description, type, price, quantity} — 4-8 items appropriate to the setting.
+- IMPORTANT: A merchant's inventory does NOT change between visits. If the player has visited this merchant before (check npcMemory), use the SAME items they had before. Only generate new items for a brand new merchant never seen before.
 - The player can then choose to buy items (handled separately). Do not auto-deduct gold.
+
+NPC CONVERSATION TRACKING:
+- When the character begins talking to a specific NPC, set worldStateChanges.activeNPC to that NPC's name.
+- When the character leaves a conversation (walks away, changes scene), set worldStateChanges.activeNPC to null.
+- ALWAYS check the ACTIVE NPC field before writing dialogue. If activeNPC is "Father Garrick", the character is talking to Father Garrick — not anyone else.
+- Never write dialogue attributed to an NPC who is not present in the current scene.
 
 ACT PROGRESSION RULES:
 - When a major story milestone is reached (a major villain defeated, a crucial revelation, a catastrophic loss), set advanceAct: true.
@@ -162,6 +169,7 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "hpChange": number | null,
   "isMerchant": boolean,
   "shopItems": [{"id": "item-id", "name": "item name", "description": "one sentence", "type": "weapon|armor|potion|misc|key", "price": 10, "quantity": 1}] | null,
+  "activeNPC": "NPC name currently in conversation with, or null if leaving/no conversation",
   "advanceAct": boolean,
   "statusEffectChanges": {"add": [{"name": "string", "description": "string", "type": "buff|debuff|neutral", "duration": number | null}], "remove": ["effect name"]} | null,
   "sessionNote": "string — one sentence summary of what happened, added to DM notes" | null,
@@ -249,6 +257,7 @@ export type NarrationResult = {
   hpChange?: number;
   isMerchant?: boolean;
   shopItems?: { id: string; name: string; description: string; type: string; price: number; quantity: number }[];
+  activeNPC?: string | null;
   advanceAct?: boolean;
   statusEffectChanges?: { add?: { name: string; description: string; type: string; duration?: number }[]; remove?: string[] };
   sessionNote?: string;
@@ -399,6 +408,7 @@ WORLD BIBLE:
 WORLD STATE:
 - Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
 - Discovered: ${(worldState.discoveredLocations || []).slice(0, 5).join(', ') || 'none yet'}
+- ACTIVE NPC: ${worldState.activeNPC || 'none — character is not in conversation with anyone specific'}
 ${npcContext}${questContext}
 
 CHARACTER: ${character.name} (${character.race} ${character.class}, Level ${character.level})${unusualNote}
@@ -490,6 +500,7 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
     hpChange: (parsed.hpChange as number) ?? undefined,
     isMerchant: (parsed.isMerchant as boolean) || false,
     shopItems: (parsed.shopItems as NarrationResult['shopItems']) || undefined,
+    activeNPC: parsed.activeNPC !== undefined ? (parsed.activeNPC as string | null) : undefined,
     advanceAct: (parsed.advanceAct as boolean) || false,
     statusEffectChanges: (parsed.statusEffectChanges as NarrationResult['statusEffectChanges']) || undefined,
     sessionNote: (parsed.sessionNote as string) || undefined,

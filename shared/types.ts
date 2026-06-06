@@ -159,6 +159,8 @@ export interface WorldState {
     roundNumber: number;
     playerActionsAttempted: string[];
   } | null;
+  activeNPC?: string | null;
+  shopInventory?: Record<string, ShopItem[]>;
 }
 
 export interface WorldBible {
