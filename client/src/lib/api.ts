@@ -40,7 +40,8 @@ export const authApi = {
 // Campaigns
 export const campaignApi = {
   getSeeds: () => api.get('/campaigns/seeds'),
-  create: (name: string, storySeed: string, campaignType?: 'adventure' | 'testing') => api.post('/campaigns', { name, storySeed, campaignType }),
+  create: (name: string, storySeed: string, campaignType?: 'adventure' | 'testing', playerPreferences?: { tone: string; favoritePillars: string[]; playerCount: number; characterConcepts: string[] }) =>
+    api.post('/campaigns', { name, storySeed, campaignType, playerPreferences }),
   list: () => api.get('/campaigns'),
   get: (id: string) => api.get(`/campaigns/${id}`),
   join: (id: string) => api.post(`/campaigns/${id}/join`),
@@ -85,6 +86,8 @@ export const gameApi = {
     api.post('/game/resolve-roll', data),
   devKill: (characterId: string) => api.post(`/game/dev-kill/${characterId}`),
   devClearCombat: (campaignId: string) => api.post(`/game/dev-clear-combat/${campaignId}`),
+  epilogue: (campaignId: string, characterId: string, victory: boolean) =>
+    api.post(`/game/epilogue/${campaignId}/${characterId}`, { victory }),
 }
 
 // TTS

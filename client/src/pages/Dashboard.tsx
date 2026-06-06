@@ -153,16 +153,6 @@ export default function Dashboard() {
     }).finally(() => setLoading(false))
   }, [])
 
-  function openNewCampaign() {
-    setSeeds(pickRandom4())
-    setSelectedSeed(null)
-    setCampaignName('')
-    setUseCustomPremise(false)
-    setCustomPremise('')
-    setCampaignError('')
-    setShowNewCampaign(true)
-  }
-
   function refreshSeeds() {
     const currentIds = seeds.map(s => s.id)
     setSelectedSeed(null)
@@ -343,7 +333,7 @@ export default function Dashboard() {
               <p className="text-xs font-serif mt-1" style={{ color: 'rgba(180,160,120,0.5)', letterSpacing: '0.1em' }}>ONGOING LEGENDS</p>
             </div>
             <button
-              onClick={openNewCampaign}
+              onClick={() => navigate('/create-campaign')}
               className="flex items-center gap-2 px-4 py-2 font-serif text-sm transition-all"
               style={{
                 background: 'linear-gradient(135deg, rgba(192,57,43,0.2), rgba(120,30,20,0.3))',
@@ -369,7 +359,7 @@ export default function Dashboard() {
             }}>
               <div className="text-4xl mb-4 opacity-30">⚔</div>
               <p className="font-serif italic text-sm mb-4" style={{ color: 'rgba(180,160,120,0.5)' }}>No campaigns yet. The realm awaits your tale.</p>
-              <button onClick={openNewCampaign} className="fantasy-btn text-xs">Begin a Campaign</button>
+              <button onClick={() => navigate('/create-campaign')} className="fantasy-btn text-xs">Begin a Campaign</button>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

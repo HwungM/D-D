@@ -59,6 +59,7 @@ export interface CharacterStats {
 export interface Ability {
   name: string;
   description: string;
+  mechanic?: string; // exact mechanical effect: what numbers change, what conditions apply
   cooldown?: number;
   currentCooldown?: number;
 }
@@ -105,6 +106,17 @@ export interface NpcMemory {
   disposition: 'friendly' | 'neutral' | 'hostile' | 'unknown';
   notes: string;
   metCharacters?: string[];  // character names this NPC has met
+  interactionCount?: number; // incremented each time this NPC appears in worldStateChanges
+  isKeyNPC?: boolean;        // if true, pinned to keyNPCs and never pruned
+}
+
+export interface CombatEnemy {
+  name: string;
+  archetype: 'beast' | 'soldier' | 'mage' | 'boss' | 'minion';
+  maxHp: number;
+  condition: 'healthy' | 'wounded' | 'critical';
+  isDefeated?: boolean;
+  specialAbility?: string; // one-line description of what makes them dangerous
 }
 
 export interface CharacterOnlineStatus {
@@ -154,15 +166,25 @@ export interface WorldState {
   };
   combatState?: {
     inCombat: boolean;
-    enemyName: string;
+    enemyName: string;  // primary/focused enemy for backward compat
     enemyCondition: 'healthy' | 'wounded' | 'critical';
     roundNumber: number;
     playerActionsAttempted: string[];
+    // Multi-enemy support
+    enemies?: CombatEnemy[];
+    isBossFight?: boolean;
+    bossPhase?: number;
   } | null;
   activeNPC?: string | null;
   shopInventory?: Record<string, ShopItem[]>;
+  keyNPCs?: NpcMemory[];         // pinned NPCs that survive the rolling 20-NPC cap, max 8
+  actionsInCurrentAct?: number;  // resets to 0 each time the act advances
   endgamePhase?: 'none' | 'approaching' | 'confrontation';
   actionCount?: number; // total actions taken this campaign, used for villain move timing
+  futureHooks?: { id: string; description: string; source: string; createdAt: string; resolved: boolean }[];
+  spotlightBalance?: Record<string, number>;  // characterId -> spotlight moment count
+  pendingDirectorBeat?: { beat: string; urgency: 'low' | 'high' | 'critical'; expiresAfter: number } | null;
+  lastPillarUsed?: string[];  // last 5 scene pillars used, for three-pillar balance tracking
 }
 
 export interface WorldBible {
@@ -178,6 +200,41 @@ export interface WorldBible {
   antagonistRoster: Antagonist[];
   openingHooks: string[];
   dmRoadmap?: DmRoadmap;
+  lieutenant?: Antagonist;
+  plotTwist?: string;
+  mysteryLayer?: {
+    centralQuestion: string;
+    clues: string[];
+    redHerrings: string[];
+    revelation: string;
+  };
+  safeHaven?: {
+    name: string;
+    description: string;
+    keyNPC: string;
+    flavor: string;
+  };
+  toneBreaks?: string[];
+  futureHookSeeds?: string[];
+  campaignBrief?: {
+    hook: string;
+    objective: string;
+    motivation: string;
+    whereToStart: string;
+    worldStakes: string;
+    characterStakes: string;
+    mysteryHint: string;
+  };
+  spotlightDesign?: {
+    sharedMoments: string[];
+    encounterCurve: string;
+  };
+  playerPreferences?: {
+    tone: string;
+    favoritePillars: string[];
+    playerCount: number;
+    characterConcepts: string[];
+  };
 }
 
 export interface GeographyEntry {
@@ -276,6 +333,10 @@ export interface ActionResult {
   isMerchant?: boolean;
   advanceAct?: boolean;
   statusEffectChanges?: { add?: StatusEffect[]; remove?: string[] };
+  combatEnemies?: CombatEnemy[];
+  enemyDefeated?: string;
+  isBossFight?: boolean;
+  bossPhaseAdvance?: boolean;
   isHighStakes?: boolean;
   choiceCards?: HighStakesChoice[];
   characterHistoryNote?: CharacterHistoryEntry;
