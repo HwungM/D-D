@@ -823,6 +823,7 @@ export async function processAction(
     ...(ledgerChanges.length > 0 ? { foreshadowingLedger: ledgerChanges } : {}),
     ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
     ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
+    ...(aiResponse.isHighStakes ? { lastHighStakesAction: newActionCount } : {}),
     pendingDirectorBeat: aiResponse.directorBeatExecuted
       ? null
       : (ws.pendingDirectorBeat && newActionCount <= ws.pendingDirectorBeat.expiresAfter
@@ -1185,6 +1186,13 @@ export async function processCoopAction(
   // Build world state changes (tracking both characters)
   const newActionCount = (ws.actionCount || 0) + 1;
   const newActionsInCurrentAct = (ws.actionsInCurrentAct || 0) + 1;
+
+  // Update spotlight balance
+  const currentBalance = { ...(ws.spotlightBalance || {}) };
+  if (aiResponse.spotlightCharacterId) {
+    currentBalance[aiResponse.spotlightCharacterId] = (currentBalance[aiResponse.spotlightCharacterId] || 0) + 1;
+  }
+
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
     actionCount: newActionCount,
@@ -1194,6 +1202,7 @@ export async function processCoopAction(
       ...Object.fromEntries(pendingActions.map(pa => [pa.characterId, new Date().toISOString()])),
     },
     pendingTurn: null,
+    spotlightBalance: currentBalance,
   };
 
   // Apply consequences to Character 1

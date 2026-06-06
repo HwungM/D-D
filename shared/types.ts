@@ -181,6 +181,7 @@ export interface WorldState {
   actionsInCurrentAct?: number;  // resets to 0 each time the act advances
   endgamePhase?: 'none' | 'approaching' | 'confrontation';
   actionCount?: number; // total actions taken this campaign, used for villain move timing
+  lastHighStakesAction?: number; // actionCount value when the last high stakes moment fired
   futureHooks?: { id: string; description: string; source: string; createdAt: string; resolved: boolean }[];
   spotlightBalance?: Record<string, number>;  // characterId -> spotlight moment count
   pendingDirectorBeat?: { beat: string; urgency: 'low' | 'high' | 'critical'; expiresAfter: number } | null;

@@ -41,9 +41,9 @@ class AudioManager {
   private ambientTrack: HTMLAudioElement | null = null
   private gameplayTrack: HTMLAudioElement | null = null
   private currentAmbientType = 'default'
-  private musicEnabled = true
-  private sfxEnabled = true
-  private musicVolume = 0.4
+  private musicEnabled = localStorage.getItem('audio_music') !== 'false'
+  private sfxEnabled = localStorage.getItem('audio_sfx') !== 'false'
+  private musicVolume = parseFloat(localStorage.getItem('audio_music_vol') || '0.4')
   private ambientVolume = 0.25
   private sfxVolume = 0.7
   private combatIndex = 0
@@ -240,6 +240,7 @@ class AudioManager {
 
   toggleMusic() {
     this.musicEnabled = !this.musicEnabled
+    localStorage.setItem('audio_music', String(this.musicEnabled))
     if (!this.musicEnabled) {
       this.stopMusic()
       this.stopGameplay()
@@ -253,11 +254,13 @@ class AudioManager {
 
   toggleSfx() {
     this.sfxEnabled = !this.sfxEnabled
+    localStorage.setItem('audio_sfx', String(this.sfxEnabled))
     return this.sfxEnabled
   }
 
   setMusicVolume(vol: number) {
     this.musicVolume = vol
+    localStorage.setItem('audio_music_vol', String(vol))
     if (this.currentMusic) this.currentMusic.volume = vol
     if (this.gameplayTrack) this.gameplayTrack.volume = vol * 0.7
   }

@@ -84,10 +84,23 @@ ANTAGONIST AWARENESS RULES:
 - Always advance the current antagonist step subtly in background events when narratively appropriate.
 - Set antagonistUpdate in response when antagonist situation changes.
 
-HIGH STAKES DETECTION:
-- Set isHighStakes: true when the moment is a major pivot: moral dilemma with no right answer, irreversible act, betrayal, major sacrifice, meeting a primary antagonist agent for the first time.
-- When isHighStakes: true, generate choiceCards (2-3 options). Each has title (3-5 words), description (1 sentence, evocative), consequenceHint (vague, ominous, not a spoiler).
-- When isHighStakes: true, keep narration shorter and more tense. Build to the choice.
+HIGH STAKES DETECTION — MANDATORY TRIGGERS:
+You MUST set isHighStakes: true and generate choiceCards in these situations — no exceptions:
+1. The character meets a named antagonist or their direct agent for the first time
+2. An NPC the character has a relationship with is in danger or makes a request that costs something
+3. The character discovers a major secret or revelation that changes what they thought was true
+4. The character is offered a deal, alliance, or betrayal opportunity with real consequences
+5. The character faces a situation where violence and non-violence are both viable but lead to very different outcomes
+6. Any moment where the character must choose between personal gain and doing the right thing
+7. A backstory element from the character's past directly confronts them
+
+When isHighStakes: true:
+- Generate exactly 2-3 choiceCards. Each has: title (3-5 words, action-oriented), description (1 sentence, what this choice means), consequenceHint (vague, ominous or hopeful — NOT a spoiler)
+- Keep narration tight and tense — build to the choice, don't resolve it
+- The choice cards replace the suggestedActions array — set suggestedActions to []
+- DO NOT set isHighStakes for routine combat, minor decisions, or exploration without moral weight
+
+FREQUENCY: High stakes moments should appear roughly every 6-10 actions in a normal session. If it has been more than 10 actions since the last high stakes moment, look for an opportunity to create one naturally.
 
 CHARACTER HISTORY RULES:
 - Set characterHistoryNote when the player makes a significant choice that should echo forward: sparing/killing someone important, making an oath, gaining a powerful enemy, doing something morally significant.
@@ -576,6 +589,7 @@ WORLD STATE:
 - Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
 - Discovered: ${(worldState.discoveredLocations || []).slice(0, 5).join(', ') || 'none yet'}
 - ACTIVE NPC: ${worldState.activeNPC || 'none — character is not in conversation with anyone specific'}
+- Actions since last high-stakes moment: ${worldState.actionCount ? (worldState.actionCount - (worldState.lastHighStakesAction || 0)) : 'unknown'}
 ${keyNpcContext}${npcContext}${questContext}
 
 CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATION: ${worldState.currentLocation || 'Unknown'}
@@ -868,6 +882,17 @@ Abilities available: ${abilities.length > 0 ? abilities.map(a => `${a.name}${a.m
 Notable inventory: ${c.inventory.slice(0, 4).map(i => i.name).join(', ') || 'nothing special'}`;
   }
 
+  const spotlightBalance = worldState.spotlightBalance || {}
+  const char1Spotlights = spotlightBalance[c1.id] || 0
+  const char2Spotlights = spotlightBalance[c2.id] || 0
+  const spotlightDiff = char1Spotlights - char2Spotlights
+
+  const spotlightDirective = spotlightDiff > 2
+    ? `SPOTLIGHT NOTE: ${c1.name} has had significantly more spotlight moments (${char1Spotlights} vs ${char2Spotlights}). This scene should lean toward ${c2.name}'s action being the one that drives the outcome. Make their contribution feel more decisive.`
+    : spotlightDiff < -2
+    ? `SPOTLIGHT NOTE: ${c2.name} has had significantly more spotlight moments (${char2Spotlights} vs ${char1Spotlights}). This scene should lean toward ${c1.name}'s action being the one that drives the outcome. Make their contribution feel more decisive.`
+    : ''
+
   const worldContext = `WORLD: ${worldBible.era} | ${worldBible.magicSystem}
 Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
 Central conflict: ${worldBible.centralConflict || ''}
@@ -883,7 +908,7 @@ ${recentHistory.slice(-6).join('\n')}
 
 CHARACTER 1 (${c1.name}) ACTION: ${a1.action}
 CHARACTER 2 (${c2.name}) ACTION: ${a2.action}
-
+${spotlightDirective ? `\n${spotlightDirective}` : ''}
 Write ONE unified narration (200-300 words) weaving both actions together. Apply the CO-OP NARRATION RULES.
 
 Respond with JSON:

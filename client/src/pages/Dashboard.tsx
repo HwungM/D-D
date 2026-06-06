@@ -135,7 +135,9 @@ export default function Dashboard() {
   const [continuingId, setContinuingId] = useState<string | null>(null)
   const [creatingTestWorld, setCreatingTestWorld] = useState(false)
 
-  const [audioUnlocked, setAudioUnlocked] = useState(() => localStorage.getItem('audioUnlocked') === '1')
+  const [audioUnlocked, setAudioUnlocked] = useState(() =>
+    localStorage.getItem('audioUnlocked') === '1' || localStorage.getItem('audio_music') === 'true'
+  )
 
   function unlockAudio() {
     audioManager.startAmbient()
