@@ -1042,6 +1042,13 @@ export async function resolveRollAction(
 
   return {
     narration: aiResponse.narration,
+    diceRoll: {
+      sides: 20,
+      rolls: [rollResult],
+      modifier: rollTotal - rollResult,
+      total: rollTotal,
+      description: `${rollContext.stat.toUpperCase()} check vs DC ${dc}`,
+    },
     worldStateChanges: aiResponse.worldStateChanges as Partial<WorldState>,
     characterChanges: {
       hp: updatedCharacter.hp,
