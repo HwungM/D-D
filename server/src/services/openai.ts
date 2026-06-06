@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { supabaseAdmin } from './supabase';
-import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext, CharacterOnlineStatus } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext, CharacterOnlineStatus, NpcMemory, CombatEnemy } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
 
 dotenv.config();
@@ -33,6 +33,7 @@ WORLD MEMORY RULES:
 - Update worldStateChanges.activeQuests when a quest begins, progresses, or resolves.
 - Always update worldStateChanges.currentLocation when the party moves to a new place.
 - worldStateChanges follows the same shape as the worldState object — only include fields that actually changed.
+- KEY NPCs: When an NPC is plot-critical (antagonist agent, love interest, mentor, betrayer, major ally), set isKeyNPC: true in their npcMemory entry. This pins them permanently so they are never forgotten between sessions.
 
 LOOT RULES:
 - Only award loot when narratively earned: defeating enemies, looting bodies/containers, finding hidden caches, completing quests.
@@ -66,9 +67,10 @@ NPC CONVERSATION TRACKING:
 - Never write dialogue attributed to an NPC who is not present in the current scene.
 
 ACT PROGRESSION RULES:
-- When a major story milestone is reached (a major villain defeated, a crucial revelation, a catastrophic loss), set advanceAct: true.
-- This signals a chapter transition — use it sparingly, only for truly pivotal moments.
-- When advancing act, write a more dramatic, conclusive narration that wraps the current chapter.
+- When the act climax event occurs (the one listed in DM ROADMAP), set advanceAct: true.
+- The DM ROADMAP shows exactly what the act climax is. Execute it. Don't invent a different climax.
+- When advancing act, write a dramatic conclusive narration that wraps the chapter — a "things will never be the same" moment.
+- If DM ROADMAP shows ⚠ ACT OVERDUE or 🔴 CRITICAL, you MUST trigger the climax this turn. Do not stall.
 
 NARRATIVE TIER RULES (based on character level):
 - Level 1-3 (EMERGING): Local threats only. NPCs don't know the character yet. Stakes are personal.
@@ -123,6 +125,14 @@ In your JSON response, always include:
 
 PROACTIVE WORLD EVENTS:
 - Sometimes (not always, use judgment), set proactiveEvent: true and include a worldEvent in the narration preamble — something the WORLD did, not the player. The antagonist advanced their plan. A faction moved. A rumor reached town. Something changed without the player causing it.
+
+MULTI-ENEMY COMBAT RULES:
+- When starting combat with multiple enemies, set combatEnemies: [{name, archetype, maxHp, condition, specialAbility}] for each enemy.
+- archetype: "beast" (savage, fearless), "soldier" (tactical, coordinated), "mage" (ranged, vulnerable melee), "boss" (legendary, multi-phase), "minion" (numerous, fragile)
+- Each round, return combatEnemies[] reflecting current state. When an enemy falls, set their isDefeated: true AND set enemyDefeated to their name.
+- Each archetype fights differently: soldiers shield each other, mages hang back, minions rush in waves, beasts go for killing blows.
+- Boss fights: set isBossFight: true on combat start. When boss condition reaches "critical", set bossPhaseAdvance: true and describe a dramatic transformation — the boss gets more dangerous, not less.
+- Suggest actions that are class-appropriate and reference available abilities.
 
 DICE ROLLING RULES:
 - When an action requires a skill check or attack, set awaitingRoll: true instead of narrating the outcome.
@@ -190,6 +200,10 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "paidOffForeshadowing": ["foreshadowing-id-being-resolved"] | null,
   "backstoryHookActivated": "characterId if seeding a dormant hook this turn" | null,
   "actGoalAchieved": "exact text of an act goal from the roadmap if one was fulfilled this turn" | null,
+  "combatEnemies": [{"name": "string", "archetype": "beast|soldier|mage|boss|minion", "maxHp": number, "condition": "healthy|wounded|critical", "isDefeated": boolean, "specialAbility": "string|null"}] | null,
+  "enemyDefeated": "enemy name if one died this round" | null,
+  "isBossFight": boolean,
+  "bossPhaseAdvance": boolean,
   "awaitingRoll": boolean,
   "rollContext": {
     "stat": "str|dex|con|int|wis|cha",
@@ -284,6 +298,10 @@ export type NarrationResult = {
   isRest?: boolean;
   triggerFinalConfrontation?: boolean;
   endgameResolved?: boolean;
+  combatEnemies?: CombatEnemy[];
+  enemyDefeated?: string;
+  isBossFight?: boolean;
+  bossPhaseAdvance?: boolean;
 };
 
 export type NarrationCampaignContext = {
@@ -299,6 +317,9 @@ export type NarrationCampaignContext = {
   backstoryHooks?: import('../../../shared/types').BackstoryHook[];
   actGoalsAchieved?: string[];
   forceComplication?: boolean;
+  actionsInCurrentAct?: number;
+  keyNPCs?: NpcMemory[];
+  mustIntroduceStatus?: Record<string, boolean>;
 };
 
 function buildNarrationMessages(
@@ -349,9 +370,16 @@ ${onCooldown.length > 0 ? onCooldown.map(a => `- ${a.name} [ON COOLDOWN]`).join(
     s.cha >= 15 ? `CHA ${s.cha} → can persuade, deceive, perform, intimidate socially` : s.cha <= 8 ? `CHA ${s.cha} → avoid diplomacy/charm options in suggestedActions` : null,
   ].filter(Boolean).join('; ');
 
-  // Build NPC memory context
-  const npcContext = worldState.npcMemory && worldState.npcMemory.length > 0
-    ? `\nKNOWN NPCs (they remember the character):\n${worldState.npcMemory.slice(0, 6).map(n => `- ${n.name} [${n.disposition}]: ${n.notes}`).join('\n')}`
+  // Build NPC memory context — key NPCs always shown, then rolling recent NPCs
+  const keyNPCs = campaignContext?.keyNPCs || [];
+  const keyNpcNames = new Set(keyNPCs.map(n => n.name));
+  const rollingNPCs = (worldState.npcMemory || []).filter(n => !keyNpcNames.has(n.name));
+
+  const keyNpcContext = keyNPCs.length > 0
+    ? `\n━━━ KEY NPCs (important — always remember these) ━━━\n${keyNPCs.map(n => `- ${n.name} [${n.disposition}] ★: ${n.notes}`).join('\n')}`
+    : '';
+  const npcContext = rollingNPCs.length > 0
+    ? `\nRECENT NPCs:\n${rollingNPCs.slice(-6).map(n => `- ${n.name} [${n.disposition}]: ${n.notes}`).join('\n')}`
     : '';
 
   // Build quest context
@@ -360,13 +388,25 @@ ${onCooldown.length > 0 ? onCooldown.map(a => `- ${a.name} [ON COOLDOWN]`).join(
     : '';
 
   const combatState = worldState.combatState;
-  const combatBlock = combatState?.inCombat ? `
+  let combatBlock = '';
+  if (combatState?.inCombat) {
+    const enemyLines = combatState.enemies && combatState.enemies.length > 0
+      ? combatState.enemies.map(e =>
+          `  ${e.isDefeated ? '✗ DEFEATED' : '▶'} ${e.name} [${e.archetype.toUpperCase()}] — ${e.condition.toUpperCase()}${e.specialAbility ? ` | ${e.specialAbility}` : ''}`
+        ).join('\n')
+      : `  ${combatState.enemyName} — ${combatState.enemyCondition.toUpperCase()}`;
+    const bossLine = combatState.isBossFight
+      ? `\nBOSS FIGHT — Phase ${combatState.bossPhase || 1}. When boss reaches critical, advance to next phase (set bossPhaseAdvance: true). Each phase changes the boss's tactics and appearance dramatically.`
+      : '';
+    combatBlock = `
 ━━━ ACTIVE COMBAT ━━━
-ENEMY: ${combatState.enemyName} — Condition: ${combatState.enemyCondition.toUpperCase()} | Round: ${combatState.roundNumber}
-PLAYER HP: ${character.hp}/${character.max_hp}
+Round: ${combatState.roundNumber} | Player HP: ${character.hp}/${character.max_hp}
+ENEMIES:
+${enemyLines}${bossLine}
 ACTIONS ALREADY TRIED: ${combatState.playerActionsAttempted.slice(-5).join(', ') || 'none yet'}
-COMBAT RULE: Maintain enemy continuity. The ${combatState.enemyName} remembers every action taken so far. Do NOT reset the fight.
-━━━━━━━━━━━━━━━━━━━━━` : '';
+RULES: Maintain enemy continuity — they remember every action. When an enemy is defeated, set enemyDefeated to their name. Set combatEnemies[] in every response to reflect current state.
+━━━━━━━━━━━━━━━━━━━━━`;
+  }
 
   const sceneSummaryBlock = worldState.currentSceneSummary ? `
 CURRENT SITUATION (summary of what is happening RIGHT NOW):
@@ -414,7 +454,7 @@ WORLD STATE:
 - Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
 - Discovered: ${(worldState.discoveredLocations || []).slice(0, 5).join(', ') || 'none yet'}
 - ACTIVE NPC: ${worldState.activeNPC || 'none — character is not in conversation with anyone specific'}
-${npcContext}${questContext}
+${keyNpcContext}${npcContext}${questContext}
 
 CHARACTER: ${character.name} (${character.race} ${character.class}, Level ${character.level})${unusualNote}
 HP: ${character.hp}/${character.max_hp} | Gold: ${character.gold}
@@ -434,13 +474,36 @@ NARRATIVE TIER: ${campaignContext.act <= 1 && character.level <= 3 ? 'EMERGING �
 RECENT HISTORY:
 ${recentHistory.slice(-8).join('\n')}
 
-${campaignContext?.roadmap ? `━━━ DM ROADMAP ━━━
-Act ${campaignContext.act} goals (steer the story toward these):
-${(campaignContext.act === 1 ? campaignContext.roadmap.act1Goals : campaignContext.act === 2 ? campaignContext.roadmap.act2Goals : campaignContext.roadmap.act3ConvergenceThreads).map(g => `  ${(campaignContext.actGoalsAchieved || []).includes(g) ? '[DONE]' : '[ ]'} ${g}`).join('\n')}
-${campaignContext.act === 1 && campaignContext.roadmap.act1ClimaxEvent ? `Act 1 climax (build toward): ${campaignContext.roadmap.act1ClimaxEvent}` : ''}
-${campaignContext.act === 2 && campaignContext.roadmap.act2VillainEscalation ? `Act 2 villain move (make real): ${campaignContext.roadmap.act2VillainEscalation}` : ''}
-${campaignContext.act === 3 ? `Convergence — weave these threads: ${campaignContext.roadmap.act3ConvergenceThreads.join(' | ')}` : ''}
-━━━━━━━━━━━━━━━━━━` : ''}
+${campaignContext?.roadmap ? (() => {
+  const actNum = campaignContext.act;
+  const goals = actNum === 1 ? campaignContext.roadmap.act1Goals : actNum === 2 ? campaignContext.roadmap.act2Goals : campaignContext.roadmap.act3ConvergenceThreads;
+  const climaxEvent = actNum === 1 ? campaignContext.roadmap.act1ClimaxEvent : actNum === 2 ? campaignContext.roadmap.act2ClimaxEvent : campaignContext.roadmap.act3ClimaxEvent;
+  const actionsInAct = campaignContext.actionsInCurrentAct || 0;
+
+  // Must-introduce status for act 1
+  const mustIntro = actNum === 1 && campaignContext.roadmap.act1MustIntroduce?.length
+    ? `MUST INTRODUCE before act 1 ends:\n${campaignContext.roadmap.act1MustIntroduce.map(item => {
+        const appeared = campaignContext.mustIntroduceStatus?.[item] ?? false;
+        return `  ${appeared ? '[✓ appeared]' : '[✗ NOT YET]'} ${item}`;
+      }).join('\n')}\n`
+    : '';
+
+  // Escalating urgency based on actions in current act
+  let urgency = '';
+  if (actionsInAct >= 30) {
+    urgency = `\n🔴 CRITICAL ACT OVERRUN: Act ${actNum} has run ${actionsInAct} actions — FAR too long. The act climax must happen THIS turn or the next. Do not delay. Execute: "${climaxEvent}" NOW.`;
+  } else if (actionsInAct >= 20) {
+    urgency = `\n⚠ ACT OVERDUE: ${actionsInAct} actions in Act ${actNum} — the climax is overdue. Begin converging all threads toward: "${climaxEvent}" within the next 3 actions.`;
+  } else if (actionsInAct >= 12) {
+    urgency = `\n📍 Act ${actNum} is mature (${actionsInAct} actions). Start steering toward the climax: "${climaxEvent}". Unresolved goals and hooks must begin paying off.`;
+  }
+
+  return `━━━ DM ROADMAP ━━━
+Act ${actNum} goals (steer the story toward these):
+${goals.map(g => `  ${(campaignContext.actGoalsAchieved || []).includes(g) ? '[✓ DONE]' : '[ ]'} ${g}`).join('\n')}
+${mustIntro}Act ${actNum} climax (this MUST happen before act ends): ${climaxEvent}${actNum === 2 && campaignContext.roadmap.act2VillainEscalation ? `\nAct 2 villain escalation (make this real): ${campaignContext.roadmap.act2VillainEscalation}` : ''}${urgency}
+━━━━━━━━━━━━━━━━━━`;
+})() : ''}
 
 ${campaignContext?.foreshadowingLedger && campaignContext.foreshadowingLedger.filter(f => f.payoffStatus !== 'paid_off').length > 0 ? `━━━ FORESHADOWING LEDGER ━━━
 PLANTED — pay these off when dramatically right:
@@ -449,12 +512,21 @@ When you introduce something new that should echo later, include it in newForesh
 When you pay off a planted item, include its id in paidOffForeshadowing[].
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━` : ''}
 
-${campaignContext?.backstoryHooks && campaignContext.backstoryHooks.filter(h => h.status !== 'resolved').length > 0 ? `━━━ BACKSTORY HOOKS ━━━
-These character backstory threads must eventually be woven into the main plot:
-${campaignContext.backstoryHooks.filter(h => h.status !== 'resolved').map(h => `  [${h.characterName}] ${h.hook} — STATUS: ${h.status.toUpperCase()}`).join('\n')}
-Dormant = not yet seeded. Active = player has encountered it. Resolved = paid off.
-When you seed a dormant hook, set backstoryHookActivated to the characterId.
-━━━━━━━━━━━━━━━━━━━━━━` : ''}
+${campaignContext?.backstoryHooks && campaignContext.backstoryHooks.filter(h => h.status !== 'resolved').length > 0 ? (() => {
+  const actNum = campaignContext.act;
+  const actionsInAct = campaignContext.actionsInCurrentAct || 0;
+  const dormant = campaignContext.backstoryHooks!.filter(h => h.status === 'dormant');
+  const active = campaignContext.backstoryHooks!.filter(h => h.status === 'active');
+  const activeUrgency = active.length > 0 && actionsInAct >= 8
+    ? `\n🎯 ACTIVE hooks MUST be developed this act — they've been seeded, now escalate them toward payoff.`
+    : '';
+  const dormantUrgency = dormant.length > 0 && actionsInAct >= 15
+    ? `\n⚠ DORMANT hooks are overdue — seed at least one of them into the story NOW.`
+    : '';
+  return `━━━ BACKSTORY HOOKS ━━━
+${active.length > 0 ? `ACTIVE (seeded — escalate toward payoff):\n${active.map(h => `  ▶ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}${dormant.length > 0 ? `DORMANT (not yet introduced — seed these):\n${dormant.map(h => `  ○ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}Dormant = not yet seeded. Set backstoryHookActivated to characterId when seeding one.${activeUrgency}${dormantUrgency}
+━━━━━━━━━━━━━━━━━━━━━━`;
+})() : ''}
 
 ${campaignContext?.otherCharacters && campaignContext.otherCharacters.length > 0 ? `PARTY:
 ${campaignContext.otherCharacters.map(c => {
@@ -527,6 +599,10 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
     isRest: (parsed.isRest as boolean) || false,
     triggerFinalConfrontation: (parsed.triggerFinalConfrontation as boolean) || false,
     endgameResolved: (parsed.endgameResolved as boolean) || false,
+    combatEnemies: (parsed.combatEnemies as CombatEnemy[]) || undefined,
+    enemyDefeated: (parsed.enemyDefeated as string) || undefined,
+    isBossFight: (parsed.isBossFight as boolean) || false,
+    bossPhaseAdvance: (parsed.bossPhaseAdvance as boolean) || false,
   };
 }
 

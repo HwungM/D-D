@@ -18,20 +18,31 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   // currentLocation: only update if provided (for the acting character)
   if (changes.currentLocation) merged.currentLocation = changes.currentLocation;
 
-  // npcMemory: merge by name (upsert), preserving metCharacters from both sides
+  // npcMemory: merge by name (upsert), preserving metCharacters + interactionCount from both sides
   if (changes.npcMemory) {
     const npcArray = Array.isArray(changes.npcMemory) ? changes.npcMemory : Object.values(changes.npcMemory);
     const existing = new Map((current.npcMemory || []).map(n => [n.name, n]));
+    const keyNpcMap = new Map((current.keyNPCs || []).map(n => [n.name, n]));
+
     for (const npc of npcArray) {
       const prev = existing.get(npc.name);
-      if (prev) {
-        const metChars = Array.from(new Set([...(prev.metCharacters || []), ...(npc.metCharacters || [])]));
-        existing.set(npc.name, { ...prev, ...npc, metCharacters: metChars });
-      } else {
-        existing.set(npc.name, npc);
+      const metChars = Array.from(new Set([...(prev?.metCharacters || []), ...(npc.metCharacters || [])]));
+      const interactionCount = (prev?.interactionCount || 0) + 1;
+      const merged_npc = { ...prev, ...npc, metCharacters: metChars, interactionCount };
+      existing.set(npc.name, merged_npc);
+
+      // Promote to keyNPCs when interaction count reaches 3 or AI explicitly flags them
+      if ((interactionCount >= 3 || npc.isKeyNPC) && !keyNpcMap.has(npc.name)) {
+        keyNpcMap.set(npc.name, { ...merged_npc, isKeyNPC: true });
+      } else if (keyNpcMap.has(npc.name)) {
+        keyNpcMap.set(npc.name, { ...keyNpcMap.get(npc.name)!, ...npc, metCharacters: metChars, interactionCount });
       }
     }
-    merged.npcMemory = Array.from(existing.values()).slice(-20); // keep last 20 NPCs
+
+    merged.npcMemory = Array.from(existing.values()).slice(-20); // rolling 20 NPCs
+    // keyNPCs: never pruned, capped at 8 (oldest promoted out when full, they're still in npcMemory)
+    const keyList = Array.from(keyNpcMap.values());
+    merged.keyNPCs = keyList.slice(-8);
   }
 
   // activeQuests: merge by title (upsert)
@@ -94,7 +105,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 
   // Simple scalar fields
-  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount'] as const) {
+  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
   }
 
@@ -486,19 +497,38 @@ export async function processAction(
   const currentSceneState = ws.sceneState;
   const forceComplication = (currentSceneState?.stalledCount ?? 0) >= 3;
 
+  // Compute which act1MustIntroduce items have actually appeared in the world
+  const currentAct = campaign.act || 1;
+  const roadmap = wb.dmRoadmap;
+  const mustIntroduce = currentAct === 1 ? (roadmap?.act1MustIntroduce || []) : [];
+  const mustIntroduceStatus: Record<string, boolean> = {};
+  if (mustIntroduce.length > 0) {
+    const allNpcNamesLower = (ws.npcMemory || []).map(n => n.name.toLowerCase());
+    const allLocationsLower = (ws.discoveredLocations || []).map(l => l.toLowerCase());
+    for (const item of mustIntroduce) {
+      const itemLower = item.toLowerCase();
+      mustIntroduceStatus[item] =
+        allNpcNamesLower.some(n => itemLower.includes(n) || n.includes(itemLower.split(' ')[0])) ||
+        allLocationsLower.some(l => itemLower.includes(l) || l.includes(itemLower.split(' ')[0]));
+    }
+  }
+
   const campaignContext = {
     journal: ws.campaignJournal || [],
     characterHistory: ws.characterHistory || [],
     antagonists: wb.antagonistRoster || (wb.primaryAntagonist ? [wb.primaryAntagonist] : []),
     centralConflict: wb.centralConflict || '',
-    act: campaign.act || 1,
+    act: currentAct,
     sessionCount: ws.sessionCount || 1,
     otherCharacters: otherCharacters.length > 0 ? otherCharacters : undefined,
-    roadmap: wb.dmRoadmap,
+    roadmap,
     foreshadowingLedger: ws.foreshadowingLedger,
     backstoryHooks: ws.backstoryHooks,
     actGoalsAchieved: ws.actGoalsAchieved,
     forceComplication,
+    actionsInCurrentAct: ws.actionsInCurrentAct || 0,
+    keyNPCs: ws.keyNPCs,
+    mustIntroduceStatus: mustIntroduce.length > 0 ? mustIntroduceStatus : undefined,
   };
 
   // Generate narration via GPT-4o
@@ -584,27 +614,50 @@ export async function processAction(
   let combatState = ws.combatState ?? null;
   if (aiResponse.isCombat && aiResponse.enemyName) {
     if (!combatState?.inCombat) {
-      // Combat just started
-      combatState = { inCombat: true, enemyName: aiResponse.enemyName, enemyCondition: 'healthy', roundNumber: 1, playerActionsAttempted: [action] };
+      // Combat just started — build initial enemy list
+      const initialEnemies: import('../../../shared/types').CombatEnemy[] = aiResponse.combatEnemies
+        ? aiResponse.combatEnemies
+        : [{ name: aiResponse.enemyName, archetype: 'soldier', maxHp: 30, condition: 'healthy' }];
+      combatState = {
+        inCombat: true,
+        enemyName: aiResponse.enemyName,
+        enemyCondition: 'healthy',
+        roundNumber: 1,
+        playerActionsAttempted: [action],
+        enemies: initialEnemies,
+        isBossFight: aiResponse.isBossFight || false,
+        bossPhase: aiResponse.isBossFight ? 1 : undefined,
+      };
     } else {
       const rounds = combatState.roundNumber + 1;
-      // Enemy condition derived from damage dealt (hpChange negatives = damage to enemy)
-      // Fall back to a gentler round-count curve if no HP data available
       const totalDamageDealt = (combatState as unknown as Record<string, number>).totalDamageDealt || 0;
       const newDamage = aiResponse.hpChange && aiResponse.hpChange < 0 ? Math.abs(aiResponse.hpChange) : 0;
       const cumulativeDamage = totalDamageDealt + newDamage;
-      // Use cumulative damage thresholds if we have them, otherwise degrade by round count
       const enemyCondition: 'healthy' | 'wounded' | 'critical' = cumulativeDamage >= 30
         ? 'critical' : cumulativeDamage >= 15
         ? 'wounded' : rounds <= 3
         ? 'healthy' : rounds <= 6
         ? 'wounded' : 'critical';
+
+      // Update enemy list if AI provided updated state
+      let enemies = combatState.enemies || [];
+      if (aiResponse.combatEnemies && aiResponse.combatEnemies.length > 0) {
+        enemies = aiResponse.combatEnemies;
+      } else if (aiResponse.enemyDefeated) {
+        enemies = enemies.map(e => e.name === aiResponse.enemyDefeated ? { ...e, isDefeated: true, condition: 'critical' as const } : e);
+      } else {
+        // Auto-degrade primary enemy condition
+        enemies = enemies.map(e => e.name === combatState!.enemyName ? { ...e, condition: enemyCondition } : e);
+      }
+
       combatState = {
         ...combatState,
         roundNumber: rounds,
         enemyCondition,
+        enemies,
         playerActionsAttempted: [...(combatState.playerActionsAttempted || []).slice(-8), action],
         totalDamageDealt: cumulativeDamage,
+        bossPhase: aiResponse.bossPhaseAdvance ? (combatState.bossPhase || 1) + 1 : combatState.bossPhase,
       } as WorldState['combatState'];
     }
   } else if (aiResponse.isVictory || (!aiResponse.isCombat && combatState?.inCombat)) {
@@ -747,6 +800,8 @@ export async function processAction(
     }
   }
 
+  const newActionsInCurrentAct = (ws.actionsInCurrentAct || 0) + 1;
+
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
     ...locationTracking,
@@ -757,6 +812,7 @@ export async function processAction(
     actionsSinceLastSummary,
     sceneState: newSceneState,
     actionCount: newActionCount,
+    actionsInCurrentAct: newActionsInCurrentAct,
     ...(endgamePhase !== ws.endgamePhase ? { endgamePhase } : {}),
     ...(ledgerChanges.length > 0 ? { foreshadowingLedger: ledgerChanges } : {}),
     ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
@@ -807,7 +863,27 @@ export async function processAction(
 
   // Advance act if triggered
   if (aiResponse.advanceAct) {
-    await supabaseAdmin.from('campaigns').update({ act: campaign.act + 1 }).eq('id', campaignId);
+    const newAct = (campaign.act || 1) + 1;
+    await supabaseAdmin.from('campaigns').update({ act: newAct }).eq('id', campaignId);
+
+    // Reset actionsInCurrentAct counter and activate backstory hooks for the new act
+    const { data: freshCamp } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaignId).single();
+    if (freshCamp) {
+      const postActWs = (freshCamp.world_state as WorldState) || {};
+      const hooks = postActWs.backstoryHooks || [];
+      const actLabel = newAct === 2 ? 'act2' : newAct === 3 ? 'act3' : 'act1';
+      let hooksChanged = false;
+      const updatedHooks = hooks.map(h => {
+        if (h.status === 'dormant' && (h as unknown as Record<string, string>).seedTiming === actLabel) {
+          hooksChanged = true;
+          return { ...h, status: 'active' as const, seededAt: new Date().toISOString() };
+        }
+        return h;
+      });
+      const wsUpdates: Partial<WorldState> = { actionsInCurrentAct: 0 };
+      if (hooksChanged) wsUpdates.backstoryHooks = updatedHooks;
+      await supabaseAdmin.from('campaigns').update({ world_state: { ...postActWs, ...wsUpdates } }).eq('id', campaignId);
+    }
   }
 
   // Determine if a new ability was granted on level-up

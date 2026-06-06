@@ -105,6 +105,17 @@ export interface NpcMemory {
   disposition: 'friendly' | 'neutral' | 'hostile' | 'unknown';
   notes: string;
   metCharacters?: string[];  // character names this NPC has met
+  interactionCount?: number; // incremented each time this NPC appears in worldStateChanges
+  isKeyNPC?: boolean;        // if true, pinned to keyNPCs and never pruned
+}
+
+export interface CombatEnemy {
+  name: string;
+  archetype: 'beast' | 'soldier' | 'mage' | 'boss' | 'minion';
+  maxHp: number;
+  condition: 'healthy' | 'wounded' | 'critical';
+  isDefeated?: boolean;
+  specialAbility?: string; // one-line description of what makes them dangerous
 }
 
 export interface CharacterOnlineStatus {
@@ -154,13 +165,19 @@ export interface WorldState {
   };
   combatState?: {
     inCombat: boolean;
-    enemyName: string;
+    enemyName: string;  // primary/focused enemy for backward compat
     enemyCondition: 'healthy' | 'wounded' | 'critical';
     roundNumber: number;
     playerActionsAttempted: string[];
+    // Multi-enemy support
+    enemies?: CombatEnemy[];
+    isBossFight?: boolean;
+    bossPhase?: number;
   } | null;
   activeNPC?: string | null;
   shopInventory?: Record<string, ShopItem[]>;
+  keyNPCs?: NpcMemory[];         // pinned NPCs that survive the rolling 20-NPC cap, max 8
+  actionsInCurrentAct?: number;  // resets to 0 each time the act advances
   endgamePhase?: 'none' | 'approaching' | 'confrontation';
   actionCount?: number; // total actions taken this campaign, used for villain move timing
 }
@@ -276,6 +293,10 @@ export interface ActionResult {
   isMerchant?: boolean;
   advanceAct?: boolean;
   statusEffectChanges?: { add?: StatusEffect[]; remove?: string[] };
+  combatEnemies?: CombatEnemy[];
+  enemyDefeated?: string;
+  isBossFight?: boolean;
+  bossPhaseAdvance?: boolean;
   isHighStakes?: boolean;
   choiceCards?: HighStakesChoice[];
   characterHistoryNote?: CharacterHistoryEntry;
