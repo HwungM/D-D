@@ -613,15 +613,18 @@ export async function processAction(
     activeNPCChange.activeNPC = aiResponse.activeNPC;
   }
 
-  // Persist shop inventory per location so it doesn't regenerate each visit
+  // Persist shop inventory per location — same visit shows same items, but resets after leaving and doing 5+ things elsewhere
   const shopInventoryChange: Partial<WorldState> = {};
   if (aiResponse.isMerchant && aiResponse.shopItems && aiResponse.shopItems.length > 0) {
     const location = (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation || 'unknown';
     const existingInventory = ws.shopInventory?.[location];
-    if (!existingInventory) {
-      shopInventoryChange.shopInventory = { ...(ws.shopInventory || {}), [location]: aiResponse.shopItems as ShopItem[] };
-    } else {
+    const actionsSinceHere = ws.actionsSinceLastSummary || 0;
+    // Reuse existing inventory if player hasn't been away long (fewer than 6 actions since last summary)
+    if (existingInventory && actionsSinceHere < 6) {
       aiResponse.shopItems = existingInventory;
+    } else {
+      // Fresh visit or returning after a while — save new inventory
+      shopInventoryChange.shopInventory = { ...(ws.shopInventory || {}), [location]: aiResponse.shopItems as ShopItem[] };
     }
   }
 
