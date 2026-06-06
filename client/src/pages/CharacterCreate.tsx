@@ -38,145 +38,137 @@ type ClassInfo = {
 
 const RACE_INFO: Record<Race, RaceInfo> = {
   Human: {
-    description: 'Humans are the most adaptable and ambitious of all races, found in every corner of the known world. Their brief lives drive them to achieve quickly — to build empires, forge legends, and leave marks that outlast them.',
-    tendency: 'The DM leans into human ambition and politics. Faction leaders treat you as a wildcard worth cultivating. Doors open through sheer force of personality — but rivals watch your rise closely.',
-    playstyle: 'Best for players who want maximum flexibility and no narrative baggage — a blank slate to write their own legend.',
+    description: 'Humans are the most adaptable and ambitious of all races, found in every corner of the known world. Their brief lives drive them to achieve quickly â€” to build empires, forge legends, and leave marks that outlast them.',
+    tendency: 'The DM leans into human ambition and politics. Faction leaders treat you as a wildcard worth cultivating. Doors open through sheer force of personality â€” but rivals watch your rise closely.',
+    playstyle: 'Best for players who want maximum flexibility and no narrative baggage â€” a blank slate to write their own legend.',
   },
   Elf: {
-    description: 'Elves are ancient beings who walk the world with the quiet confidence of those who have seen civilizations rise and crumble. They carry the weight of long memory — and the loneliness that comes with outliving everything they love.',
-    tendency: 'The DM weaves in ancient lore hooks and forgotten histories. Ruins hold personal meaning. NPCs from old bloodlines treat you with earned respect — or ancient resentment.',
+    description: 'Elves are ancient beings who walk the world with the quiet confidence of those who have seen civilizations rise and crumble. They carry the weight of long memory â€” and the loneliness that comes with outliving everything they love.',
+    tendency: 'The DM weaves in ancient lore hooks and forgotten histories. Ruins hold personal meaning. NPCs from old bloodlines treat you with earned respect â€” or ancient resentment.',
     playstyle: 'Best for players who love world-building investment, backstory depth, and playing someone who knows more than they let on.',
   },
   Dwarf: {
-    description: 'Dwarves are carved from the bones of the earth — enduring, stubborn, and fiercely loyal to their kin and their oaths. A dwarf never forgets a debt, whether it is owed to them or by them.',
+    description: 'Dwarves are carved from the bones of the earth â€” enduring, stubborn, and fiercely loyal to their kin and their oaths. A dwarf never forgets a debt, whether it is owed to them or by them.',
     tendency: 'The DM introduces clan politics, grudges with long histories, and underground threats. Your resilience earns respect from hard people. Slights are remembered and returned.',
     playstyle: 'Best for players who want a tough, dependable character with strong cultural ties and a history that the world actually cares about.',
   },
   Halfling: {
-    description: 'Halflings are small in stature but surprisingly difficult to kill — luck follows them the way trouble follows everyone else. They thrive in the cracks of the world, moving unseen and surviving by wit and warmth.',
-    tendency: 'The DM narrates moments where the world underestimates you — and you exploit it. Luck turns in your favor at unexpected moments. Common folk trust you instinctively; nobles dismiss you at their peril.',
+    description: 'Halflings are small in stature but surprisingly difficult to kill â€” luck follows them the way trouble follows everyone else. They thrive in the cracks of the world, moving unseen and surviving by wit and warmth.',
+    tendency: 'The DM narrates moments where the world underestimates you â€” and you exploit it. Luck turns in your favor at unexpected moments. Common folk trust you instinctively; nobles dismiss you at their peril.',
     playstyle: 'Best for players who enjoy being the underdog, using charm and cleverness over brute force, and surprising the table.',
   },
   Gnome: {
-    description: 'Gnomes are relentlessly curious beings whose connection to the arcane runs deep and strange. They see the world as a puzzle to be solved, a mechanism to be taken apart — and they have absolutely no patience for boredom.',
+    description: 'Gnomes are relentlessly curious beings whose connection to the arcane runs deep and strange. They see the world as a puzzle to be solved, a mechanism to be taken apart â€” and they have absolutely no patience for boredom.',
     tendency: 'The DM seeds arcane mysteries and mechanical curiosities that only you notice. Magic items have history you can read. Scholars seek you out. Your inventions sometimes work perfectly and occasionally terribly.',
     playstyle: 'Best for players who love roleplaying eccentricity, tinkering with the world\'s lore, and finding creative off-label solutions.',
   },
   'Half-Orc': {
-    description: 'Half-Orcs carry the blood of two worlds and the welcome of neither — they are defined by what they overcome. They are frightening when angered and awe-inspiring when they choose mercy, and both leave an impression.',
+    description: 'Half-Orcs carry the blood of two worlds and the welcome of neither â€” they are defined by what they overcome. They are frightening when angered and awe-inspiring when they choose mercy, and both leave an impression.',
     tendency: 'The DM gives weight to your physical presence. Guards step aside. Thugs reconsider. Brute-force solutions are respected, not just tolerated. The world watches to see what you do with your power.',
     playstyle: 'Best for players who want a character defined by inner conflict, physical dominance, and the ongoing project of proving the world wrong.',
   },
   Tiefling: {
-    description: 'Tieflings bear the infernal mark of a pact made generations ago — horns, tail, and eyes that glow with hellish light. The world does not trust them, and some have decided the world can burn for it.',
-    tendency: 'NPCs are wary or hostile by default until you prove yourself. The DM introduces social friction and moments of prejudice — and gives you the chance to face it down, exploit it, or transcend it entirely.',
+    description: 'Tieflings bear the infernal mark of a pact made generations ago â€” horns, tail, and eyes that glow with hellish light. The world does not trust them, and some have decided the world can burn for it.',
+    tendency: 'NPCs are wary or hostile by default until you prove yourself. The DM introduces social friction and moments of prejudice â€” and gives you the chance to face it down, exploit it, or transcend it entirely.',
     playstyle: 'Best for players who relish playing a complex outsider, earning trust the hard way, and wielding a dark aesthetic with sharp emotional depth.',
   },
   Dragonborn: {
-    description: 'Dragonborn are proud warriors of draconic heritage — scales like armor, breath like a weapon, and a culture built entirely on honor and legacy. They do not start fights. They finish them.',
-    tendency: 'The DM acknowledges your lineage. Dragon-cults take notice. Enemies who survive speak of you. Your ancestry opens doors in ancient places — and attracts predators who want to claim what you carry.',
+    description: 'Dragonborn are proud warriors of draconic heritage â€” scales like armor, breath like a weapon, and a culture built entirely on honor and legacy. They do not start fights. They finish them.',
+    tendency: 'The DM acknowledges your lineage. Dragon-cults take notice. Enemies who survive speak of you. Your ancestry opens doors in ancient places â€” and attracts predators who want to claim what you carry.',
     playstyle: 'Best for players who want a dignified, honor-driven character who leaves a mark everywhere they go and never needs to raise their voice.',
   },
 }
-
-const RACE_DESCRIPTIONS: Record<Race, string> = Object.fromEntries(
-  Object.entries(RACE_INFO).map(([k, v]) => [k, v.description.split('. ')[0] + '.'])
-) as Record<Race, string>
 
 type ClassInfoFull = ClassInfo
 
 const CLASS_INFO: Record<CharacterClass, ClassInfoFull> = {
   Fighter: {
-    description: 'Fighters are masters of armed combat — weapon and shield, strategy and steel. They don\'t rely on magic or luck; they win through relentless training, superior technique, and the capacity to take as much punishment as they dish out.',
+    description: 'Fighters are masters of armed combat â€” weapon and shield, strategy and steel. They don\'t rely on magic or luck; they win through relentless training, superior technique, and the capacity to take as much punishment as they dish out.',
     role: 'Frontline tank',
-    tendency: 'The DM highlights tactical options and battlefield control. Enemies respect your threat — they focus you, fear you, and plan around you. Duels and challenges of honor find their way to you first.',
-    playstyle: 'Best for players who want reliable, consistent power without resource management — always effective, always in the thick of it.',
+    tendency: 'The DM highlights tactical options and battlefield control. Enemies respect your threat â€” they focus you, fear you, and plan around you. Duels and challenges of honor find their way to you first.',
+    playstyle: 'Best for players who want reliable, consistent power without resource management â€” always effective, always in the thick of it.',
   },
   Wizard: {
-    description: 'Wizards are scholars of arcane forces — they reshape reality through years of obsessive study. Fragile in body but devastating in output, a wizard turns intellect into the most dangerous weapon in the world.',
+    description: 'Wizards are scholars of arcane forces â€” they reshape reality through years of obsessive study. Fragile in body but devastating in output, a wizard turns intellect into the most dangerous weapon in the world.',
     role: 'Arcane artillery',
     tendency: 'The DM seeds lore puzzles, ancient tomes, and magical phenomena that reward your knowledge. Sages and scholars recognize you. Magic-using enemies treat you as their most dangerous target.',
     playstyle: 'Best for players who love preparation, creative problem-solving, and the tactical satisfaction of having exactly the right spell for the situation.',
   },
   Rogue: {
-    description: 'Rogues are precision instruments — they don\'t fight fair and see no reason they should. Working from shadow, misdirection, and exploitation of vulnerability, they turn every encounter into a puzzle with a lethal solution.',
+    description: 'Rogues are precision instruments â€” they don\'t fight fair and see no reason they should. Working from shadow, misdirection, and exploitation of vulnerability, they turn every encounter into a puzzle with a lethal solution.',
     role: 'Shadow striker',
     tendency: 'The DM always narrates stealth opportunities. In social situations, your sharp eye catches details others miss. When you strike, the narration acknowledges the exact moment of vulnerability you exploited.',
     playstyle: 'Best for players who love feeling clever, solving encounters laterally, and having one spectacular moment per fight rather than sustained pressure.',
   },
   Cleric: {
-    description: 'Clerics are divine conduits — mortals who have opened themselves to the will of a god and carry that god\'s power into the world. They heal, protect, and when roused to holy wrath, they are terrifying.',
+    description: 'Clerics are divine conduits â€” mortals who have opened themselves to the will of a god and carry that god\'s power into the world. They heal, protect, and when roused to holy wrath, they are terrifying.',
     role: 'Divine support',
-    tendency: 'The DM creates moments of divine resonance — your god notices, sometimes responds, occasionally tests you. Faith matters: NPCs with spiritual needs are drawn to you, and dark forces treat you as a threat worth neutralizing.',
+    tendency: 'The DM creates moments of divine resonance â€” your god notices, sometimes responds, occasionally tests you. Faith matters: NPCs with spiritual needs are drawn to you, and dark forces treat you as a threat worth neutralizing.',
     playstyle: 'Best for players who enjoy being the linchpin of the party, blending support and offense, and roleplaying devotion to something larger than themselves.',
   },
   Ranger: {
-    description: 'Rangers are hunters who have mastered the wilderness and carry that mastery into every environment. They are patient, precise, and self-sufficient — more at home in the dark forest than in any city.',
+    description: 'Rangers are hunters who have mastered the wilderness and carry that mastery into every environment. They are patient, precise, and self-sufficient â€” more at home in the dark forest than in any city.',
     role: 'Skirmisher / tracker',
-    tendency: 'The DM enriches environmental details for you — tracks, scents, signs of passage that others miss. Wilderness threats feel navigable. Quarry is rarely able to hide from you for long.',
+    tendency: 'The DM enriches environmental details for you â€” tracks, scents, signs of passage that others miss. Wilderness threats feel navigable. Quarry is rarely able to hide from you for long.',
     playstyle: 'Best for players who love exploration, being ahead of the party in every sense, and the quiet satisfaction of knowing the terrain better than anyone.',
   },
   Paladin: {
-    description: 'Paladins are oath-bound warriors who combine martial excellence with divine power. They are the most uncompromising characters in any story — righteous, relentless, and capable of terrible mercy.',
+    description: 'Paladins are oath-bound warriors who combine martial excellence with divine power. They are the most uncompromising characters in any story â€” righteous, relentless, and capable of terrible mercy.',
     role: 'Holy vanguard',
-    tendency: 'The DM creates moral dilemmas with no clean answer and makes your oath feel real. Temptation comes for you specifically. Divine moments occur when you need them most — or when you deserve them least.',
+    tendency: 'The DM creates moral dilemmas with no clean answer and makes your oath feel real. Temptation comes for you specifically. Divine moments occur when you need them most â€” or when you deserve them least.',
     playstyle: 'Best for players who want to feel the weight of conviction, wrestle with genuine ethical complexity, and occasionally smite something into dust.',
   },
   Barbarian: {
-    description: 'Barbarians tap into a primal fury that transforms them into something that hits harder, takes more punishment, and simply refuses to die. They are not reckless — they are uncaged.',
+    description: 'Barbarians tap into a primal fury that transforms them into something that hits harder, takes more punishment, and simply refuses to die. They are not reckless â€” they are uncaged.',
     role: 'Berserker tank',
-    tendency: 'The DM escalates encounters around your presence — you attract the big threats. Violence respects violence: tribal warriors and soldiers treat you differently than they treat anyone else. Your rages become story moments.',
+    tendency: 'The DM escalates encounters around your presence â€” you attract the big threats. Violence respects violence: tribal warriors and soldiers treat you differently than they treat anyone else. Your rages become story moments.',
     playstyle: 'Best for players who want to feel physically unstoppable and enjoy the catharsis of hitting something very, very hard.',
   },
   Bard: {
-    description: 'Bards are the Swiss Army knife of adventurers — they fight, they charm, they know a little about everything, and they talk their way through doors that others would have kicked down. Their power is in their adaptability.',
+    description: 'Bards are the Swiss Army knife of adventurers â€” they fight, they charm, they know a little about everything, and they talk their way through doors that others would have kicked down. Their power is in their adaptability.',
     role: 'Social chameleon / support',
     tendency: 'The DM rewards social creativity. The right word at the right moment changes outcomes. NPCs remember you specifically, and their reactions are colored by whatever impression you made. Information finds you.',
     playstyle: 'Best for players who love roleplay, want to influence every scene even when not fighting, and enjoy being the most interesting person in any room.',
   },
   Druid: {
-    description: 'Druids are nature\'s will given form — they do not control nature, they speak for it. Their magic is ancient, their patience deep, and their capacity for transformation unsettling to those who thought they understood the world.',
+    description: 'Druids are nature\'s will given form â€” they do not control nature, they speak for it. Their magic is ancient, their patience deep, and their capacity for transformation unsettling to those who thought they understood the world.',
     role: 'Nature shaper',
-    tendency: 'The DM makes the natural world feel alive and reactive. Animals behave differently around you. Corruption of nature is personal. Spirits and ancient powers take notice — and sometimes intervene on your behalf.',
+    tendency: 'The DM makes the natural world feel alive and reactive. Animals behave differently around you. Corruption of nature is personal. Spirits and ancient powers take notice â€” and sometimes intervene on your behalf.',
     playstyle: 'Best for players who enjoy versatility, thematic resonance, and the satisfaction of being plugged into the world\'s hidden rhythms.',
   },
   Monk: {
-    description: 'Monks are living weapons — bodies disciplined into instruments of precision force. They are fast, efficient, and utterly self-reliant. Their power comes from years of brutal training, not gift or luck.',
+    description: 'Monks are living weapons â€” bodies disciplined into instruments of precision force. They are fast, efficient, and utterly self-reliant. Their power comes from years of brutal training, not gift or luck.',
     role: 'Precision striker',
-    tendency: 'The DM highlights moments of stillness in chaos — your calm in a crisis reads as unnerving to enemies and inspiring to allies. Spiritual challenges and tests of will find their way to you. Your presence changes the texture of a room.',
+    tendency: 'The DM highlights moments of stillness in chaos â€” your calm in a crisis reads as unnerving to enemies and inspiring to allies. Spiritual challenges and tests of will find their way to you. Your presence changes the texture of a room.',
     playstyle: 'Best for players who enjoy mechanically precise play, a strong personal code, and the fantasy of facing danger empty-handed and winning.',
   },
   Sorcerer: {
-    description: 'Sorcerers did not study magic — they were born with it leaking out of them. Their power is raw, volatile, and extraordinary, shaped not by learning but by sheer force of will. It is magnificent and occasionally dangerous.',
+    description: 'Sorcerers did not study magic â€” they were born with it leaking out of them. Their power is raw, volatile, and extraordinary, shaped not by learning but by sheer force of will. It is magnificent and occasionally dangerous.',
     role: 'Wild arcane force',
-    tendency: 'The DM makes magic feel alive around you. Wild effects and unexpected resonances color your spells. Other magic users recognize your bloodline instinctively — with awe, envy, or fear. Power has a cost you didn\'t choose.',
+    tendency: 'The DM makes magic feel alive around you. Wild effects and unexpected resonances color your spells. Other magic users recognize your bloodline instinctively â€” with awe, envy, or fear. Power has a cost you didn\'t choose.',
     playstyle: 'Best for players who love high-ceiling magical moments, lean into narrative chaos, and want their power to feel personal and dangerous.',
   },
   Warlock: {
-    description: 'Warlocks sold something to gain power — and they can feel the weight of that deal in every spell they cast. Their patron is always present, always watching, and the power they wield comes with an interest rate no one told them about.',
+    description: 'Warlocks sold something to gain power â€” and they can feel the weight of that deal in every spell they cast. Their patron is always present, always watching, and the power they wield comes with an interest rate no one told them about.',
     role: 'Pact-bound invoker',
-    tendency: 'The DM makes your patron\'s influence felt — subtle demands, whispered suggestions, rewards for loyalty. Your power is never fully your own. NPCs sense something wrong about you. The price of your deal comes due at the worst possible time.',
+    tendency: 'The DM makes your patron\'s influence felt â€” subtle demands, whispered suggestions, rewards for loyalty. Your power is never fully your own. NPCs sense something wrong about you. The price of your deal comes due at the worst possible time.',
     playstyle: 'Best for players who enjoy moral complexity, a built-in antagonist relationship, and roleplaying a character who is never quite free.',
   },
 }
 
-const CLASS_DESCRIPTIONS: Record<CharacterClass, string> = Object.fromEntries(
-  Object.entries(CLASS_INFO).map(([k, v]) => [k, v.description.split('. ')[0] + '.'])
-) as Record<CharacterClass, string>
-
 const CLASS_STATS: Record<CharacterClass, string> = {
-  Fighter: 'STR · CON',
-  Wizard: 'INT · WIS',
-  Rogue: 'DEX · INT',
-  Cleric: 'WIS · CHA',
-  Ranger: 'DEX · WIS',
-  Paladin: 'STR · CHA',
-  Barbarian: 'STR · CON',
-  Bard: 'CHA · DEX',
-  Druid: 'WIS · CON',
-  Monk: 'DEX · WIS',
-  Sorcerer: 'CHA · CON',
-  Warlock: 'CHA · INT',
+  Fighter: 'STR Â· CON',
+  Wizard: 'INT Â· WIS',
+  Rogue: 'DEX Â· INT',
+  Cleric: 'WIS Â· CHA',
+  Ranger: 'DEX Â· WIS',
+  Paladin: 'STR Â· CHA',
+  Barbarian: 'STR Â· CON',
+  Bard: 'CHA Â· DEX',
+  Druid: 'WIS Â· CON',
+  Monk: 'DEX Â· WIS',
+  Sorcerer: 'CHA Â· CON',
+  Warlock: 'CHA Â· INT',
 }
 
 // Returns all portrait options for a given race+gender combo
@@ -256,7 +248,7 @@ export default function CharacterCreate() {
   const [rolledScores, setRolledScores] = useState<number[]>(() => generateSixScores())
   const [assignments, setAssignments] = useState<Partial<Record<StatKey, number>>>({})
 
-  // Lobby realtime subscription — waits until all players have characters
+  // Lobby realtime subscription â€” waits until all players have characters
   useEffect(() => {
     if (!lobbyState || !campaignId || !supabaseUrl || !supabaseAnonKey) return
 
@@ -353,7 +345,7 @@ export default function CharacterCreate() {
             borderColor: 'rgba(200,146,42,0.4)',
             boxShadow: '0 0 40px rgba(200,146,42,0.15)',
           }}>
-            <span className="font-fantasy text-2xl" style={{ color: '#c8922a' }}>⚔</span>
+            <span className="font-fantasy text-2xl" style={{ color: '#c8922a' }}>âš”</span>
           </div>
           <h2 className="font-fantasy text-3xl text-parchment-200 mb-3">Your character is ready.</h2>
           <p className="font-serif text-sm leading-relaxed mb-6" style={{ color: 'rgba(180,160,120,0.6)' }}>
@@ -375,7 +367,7 @@ export default function CharacterCreate() {
               color: 'rgba(180,160,120,0.5)',
             }}
           >
-            Start Solo for now →
+            Start Solo for now â†’
           </button>
         </div>
       </div>
@@ -401,7 +393,7 @@ export default function CharacterCreate() {
                       : { borderColor: '#374151', background: 'transparent', color: '#4b5563' }
                     }
                   >
-                    {i < step ? '✓' : i + 1}
+                    {i < step ? 'âœ“' : i + 1}
                   </div>
                   <span className={`text-xs font-sans hidden sm:block ${i === step ? 'text-parchment-200' : i < step ? 'text-slate-500' : 'text-slate-700'}`}>
                     {s}
@@ -442,7 +434,7 @@ export default function CharacterCreate() {
                         : { borderColor: '#374151', background: 'rgba(15,25,35,0.5)' }
                       }
                     >
-                      {g === 'male' ? '♂' : '♀'}
+                      {g === 'male' ? 'â™‚' : 'â™€'}
                     </div>
                     <span className="font-fantasy text-lg capitalize" style={{ color: gender === g ? '#f5e6c8' : '#6b7280' }}>
                       {g === 'male' ? 'Male' : 'Female'}
@@ -460,7 +452,7 @@ export default function CharacterCreate() {
                 disabled={!gender}
                 className="fantasy-btn px-8 disabled:opacity-40"
               >
-                Choose Your Race →
+                Choose Your Race â†’
               </button>
             </div>
           </div>
@@ -526,9 +518,9 @@ export default function CharacterCreate() {
               </div>
             )}
             <div className="mt-8 flex gap-3">
-              <button onClick={() => setStep(0)} className="fantasy-btn-secondary">← Back</button>
+              <button onClick={() => setStep(0)} className="fantasy-btn-secondary">â† Back</button>
               <button onClick={() => setStep(2)} disabled={!selectedRace} className="fantasy-btn px-8 disabled:opacity-40">
-                Choose Your Look →
+                Choose Your Look â†’
               </button>
             </div>
           </div>
@@ -559,7 +551,7 @@ export default function CharacterCreate() {
                     />
                     {selectedPortrait === p.url && (
                       <div className="absolute inset-0 border-2 border-ember-400" style={{ background: 'rgba(192,57,43,0.15)' }}>
-                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-ember-500 flex items-center justify-center text-white text-xs">✓</div>
+                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-ember-500 flex items-center justify-center text-white text-xs">âœ“</div>
                       </div>
                     )}
                   </div>
@@ -575,13 +567,13 @@ export default function CharacterCreate() {
               </p>
             )}
             <div className="mt-4 flex gap-3">
-              <button onClick={() => setStep(1)} className="fantasy-btn-secondary">← Back</button>
+              <button onClick={() => setStep(1)} className="fantasy-btn-secondary">â† Back</button>
               <button
                 onClick={() => setStep(3)}
                 disabled={!selectedPortrait}
                 className="fantasy-btn px-8 disabled:opacity-40"
               >
-                Choose Your Class →
+                Choose Your Class â†’
               </button>
             </div>
           </div>
@@ -641,9 +633,9 @@ export default function CharacterCreate() {
               </div>
             )}
             <div className="mt-8 flex gap-3">
-              <button onClick={() => setStep(2)} className="fantasy-btn-secondary">← Back</button>
+              <button onClick={() => setStep(2)} className="fantasy-btn-secondary">â† Back</button>
               <button onClick={() => setStep(4)} disabled={!selectedClass} className="fantasy-btn px-8 disabled:opacity-40">
-                Roll Attributes →
+                Roll Attributes â†’
               </button>
             </div>
           </div>
@@ -654,7 +646,7 @@ export default function CharacterCreate() {
           <div className="animate-fade-in">
             <h2 className="font-fantasy text-2xl text-parchment-200 mb-1">Your Attributes</h2>
             <p className="text-slate-500 font-serif italic text-sm mb-6">
-              Roll 4d6, drop the lowest — assign each score to a stat. Race bonuses apply on top.
+              Roll 4d6, drop the lowest â€” assign each score to a stat. Race bonuses apply on top.
             </p>
 
             {/* Rolled scores pool */}
@@ -695,7 +687,7 @@ export default function CharacterCreate() {
               </div>
               <p className="text-xs text-slate-600 mt-2 font-serif">
                 {Object.keys(assignments).length}/6 assigned
-                {Object.keys(assignments).length === 6 ? ' — all stats assigned!' : ''}
+                {Object.keys(assignments).length === 6 ? ' â€” all stats assigned!' : ''}
               </p>
             </div>
 
@@ -735,7 +727,7 @@ export default function CharacterCreate() {
                           {STAT_LABELS[statKey]}
                         </span>
                         {isPrimary && (
-                          <span className="ml-1.5 text-xs font-sans" style={{ color: 'rgba(200,146,42,0.7)' }}>★ recommended</span>
+                          <span className="ml-1.5 text-xs font-sans" style={{ color: 'rgba(200,146,42,0.7)' }}>â˜… recommended</span>
                         )}
                       </div>
                       {raceBonus > 0 && (
@@ -765,7 +757,7 @@ export default function CharacterCreate() {
                         color: assigned !== undefined ? '#d4c5a0' : '#6b7280',
                       }}
                     >
-                      <option value="">— assign —</option>
+                      <option value="">â€” assign â€”</option>
                       {assigned !== undefined && (
                         <option value={assigned}>{assigned}</option>
                       )}
@@ -800,13 +792,13 @@ export default function CharacterCreate() {
             </div>
 
             <div className="mt-8 flex gap-3">
-              <button onClick={() => setStep(3)} className="fantasy-btn-secondary">← Back</button>
+              <button onClick={() => setStep(3)} className="fantasy-btn-secondary">â† Back</button>
               <button
                 onClick={() => setStep(5)}
                 disabled={Object.keys(assignments).length < 6}
                 className="fantasy-btn px-8 disabled:opacity-40"
               >
-                Name Your Legend →
+                Name Your Legend â†’
               </button>
             </div>
           </div>
@@ -834,7 +826,7 @@ export default function CharacterCreate() {
                 </div>
                 <div>
                   <label className="block text-xs uppercase tracking-widest text-slate-500 mb-2">
-                    Backstory <span className="text-slate-700 normal-case tracking-normal">(optional — the DM reads this)</span>
+                    Backstory <span className="text-slate-700 normal-case tracking-normal">(optional â€” the DM reads this)</span>
                   </label>
                   <textarea
                     value={backstory}
@@ -854,7 +846,7 @@ export default function CharacterCreate() {
                       <img src={selectedPortrait} alt="portrait" className="w-full h-full object-cover object-top" />
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
                       <div className="absolute bottom-3 left-4 right-4">
-                        <p className="font-fantasy text-xl text-parchment-100">{name || '—'}</p>
+                        <p className="font-fantasy text-xl text-parchment-100">{name || 'â€”'}</p>
                         <p className="text-slate-400 text-xs font-serif">{selectedRace} {selectedClass}</p>
                       </div>
                     </div>
@@ -887,7 +879,7 @@ export default function CharacterCreate() {
             )}
 
             <div className="mt-8 flex gap-3">
-              <button onClick={() => setStep(4)} className="fantasy-btn-secondary">← Back</button>
+              <button onClick={() => setStep(4)} className="fantasy-btn-secondary">â† Back</button>
               <button
                 onClick={handleCreate}
                 disabled={!name.trim() || loading}
