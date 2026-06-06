@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { authApi } from '../lib/api'
 import { useAuthStore } from '../lib/store'
 import EmberParticles from '../components/EmberParticles'
+import { audioManager } from '../lib/audio'
 
 const HARDCODED_PASSWORD = 'tavern2024'
 
@@ -20,6 +21,8 @@ export default function Landing() {
   async function handleLogin(displayName: string) {
     setError('')
     setLoading(displayName)
+    audioManager.startGameplay()
+    audioManager.startAmbient()
     // Sanitize: remove spaces, lowercase for API key
     const apiUsername = displayName.replace(/\s+/g, '').toLowerCase()
     try {
