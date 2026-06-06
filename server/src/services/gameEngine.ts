@@ -1,16 +1,32 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks, generateCoopNarration } from './openai';
 import OpenAI from 'openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest } from '../../../shared/types';
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
 
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 import { getAbilityForLevel } from '../../../shared/classAbilities';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function isNpcMemory(value: unknown): value is NpcMemory {
+  return isRecord(value) && typeof value.name === 'string' && typeof value.notes === 'string';
+}
+
+function isActiveQuest(value: unknown): value is ActiveQuest {
+  return isRecord(value) && typeof value.title === 'string' && typeof value.description === 'string';
+}
+
 function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState>): WorldState {
   const merged = { ...current };
 
-  // Per-character location — only update the specific character's entry
+  // Per-character location â€” only update the specific character's entry
   if (changes.characterLocations) {
     merged.characterLocations = { ...current.characterLocations, ...changes.characterLocations };
   }
@@ -20,7 +36,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
 
   // npcMemory: merge by name (upsert), preserving metCharacters + interactionCount from both sides
   if (changes.npcMemory) {
-    const npcArray = Array.isArray(changes.npcMemory) ? changes.npcMemory : Object.values(changes.npcMemory);
+    const npcArray = (Array.isArray(changes.npcMemory) ? changes.npcMemory : Object.values(changes.npcMemory)).filter(isNpcMemory);
     const existing = new Map((current.npcMemory || []).map(n => [n.name, n]));
     const keyNpcMap = new Map((current.keyNPCs || []).map(n => [n.name, n]));
 
@@ -47,7 +63,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
 
   // activeQuests: merge by title (upsert)
   if (changes.activeQuests) {
-    const questArray = Array.isArray(changes.activeQuests) ? changes.activeQuests : Object.values(changes.activeQuests);
+    const questArray = (Array.isArray(changes.activeQuests) ? changes.activeQuests : Object.values(changes.activeQuests)).filter(isActiveQuest);
     const existing = new Map((current.activeQuests || []).map(q => [q.title, q]));
     for (const q of questArray) existing.set(q.title, { ...existing.get(q.title), ...q, startedAt: existing.get(q.title)?.startedAt || new Date().toISOString() });
     merged.activeQuests = Array.from(existing.values());
@@ -66,10 +82,10 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
 
   // sessionNotes: append new ones only
   if (changes.sessionNotes) {
-    const notesArray = Array.isArray(changes.sessionNotes) ? changes.sessionNotes : Object.values(changes.sessionNotes);
+    const notesArray = Array.isArray(changes.sessionNotes) ? asStringArray(changes.sessionNotes) : asStringArray(Object.values(changes.sessionNotes));
     const existing = new Set(current.sessionNotes || []);
-    const newNotes = notesArray.filter((n: string) => !existing.has(n));
-    merged.sessionNotes = [...(current.sessionNotes || []), ...(newNotes as string[])];
+    const newNotes = notesArray.filter(n => !existing.has(n));
+    merged.sessionNotes = [...(current.sessionNotes || []), ...newNotes];
   }
 
   // characterLastSeen: merge
@@ -227,7 +243,7 @@ export async function applyConsequences(
     updates.hp = Math.max(0, Math.min(currentCharacter.max_hp, currentCharacter.hp + actionResult.hpChange));
   }
 
-  // Apply gold changes — validate to prevent NaN/runaway values from AI
+  // Apply gold changes â€” validate to prevent NaN/runaway values from AI
   if (actionResult.goldChange !== undefined && !isNaN(actionResult.goldChange)) {
     const clampedChange = Math.max(-10000, Math.min(10000, Math.round(actionResult.goldChange)));
     updates.gold = Math.max(0, currentCharacter.gold + clampedChange);
@@ -380,7 +396,7 @@ export async function applyConsequences(
     newWorldState.fallenHeroes = fallen;
   }
 
-  // Single atomic world state write — eliminates co-op race conditions
+  // Single atomic world state write â€” eliminates co-op race conditions
   await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
 
   // Persist character updates
@@ -406,7 +422,7 @@ export async function getRecentHistory(campaignId: string, characterId: string, 
   if (!data) return [];
   return data
     .reverse()
-    .map((e: StoryEvent) => `[${e.event_type.toUpperCase()}] ${e.content.slice(0, 200)}`);
+    .map(e => `[${e.event_type.toUpperCase()}] ${e.content.slice(0, 200)}`);
 }
 
 export async function processAction(
@@ -439,7 +455,7 @@ export async function processAction(
   const ws = campaign.world_state as WorldState;
   const wb = campaign.world_bible as WorldBible;
 
-  // Session count is incremented in getOpeningScene — just initialize if missing here
+  // Session count is incremented in getOpeningScene â€” just initialize if missing here
   if (!ws.sessionCount) {
     ws.sessionCount = 1;
     await supabaseAdmin.from('campaigns').update({ world_state: ws }).eq('id', campaignId);
@@ -526,7 +542,7 @@ export async function processAction(
     campaignContext
   );
 
-  // Explicit rest detection — override AI if player clearly stated rest intent (but not negations)
+  // Explicit rest detection â€” override AI if player clearly stated rest intent (but not negations)
   const isNegatedRest = /\b(not|don'?t|won'?t|can'?t|no|never|stop|avoid|refuse)\b.{0,20}\b(rest|sleep|camp|recover)\b/i.test(action);
   const isExplicitRest = !isNegatedRest && /\b(rest|sleep|camp|make camp|short rest|long rest|take a rest|take a break|set up camp|meditate|recover)\b/i.test(action);
   if (isExplicitRest) aiResponse.isRest = true;
@@ -599,7 +615,7 @@ export async function processAction(
   let combatState = ws.combatState ?? null;
   if (aiResponse.isCombat && aiResponse.enemyName) {
     if (!combatState?.inCombat) {
-      // Combat just started — build initial enemy list; sync legacy enemyName from enemies[0] if provided
+      // Combat just started â€” build initial enemy list; sync legacy enemyName from enemies[0] if provided
       const initialEnemies: import('../../../shared/types').CombatEnemy[] = aiResponse.combatEnemies
         ? aiResponse.combatEnemies
         : [{ name: aiResponse.enemyName, archetype: 'soldier', maxHp: 30, condition: 'healthy' }];
@@ -639,21 +655,22 @@ export async function processAction(
         enemies = enemies.map(e => e.name === combatState!.enemyName ? { ...e, condition: enemyCondition } : e);
       }
 
+      const activeCombatState = combatState!;
       combatState = {
-        ...combatState,
+        ...activeCombatState,
         roundNumber: rounds,
         enemyCondition,
         enemies,
-        playerActionsAttempted: [...(combatState.playerActionsAttempted || []).slice(-8), action],
+        playerActionsAttempted: [...(activeCombatState.playerActionsAttempted || []).slice(-8), action],
         totalDamageDealt: cumulativeDamage,
-        bossPhase: aiResponse.bossPhaseAdvance ? (combatState.bossPhase || 1) + 1 : combatState.bossPhase,
-      } as WorldState['combatState'];
+        bossPhase: aiResponse.bossPhaseAdvance ? (activeCombatState.bossPhase || 1) + 1 : activeCombatState.bossPhase,
+      } as NonNullable<WorldState['combatState']> & { totalDamageDealt?: number };
     }
   } else if (aiResponse.isVictory || (!aiResponse.isCombat && combatState?.inCombat)) {
     combatState = null; // combat ended
   }
 
-  // Scene summary — regenerate every 4 actions (cheap GPT-4o-mini call)
+  // Scene summary â€” regenerate every 4 actions (cheap GPT-4o-mini call)
   const actionCount = (ws.actionsSinceLastSummary || 0) + 1;
   let currentSceneSummary = ws.currentSceneSummary;
   let actionsSinceLastSummary = actionCount;
@@ -716,7 +733,7 @@ export async function processAction(
         pacingMode: aiResponse.pacingMode || prevSceneState?.pacingMode || 'exploration',
       };
 
-  // Track active NPC from AI response — auto-clear on location change
+  // Track active NPC from AI response â€” auto-clear on location change
   const activeNPCChange: Partial<WorldState> = {};
   const locationChanged = newLocation && ws.currentLocation && newLocation !== ws.currentLocation;
   if (locationChanged) {
@@ -725,7 +742,7 @@ export async function processAction(
     activeNPCChange.activeNPC = aiResponse.activeNPC;
   }
 
-  // Persist shop inventory per location — same visit shows same items, but resets after leaving and doing 5+ things elsewhere
+  // Persist shop inventory per location â€” same visit shows same items, but resets after leaving and doing 5+ things elsewhere
   const shopInventoryChange: Partial<WorldState> = {};
   if (aiResponse.isMerchant && aiResponse.shopItems && aiResponse.shopItems.length > 0) {
     const validItemTypes = new Set(['weapon', 'armor', 'potion', 'misc', 'key']);
@@ -747,7 +764,7 @@ export async function processAction(
     if (existingInventory && actionsSinceHere < 6) {
       aiResponse.shopItems = existingInventory;
     } else {
-      // Prune old shop inventories — keep at most 20 locations to avoid JSONB bloat
+      // Prune old shop inventories â€” keep at most 20 locations to avoid JSONB bloat
       const existingShop = ws.shopInventory || {};
       const keys = Object.keys(existingShop);
       const pruned = keys.length >= 20
@@ -780,7 +797,7 @@ export async function processAction(
     try {
       const move = await generateVillainMove(ws, wb, campaign.act || 1);
       villainMoveNote = move.sessionNote;
-      // Prepend villain move to the narration field isn't clean here — we'll save it as a session note
+      // Prepend villain move to the narration field isn't clean here â€” we'll save it as a session note
     } catch { /* non-critical */ }
   }
 
@@ -834,15 +851,15 @@ export async function processAction(
   // Consumed items: prefer AI's explicit list, fall back to narration regex
   let consumedItems: string[] = [];
   if (aiResponse.consumedItems && aiResponse.consumedItems.length > 0) {
-    // AI explicitly named what was consumed — most reliable
-    consumedItems = aiResponse.consumedItems.filter(name =>
-      (character.inventory || []).some(i => i.name.toLowerCase() === name.toLowerCase())
+    // AI explicitly named what was consumed â€” most reliable
+    consumedItems = aiResponse.consumedItems.filter((name: string) =>
+      (character.inventory || []).some((i: { name: string }) => i.name.toLowerCase() === name.toLowerCase())
     );
   } else if (aiResponse.narration) {
     // Fallback: scan narration for consumption verbs
     const consumableNames = (character.inventory || [])
-      .filter(i => i.type === 'potion' || i.type === 'misc')
-      .map(i => i.name);
+      .filter((i: { type: string }) => i.type === 'potion' || i.type === 'misc')
+      .map((i: { name: string }) => i.name);
     for (const itemName of consumableNames) {
       const escaped = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const usePattern = new RegExp(`\\b(drink|drinks|drank|use|uses|used|consume|consumes|consumed|quaff|quaffs|quaffed)\\b.{0,30}\\b${escaped}\\b`, 'i');
@@ -864,7 +881,7 @@ export async function processAction(
       deathDescription: aiResponse.deathDescription,
       xpGained,
       hpChange: aiResponse.isDeath ? -character.max_hp : aiResponse.hpChange,
-      // Skip AI goldChange for merchant interactions — the shop UI handles gold client-side to avoid double-deduction
+      // Skip AI goldChange for merchant interactions â€” the shop UI handles gold client-side to avoid double-deduction
       goldChange: aiResponse.isMerchant ? undefined : aiResponse.goldChange,
       loot: aiResponse.loot,
       statusEffectChanges: aiResponse.statusEffectChanges,
@@ -1029,7 +1046,7 @@ export async function resolveRollAction(
     campaign_id: campaignId,
     character_id: characterId,
     event_type: 'dice_roll',
-    content: `Rolled ${rollResult} (total ${rollTotal}) vs DC ${dc} — ${success ? 'SUCCESS' : 'FAILURE'}`,
+    content: `Rolled ${rollResult} (total ${rollTotal}) vs DC ${dc} â€” ${success ? 'SUCCESS' : 'FAILURE'}`,
     metadata: { rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, rollContext },
   });
   await supabaseAdmin.from('story_events').insert({
@@ -1085,7 +1102,7 @@ export async function getOpeningScene(
   openingWs.sessionCount = newSessionCount;
   await supabaseAdmin.from('campaigns').update({ world_state: openingWs }).eq('id', campaignId);
 
-  // Check if the villain should make a proactive move — every 3 sessions or on first return
+  // Check if the villain should make a proactive move â€” every 3 sessions or on first return
   const villainMoveCount = openingWs.villainMoveCount ?? 0;
   const sessionCount = newSessionCount;
   const villainMoveDue = sessionCount > 0 && (sessionCount % 3 === 0 || villainMoveCount === 0) && sessionCount > villainMoveCount * 3;
@@ -1120,7 +1137,7 @@ export async function getOpeningScene(
 
   const fallenHeroes = openingWs.fallenHeroes || [];
   const openingAction = fallenHeroes.length > 0
-    ? `SUCCESSOR_ENTRY: A new hero enters the world. The previous hero ${fallenHeroes[fallenHeroes.length - 1].name} (${fallenHeroes[fallenHeroes.length - 1].race} ${fallenHeroes[fallenHeroes.length - 1].class}, level ${fallenHeroes[fallenHeroes.length - 1].level}) fell — ${fallenHeroes[fallenHeroes.length - 1].cause}. The new hero is ${character.name}, ${character.race} ${character.class}. Acknowledge the fallen in a way that fits the world. NPCs who knew the previous hero may reference them.${villainMovePreamble}`
+    ? `SUCCESSOR_ENTRY: A new hero enters the world. The previous hero ${fallenHeroes[fallenHeroes.length - 1].name} (${fallenHeroes[fallenHeroes.length - 1].race} ${fallenHeroes[fallenHeroes.length - 1].class}, level ${fallenHeroes[fallenHeroes.length - 1].level}) fell â€” ${fallenHeroes[fallenHeroes.length - 1].cause}. The new hero is ${character.name}, ${character.race} ${character.class}. Acknowledge the fallen in a way that fits the world. NPCs who knew the previous hero may reference them.${villainMovePreamble}`
     : `OPENING_SCENE${villainMovePreamble}`;
 
   const aiResponse = await generateNarration(
@@ -1132,7 +1149,7 @@ export async function getOpeningScene(
     openingContext
   );
 
-  // Save just the narration — no player action event for the opening
+  // Save just the narration â€” no player action event for the opening
   await supabaseAdmin.from('story_events').insert({
     campaign_id: campaignId,
     character_id: characterId,
@@ -1227,7 +1244,7 @@ export async function processCoopAction(
     { id: campaignId, world_state: ws, act: campaign.act }
   );
 
-  // Apply consequences to Character 2 (world state already updated — applyConsequences re-fetches)
+  // Apply consequences to Character 2 (world state already updated â€” applyConsequences re-fetches)
   const char2Result = await applyConsequences(
     pendingActions[1].characterId,
     {
