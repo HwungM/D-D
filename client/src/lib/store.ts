@@ -152,6 +152,13 @@ export const useGameStore = create<GameState>()((set) => ({
       // activeNPC: direct set
       if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 
+      // fallenHeroes: append new entries
+      if (changes.fallenHeroes) {
+        const existingNames = new Set((current.fallenHeroes || []).map(h => `${h.name}:${h.diedAt}`));
+        const newFallen = changes.fallenHeroes.filter(h => !existingNames.has(`${h.name}:${h.diedAt}`));
+        merged.fallenHeroes = [...(current.fallenHeroes || []), ...newFallen];
+      }
+
       // Simple scalar fields
       const scalarFields = ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'sceneState', 'currentSceneSummary', 'actionsSinceLastSummary', 'villainMoveCount', 'endgamePhase', 'actionCount'] as const;
       for (const key of scalarFields) {

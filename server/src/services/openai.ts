@@ -548,7 +548,11 @@ export async function generateNarration(
   });
 
   const content = response.choices[0].message.content || '{}';
-  return parseNarrationResponse(JSON.parse(content));
+  try {
+    return parseNarrationResponse(JSON.parse(content));
+  } catch {
+    return parseNarrationResponse({});
+  }
 }
 
 export async function* generateNarrationStreaming(
@@ -688,7 +692,8 @@ Respond with JSON:
   });
 
   const content = response.choices[0].message.content || '{}';
-  const parsed = JSON.parse(content);
+  let parsed: Record<string, unknown> = {};
+  try { parsed = JSON.parse(content); } catch { /* use empty defaults */ }
 
   return {
     narration: parsed.narration || 'The outcome unfolds...',
@@ -791,7 +796,8 @@ Return JSON:
     response_format: { type: 'json_object' },
   });
 
-  const parsed = JSON.parse(response.choices[0].message.content || '{"hooks":[]}');
+  let parsed: { hooks?: unknown[] } = { hooks: [] };
+  try { parsed = JSON.parse(response.choices[0].message.content || '{"hooks":[]}'); } catch { /* use empty hooks */ }
   return (parsed.hooks || []).map((h: { hook: string }) => ({
     characterId,
     characterName,
@@ -839,10 +845,11 @@ Return JSON:
     response_format: { type: 'json_object' },
   });
 
-  const parsed = JSON.parse(response.choices[0].message.content || '{}');
+  let parsed: Record<string, unknown> = {};
+  try { parsed = JSON.parse(response.choices[0].message.content || '{}'); } catch { /* use defaults */ }
   return {
-    narration: parsed.narration || 'Something has changed in the world while you were away.',
-    sessionNote: parsed.sessionNote || 'Villain advanced their plan.',
+    narration: (parsed.narration as string) || 'Something has changed in the world while you were away.',
+    sessionNote: (parsed.sessionNote as string) || 'Villain advanced their plan.',
   };
 }
 
@@ -872,8 +879,9 @@ Return JSON array:
   });
 
   const content = response.choices[0].message.content || '{"seeds":[]}';
-  const parsed = JSON.parse(content);
-  return parsed.seeds || parsed || [];
+  let parsed: unknown;
+  try { parsed = JSON.parse(content); } catch { return []; }
+  return (parsed as { seeds?: StorySeedOption[] }).seeds || (parsed as StorySeedOption[]) || [];
 }
 
 export async function generateWorldBible(storySeed: string): Promise<WorldBible> {
@@ -962,7 +970,8 @@ Include 5-7 geography entries, 5-6 gods, exactly 4 tone rules, 3-4 forbidden lor
   });
 
   const content = response.choices[0].message.content || '{}';
-  const parsed = JSON.parse(content) as WorldBible;
+  let parsed: WorldBible;
+  try { parsed = JSON.parse(content) as WorldBible; } catch { throw new Error('Failed to parse world bible from AI response'); }
   // Ensure antagonistRoster includes primaryAntagonist
   if (parsed.primaryAntagonist && (!parsed.antagonistRoster || parsed.antagonistRoster.length === 0)) {
     parsed.antagonistRoster = [parsed.primaryAntagonist];
@@ -1008,11 +1017,12 @@ Return JSON:
   });
 
   const content = response.choices[0].message.content || '{}';
-  const parsed = JSON.parse(content);
+  let parsed: Record<string, unknown> = {};
+  try { parsed = JSON.parse(content); } catch { /* use defaults */ }
   return {
-    narration: parsed.narration || 'Something stirs in the distance...',
-    sceneImagePrompt: parsed.sceneImagePrompt || '',
-    suggestedActions: parsed.suggestedActions || [],
+    narration: (parsed.narration as string) || 'Something stirs in the distance...',
+    sceneImagePrompt: (parsed.sceneImagePrompt as string) || '',
+    suggestedActions: (parsed.suggestedActions as string[]) || [],
   };
 }
 

@@ -188,9 +188,14 @@ router.get('/scene/:campaignId/:characterId', requireAuth, async (req: AuthReque
     .eq('id', characterId)
     .single();
 
+  if (!campaign || !character) {
+    res.status(404).json({ error: 'Campaign or character not found' });
+    return;
+  }
+
   res.json({
     lastEvent,
-    worldState: campaign?.world_state,
+    worldState: campaign.world_state,
     character,
   });
 });
@@ -229,8 +234,6 @@ router.post('/dev-kill/:characterId', requireAuth, async (req: AuthRequest, res:
 
   // Record death in world state
   if (char) {
-    const { data: campaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', req.body.campaignId || '').single();
-    // Try to find campaign via character
     const { data: charCampaign } = await supabaseAdmin.from('characters').select('campaign_id').eq('id', characterId).single();
     if (charCampaign) {
       const { data: camp } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', charCampaign.campaign_id).single();
