@@ -135,12 +135,17 @@ export default function Dashboard() {
   const [continuingId, setContinuingId] = useState<string | null>(null)
   const [creatingTestWorld, setCreatingTestWorld] = useState(false)
 
-  const [audioUnlocked, setAudioUnlocked] = useState(false)
+  const [audioUnlocked, setAudioUnlocked] = useState(() => localStorage.getItem('audioUnlocked') === '1')
 
   function unlockAudio() {
     audioManager.startAmbient()
+    localStorage.setItem('audioUnlocked', '1')
     setAudioUnlocked(true)
   }
+
+  useEffect(() => {
+    if (audioUnlocked) audioManager.startAmbient()
+  }, [audioUnlocked])
 
   useEffect(() => {
     campaignApi.list().then(({ data }) => {
