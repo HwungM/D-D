@@ -951,7 +951,6 @@ export default function Game() {
         <DiceRollModal
           narration={diceModalData.narration}
           rollContext={diceModalData.rollContext}
-          characterName={currentCharacter.name}
           onRoll={handleRollComplete}
           onContinue={() => {
             setShowDiceModal(false)
