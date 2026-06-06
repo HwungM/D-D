@@ -13,7 +13,8 @@ const campaignLocks = new Map<string, Promise<void>>();
 async function withCampaignLock<T>(campaignId: string, fn: () => Promise<T>): Promise<T> {
   const previous = campaignLocks.get(campaignId) || Promise.resolve();
   let release!: () => void;
-  const next = previous.catch(() => undefined).then(() => new Promise<void>(resolve => { release = resolve; }));
+  const current = new Promise<void>(resolve => { release = resolve; });
+  const next = previous.catch(() => undefined).then(() => current);
   campaignLocks.set(campaignId, next);
   await previous.catch(() => undefined);
   try {
