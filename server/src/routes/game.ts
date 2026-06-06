@@ -22,15 +22,15 @@ router.post('/action', requireAuth, async (req: AuthRequest, res: Response): Pro
   }
   const { characterId, campaignId, action } = parse.data;
 
-  // Verify ownership
+  // Verify ownership and campaign pairing
   const { data: character } = await supabaseAdmin
     .from('characters')
-    .select('user_id, name')
+    .select('user_id, name, campaign_id')
     .eq('id', characterId)
     .eq('user_id', req.user!.id)
     .single();
 
-  if (!character) {
+  if (!character || character.campaign_id !== campaignId) {
     res.status(403).json({ error: 'Character not found or not yours' });
     return;
   }
@@ -133,12 +133,12 @@ router.post('/resolve-roll', requireAuth, async (req: AuthRequest, res: Response
 
   const { data: character } = await supabaseAdmin
     .from('characters')
-    .select('user_id')
+    .select('user_id, campaign_id')
     .eq('id', characterId)
     .eq('user_id', req.user!.id)
     .single();
 
-  if (!character) {
+  if (!character || character.campaign_id !== campaignId) {
     res.status(403).json({ error: 'Character not found or not yours' });
     return;
   }
@@ -159,15 +159,15 @@ router.post('/start', requireAuth, async (req: AuthRequest, res: Response): Prom
     return;
   }
 
-  // Verify ownership
+  // Verify ownership and campaign pairing
   const { data: character } = await supabaseAdmin
     .from('characters')
-    .select('user_id')
+    .select('user_id, campaign_id')
     .eq('id', characterId)
     .eq('user_id', req.user!.id)
     .single();
 
-  if (!character) {
+  if (!character || character.campaign_id !== campaignId) {
     res.status(403).json({ error: 'Character not found or not yours' });
     return;
   }
@@ -224,6 +224,19 @@ router.get('/history/:campaignId/:characterId', requireAuth, async (req: AuthReq
 router.get('/scene/:campaignId/:characterId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { campaignId, characterId } = req.params;
 
+  const { data: character } = await supabaseAdmin
+    .from('characters')
+    .select('*')
+    .eq('id', characterId)
+    .eq('campaign_id', campaignId)
+    .eq('user_id', req.user!.id)
+    .single();
+
+  if (!character) {
+    res.status(403).json({ error: 'Character not found or not yours' });
+    return;
+  }
+
   const { data: lastEvent } = await supabaseAdmin
     .from('story_events')
     .select('*')
@@ -239,13 +252,7 @@ router.get('/scene/:campaignId/:characterId', requireAuth, async (req: AuthReque
     .eq('id', campaignId)
     .single();
 
-  const { data: character } = await supabaseAdmin
-    .from('characters')
-    .select('*')
-    .eq('id', characterId)
-    .single();
-
-  if (!campaign || !character) {
+  if (!campaign) {
     res.status(404).json({ error: 'Campaign or character not found' });
     return;
   }
@@ -334,7 +341,7 @@ router.post('/epilogue/:campaignId/:characterId', requireAuth, async (req: AuthR
 
   const [{ data: campaign }, { data: character }] = await Promise.all([
     supabaseAdmin.from('campaigns').select('world_state, world_bible').eq('id', campaignId).single(),
-    supabaseAdmin.from('characters').select('*').eq('id', characterId).single(),
+    supabaseAdmin.from('characters').select('*').eq('id', characterId).eq('campaign_id', campaignId).eq('user_id', req.user!.id).single(),
   ]);
 
   if (!campaign || !character) {
