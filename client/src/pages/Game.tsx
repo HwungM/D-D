@@ -781,12 +781,16 @@ export default function Game() {
           onBuy={(item) => {
             const newGold = currentCharacter.gold - item.price
             const newItem = { id: item.id, name: item.name, description: item.description, quantity: item.quantity, type: item.type as 'weapon' | 'armor' | 'potion' | 'misc' | 'key', value: item.price }
-            setCharacter({ ...currentCharacter, gold: newGold, inventory: [...currentCharacter.inventory, newItem] })
+            const newInventory = [...currentCharacter.inventory, newItem]
+            setCharacter({ ...currentCharacter, gold: newGold, inventory: newInventory })
+            characterApi.update(currentCharacter.id, { gold: newGold, inventory: newInventory })
           }}
           onSell={(item) => {
             const sellPrice = Math.floor((item.value || 0) / 2)
+            const newGold = currentCharacter.gold + sellPrice
             const newInventory = currentCharacter.inventory.filter(i => i.id !== item.id)
-            setCharacter({ ...currentCharacter, gold: currentCharacter.gold + sellPrice, inventory: newInventory })
+            setCharacter({ ...currentCharacter, gold: newGold, inventory: newInventory })
+            characterApi.update(currentCharacter.id, { gold: newGold, inventory: newInventory })
           }}
           onClose={() => setShowShop(false)}
         />
