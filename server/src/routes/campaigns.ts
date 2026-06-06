@@ -259,6 +259,18 @@ router.get('/invite/:code', async (req, res: Response): Promise<void> => {
 router.get('/:id/party', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
 
+  const { data: membership } = await supabaseAdmin
+    .from('campaign_members')
+    .select('campaign_id')
+    .eq('campaign_id', id)
+    .eq('user_id', req.user!.id)
+    .single();
+
+  if (!membership) {
+    res.status(403).json({ error: 'Access denied' });
+    return;
+  }
+
   const { data: members } = await supabaseAdmin
     .from('campaign_members')
     .select('user_id, profiles(username)')
