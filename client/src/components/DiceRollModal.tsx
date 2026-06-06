@@ -4,12 +4,11 @@ import type { RollContext } from '../../../shared/types'
 interface DiceRollModalProps {
   narration: string
   rollContext: RollContext
-  characterName: string
   onRoll: () => Promise<{ rollResult: number; rollTotal: number; dc: number; success: boolean; isCritSuccess: boolean; isCritFail: boolean }>
   onContinue: () => void
 }
 
-export default function DiceRollModal({ narration, rollContext, characterName, onRoll, onContinue }: DiceRollModalProps) {
+export default function DiceRollModal({ narration, rollContext, onRoll, onContinue }: DiceRollModalProps) {
   const [rolled, setRolled] = useState(false)
   const [rolling, setRolling] = useState(false)
   const [displayNum, setDisplayNum] = useState<number | null>(null)
