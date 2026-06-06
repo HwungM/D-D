@@ -283,7 +283,7 @@ router.get('/:id/party', requireAuth, async (req: AuthRequest, res: Response): P
 
   // Get active character for each member
   const partyData = await Promise.all(
-    members.map(async (m: { user_id: string; profiles: { username: string } | null }) => {
+    members.map(async (m: { user_id: string; profiles: { username: string }[] | { username: string } | null }) => {
       const { data: chars } = await supabaseAdmin
         .from('characters')
         .select('*')
@@ -293,9 +293,10 @@ router.get('/:id/party', requireAuth, async (req: AuthRequest, res: Response): P
         .order('created_at', { ascending: false })
         .limit(1);
 
+      const profile = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
       return {
         userId: m.user_id,
-        username: (m.profiles as { username: string } | null)?.username || 'Unknown',
+        username: profile?.username || 'Unknown',
         character: chars?.[0] || null,
       };
     })
@@ -307,7 +308,7 @@ router.get('/:id/party', requireAuth, async (req: AuthRequest, res: Response): P
 router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
 
-  // Verify ownership — check created_by, fall back to membership for old campaigns
+  // Verify ownership â€” check created_by, fall back to membership for old campaigns
   const { data: campaign } = await supabaseAdmin
     .from('campaigns')
     .select('created_by')
