@@ -567,7 +567,12 @@ export default function CharacterCreate() {
                 </button>
               ))}
             </div>
-            <div className="mt-8 flex gap-3">
+            {!selectedPortrait && (
+              <p className="mt-4 text-xs font-serif text-center" style={{ color: 'rgba(180,160,120,0.45)' }}>
+                Choose a portrait above to continue
+              </p>
+            )}
+            <div className="mt-4 flex gap-3">
               <button onClick={() => setStep(1)} className="fantasy-btn-secondary">← Back</button>
               <button
                 onClick={() => setStep(3)}

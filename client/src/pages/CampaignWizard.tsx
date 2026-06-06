@@ -182,7 +182,7 @@ export default function CampaignWizard() {
   const stepContent = [
     // Step 0 — Solo vs Collaborative
     <div key="coop">
-      <h2 className="font-fantasy text-3xl text-parchment-200 mb-2 text-center">How are you adventuring?</h2>
+      <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">How are you adventuring?</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Choose your adventuring style</p>
       <div className="grid gap-4 sm:grid-cols-2 max-w-lg mx-auto">
         {[
@@ -217,7 +217,7 @@ export default function CampaignWizard() {
 
     // Step 1 — Tone
     <div key="tone">
-      <h2 className="font-fantasy text-3xl text-parchment-200 mb-2 text-center">What kind of story calls to you?</h2>
+      <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">What kind of story calls to you?</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Choose the tone that excites you most</p>
       <div className="grid gap-4 sm:grid-cols-2">
         {TONE_CARDS.map(card => {
@@ -245,7 +245,7 @@ export default function CampaignWizard() {
 
     // Step 1 — Pillars
     <div key="pillars">
-      <h2 className="font-fantasy text-3xl text-parchment-200 mb-2 text-center">What do you love most at the table?</h2>
+      <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">What do you love most at the table?</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Select all that apply — minimum one</p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {PILLARS.map(p => {
@@ -272,7 +272,7 @@ export default function CampaignWizard() {
 
     // Step 2 — Party size
     <div key="party">
-      <h2 className="font-fantasy text-3xl text-parchment-200 mb-2 text-center">Who's adventuring?</h2>
+      <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Who's adventuring?</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>The DM will tailor the challenge accordingly</p>
       <div className="grid gap-4 max-w-lg mx-auto">
         {([
@@ -306,7 +306,7 @@ export default function CampaignWizard() {
 
     // Step 3 — Characters
     <div key="characters">
-      <h2 className="font-fantasy text-3xl text-parchment-200 mb-2 text-center">Tell me about your characters</h2>
+      <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Tell me about your characters</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>
         These are optional — the more you share, the more personal the story becomes
       </p>
@@ -345,7 +345,7 @@ export default function CampaignWizard() {
 
     // Step 4 — Premise
     <div key="premise">
-      <h2 className="font-fantasy text-3xl text-parchment-200 mb-2 text-center">Choose your world</h2>
+      <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Choose your world</h2>
       <p className="font-serif text-sm text-center mb-6" style={{ color: 'rgba(180,160,120,0.6)' }}>
         The spark that ignites your campaign
       </p>
@@ -424,7 +424,7 @@ export default function CampaignWizard() {
 
     // Step 6 — Name
     <div key="name">
-      <h2 className="font-fantasy text-3xl text-parchment-200 mb-2 text-center">Name your campaign</h2>
+      <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Name your campaign</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>
         This is how your legend will be remembered
       </p>
@@ -510,7 +510,7 @@ export default function CampaignWizard() {
       </header>
 
       {/* Wizard content */}
-      <div className="relative z-10 max-w-2xl mx-auto px-6 py-12">
+      <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <StepIndicator step={step} total={totalSteps} />
 
         {/* Animated step content */}
@@ -526,10 +526,10 @@ export default function CampaignWizard() {
 
         {/* Navigation */}
         {step < totalSteps - 1 && (
-          <div className="flex items-center justify-between mt-10">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-10">
             <button
               onClick={step === 0 ? () => navigate('/dashboard') : goBack}
-              className="font-serif text-sm px-5 py-2.5 transition-all"
+              className="font-serif text-sm px-5 py-3 sm:py-2.5 transition-all"
               style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.6)' }}
             >
               {step === 0 ? 'Cancel' : '← Back'}
@@ -537,7 +537,7 @@ export default function CampaignWizard() {
             <button
               onClick={goNext}
               disabled={!canProceed[step]}
-              className="font-serif text-sm px-6 py-2.5 transition-all disabled:opacity-40"
+              className="font-serif text-sm px-6 py-3 sm:py-2.5 transition-all disabled:opacity-40"
               style={{
                 background: canProceed[step] ? 'linear-gradient(135deg, rgba(200,146,42,0.2), rgba(160,100,30,0.3))' : 'transparent',
                 border: '1px solid rgba(200,146,42,0.35)',
@@ -552,7 +552,7 @@ export default function CampaignWizard() {
           <div className="flex justify-start mt-6">
             <button
               onClick={goBack}
-              className="font-serif text-sm px-5 py-2.5 transition-all"
+              className="font-serif text-sm px-5 py-3 sm:py-2.5 transition-all w-full sm:w-auto"
               style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.6)' }}
             >
               ← Back

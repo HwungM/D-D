@@ -122,7 +122,7 @@ export default function CampaignBrief() {
 
       {/* Content */}
       <div
-        className="relative z-10 max-w-2xl mx-auto px-6 py-16 transition-all duration-700"
+        className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-16 transition-all duration-700"
         style={{
           opacity: revealed ? 1 : 0,
           transform: revealed ? 'translateY(0)' : 'translateY(20px)',
@@ -133,7 +133,7 @@ export default function CampaignBrief() {
           <p className="text-xs uppercase tracking-[0.25em] font-serif mb-3" style={{ color: 'rgba(200,146,42,0.5)' }}>
             Your Campaign
           </p>
-          <h1 className="font-fantasy text-5xl text-parchment-200 leading-tight" style={{
+          <h1 className="font-fantasy text-3xl sm:text-5xl text-parchment-200 leading-tight" style={{
             textShadow: '0 0 60px rgba(200,146,42,0.25)',
             letterSpacing: '0.04em',
           }}>
@@ -255,7 +255,7 @@ export default function CampaignBrief() {
               </button>
             ) : (
               <div className="space-y-3">
-                <div className="flex items-center gap-2 px-3 py-2" style={{
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 px-3 py-2" style={{
                   background: 'rgba(0,0,0,0.3)',
                   border: '1px solid rgba(255,255,255,0.08)',
                 }}>
@@ -295,10 +295,10 @@ export default function CampaignBrief() {
         )}
 
         {/* Action buttons */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col gap-3">
           <button
             onClick={() => navigate(`/campaign/${campaignId}/create-character`)}
-            className="flex-1 py-3.5 font-fantasy text-base transition-all"
+            className="w-full py-3.5 font-fantasy text-base transition-all"
             style={{
               background: 'linear-gradient(135deg, rgba(192,57,43,0.25), rgba(140,30,20,0.35))',
               border: '1px solid rgba(192,57,43,0.45)',
@@ -312,7 +312,7 @@ export default function CampaignBrief() {
           </button>
           <button
             onClick={handleShare}
-            className="sm:w-48 py-3.5 font-serif text-sm transition-all"
+            className="w-full py-3.5 font-serif text-sm transition-all"
             style={{
               border: '1px solid rgba(255,255,255,0.12)',
               color: copied ? 'rgba(120,200,120,0.9)' : 'rgba(180,160,120,0.7)',

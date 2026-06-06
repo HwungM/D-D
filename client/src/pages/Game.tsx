@@ -581,7 +581,7 @@ export default function Game() {
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: '#06080d', color: '#d4c5a0' }}>
 
       {/* ── Header ── */}
-      <header className="shrink-0 flex items-center justify-between px-4 py-2" style={{
+      <header className="shrink-0 flex items-center justify-between px-3 py-2 gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' as const,
         background: 'rgba(6,8,13,0.97)',
         borderBottom: '1px solid rgba(255,255,255,0.055)',
         backdropFilter: 'blur(10px)',
@@ -614,7 +614,7 @@ export default function Game() {
               <span style={{ color: 'rgba(255,255,255,0.12)', flexShrink: 0 }}>·</span>
               <span className="font-serif text-xs shrink-0" style={{ color: 'rgba(200,146,42,0.8)' }}>Lv {currentCharacter.level}</span>
               <span style={{ color: 'rgba(255,255,255,0.12)', flexShrink: 0 }}>·</span>
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="hidden sm:flex items-center gap-1.5 shrink-0">
                 <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
                   <div className="h-full rounded-full transition-all duration-700" style={{ width: `${hpPercent}%`, background: hpColor, boxShadow: `0 0 5px ${hpColor}70` }} />
                 </div>
@@ -625,7 +625,7 @@ export default function Game() {
         </div>
 
         {/* Right: controls */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <AudioControls />
           {campaignId && (
             <button
@@ -723,15 +723,17 @@ export default function Game() {
       )}
 
       {/* ── Main content area ── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
 
         {/* ── LEFT: Persistent scene panel ── */}
-        <div className="flex flex-col shrink-0 overflow-hidden" style={{ width: '420px', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
-          <SceneDisplay
-            imageUrl={currentSceneImage}
-            location={worldState?.currentLocation}
-            timeOfDay={worldState?.timeOfDay}
-          />
+        <div className="flex flex-col shrink-0 overflow-hidden md:border-r" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+          <div className="w-full md:w-[420px]">
+            <SceneDisplay
+              imageUrl={currentSceneImage}
+              location={worldState?.currentLocation}
+              timeOfDay={worldState?.timeOfDay}
+            />
+          </div>
 
           {/* Party panel below scene */}
           {otherPartyMembers.length > 0 && (
@@ -742,7 +744,7 @@ export default function Game() {
         </div>
 
         {/* ── RIGHT: Narrative / Sidebar ── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
 
           {showSidebar ? (
             /* Sidebar content */
