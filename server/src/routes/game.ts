@@ -7,6 +7,22 @@ import type { WorldState, WorldBible, Character } from '../../../shared/types';
 import { z } from 'zod';
 
 const router = Router();
+const COOP_TURN_TIMEOUT_MS = 5 * 60 * 1000;
+const campaignLocks = new Map<string, Promise<void>>();
+
+async function withCampaignLock<T>(campaignId: string, fn: () => Promise<T>): Promise<T> {
+  const previous = campaignLocks.get(campaignId) || Promise.resolve();
+  let release!: () => void;
+  const next = previous.catch(() => undefined).then(() => new Promise<void>(resolve => { release = resolve; }));
+  campaignLocks.set(campaignId, next);
+  await previous.catch(() => undefined);
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (campaignLocks.get(campaignId) === next) campaignLocks.delete(campaignId);
+  }
+}
 
 const actionSchema = z.object({
   characterId: z.string().uuid(),
@@ -25,7 +41,7 @@ router.post('/action', requireAuth, async (req: AuthRequest, res: Response): Pro
   // Verify ownership and campaign pairing
   const { data: character } = await supabaseAdmin
     .from('characters')
-    .select('user_id, name, campaign_id')
+    .select('user_id, name, campaign_id, is_alive')
     .eq('id', characterId)
     .eq('user_id', req.user!.id)
     .single();
@@ -34,15 +50,21 @@ router.post('/action', requireAuth, async (req: AuthRequest, res: Response): Pro
     res.status(403).json({ error: 'Character not found or not yours' });
     return;
   }
+  if (character.is_alive === false) {
+    res.status(400).json({ error: 'This character can no longer act' });
+    return;
+  }
 
   try {
-    // Check if co-op campaign (more than 1 member)
-    const { count: memberCount } = await supabaseAdmin
-      .from('campaign_members')
-      .select('*', { count: 'exact', head: true })
-      .eq('campaign_id', campaignId);
+    const { data: activeCharacters } = await supabaseAdmin
+      .from('characters')
+      .select('id, user_id')
+      .eq('campaign_id', campaignId)
+      .eq('is_alive', true);
+    const activePlayerCount = new Set((activeCharacters || []).map(c => c.user_id)).size;
 
-    if (memberCount && memberCount > 1) {
+    if (activePlayerCount > 1) {
+      await withCampaignLock(campaignId, async () => {
       const { data: campaign } = await supabaseAdmin
         .from('campaigns')
         .select('world_state')
@@ -55,8 +77,14 @@ router.post('/action', requireAuth, async (req: AuthRequest, res: Response): Pro
       }
 
       const ws = campaign.world_state as WorldState;
-      const roundId = ws.pendingTurn?.roundId || crypto.randomUUID();
-      const pendingActions = ws.pendingTurn?.actions || [];
+      const pendingCreatedAt = ws.pendingTurn?.createdAt || ws.pendingTurn?.actions?.[0]?.submittedAt;
+      const pendingStartedAt = pendingCreatedAt ? Date.parse(pendingCreatedAt) : NaN;
+      const pendingIsStale = Number.isFinite(pendingStartedAt) && Date.now() - pendingStartedAt > COOP_TURN_TIMEOUT_MS;
+      const activePendingTurn = pendingIsStale ? null : ws.pendingTurn;
+      const roundId = activePendingTurn?.roundId || crypto.randomUUID();
+      const pendingActions = activePendingTurn?.actions || [];
+      const createdAt = activePendingTurn?.createdAt || new Date().toISOString();
+      const expiresAt = new Date(Date.parse(createdAt) + COOP_TURN_TIMEOUT_MS).toISOString();
 
       // Prevent double-submit
       if (pendingActions.some(a => a.characterId === characterId)) {
@@ -72,12 +100,19 @@ router.post('/action', requireAuth, async (req: AuthRequest, res: Response): Pro
         submittedAt: new Date().toISOString(),
       }];
 
-      if (newActions.length < memberCount) {
+      if (newActions.length < activePlayerCount) {
         // Save pending, return waiting
         await supabaseAdmin.from('campaigns').update({
-          world_state: { ...ws, pendingTurn: { actions: newActions, roundId } }
+          world_state: { ...ws, pendingTurn: { actions: newActions, roundId, createdAt, expiresAt } }
         }).eq('id', campaignId);
-        res.json({ status: 'waiting', waitingFor: 'partner' });
+        res.json({
+          status: 'waiting',
+          waitingFor: 'partner',
+          roundId,
+          submittedCount: newActions.length,
+          neededCount: activePlayerCount,
+          expiresAt,
+        });
         return;
       }
 
@@ -88,6 +123,8 @@ router.post('/action', requireAuth, async (req: AuthRequest, res: Response): Pro
 
       const result = await processCoopAction(campaignId, newActions);
       res.json({ status: 'complete', ...result });
+      return;
+      });
       return;
     }
 
