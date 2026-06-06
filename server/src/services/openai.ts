@@ -329,7 +329,7 @@ function buildNarrationMessages(
     abilitiesBlock = `
 ━━━ CHARACTER ABILITIES ━━━
 AVAILABLE:
-${available.length > 0 ? available.map(a => `- ${a.name}: ${a.mechanic || a.description}`).join('\n') : '(none available)'}
+${available.length > 0 ? available.map(a => `- ${a.name}: ${a.description}`).join('\n') : '(none available)'}
 ON COOLDOWN (cannot use):
 ${onCooldown.length > 0 ? onCooldown.map(a => `- ${a.name} [ON COOLDOWN]`).join('\n') : '(none on cooldown)'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━`;

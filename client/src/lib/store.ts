@@ -125,8 +125,35 @@ export const useGameStore = create<GameState>()((set) => ({
         merged.characterLastSeen = { ...current.characterLastSeen, ...changes.characterLastSeen };
       }
 
+      // foreshadowingLedger: merge by id
+      if (changes.foreshadowingLedger) {
+        const existing = new Map((current.foreshadowingLedger || []).map(f => [f.id, f]));
+        for (const entry of changes.foreshadowingLedger) existing.set(entry.id, { ...existing.get(entry.id), ...entry });
+        merged.foreshadowingLedger = Array.from(existing.values()).slice(-50);
+      }
+
+      // backstoryHooks: merge by key
+      if (changes.backstoryHooks) {
+        const existing = new Map((current.backstoryHooks || []).map(h => [`${h.characterId}:${h.hook}`, h]));
+        for (const hook of changes.backstoryHooks) existing.set(`${hook.characterId}:${hook.hook}`, { ...existing.get(`${hook.characterId}:${hook.hook}`), ...hook });
+        merged.backstoryHooks = Array.from(existing.values());
+      }
+
+      // actGoalsAchieved: union
+      if (changes.actGoalsAchieved) {
+        merged.actGoalsAchieved = Array.from(new Set([...(current.actGoalsAchieved || []), ...changes.actGoalsAchieved]));
+      }
+
+      // shopInventory: merge by location key
+      if (changes.shopInventory) {
+        merged.shopInventory = { ...(current.shopInventory || {}), ...changes.shopInventory };
+      }
+
+      // activeNPC: direct set
+      if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
+
       // Simple scalar fields
-      const scalarFields = ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory'] as const;
+      const scalarFields = ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'sceneState', 'currentSceneSummary', 'actionsSinceLastSummary', 'villainMoveCount'] as const;
       for (const key of scalarFields) {
         if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
       }

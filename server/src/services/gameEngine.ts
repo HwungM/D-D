@@ -195,6 +195,7 @@ export async function applyConsequences(
   currentCharacter: Character,
   campaign: { id: string; world_state: WorldState; act?: number }
 ): Promise<{ updatedCharacter: Character; updatedWorldState: WorldState }> {
+  const validItemTypes = new Set(['weapon', 'armor', 'potion', 'misc', 'key']);
   const updates: Partial<Character> = {};
 
   // Re-fetch latest world state right before writing to minimize race window in co-op
@@ -213,26 +214,29 @@ export async function applyConsequences(
   }
 
   // Apply HP changes
-  if (actionResult.hpChange !== undefined) {
+  if (actionResult.hpChange !== undefined && !isNaN(actionResult.hpChange)) {
     updates.hp = Math.max(0, Math.min(currentCharacter.max_hp, currentCharacter.hp + actionResult.hpChange));
   }
 
-  // Apply gold changes
-  if (actionResult.goldChange !== undefined) {
-    updates.gold = Math.max(0, currentCharacter.gold + actionResult.goldChange);
+  // Apply gold changes — validate to prevent NaN/runaway values from AI
+  if (actionResult.goldChange !== undefined && !isNaN(actionResult.goldChange)) {
+    const clampedChange = Math.max(-10000, Math.min(10000, Math.round(actionResult.goldChange)));
+    updates.gold = Math.max(0, currentCharacter.gold + clampedChange);
   }
 
   // Apply loot to inventory
   if (actionResult.loot && actionResult.loot.length > 0) {
     const existingInventory = currentCharacter.inventory || [];
-    const newItems = actionResult.loot.map(item => ({
-      id: item.id || crypto.randomUUID(),
-      name: item.name,
-      description: item.description,
-      quantity: item.quantity || 1,
-      type: item.type as 'weapon' | 'armor' | 'potion' | 'misc' | 'key',
-      value: item.value,
-    }));
+    const newItems = actionResult.loot
+      .filter(item => item.name && typeof item.name === 'string')
+      .map(item => ({
+        id: item.id || crypto.randomUUID(),
+        name: item.name,
+        description: item.description || '',
+        quantity: Math.max(1, Math.round(item.quantity || 1)),
+        type: (validItemTypes.has(item.type) ? item.type : 'misc') as 'weapon' | 'armor' | 'potion' | 'misc' | 'key',
+        value: typeof item.value === 'number' && !isNaN(item.value) ? item.value : undefined,
+      }));
     // Stack items with same name
     const merged = [...existingInventory];
     for (const newItem of newItems) {
@@ -275,8 +279,11 @@ export async function applyConsequences(
     }
     if (actionResult.statusEffectChanges.add) {
       for (const e of actionResult.statusEffectChanges.add) {
+        if (!e.name || typeof e.name !== 'string') continue;
+        const validEffectTypes = new Set(['buff', 'debuff', 'neutral']);
+        const effectType = validEffectTypes.has(e.type) ? e.type : 'neutral';
         const existing = effects.findIndex(x => x.name.toLowerCase() === e.name.toLowerCase());
-        const effect: StatusEffect = { name: e.name, description: e.description, type: e.type as StatusEffect['type'], duration: e.duration };
+        const effect: StatusEffect = { name: e.name, description: e.description || '', type: effectType as StatusEffect['type'], duration: e.duration };
         if (existing >= 0) effects[existing] = effect;
         else effects.push(effect);
       }
@@ -545,10 +552,11 @@ export async function processAction(
       // Combat just started
       combatState = { inCombat: true, enemyName: aiResponse.enemyName, enemyCondition: 'healthy', roundNumber: 1, playerActionsAttempted: [action] };
     } else {
-      // Ongoing combat — increment round, log action, estimate condition from hp
-      const hpPct = character.hp / character.max_hp;
-      const enemyCondition = hpPct > 0.6 ? 'healthy' : hpPct > 0.25 ? 'wounded' : 'critical';
-      combatState = { ...combatState, roundNumber: combatState.roundNumber + 1, enemyCondition, playerActionsAttempted: [...(combatState.playerActionsAttempted || []).slice(-8), action] };
+      // Ongoing combat — increment round, log action
+      // Enemy condition steps down based on rounds fought (rough heuristic)
+      const rounds = combatState.roundNumber + 1;
+      const enemyCondition = rounds <= 2 ? 'healthy' : rounds <= 5 ? 'wounded' : 'critical';
+      combatState = { ...combatState, roundNumber: rounds, enemyCondition, playerActionsAttempted: [...(combatState.playerActionsAttempted || []).slice(-8), action] };
     }
   } else if (aiResponse.isVictory || (!aiResponse.isCombat && combatState?.inCombat)) {
     combatState = null; // combat ended
@@ -629,6 +637,19 @@ export async function processAction(
   // Persist shop inventory per location — same visit shows same items, but resets after leaving and doing 5+ things elsewhere
   const shopInventoryChange: Partial<WorldState> = {};
   if (aiResponse.isMerchant && aiResponse.shopItems && aiResponse.shopItems.length > 0) {
+    const validItemTypes = new Set(['weapon', 'armor', 'potion', 'misc', 'key']);
+    // Validate and sanitize shop items to prevent undefined fields crashing the UI
+    aiResponse.shopItems = aiResponse.shopItems
+      .filter(item => item.name && typeof item.name === 'string')
+      .map(item => ({
+        id: item.id || crypto.randomUUID(),
+        name: item.name,
+        description: item.description || '',
+        type: (validItemTypes.has(item.type) ? item.type : 'misc') as ShopItem['type'],
+        price: typeof item.price === 'number' && !isNaN(item.price) ? Math.max(1, Math.round(item.price)) : 10,
+        quantity: typeof item.quantity === 'number' && !isNaN(item.quantity) ? Math.max(1, Math.round(item.quantity)) : 1,
+      }));
+
     const location = (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation || 'unknown';
     const existingInventory = ws.shopInventory?.[location];
     const actionsSinceHere = ws.actionsSinceLastSummary || 0;
