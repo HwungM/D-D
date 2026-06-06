@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
-import { processAction, getOpeningScene, resolveRollAction, processCoopAction } from '../services/gameEngine';
+import { processAction, getOpeningScene, resolveRollAction, processCoopAction, getStatModifier } from '../services/gameEngine';
 import { generateEpilogue } from '../services/openai';
 import type { WorldState, WorldBible, Character } from '../../../shared/types';
 import { z } from 'zod';
@@ -141,12 +141,6 @@ router.post('/action', requireAuth, async (req: AuthRequest, res: Response): Pro
 const resolveRollSchema = z.object({
   characterId: z.string().uuid(),
   campaignId: z.string().uuid(),
-  rollResult: z.number().int().min(1).max(20),
-  rollTotal: z.number().int(),
-  dc: z.number().int(),
-  success: z.boolean(),
-  isCritSuccess: z.boolean(),
-  isCritFail: z.boolean(),
   rollContext: z.object({
     stat: z.string(),
     dc: z.number(),
@@ -167,11 +161,11 @@ router.post('/resolve-roll', requireAuth, async (req: AuthRequest, res: Response
     res.status(400).json({ error: parse.error.errors });
     return;
   }
-  const { characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, rollContext } = parse.data;
+  const { characterId, campaignId, rollContext } = parse.data;
 
   const { data: character } = await supabaseAdmin
     .from('characters')
-    .select('user_id, campaign_id')
+    .select('user_id, campaign_id, stats')
     .eq('id', characterId)
     .eq('user_id', req.user!.id)
     .single();
@@ -182,7 +176,18 @@ router.post('/resolve-roll', requireAuth, async (req: AuthRequest, res: Response
   }
 
   try {
-    const result = await resolveRollAction(characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, rollContext);
+    const stats = character.stats as Record<string, number> | null;
+    const statKey = rollContext.stat.toLowerCase();
+    const statValue = typeof stats?.[statKey] === 'number' ? stats[statKey] : 10;
+    const modifier = getStatModifier(statValue);
+    const rollResult = Math.floor(Math.random() * 20) + 1;
+    const rollTotal = rollResult + modifier;
+    const dc = rollContext.dc;
+    const success = rollTotal >= dc;
+    const isCritSuccess = rollResult === 20;
+    const isCritFail = rollResult === 1;
+    const authoritativeContext = { ...rollContext, modifier };
+    const result = await resolveRollAction(characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext);
     res.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to resolve roll';
