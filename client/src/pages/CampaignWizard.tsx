@@ -19,7 +19,6 @@ interface WizardState {
   playerCount: 1 | 2 | 3
   targetPlayerCount: 1 | 2 | 3
   waitForParty: boolean
-  characterConcepts: string[]
   selectedSeed: StorySeedOption | null
   useCustomPremise: boolean
   customPremise: string
@@ -88,14 +87,13 @@ export default function CampaignWizard() {
     playerCount: 1,
     targetPlayerCount: 1,
     waitForParty: false,
-    characterConcepts: ['', ''],
     selectedSeed: null,
     useCustomPremise: false,
     customPremise: '',
     campaignName: '',
   })
 
-  const totalSteps = 7
+  const totalSteps = 6
 
   function animateTo(nextStep: number) {
     setVisible(false)
@@ -142,7 +140,7 @@ export default function CampaignWizard() {
         playerCount: state.playerCount,
         targetPlayerCount: state.targetPlayerCount,
         waitForParty: state.waitForParty,
-        characterConcepts: state.characterConcepts.filter(Boolean),
+        characterConcepts: [],
       }
       const { data } = await campaignApi.create(state.campaignName.trim(), premise, 'adventure', playerPreferences)
       navigate(`/campaign/${data.campaign.id}/brief`)
@@ -158,9 +156,8 @@ export default function CampaignWizard() {
     !!state.tone,                          // step 1: tone
     state.pillars.length > 0,             // step 2: pillars
     true,                                  // step 3: party (always has default)
-    true,                                  // step 4: characters (optional)
-    !!(state.selectedSeed || (state.useCustomPremise && state.customPremise.trim().length > 20)),  // step 5: premise
-    state.campaignName.trim().length > 0, // step 6: name
+    !!(state.selectedSeed || (state.useCustomPremise && state.customPremise.trim().length > 20)),  // step 4: premise
+    state.campaignName.trim().length > 0, // step 5: name
   ]
 
   // -------------------------------------------------------------------------
@@ -191,7 +188,7 @@ export default function CampaignWizard() {
   // Steps
   // -------------------------------------------------------------------------
   const stepContent = [
-    // Step 0 â€” Solo vs Collaborative
+    // Step 0 - Solo vs Collaborative
     <div key="coop">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">How are you adventuring?</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Choose your adventuring style</p>
@@ -220,7 +217,7 @@ export default function CampaignWizard() {
             >
               <div className="flex items-start justify-between gap-2 mb-2">
                 <h3 className="font-fantasy text-lg" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{option.label}</h3>
-                {selected && <span style={{ color: '#c8922a' }}>âœ“</span>}
+                {selected && <span style={{ color: '#c8922a' }}>Selected</span>}
               </div>
               <p className="font-serif text-sm leading-relaxed" style={{ color: 'rgba(180,160,120,0.7)' }}>{option.description}</p>
             </button>
@@ -229,7 +226,7 @@ export default function CampaignWizard() {
       </div>
     </div>,
 
-    // Step 1 â€” Tone
+    // Step 1 - Tone
     <div key="tone">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">What kind of story calls to you?</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Choose the tone that excites you most</p>
@@ -248,7 +245,7 @@ export default function CampaignWizard() {
             >
               <div className="flex items-start justify-between gap-2 mb-2">
                 <h3 className="font-fantasy text-lg" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{card.label}</h3>
-                {selected && <span style={{ color: '#c8922a' }}>âœ“</span>}
+                {selected && <span style={{ color: '#c8922a' }}>Selected</span>}
               </div>
               <p className="font-serif text-sm leading-relaxed" style={{ color: 'rgba(180,160,120,0.7)' }}>{card.description}</p>
             </button>
@@ -257,10 +254,10 @@ export default function CampaignWizard() {
       </div>
     </div>,
 
-    // Step 1 â€” Pillars
+    // Step 1 - Tone
     <div key="pillars">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">What do you love most at the table?</h2>
-      <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Select all that apply â€” minimum one</p>
+      <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Select all that apply - minimum one</p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {PILLARS.map(p => {
           const selected = state.pillars.includes(p)
@@ -276,7 +273,7 @@ export default function CampaignWizard() {
             >
               <div className="flex items-center justify-between">
                 <span>{p}</span>
-                {selected && <span style={{ color: '#c8922a' }}>âœ“</span>}
+                {selected && <span style={{ color: '#c8922a' }}>Selected</span>}
               </div>
             </button>
           )
@@ -341,7 +338,7 @@ export default function CampaignWizard() {
                     <span className="font-fantasy text-lg" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{option.label}</span>
                     <p className="font-serif text-sm mt-1 leading-relaxed" style={{ color: 'rgba(180,160,120,0.62)' }}>{option.description}</p>
                   </div>
-                  {selected && <span style={{ color: '#c8922a' }}>✓</span>}
+                  {selected && <span style={{ color: '#c8922a' }}>Selected</span>}
                 </div>
               </button>
             )
@@ -389,7 +386,7 @@ export default function CampaignWizard() {
                     {option.disabled && <span className="ml-2 text-xs uppercase tracking-widest" style={{ color: 'rgba(200,146,42,0.65)' }}>Coming later</span>}
                     <p className="font-serif text-sm mt-1 leading-relaxed" style={{ color: 'rgba(180,160,120,0.62)' }}>{option.description}</p>
                   </div>
-                  {selected && <span style={{ color: '#c8922a' }}>✓</span>}
+                  {selected && <span style={{ color: '#c8922a' }}>Selected</span>}
                 </div>
               </button>
             )
@@ -397,46 +394,7 @@ export default function CampaignWizard() {
         </div>
       )}
     </div>,
-    // Step 3 â€” Characters
-    <div key="characters">
-      <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Tell me about your characters</h2>
-      <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>
-        These are optional â€” the more you share, the more personal the story becomes
-      </p>
-      <div className="space-y-5 max-w-xl mx-auto">
-        {Array.from({ length: Math.min(state.targetPlayerCount, 2) }, (_, i) => (
-          <div key={i}>
-            <label className="block text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(200,146,42,0.6)', letterSpacing: '0.12em' }}>
-              Character {i + 1} concept <span style={{ color: 'rgba(180,160,120,0.4)' }}>(optional)</span>
-            </label>
-            <textarea
-              value={state.characterConcepts[i] || ''}
-              onChange={e => {
-                const updated = [...state.characterConcepts]
-                updated[i] = e.target.value
-                setState(prev => ({ ...prev, characterConcepts: updated }))
-              }}
-              className="w-full bg-transparent outline-none py-3 px-3 font-serif text-sm resize-none"
-              style={{
-                border: '1px solid rgba(200,146,42,0.2)',
-                background: 'rgba(200,146,42,0.03)',
-                minHeight: '90px',
-                color: '#d4c5a0',
-              }}
-              placeholder={i === 0
-                ? 'A disgraced knight seeking to reclaim her family\'s honor...'
-                : 'A wandering scholar haunted by something they witnessed long ago...'
-              }
-            />
-            <p className="text-xs font-serif mt-1" style={{ color: 'rgba(180,160,120,0.4)' }}>
-              What does this person care about? What do they fear? What drives them?
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>,
-
-    // Step 4 â€” Premise
+    // Step 4 - Premise
     <div key="premise">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Choose your world</h2>
       <p className="font-serif text-sm text-center mb-6" style={{ color: 'rgba(180,160,120,0.6)' }}>
@@ -449,7 +407,7 @@ export default function CampaignWizard() {
             className="text-xs font-serif px-3 py-1.5 transition-all"
             style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.6)' }}
           >
-            Different options â†’
+            Different options
           </button>
         )}
         <button
@@ -457,7 +415,7 @@ export default function CampaignWizard() {
           className="text-xs font-serif px-3 py-1.5 transition-all"
           style={{ border: '1px solid rgba(192,57,43,0.3)', color: 'rgba(220,130,100,0.8)' }}
         >
-          {state.useCustomPremise ? 'â† Browse seeds' : 'âœŽ Write your own premise'}
+          {state.useCustomPremise ? 'Browse seeds' : 'Write your own premise'}
         </button>
       </div>
 
@@ -476,7 +434,7 @@ export default function CampaignWizard() {
             placeholder="Describe the world, the conflict, the opening scene... The Dungeon Master will weave your words into a living campaign."
           />
           <p className="text-xs font-serif mt-1.5" style={{ color: state.customPremise.length < 20 ? 'rgba(220,100,80,0.6)' : 'rgba(120,160,100,0.7)' }}>
-            {state.customPremise.length < 20 ? 'Write at least a sentence...' : `${state.customPremise.length} characters â€” the Dungeon Master is intrigued`}
+            {state.customPremise.length < 20 ? 'Write at least a sentence...' : `${state.customPremise.length} characters - the Dungeon Master is intrigued`}
           </p>
         </div>
       ) : (
@@ -494,16 +452,16 @@ export default function CampaignWizard() {
                 }
               >
                 <div className="flex items-start gap-3">
-                  <span className="text-lg mt-0.5 shrink-0">{TONE_ICONS[seed.tone] || 'ðŸ“œ'}</span>
+                  <span className="text-lg mt-0.5 shrink-0">{TONE_ICONS[seed.tone] || 'Scroll'}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <h4 className="font-fantasy text-base" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{seed.title}</h4>
-                      {selected && <span className="text-xs shrink-0" style={{ color: '#c8922a' }}>Selected âœ“</span>}
+                      {selected && <span className="text-xs shrink-0" style={{ color: '#c8922a' }}>Selected</span>}
                     </div>
                     <p className="text-sm font-serif leading-relaxed mb-2" style={{ color: 'rgba(200,185,155,0.8)' }}>{seed.premise}</p>
                     <div className="flex gap-3 text-xs font-serif" style={{ color: 'rgba(150,140,110,0.55)' }}>
                       <span>{seed.tone}</span>
-                      <span>Â·</span>
+                      <span>-</span>
                       <span>{seed.startingLocation}</span>
                     </div>
                   </div>
@@ -515,7 +473,7 @@ export default function CampaignWizard() {
       )}
     </div>,
 
-    // Step 6 â€” Name
+    // Step 6 - Name
     <div key="name">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Name your campaign</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>
@@ -529,7 +487,7 @@ export default function CampaignWizard() {
           type="text"
           value={state.campaignName}
           onChange={e => setState(prev => ({ ...prev, campaignName: e.target.value }))}
-          onKeyDown={e => { if (e.key === 'Enter' && canProceed[6]) handleCreate() }}
+          onKeyDown={e => { if (e.key === 'Enter' && canProceed[5]) handleCreate() }}
           className="w-full bg-transparent outline-none py-3 px-4 font-serif text-lg text-parchment-200 mb-6"
           style={{
             border: '1px solid rgba(200,146,42,0.3)',
@@ -545,10 +503,10 @@ export default function CampaignWizard() {
         )}
         <button
           onClick={handleCreate}
-          disabled={!canProceed[6]}
+          disabled={!canProceed[5]}
           className="w-full py-3.5 font-fantasy text-lg transition-all disabled:opacity-40"
           style={{
-            background: canProceed[6] ? 'linear-gradient(135deg, rgba(200,146,42,0.25), rgba(160,100,30,0.35))' : 'transparent',
+            background: canProceed[5] ? 'linear-gradient(135deg, rgba(200,146,42,0.25), rgba(160,100,30,0.35))' : 'transparent',
             border: '1px solid rgba(200,146,42,0.4)',
             color: '#e8c87a',
             letterSpacing: '0.05em',
@@ -594,7 +552,7 @@ export default function CampaignWizard() {
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(200,180,140,0.9)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(180,160,120,0.5)' }}
         >
-          â† Back
+              Back
         </button>
         <div className="flex-1 text-center">
           <span className="font-fantasy text-sm text-parchment-200" style={{ letterSpacing: '0.05em' }}>New Campaign</span>
@@ -625,7 +583,7 @@ export default function CampaignWizard() {
               className="font-serif text-sm px-5 py-3 sm:py-2.5 transition-all"
               style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.6)' }}
             >
-              {step === 0 ? 'Cancel' : 'â† Back'}
+              {step === 0 ? 'Cancel' : 'Back'}
             </button>
             <button
               onClick={goNext}
@@ -637,7 +595,7 @@ export default function CampaignWizard() {
                 color: '#e8c87a',
               }}
             >
-              Continue â†’
+              Continue
             </button>
           </div>
         )}
@@ -648,7 +606,7 @@ export default function CampaignWizard() {
               className="font-serif text-sm px-5 py-3 sm:py-2.5 transition-all w-full sm:w-auto"
               style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.6)' }}
             >
-              â† Back
+              Back
             </button>
           </div>
         )}
