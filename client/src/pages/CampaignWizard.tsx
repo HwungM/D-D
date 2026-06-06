@@ -11,6 +11,7 @@ type ToneChoice = 'Dark & Gritty' | 'Heroic & Epic' | 'Mystery & Intrigue' | 'An
 type Pillar = 'Combat & Tactics' | 'Exploration & Discovery' | 'Roleplay & Social' | 'Puzzles & Mysteries' | 'All of it equally'
 
 interface WizardState {
+  isCollaborative: boolean
   tone: ToneChoice | null
   pillars: Pillar[]
   playerCount: 1 | 2 | 3
@@ -76,6 +77,7 @@ export default function CampaignWizard() {
   const [seeds, setSeeds] = useState<StorySeedOption[]>(() => pickRandom4())
 
   const [state, setState] = useState<WizardState>({
+    isCollaborative: false,
     tone: null,
     pillars: [],
     playerCount: 1,
@@ -86,7 +88,7 @@ export default function CampaignWizard() {
     campaignName: '',
   })
 
-  const totalSteps = 6
+  const totalSteps = 7
 
   function animateTo(nextStep: number) {
     setVisible(false)
@@ -141,12 +143,13 @@ export default function CampaignWizard() {
   }
 
   const canProceed: boolean[] = [
-    !!state.tone,                          // step 0: tone
-    state.pillars.length > 0,             // step 1: pillars
-    true,                                  // step 2: party (always has default)
-    true,                                  // step 3: characters (optional)
-    !!(state.selectedSeed || (state.useCustomPremise && state.customPremise.trim().length > 20)),  // step 4: premise
-    state.campaignName.trim().length > 0, // step 5: name
+    true,                                  // step 0: collaborative choice (always has default)
+    !!state.tone,                          // step 1: tone
+    state.pillars.length > 0,             // step 2: pillars
+    true,                                  // step 3: party (always has default)
+    true,                                  // step 4: characters (optional)
+    !!(state.selectedSeed || (state.useCustomPremise && state.customPremise.trim().length > 20)),  // step 5: premise
+    state.campaignName.trim().length > 0, // step 6: name
   ]
 
   // -------------------------------------------------------------------------
@@ -177,7 +180,42 @@ export default function CampaignWizard() {
   // Steps
   // -------------------------------------------------------------------------
   const stepContent = [
-    // Step 0 — Tone
+    // Step 0 — Solo vs Collaborative
+    <div key="coop">
+      <h2 className="font-fantasy text-3xl text-parchment-200 mb-2 text-center">How are you adventuring?</h2>
+      <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Choose your adventuring style</p>
+      <div className="grid gap-4 sm:grid-cols-2 max-w-lg mx-auto">
+        {[
+          { label: 'Solo — just me', description: 'A personal story tailored entirely around you. The DM focuses every beat on your character\'s journey.', collaborative: false },
+          { label: 'Collaborative — with a party', description: 'Adventure with friends. The DM weaves your actions together into a shared story. Invite your party after creating the campaign.', collaborative: true },
+        ].map(option => {
+          const selected = state.isCollaborative === option.collaborative
+          return (
+            <button
+              key={option.label}
+              onClick={() => setState(prev => ({
+                ...prev,
+                isCollaborative: option.collaborative,
+                playerCount: option.collaborative ? 2 : 1,
+              }))}
+              className="text-left p-5 transition-all duration-200"
+              style={selected
+                ? { background: 'rgba(200,146,42,0.1)', border: '1px solid rgba(200,146,42,0.5)', boxShadow: '0 0 20px rgba(200,146,42,0.1)' }
+                : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }
+              }
+            >
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <h3 className="font-fantasy text-lg" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{option.label}</h3>
+                {selected && <span style={{ color: '#c8922a' }}>✓</span>}
+              </div>
+              <p className="font-serif text-sm leading-relaxed" style={{ color: 'rgba(180,160,120,0.7)' }}>{option.description}</p>
+            </button>
+          )
+        })}
+      </div>
+    </div>,
+
+    // Step 1 — Tone
     <div key="tone">
       <h2 className="font-fantasy text-3xl text-parchment-200 mb-2 text-center">What kind of story calls to you?</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Choose the tone that excites you most</p>
@@ -384,7 +422,7 @@ export default function CampaignWizard() {
       )}
     </div>,
 
-    // Step 5 — Name
+    // Step 6 — Name
     <div key="name">
       <h2 className="font-fantasy text-3xl text-parchment-200 mb-2 text-center">Name your campaign</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>
@@ -398,7 +436,7 @@ export default function CampaignWizard() {
           type="text"
           value={state.campaignName}
           onChange={e => setState(prev => ({ ...prev, campaignName: e.target.value }))}
-          onKeyDown={e => { if (e.key === 'Enter' && canProceed[5]) handleCreate() }}
+          onKeyDown={e => { if (e.key === 'Enter' && canProceed[6]) handleCreate() }}
           className="w-full bg-transparent outline-none py-3 px-4 font-serif text-lg text-parchment-200 mb-6"
           style={{
             border: '1px solid rgba(200,146,42,0.3)',
@@ -414,16 +452,16 @@ export default function CampaignWizard() {
         )}
         <button
           onClick={handleCreate}
-          disabled={!canProceed[5]}
+          disabled={!canProceed[6]}
           className="w-full py-3.5 font-fantasy text-lg transition-all disabled:opacity-40"
           style={{
-            background: canProceed[5] ? 'linear-gradient(135deg, rgba(200,146,42,0.25), rgba(160,100,30,0.35))' : 'transparent',
+            background: canProceed[6] ? 'linear-gradient(135deg, rgba(200,146,42,0.25), rgba(160,100,30,0.35))' : 'transparent',
             border: '1px solid rgba(200,146,42,0.4)',
             color: '#e8c87a',
             letterSpacing: '0.05em',
           }}
         >
-          Create Campaign
+          {state.isCollaborative ? 'Create Campaign & Invite Party' : 'Create Campaign'}
         </button>
       </div>
     </div>,

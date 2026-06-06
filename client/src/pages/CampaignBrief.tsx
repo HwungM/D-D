@@ -12,6 +12,10 @@ export default function CampaignBrief() {
   const [error, setError] = useState('')
   const [revealed, setRevealed] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const [inviteCopied, setInviteCopied] = useState(false)
+  const [waitingForParty, setWaitingForParty] = useState(false)
 
   useEffect(() => {
     if (!campaignId) return
@@ -29,6 +33,29 @@ export default function CampaignBrief() {
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  async function handleGenerateInvite() {
+    if (!campaignId) return
+    setInviteLoading(true)
+    try {
+      const { data } = await campaignApi.createInvite(campaignId)
+      setInviteCode(data.invite?.invite_code || data.inviteCode || null)
+    } catch {
+      // ignore
+    } finally {
+      setInviteLoading(false)
+    }
+  }
+
+  function handleCopyInvite() {
+    if (!inviteCode) return
+    const inviteUrl = `${window.location.origin}/join/${inviteCode}`
+    navigator.clipboard.writeText(inviteUrl).then(() => {
+      setInviteCopied(true)
+      setWaitingForParty(true)
+      setTimeout(() => setInviteCopied(false), 2000)
     })
   }
 
@@ -196,6 +223,76 @@ export default function CampaignBrief() {
           <div className="w-1.5 h-1.5 rotate-45" style={{ background: '#c8922a', opacity: 0.4 }} />
           <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(200,146,42,0.25))' }} />
         </div>
+
+        {/* Invite Party section — shown for collaborative campaigns */}
+        {campaign.world_bible?.playerPreferences?.playerCount && campaign.world_bible.playerPreferences.playerCount > 1 && (
+          <div className="mb-8 p-5" style={{
+            border: '1px solid rgba(200,146,42,0.2)',
+            background: 'rgba(200,146,42,0.04)',
+          }}>
+            <div className="flex items-start gap-3 mb-4">
+              <span className="text-lg mt-0.5" style={{ color: 'rgba(200,146,42,0.7)' }}>⚔</span>
+              <div>
+                <h3 className="font-fantasy text-lg text-parchment-200 mb-1">Invite Your Party</h3>
+                <p className="font-serif text-sm" style={{ color: 'rgba(180,160,120,0.6)' }}>
+                  Share this link with your adventuring companions so they can join the campaign.
+                </p>
+              </div>
+            </div>
+
+            {!inviteCode ? (
+              <button
+                onClick={handleGenerateInvite}
+                disabled={inviteLoading}
+                className="w-full py-2.5 font-serif text-sm transition-all disabled:opacity-50"
+                style={{
+                  border: '1px solid rgba(200,146,42,0.35)',
+                  color: '#e8c87a',
+                  background: 'rgba(200,146,42,0.08)',
+                }}
+              >
+                {inviteLoading ? 'Generating link...' : 'Generate Invite Link'}
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-3 py-2" style={{
+                  background: 'rgba(0,0,0,0.3)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}>
+                  <span className="flex-1 font-mono text-xs truncate" style={{ color: 'rgba(200,185,155,0.8)' }}>
+                    {`${window.location.origin}/join/${inviteCode}`}
+                  </span>
+                  <button
+                    onClick={handleCopyInvite}
+                    className="shrink-0 font-serif text-xs px-3 py-1 transition-all"
+                    style={{
+                      border: '1px solid rgba(200,146,42,0.3)',
+                      color: inviteCopied ? 'rgba(120,200,120,0.9)' : 'rgba(200,146,42,0.8)',
+                    }}
+                  >
+                    {inviteCopied ? 'Copied!' : 'Copy Link'}
+                  </button>
+                </div>
+
+                {waitingForParty && (
+                  <div className="flex items-center justify-between py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#c8922a', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                      <span className="font-serif text-sm" style={{ color: 'rgba(200,146,42,0.7)' }}>Waiting for party...</span>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/campaign/${campaignId}/create-character`)}
+                      className="font-serif text-xs px-3 py-1 transition-all"
+                      style={{ color: 'rgba(180,160,120,0.5)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    >
+                      Start Solo for now →
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Action buttons */}
         <div className="flex flex-col sm:flex-row gap-3">

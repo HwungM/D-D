@@ -1,7 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { characterApi } from '../lib/api'
+import { characterApi, campaignApi } from '../lib/api'
+import { createClient } from '@supabase/supabase-js'
 import type { Race, CharacterClass } from '../../../shared/types'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 type Gender = 'male' | 'female'
 
@@ -216,6 +220,42 @@ export default function CharacterCreate() {
   const [backstory, setBackstory] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [lobbyState, setLobbyState] = useState<{ characterId: string; expectedPlayers: number } | null>(null)
+
+  // Lobby realtime subscription — waits until all players have characters
+  useEffect(() => {
+    if (!lobbyState || !campaignId || !supabaseUrl || !supabaseAnonKey) return
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+    // Check immediately in case the partner already created their character
+    characterApi.listByCampaign(campaignId).then(({ data }) => {
+      const aliveChars = (data.characters || []).filter((c: { is_alive: boolean }) => c.is_alive)
+      if (aliveChars.length >= lobbyState.expectedPlayers) {
+        navigate(`/campaign/${campaignId}/play/${lobbyState.characterId}`)
+      }
+    }).catch(() => {})
+
+    // Subscribe to new character inserts for this campaign
+    const channel = supabase
+      .channel(`lobby:${campaignId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'characters',
+        filter: `campaign_id=eq.${campaignId}`,
+      }, () => {
+        characterApi.listByCampaign(campaignId).then(({ data }) => {
+          const aliveChars = (data.characters || []).filter((c: { is_alive: boolean }) => c.is_alive)
+          if (aliveChars.length >= lobbyState.expectedPlayers) {
+            navigate(`/campaign/${campaignId}/play/${lobbyState.characterId}`)
+          }
+        }).catch(() => {})
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [lobbyState, campaignId, navigate])
 
   async function handleCreate() {
     if (!selectedRace || !selectedClass || !name.trim() || !campaignId) return
@@ -230,6 +270,28 @@ export default function CharacterCreate() {
         backstory,
         portraitUrl: selectedPortrait || undefined,
       })
+      const characterId = data.character.id
+
+      // Check if this is a collaborative campaign
+      try {
+        const { data: campData } = await campaignApi.get(campaignId)
+        const expectedPlayers = campData.campaign.world_bible?.playerPreferences?.playerCount || 1
+        if (expectedPlayers > 1) {
+          // Check current character count
+          const { data: charData } = await characterApi.listByCampaign(campaignId)
+          const aliveChars = (charData.characters || []).filter((c: { is_alive: boolean }) => c.is_alive)
+          if (aliveChars.length >= expectedPlayers) {
+            navigate(`/campaign/${campaignId}/play/${characterId}`)
+          } else {
+            setLobbyState({ characterId, expectedPlayers })
+            setLoading(false)
+          }
+          return
+        }
+      } catch {
+        // On error, fall through to solo navigate
+      }
+
       navigate(`/campaign/${campaignId}/play/${data.character.id}`)
     } catch (err: unknown) {
       setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to create character')
@@ -238,6 +300,44 @@ export default function CharacterCreate() {
   }
 
   const portraits = selectedRace && gender ? getPortraits(selectedRace, gender) : []
+
+  // Lobby waiting screen for co-op campaigns
+  if (lobbyState) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'radial-gradient(ellipse at center top, #0f1923 0%, #070d14 100%)' }}>
+        <div className="text-center max-w-md px-8">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-full border-2 flex items-center justify-center" style={{
+            borderColor: 'rgba(200,146,42,0.4)',
+            boxShadow: '0 0 40px rgba(200,146,42,0.15)',
+          }}>
+            <span className="font-fantasy text-2xl" style={{ color: '#c8922a' }}>⚔</span>
+          </div>
+          <h2 className="font-fantasy text-3xl text-parchment-200 mb-3">Your character is ready.</h2>
+          <p className="font-serif text-sm leading-relaxed mb-6" style={{ color: 'rgba(180,160,120,0.6)' }}>
+            Waiting for your companion to finish their character...
+          </p>
+          <div className="flex items-center justify-center gap-2 mb-8">
+            {[0, 1, 2].map(j => (
+              <div key={j} className="w-2 h-2 rounded-full" style={{
+                background: 'rgba(200,146,42,0.6)',
+                animation: `bounce 1.2s ease-in-out ${j * 0.2}s infinite`,
+              }} />
+            ))}
+          </div>
+          <button
+            onClick={() => navigate(`/campaign/${campaignId}/play/${lobbyState.characterId}`)}
+            className="font-serif text-sm px-6 py-2.5 transition-all"
+            style={{
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: 'rgba(180,160,120,0.5)',
+            }}
+          >
+            Start Solo for now →
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'radial-gradient(ellipse at center top, #0f1923 0%, #070d14 100%)' }}>
