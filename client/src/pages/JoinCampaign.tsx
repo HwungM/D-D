@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { campaignApi } from '../lib/api'
+import { campaignApi, characterApi } from '../lib/api'
 import { useAuthStore } from '../lib/store'
 
 export default function JoinCampaign() {
@@ -33,7 +33,18 @@ export default function JoinCampaign() {
     setJoining(true)
     try {
       const { data } = await campaignApi.acceptInvite(code)
-      navigate(`/campaign/${data.campaign.id}/create-character`)
+      const campaignId = data.campaign.id
+      try {
+        const { data: characterData } = await characterApi.listByCampaign(campaignId)
+        const existingCharacter = (characterData.characters || []).find((character: { is_alive?: boolean }) => character.is_alive !== false)
+        if (existingCharacter?.id) {
+          navigate(`/campaign/${campaignId}/play/${existingCharacter.id}`)
+          return
+        }
+      } catch {
+        // If character lookup fails, send them to character creation.
+      }
+      navigate(`/campaign/${campaignId}/create-character`)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
       setError(msg || 'Failed to join campaign.')

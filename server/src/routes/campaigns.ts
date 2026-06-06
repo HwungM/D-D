@@ -29,7 +29,16 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
   }
   const { name, storySeed, campaignType } = parse.data;
   const playerPreferences = req.body.playerPreferences as
-    | { tone?: string; favoritePillars?: string[]; playerCount?: number; characterConcepts?: string[] }
+    | {
+        playMode?: 'solo' | 'collaborative';
+        partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now';
+        tone?: string;
+        favoritePillars?: string[];
+        playerCount?: number;
+        targetPlayerCount?: number;
+        waitForParty?: boolean;
+        characterConcepts?: string[];
+      }
     | undefined;
 
   try {

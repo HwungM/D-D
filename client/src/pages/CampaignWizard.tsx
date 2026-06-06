@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { campaignApi } from '../lib/api'
 import { TONE_ICONS, pickRandom4 } from '../lib/seeds'
@@ -9,12 +9,16 @@ import type { StorySeedOption } from '../../../shared/types'
 // ---------------------------------------------------------------------------
 type ToneChoice = 'Dark & Gritty' | 'Heroic & Epic' | 'Mystery & Intrigue' | 'Anything Goes'
 type Pillar = 'Combat & Tactics' | 'Exploration & Discovery' | 'Roleplay & Social' | 'Puzzles & Mysteries' | 'All of it equally'
+type PartyIntent = 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now'
 
 interface WizardState {
   isCollaborative: boolean
+  partyIntent: PartyIntent
   tone: ToneChoice | null
   pillars: Pillar[]
   playerCount: 1 | 2 | 3
+  targetPlayerCount: 1 | 2 | 3
+  waitForParty: boolean
   characterConcepts: string[]
   selectedSeed: StorySeedOption | null
   useCustomPremise: boolean
@@ -78,9 +82,12 @@ export default function CampaignWizard() {
 
   const [state, setState] = useState<WizardState>({
     isCollaborative: false,
+    partyIntent: 'solo_alone',
     tone: null,
     pillars: [],
     playerCount: 1,
+    targetPlayerCount: 1,
+    waitForParty: false,
     characterConcepts: ['', ''],
     selectedSeed: null,
     useCustomPremise: false,
@@ -128,9 +135,13 @@ export default function CampaignWizard() {
     setError('')
     try {
       const playerPreferences = {
+        playMode: state.isCollaborative ? 'collaborative' as const : 'solo' as const,
+        partyIntent: state.partyIntent,
         tone: state.tone || 'Anything Goes',
         favoritePillars: state.pillars,
         playerCount: state.playerCount,
+        targetPlayerCount: state.targetPlayerCount,
+        waitForParty: state.waitForParty,
         characterConcepts: state.characterConcepts.filter(Boolean),
       }
       const { data } = await campaignApi.create(state.campaignName.trim(), premise, 'adventure', playerPreferences)
@@ -180,14 +191,14 @@ export default function CampaignWizard() {
   // Steps
   // -------------------------------------------------------------------------
   const stepContent = [
-    // Step 0 — Solo vs Collaborative
+    // Step 0 â€” Solo vs Collaborative
     <div key="coop">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">How are you adventuring?</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Choose your adventuring style</p>
       <div className="grid gap-4 sm:grid-cols-2 max-w-lg mx-auto">
         {[
-          { label: 'Solo — just me', description: 'A personal story tailored entirely around you. The DM focuses every beat on your character\'s journey.', collaborative: false },
-          { label: 'Collaborative — with a party', description: 'Adventure with friends. The DM weaves your actions together into a shared story. Invite your party after creating the campaign.', collaborative: true },
+          { label: 'Solo Adventure', description: 'One human player. You can travel alone now, with AI companions planned for later.', collaborative: false },
+          { label: 'Collaborative Party', description: 'Real players can join. The DM prepares shared spotlight moments and party-aware challenges.', collaborative: true },
         ].map(option => {
           const selected = state.isCollaborative === option.collaborative
           return (
@@ -196,7 +207,10 @@ export default function CampaignWizard() {
               onClick={() => setState(prev => ({
                 ...prev,
                 isCollaborative: option.collaborative,
+                partyIntent: option.collaborative ? 'collab_wait_for_party' : 'solo_alone',
                 playerCount: option.collaborative ? 2 : 1,
+                targetPlayerCount: option.collaborative ? 2 : 1,
+                waitForParty: option.collaborative,
               }))}
               className="text-left p-5 transition-all duration-200"
               style={selected
@@ -206,7 +220,7 @@ export default function CampaignWizard() {
             >
               <div className="flex items-start justify-between gap-2 mb-2">
                 <h3 className="font-fantasy text-lg" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{option.label}</h3>
-                {selected && <span style={{ color: '#c8922a' }}>✓</span>}
+                {selected && <span style={{ color: '#c8922a' }}>âœ“</span>}
               </div>
               <p className="font-serif text-sm leading-relaxed" style={{ color: 'rgba(180,160,120,0.7)' }}>{option.description}</p>
             </button>
@@ -215,7 +229,7 @@ export default function CampaignWizard() {
       </div>
     </div>,
 
-    // Step 1 — Tone
+    // Step 1 â€” Tone
     <div key="tone">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">What kind of story calls to you?</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Choose the tone that excites you most</p>
@@ -234,7 +248,7 @@ export default function CampaignWizard() {
             >
               <div className="flex items-start justify-between gap-2 mb-2">
                 <h3 className="font-fantasy text-lg" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{card.label}</h3>
-                {selected && <span style={{ color: '#c8922a' }}>✓</span>}
+                {selected && <span style={{ color: '#c8922a' }}>âœ“</span>}
               </div>
               <p className="font-serif text-sm leading-relaxed" style={{ color: 'rgba(180,160,120,0.7)' }}>{card.description}</p>
             </button>
@@ -243,10 +257,10 @@ export default function CampaignWizard() {
       </div>
     </div>,
 
-    // Step 1 — Pillars
+    // Step 1 â€” Pillars
     <div key="pillars">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">What do you love most at the table?</h2>
-      <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Select all that apply — minimum one</p>
+      <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Select all that apply â€” minimum one</p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {PILLARS.map(p => {
           const selected = state.pillars.includes(p)
@@ -262,7 +276,7 @@ export default function CampaignWizard() {
             >
               <div className="flex items-center justify-between">
                 <span>{p}</span>
-                {selected && <span style={{ color: '#c8922a' }}>✓</span>}
+                {selected && <span style={{ color: '#c8922a' }}>âœ“</span>}
               </div>
             </button>
           )
@@ -270,48 +284,127 @@ export default function CampaignWizard() {
       </div>
     </div>,
 
-    // Step 2 — Party size
+    // Step 2 - Party setup
     <div key="party">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Who's adventuring?</h2>
-      <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>The DM will tailor the challenge accordingly</p>
-      <div className="grid gap-4 max-w-lg mx-auto">
-        {([
-          { count: 1 as const, label: 'Solo — just me', note: null },
-          { count: 2 as const, label: 'Two of us', note: 'Great for building camaraderie' },
-          { count: 3 as const, label: 'Three or more', note: null },
-        ] as { count: 1 | 2 | 3; label: string; note: string | null }[]).map(({ count, label, note }) => {
-          const selected = state.playerCount === count
-          return (
-            <button
-              key={count}
-              onClick={() => setState(prev => ({ ...prev, playerCount: count }))}
-              className="p-5 text-left transition-all duration-200"
-              style={selected
-                ? { background: 'rgba(200,146,42,0.1)', border: '1px solid rgba(200,146,42,0.5)' }
-                : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }
-              }
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="font-fantasy text-lg" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{label}</span>
-                  {note && <p className="font-serif text-xs mt-1" style={{ color: 'rgba(180,160,120,0.5)' }}>{note}</p>}
-                </div>
-                {selected && <span style={{ color: '#c8922a' }}>✓</span>}
-              </div>
-            </button>
-          )
-        })}
-      </div>
-    </div>,
+      <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>
+        {state.isCollaborative ? 'Choose how you want the real-player party to gather' : 'Solo means one human player; companions are a separate party choice'}
+      </p>
 
-    // Step 3 — Characters
+      {state.isCollaborative ? (
+        <div className="grid gap-4 max-w-xl mx-auto">
+          {([
+            {
+              intent: 'collab_wait_for_party' as const,
+              label: 'Wait for the party',
+              description: 'Create the campaign for two players and hold in the lobby until everyone has a character.',
+              playerCount: 2 as const,
+              targetPlayerCount: 2 as const,
+              waitForParty: true,
+            },
+            {
+              intent: 'collab_start_now' as const,
+              label: 'Start now, invite later',
+              description: 'Begin as the host, keep invites available, and let another real player join when ready.',
+              playerCount: 1 as const,
+              targetPlayerCount: 2 as const,
+              waitForParty: false,
+            },
+            {
+              intent: 'collab_wait_for_party' as const,
+              label: 'Larger party',
+              description: 'Plan around three or more real players sharing the spotlight.',
+              playerCount: 3 as const,
+              targetPlayerCount: 3 as const,
+              waitForParty: true,
+            },
+          ]).map(option => {
+            const selected = state.partyIntent === option.intent && state.targetPlayerCount === option.targetPlayerCount && state.waitForParty === option.waitForParty
+            return (
+              <button
+                key={`${option.label}-${option.targetPlayerCount}`}
+                onClick={() => setState(prev => ({
+                  ...prev,
+                  partyIntent: option.intent,
+                  playerCount: option.playerCount,
+                  targetPlayerCount: option.targetPlayerCount,
+                  waitForParty: option.waitForParty,
+                }))}
+                className="p-5 text-left transition-all duration-200"
+                style={selected
+                  ? { background: 'rgba(200,146,42,0.1)', border: '1px solid rgba(200,146,42,0.5)' }
+                  : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }
+                }
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="font-fantasy text-lg" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{option.label}</span>
+                    <p className="font-serif text-sm mt-1 leading-relaxed" style={{ color: 'rgba(180,160,120,0.62)' }}>{option.description}</p>
+                  </div>
+                  {selected && <span style={{ color: '#c8922a' }}>✓</span>}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="grid gap-4 max-w-xl mx-auto">
+          {([
+            {
+              intent: 'solo_alone' as const,
+              label: 'Just me',
+              description: 'A one-human campaign focused tightly on your character.',
+              disabled: false,
+            },
+            {
+              intent: 'solo_ai_companions' as const,
+              label: 'Me + AI companions',
+              description: 'Planned next: create companions with their own personalities, goals, and choices.',
+              disabled: true,
+            },
+          ]).map(option => {
+            const selected = state.partyIntent === option.intent
+            return (
+              <button
+                key={option.intent}
+                disabled={option.disabled}
+                onClick={() => !option.disabled && setState(prev => ({
+                  ...prev,
+                  partyIntent: option.intent,
+                  playerCount: 1,
+                  targetPlayerCount: 1,
+                  waitForParty: false,
+                }))}
+                className="p-5 text-left transition-all duration-200 disabled:cursor-not-allowed"
+                style={selected
+                  ? { background: 'rgba(200,146,42,0.1)', border: '1px solid rgba(200,146,42,0.5)' }
+                  : option.disabled
+                    ? { background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.05)', opacity: 0.55 }
+                    : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }
+                }
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="font-fantasy text-lg" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{option.label}</span>
+                    {option.disabled && <span className="ml-2 text-xs uppercase tracking-widest" style={{ color: 'rgba(200,146,42,0.65)' }}>Coming later</span>}
+                    <p className="font-serif text-sm mt-1 leading-relaxed" style={{ color: 'rgba(180,160,120,0.62)' }}>{option.description}</p>
+                  </div>
+                  {selected && <span style={{ color: '#c8922a' }}>✓</span>}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>,
+    // Step 3 â€” Characters
     <div key="characters">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Tell me about your characters</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>
-        These are optional — the more you share, the more personal the story becomes
+        These are optional â€” the more you share, the more personal the story becomes
       </p>
       <div className="space-y-5 max-w-xl mx-auto">
-        {Array.from({ length: Math.min(state.playerCount, 2) }, (_, i) => (
+        {Array.from({ length: Math.min(state.targetPlayerCount, 2) }, (_, i) => (
           <div key={i}>
             <label className="block text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(200,146,42,0.6)', letterSpacing: '0.12em' }}>
               Character {i + 1} concept <span style={{ color: 'rgba(180,160,120,0.4)' }}>(optional)</span>
@@ -343,7 +436,7 @@ export default function CampaignWizard() {
       </div>
     </div>,
 
-    // Step 4 — Premise
+    // Step 4 â€” Premise
     <div key="premise">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Choose your world</h2>
       <p className="font-serif text-sm text-center mb-6" style={{ color: 'rgba(180,160,120,0.6)' }}>
@@ -356,7 +449,7 @@ export default function CampaignWizard() {
             className="text-xs font-serif px-3 py-1.5 transition-all"
             style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.6)' }}
           >
-            Different options →
+            Different options â†’
           </button>
         )}
         <button
@@ -364,7 +457,7 @@ export default function CampaignWizard() {
           className="text-xs font-serif px-3 py-1.5 transition-all"
           style={{ border: '1px solid rgba(192,57,43,0.3)', color: 'rgba(220,130,100,0.8)' }}
         >
-          {state.useCustomPremise ? '← Browse seeds' : '✎ Write your own premise'}
+          {state.useCustomPremise ? 'â† Browse seeds' : 'âœŽ Write your own premise'}
         </button>
       </div>
 
@@ -383,7 +476,7 @@ export default function CampaignWizard() {
             placeholder="Describe the world, the conflict, the opening scene... The Dungeon Master will weave your words into a living campaign."
           />
           <p className="text-xs font-serif mt-1.5" style={{ color: state.customPremise.length < 20 ? 'rgba(220,100,80,0.6)' : 'rgba(120,160,100,0.7)' }}>
-            {state.customPremise.length < 20 ? 'Write at least a sentence...' : `${state.customPremise.length} characters — the Dungeon Master is intrigued`}
+            {state.customPremise.length < 20 ? 'Write at least a sentence...' : `${state.customPremise.length} characters â€” the Dungeon Master is intrigued`}
           </p>
         </div>
       ) : (
@@ -401,16 +494,16 @@ export default function CampaignWizard() {
                 }
               >
                 <div className="flex items-start gap-3">
-                  <span className="text-lg mt-0.5 shrink-0">{TONE_ICONS[seed.tone] || '📜'}</span>
+                  <span className="text-lg mt-0.5 shrink-0">{TONE_ICONS[seed.tone] || 'ðŸ“œ'}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <h4 className="font-fantasy text-base" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{seed.title}</h4>
-                      {selected && <span className="text-xs shrink-0" style={{ color: '#c8922a' }}>Selected ✓</span>}
+                      {selected && <span className="text-xs shrink-0" style={{ color: '#c8922a' }}>Selected âœ“</span>}
                     </div>
                     <p className="text-sm font-serif leading-relaxed mb-2" style={{ color: 'rgba(200,185,155,0.8)' }}>{seed.premise}</p>
                     <div className="flex gap-3 text-xs font-serif" style={{ color: 'rgba(150,140,110,0.55)' }}>
                       <span>{seed.tone}</span>
-                      <span>·</span>
+                      <span>Â·</span>
                       <span>{seed.startingLocation}</span>
                     </div>
                   </div>
@@ -422,7 +515,7 @@ export default function CampaignWizard() {
       )}
     </div>,
 
-    // Step 6 — Name
+    // Step 6 â€” Name
     <div key="name">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Name your campaign</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>
@@ -501,7 +594,7 @@ export default function CampaignWizard() {
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(200,180,140,0.9)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(180,160,120,0.5)' }}
         >
-          ← Back
+          â† Back
         </button>
         <div className="flex-1 text-center">
           <span className="font-fantasy text-sm text-parchment-200" style={{ letterSpacing: '0.05em' }}>New Campaign</span>
@@ -532,7 +625,7 @@ export default function CampaignWizard() {
               className="font-serif text-sm px-5 py-3 sm:py-2.5 transition-all"
               style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.6)' }}
             >
-              {step === 0 ? 'Cancel' : '← Back'}
+              {step === 0 ? 'Cancel' : 'â† Back'}
             </button>
             <button
               onClick={goNext}
@@ -544,7 +637,7 @@ export default function CampaignWizard() {
                 color: '#e8c87a',
               }}
             >
-              Continue →
+              Continue â†’
             </button>
           </div>
         )}
@@ -555,7 +648,7 @@ export default function CampaignWizard() {
               className="font-serif text-sm px-5 py-3 sm:py-2.5 transition-all w-full sm:w-auto"
               style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.6)' }}
             >
-              ← Back
+              â† Back
             </button>
           </div>
         )}

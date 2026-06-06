@@ -1444,13 +1444,26 @@ Return JSON array:
 
 export async function generateWorldBible(
   storySeed: string,
-  playerPreferences?: { tone?: string; favoritePillars?: string[]; playerCount?: number; characterConcepts?: string[] }
+  playerPreferences?: {
+    playMode?: 'solo' | 'collaborative';
+    partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now';
+    tone?: string;
+    favoritePillars?: string[];
+    playerCount?: number;
+    targetPlayerCount?: number;
+    waitForParty?: boolean;
+    characterConcepts?: string[];
+  }
 ): Promise<WorldBible> {
   const prefContext = playerPreferences ? `
 PLAYER PREFERENCES (use these to tailor the campaign):
+${playerPreferences.playMode ? `- Human play mode: ${playerPreferences.playMode}. Solo means one human player; collaborative means real human party members may join.` : ''}
+${playerPreferences.partyIntent ? `- Party setup intent: ${playerPreferences.partyIntent}. If collaborative, prepare shared spotlight moments and invite-friendly hooks. If solo_ai_companions, leave room for AI companions but do not assume they already exist.` : ''}
 ${playerPreferences.tone ? `- Desired tone: ${playerPreferences.tone} â€” let this calibrate the toneRules and overall feel.` : ''}
 ${playerPreferences.favoritePillars?.length ? `- What they love most: ${playerPreferences.favoritePillars.join(', ')} â€” weight spotlightDesign.encounterCurve and suggested encounters toward these.` : ''}
 ${playerPreferences.playerCount ? `- Party size: ${playerPreferences.playerCount} players â€” scale the safeHaven, spotlightDesign.sharedMoments, and encounter difficulty accordingly.` : ''}
+${playerPreferences.targetPlayerCount && playerPreferences.targetPlayerCount !== playerPreferences.playerCount ? `- Target party size after invites: ${playerPreferences.targetPlayerCount}. Start playable now, but design the campaign so new companions can join naturally.` : ''}
+${typeof playerPreferences.waitForParty === 'boolean' ? `- Wait-for-party preference: ${playerPreferences.waitForParty ? 'the host expects to gather the party before starting' : 'the host may start now and invite others later'}.` : ''}
 ${playerPreferences.characterConcepts?.length ? `- Character concepts and backstories: ${playerPreferences.characterConcepts.join('; ')} â€” These character concepts and backstories are CANON. Build NPCs, factions, and opening hooks that directly reference what these characters care about, fear, or are running from. At least one faction or NPC in the world should have a direct tie to one of these character backstories. Use these to make campaignBrief.motivation personal, personalMotivation of the lieutenant feel relevant, and shape backstory hooks.` : ''}
 ` : '';
 

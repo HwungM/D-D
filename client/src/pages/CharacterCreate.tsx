@@ -310,8 +310,10 @@ export default function CharacterCreate() {
       // Check if this is a collaborative campaign
       try {
         const { data: campData } = await campaignApi.get(campaignId)
-        const expectedPlayers = campData.campaign.world_bible?.playerPreferences?.playerCount || 1
-        if (expectedPlayers > 1) {
+        const preferences = campData.campaign.world_bible?.playerPreferences
+        const expectedPlayers = preferences?.playerCount || 1
+        const shouldWaitForParty = preferences?.waitForParty !== false && expectedPlayers > 1
+        if (shouldWaitForParty) {
           // Check current character count
           const { data: partyData } = await campaignApi.getParty(campaignId)
           const readyCount = (partyData.members || []).filter((m: { character: { is_alive?: boolean } | null }) => m.character?.is_alive !== false && m.character).length

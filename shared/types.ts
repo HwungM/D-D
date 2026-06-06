@@ -237,9 +237,13 @@ export interface WorldBible {
     encounterCurve: string;
   };
   playerPreferences?: {
+    playMode?: 'solo' | 'collaborative';
+    partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now';
     tone: string;
     favoritePillars: string[];
     playerCount: number;
+    targetPlayerCount?: number;
+    waitForParty?: boolean;
     characterConcepts: string[];
   };
 }

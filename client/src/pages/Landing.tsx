@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../lib/api'
 import { useAuthStore } from '../lib/store'
@@ -18,6 +18,31 @@ export default function Landing() {
   const { setSession, setUser } = useAuthStore()
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [showTrailer, setShowTrailer] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  function handleWatchTrailer() {
+    setShowTrailer(true)
+    setError('')
+    window.setTimeout(() => {
+      const video = videoRef.current
+      if (!video) return
+      video.currentTime = 0
+      video.muted = false
+      void video.play().catch(() => {
+        setError('The trailer is ready, but your browser blocked playback. Press play on the video.')
+      })
+    }, 0)
+  }
+
+  function handleCloseTrailer() {
+    const video = videoRef.current
+    if (video) {
+      video.pause()
+      video.currentTime = 0
+    }
+    setShowTrailer(false)
+  }
 
   async function handleLogin(displayName: string) {
     setError('')
@@ -107,6 +132,19 @@ export default function Landing() {
         <p className="mt-4 text-slate-400 font-serif italic text-base md:text-lg">
           "Who dares enter these halls of shadow and flame?"
         </p>
+        <button
+          type="button"
+          onClick={handleWatchTrailer}
+          className="mt-8 border px-6 py-3 font-fantasy text-xs uppercase tracking-[0.24em] transition-all duration-300 hover:border-ember-400 hover:bg-ember-600/10"
+          style={{
+            borderColor: 'rgba(200,146,42,0.45)',
+            color: '#f0dba8',
+            background: 'rgba(200,146,42,0.08)',
+            boxShadow: '0 0 24px rgba(192,57,43,0.16)',
+          }}
+        >
+          Watch the Trailer
+        </button>
       </div>
 
       {/* Portrait cards */}
@@ -222,6 +260,32 @@ export default function Landing() {
       <p className="relative z-10 mt-10 text-slate-700 text-xs font-serif italic">
         "Choose wisely — for the realm remembers."
       </p>
+
+      {showTrailer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black">
+          <video
+            ref={videoRef}
+            className="h-full w-full bg-black object-contain"
+            src="/media/dnd-game-intro.mp4"
+            playsInline
+            controls
+            onEnded={handleCloseTrailer}
+          />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/80 to-transparent" />
+          <button
+            type="button"
+            onClick={handleCloseTrailer}
+            className="absolute right-5 top-5 border px-4 py-2 font-fantasy text-xs uppercase tracking-[0.2em] transition-all duration-200 hover:bg-white/10"
+            style={{
+              borderColor: 'rgba(240,219,168,0.55)',
+              color: '#f5e6c8',
+              background: 'rgba(0,0,0,0.45)',
+            }}
+          >
+            Skip
+          </button>
+        </div>
+      )}
     </div>
   )
 }

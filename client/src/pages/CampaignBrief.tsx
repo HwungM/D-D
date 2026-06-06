@@ -16,6 +16,11 @@ export default function CampaignBrief() {
   const [inviteLoading, setInviteLoading] = useState(false)
   const [inviteCopied, setInviteCopied] = useState(false)
   const [waitingForParty, setWaitingForParty] = useState(false)
+  const [partyMembers, setPartyMembers] = useState<Array<{
+    userId: string
+    username: string
+    character: { id: string; name: string; class?: string; race?: string; is_alive?: boolean } | null
+  }>>([])
 
   useEffect(() => {
     if (!campaignId) return
@@ -27,6 +32,33 @@ export default function CampaignBrief() {
       .catch(() => setError('Failed to load campaign.'))
       .finally(() => setLoading(false))
   }, [campaignId])
+
+  const playerPreferences = campaign?.world_bible?.playerPreferences
+  const isCollaborative = playerPreferences?.playMode === 'collaborative' || ((playerPreferences?.playerCount || 1) > 1)
+  const targetPlayerCount = playerPreferences?.targetPlayerCount || playerPreferences?.playerCount || (isCollaborative ? 2 : 1)
+  const waitForParty = playerPreferences?.waitForParty !== false && targetPlayerCount > 1
+  const readyCount = partyMembers.filter(member => member.character && member.character.is_alive !== false).length
+
+  useEffect(() => {
+    if (!campaignId || !isCollaborative) return
+
+    let cancelled = false
+    async function loadParty() {
+      try {
+        const { data } = await campaignApi.getParty(campaignId!)
+        if (!cancelled) setPartyMembers(data.members || [])
+      } catch {
+        if (!cancelled) setPartyMembers([])
+      }
+    }
+
+    loadParty()
+    const interval = window.setInterval(loadParty, 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [campaignId, isCollaborative])
 
   function handleShare() {
     const url = window.location.origin
@@ -225,7 +257,7 @@ export default function CampaignBrief() {
         </div>
 
         {/* Invite Party section — shown for collaborative campaigns */}
-        {campaign.world_bible?.playerPreferences?.playerCount && campaign.world_bible.playerPreferences.playerCount > 1 && (
+        {isCollaborative && (
           <div className="mb-8 p-5" style={{
             border: '1px solid rgba(200,146,42,0.2)',
             background: 'rgba(200,146,42,0.04)',
@@ -233,10 +265,49 @@ export default function CampaignBrief() {
             <div className="flex items-start gap-3 mb-4">
               <span className="text-lg mt-0.5" style={{ color: 'rgba(200,146,42,0.7)' }}>⚔</span>
               <div>
-                <h3 className="font-fantasy text-lg text-parchment-200 mb-1">Invite Your Party</h3>
+                <h3 className="font-fantasy text-lg text-parchment-200 mb-1">{waitForParty ? 'Gather Your Party' : 'Invite Your Party'}</h3>
                 <p className="font-serif text-sm" style={{ color: 'rgba(180,160,120,0.6)' }}>
-                  Share this link with your adventuring companions so they can join the campaign.
+                  {waitForParty
+                    ? 'Share the invite, watch the roster, then begin once everyone has a character.'
+                    : 'You can start now and keep this invite ready for companions to join later.'}
                 </p>
+              </div>
+            </div>
+
+            <div className="mb-4 p-3" style={{
+              background: 'rgba(0,0,0,0.22)',
+              border: '1px solid rgba(255,255,255,0.07)',
+            }}>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <span className="font-serif text-xs uppercase tracking-widest" style={{ color: 'rgba(200,146,42,0.58)' }}>
+                  Party Readiness
+                </span>
+                <span className="font-serif text-xs" style={{ color: readyCount >= targetPlayerCount ? 'rgba(120,200,120,0.85)' : 'rgba(180,160,120,0.62)' }}>
+                  {readyCount}/{targetPlayerCount} ready
+                </span>
+              </div>
+              <div className="space-y-2">
+                {partyMembers.length > 0 ? partyMembers.map(member => (
+                  <div key={member.userId} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-serif truncate" style={{ color: '#d4c5a0' }}>{member.username}</p>
+                      {member.character ? (
+                        <p className="font-serif text-xs truncate" style={{ color: 'rgba(180,160,120,0.55)' }}>
+                          {member.character.name}{member.character.race || member.character.class ? ` - ${[member.character.race, member.character.class].filter(Boolean).join(' ')}` : ''}
+                        </p>
+                      ) : (
+                        <p className="font-serif text-xs" style={{ color: 'rgba(180,160,120,0.45)' }}>No character yet</p>
+                      )}
+                    </div>
+                    <span className="shrink-0 font-serif text-xs" style={{ color: member.character ? 'rgba(120,200,120,0.82)' : 'rgba(200,146,42,0.62)' }}>
+                      {member.character ? 'Ready' : 'Creating'}
+                    </span>
+                  </div>
+                )) : (
+                  <p className="font-serif text-sm italic" style={{ color: 'rgba(180,160,120,0.45)' }}>
+                    Party roster will appear here once adventurers join.
+                  </p>
+                )}
               </div>
             </div>
 

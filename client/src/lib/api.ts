@@ -40,7 +40,16 @@ export const authApi = {
 // Campaigns
 export const campaignApi = {
   getSeeds: () => api.get('/campaigns/seeds'),
-  create: (name: string, storySeed: string, campaignType?: 'adventure' | 'testing', playerPreferences?: { tone: string; favoritePillars: string[]; playerCount: number; characterConcepts: string[] }) =>
+  create: (name: string, storySeed: string, campaignType?: 'adventure' | 'testing', playerPreferences?: {
+    playMode?: 'solo' | 'collaborative'
+    partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now'
+    tone: string
+    favoritePillars: string[]
+    playerCount: number
+    targetPlayerCount?: number
+    waitForParty?: boolean
+    characterConcepts: string[]
+  }) =>
     api.post('/campaigns', { name, storySeed, campaignType, playerPreferences }),
   list: () => api.get('/campaigns'),
   get: (id: string) => api.get(`/campaigns/${id}`),
