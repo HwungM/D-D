@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabase';
-import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove } from './openai';
+import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks } from './openai';
 import OpenAI from 'openai';
 import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus } from '../../../shared/types';
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
@@ -512,6 +512,8 @@ export async function processAction(
     actionsInCurrentAct: ws.actionsInCurrentAct || 0,
     keyNPCs: ws.keyNPCs,
     mustIntroduceStatus: mustIntroduce.length > 0 ? mustIntroduceStatus : undefined,
+    pendingDirectorBeat: ws.pendingDirectorBeat || null,
+    futureHooks: (ws.futureHooks || []).filter(h => !h.resolved).slice(-10),
   };
 
   // Generate narration via GPT-4o
@@ -758,6 +760,20 @@ export async function processAction(
   // Track total action count for villain move timing
   const newActionCount = (ws.actionCount || 0) + 1;
 
+  // Run Story Director every 5 actions to evaluate campaign health
+  if (newActionCount % 5 === 0) {
+    try {
+      const directorBeat = await runStoryDirector(ws, wb, [character as Character], currentAct);
+      if (directorBeat) {
+        ws.pendingDirectorBeat = {
+          beat: directorBeat.beat,
+          urgency: directorBeat.urgency,
+          expiresAfter: newActionCount + 2,
+        };
+      }
+    } catch { /* non-critical */ }
+  }
+
   // Trigger villain move every 10 actions (in-session, not just on session start)
   let villainMoveNote: string | undefined;
   if (newActionCount % 10 === 0 && wb.primaryAntagonist) {
@@ -800,10 +816,18 @@ export async function processAction(
     sceneState: newSceneState,
     actionCount: newActionCount,
     actionsInCurrentAct: newActionsInCurrentAct,
+    lastPillarUsed: aiResponse.scenePurpose
+      ? [...(ws.lastPillarUsed || []), aiResponse.scenePurpose].slice(-5)
+      : ws.lastPillarUsed,
     ...(endgamePhase !== ws.endgamePhase ? { endgamePhase } : {}),
     ...(ledgerChanges.length > 0 ? { foreshadowingLedger: ledgerChanges } : {}),
     ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
     ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
+    pendingDirectorBeat: aiResponse.directorBeatExecuted
+      ? null
+      : (ws.pendingDirectorBeat && newActionCount <= ws.pendingDirectorBeat.expiresAfter
+          ? ws.pendingDirectorBeat
+          : null),
   };
 
   // Consumed items: prefer AI's explicit list, fall back to narration regex
@@ -882,6 +906,21 @@ export async function processAction(
   // Determine if a new ability was granted on level-up
   const newLevelAfter = updatedCharacter.level;
   const grantedAbility = newLevelAfter > prevLevel ? getAbilityForLevel(character.class, newLevelAfter) ?? undefined : undefined;
+
+  // Extract future hooks from what just happened (fire-and-forget, non-blocking)
+  if (newActionCount % 3 === 0) {
+    extractFutureHooks(action, aiResponse.narration, updatedWorldState, (character as Character).name)
+      .then(hooks => {
+        if (hooks.length > 0) {
+          const existing = updatedWorldState.futureHooks || [];
+          const merged = [...existing, ...hooks].slice(-30);
+          supabaseAdmin.from('campaigns').update({
+            world_state: { ...updatedWorldState, futureHooks: merged }
+          }).eq('id', campaignId).then(() => {}, () => {});
+        }
+      })
+      .catch(() => {});
+  }
 
   // Log player action and DM narration as separate events
   await supabaseAdmin.from('story_events').insert({

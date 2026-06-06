@@ -28,9 +28,12 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
     return;
   }
   const { name, storySeed, campaignType } = parse.data;
+  const playerPreferences = req.body.playerPreferences as
+    | { tone?: string; favoritePillars?: string[]; playerCount?: number; characterConcepts?: string[] }
+    | undefined;
 
   try {
-    const worldBible = await generateWorldBible(storySeed);
+    const worldBible = await generateWorldBible(storySeed, playerPreferences);
 
     const { data: campaign, error } = await supabaseAdmin
       .from('campaigns')

@@ -163,6 +163,55 @@ ENDGAME RULES:
 - When endgamePhase is "confrontation": THIS IS THE FINAL BATTLE. No escape. Every action has ultimate weight. Make the villain feel overwhelming but beatable. After the player wins (isVictory: true), set "endgameResolved": true.
 - When the story naturally builds to the final confrontation (villain is revealed, final location reached, all threads converging), set "triggerFinalConfrontation": true.
 
+SPOTLIGHT RULES (co-op only):
+- Track which character has had more "hero moments" — scenes built around their abilities, backstory, or choices.
+- If one character has had 3+ consecutive moments where they drove the story, build the next scene around the OTHER character.
+- A spotlight moment means: this character's specific backstory, ability, or personal choice was what mattered here.
+- Set spotlightCharacterId in response to the characterId you're spotlighting this turn (only when intentional).
+
+MYSTERY LAYER RULES:
+- The campaign has a CENTRAL MYSTERY defined in the world bible. Players should feel like investigators.
+- Drop ONE mystery clue every 3-4 actions. Never more than one per action. Never drop the answer directly.
+- Each clue should raise new questions even as it answers small ones.
+- Red herrings should feel meaningful when discovered but lead to dead ends.
+- When the revelation is ready (Act 3), build to it — the players should feel "of course" not "what?"
+
+FAILURE RULES:
+- Failure is a story accelerant, not a punishment. Never let failure just hurt and stop.
+- When a check fails: something ELSE happens. The door didn't open — but the guard heard the noise. The persuasion failed — but the NPC revealed something in their anger.
+- On critical failure: something changes dramatically. A new threat emerges. A secret is exposed. The situation escalates.
+- The question after failure is never "nothing happened" — it's "what happened INSTEAD."
+
+SAFE HAVEN RULES:
+- The campaign has a safe haven. Reference it. NPCs there know the characters by name.
+- When characters rest or need a quiet moment, scenes at the safe haven are where relationships develop naturally.
+- The safe haven's key NPC should have a running personality — familiar, slightly odd, genuinely fond of the characters.
+- If the safe haven is ever threatened, players will feel it personally.
+
+TONAL CONTRAST RULES:
+- After 2+ consecutive tense/climax/combat scenes, you MUST inject a moment of lighter tone.
+- This can be: an absurd NPC, a plan going comically wrong, an unexpected moment of warmth, dark humor.
+- The world's grimness is MORE effective when contrasted with brief moments of levity.
+- When using toneBreaks NPCs from the world bible, lean into their quirks.
+
+VISIBLE CONSEQUENCE RULES:
+- Past choices must come back. Check character history and futureHooks regularly.
+- Reference things that happened earlier. NPCs in new areas have heard about the characters' deeds.
+- Positive consequences: people are warmer, doors open, allies appear unexpectedly.
+- Negative consequences: reputation precedes them, old enemies resurface, price of past choices arrives.
+- At least once per 5 actions, reference something from character history or a past choice.
+
+THREE-PILLAR BALANCE:
+- Track what the last 3-5 scenes covered. If all combat: next scene must have exploration or social.
+- If all social: introduce a physical challenge or exploration moment.
+- Each scene should ideally contain elements from 2 pillars, not 1.
+- In your response, "scenePurpose" should vary across sessions — not just "combat" over and over.
+
+DIRECTOR BEAT:
+- If PENDING DIRECTOR BEAT is set in the context, you MUST execute that beat this turn or next turn.
+- This is a campaign health directive from a higher system. It overrides your local scene preferences.
+- After executing it, set "directorBeatExecuted": true in your response.
+
 RESPONSE FORMAT: Always respond with valid JSON matching this schema:
 {
   "narration": "string — the story text the player sees",
@@ -221,7 +270,9 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "isRest": boolean,
   "triggerFinalConfrontation": boolean,
   "endgameResolved": boolean,
-  "consumedItems": ["item name"] | null
+  "consumedItems": ["item name"] | null,
+  "directorBeatExecuted": boolean,
+  "spotlightCharacterId": "characterId being spotlighted this turn, or null"
 }`;
 
 export async function generateSceneSummary(
@@ -304,6 +355,8 @@ export type NarrationResult = {
   isBossFight?: boolean;
   bossPhaseAdvance?: boolean;
   consumedItems?: string[];
+  directorBeatExecuted?: boolean;
+  spotlightCharacterId?: string;
 };
 
 export type NarrationCampaignContext = {
@@ -322,6 +375,8 @@ export type NarrationCampaignContext = {
   actionsInCurrentAct?: number;
   keyNPCs?: NpcMemory[];
   mustIntroduceStatus?: Record<string, boolean>;
+  pendingDirectorBeat?: { beat: string; urgency: 'low' | 'high' | 'critical'; expiresAfter: number } | null;
+  futureHooks?: { id: string; description: string; source: string }[];
 };
 
 function buildNarrationMessages(
@@ -451,6 +506,17 @@ WORLD BIBLE:
 - Era: ${worldBible.era} | Magic: ${worldBible.magicSystem}
 - Factions: ${worldBible.factions.map(f => f.name).join(', ')}
 - Tone: ${worldBible.toneRules.slice(0, 2).join('; ')}
+${worldBible.mysteryLayer ? `
+━━━ THE CENTRAL MYSTERY ━━━
+Question players are investigating: ${worldBible.mysteryLayer.centralQuestion}
+Clues (drop ONE per 3-4 actions, in order):
+${worldBible.mysteryLayer.clues.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}
+Red herrings (feel real, lead nowhere):
+${worldBible.mysteryLayer.redHerrings.map(r => `  - ${r}`).join('\n')}
+Revelation (DO NOT reveal directly — build to it in Act 3): ${worldBible.mysteryLayer.revelation}
+━━━━━━━━━━━━━━━━━━━━━━━━━` : ''}
+${worldBible.safeHaven ? `SAFE HAVEN: ${worldBible.safeHaven.name} — ${worldBible.safeHaven.flavor}. Kept by ${worldBible.safeHaven.keyNPC}.` : ''}
+${worldBible.toneBreaks && worldBible.toneBreaks.length > 0 ? `TONAL CONTRAST MOMENTS: ${worldBible.toneBreaks.join(' | ')}` : ''}
 
 WORLD STATE:
 - Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
@@ -530,6 +596,17 @@ ${active.length > 0 ? `ACTIVE (seeded — escalate toward payoff):\n${active.map
 ━━━━━━━━━━━━━━━━━━━━━━`;
 })() : ''}
 
+${campaignContext?.futureHooks && campaignContext.futureHooks.length > 0 ? `
+FUTURE HOOKS TO HONOR (past choices with pending repercussions — bring these back):
+${campaignContext.futureHooks.slice(-5).map(h => `- ${h.description}`).join('\n')}` : ''}
+
+${campaignContext?.pendingDirectorBeat ? `
+━━━ PENDING DIRECTOR BEAT ━━━
+URGENCY: ${campaignContext.pendingDirectorBeat.urgency.toUpperCase()}
+MANDATORY BEAT: ${campaignContext.pendingDirectorBeat.beat}
+You MUST execute this beat this turn or next turn. Set directorBeatExecuted:true when done.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━` : ''}
+
 ${campaignContext?.otherCharacters && campaignContext.otherCharacters.length > 0 ? `PARTY:
 ${campaignContext.otherCharacters.map(c => {
   const myLocation = worldState.characterLocations?.[character.id] || worldState.currentLocation;
@@ -605,6 +682,8 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
     enemyDefeated: (parsed.enemyDefeated as string) || undefined,
     isBossFight: (parsed.isBossFight as boolean) || false,
     bossPhaseAdvance: (parsed.bossPhaseAdvance as boolean) || false,
+    directorBeatExecuted: (parsed.directorBeatExecuted as boolean) || false,
+    spotlightCharacterId: (parsed.spotlightCharacterId as string) || undefined,
   };
 }
 
@@ -962,99 +1041,360 @@ Return JSON array:
   return (parsed as { seeds?: StorySeedOption[] }).seeds || (parsed as StorySeedOption[]) || [];
 }
 
-export async function generateWorldBible(storySeed: string): Promise<WorldBible> {
+export async function generateWorldBible(
+  storySeed: string,
+  playerPreferences?: { tone?: string; favoritePillars?: string[]; playerCount?: number; characterConcepts?: string[] }
+): Promise<WorldBible> {
+  const prefContext = playerPreferences ? `
+PLAYER PREFERENCES (use these to tailor the campaign):
+${playerPreferences.tone ? `- Desired tone: ${playerPreferences.tone} — let this calibrate the toneRules and overall feel.` : ''}
+${playerPreferences.favoritePillars?.length ? `- What they love most: ${playerPreferences.favoritePillars.join(', ')} — weight spotlightDesign.encounterCurve and suggested encounters toward these.` : ''}
+${playerPreferences.playerCount ? `- Party size: ${playerPreferences.playerCount} players — scale the safeHaven, spotlightDesign.sharedMoments, and encounter difficulty accordingly.` : ''}
+${playerPreferences.characterConcepts?.length ? `- Character concepts: ${playerPreferences.characterConcepts.join('; ')} — use these to make campaignBrief.motivation personal, personalMotivation of the lieutenant feel relevant, and shape backstory hooks.` : ''}
+` : '';
+
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       {
         role: 'system',
-        content: 'You are a master worldbuilder. Create a detailed but consistent world bible for a dark fantasy RPG campaign. Respond with valid JSON only.',
+        content: `You are a master adventure designer creating a FULL CAMPAIGN DESIGN — not just a world setting. This is a complete adventure package: mystery, antagonists, emotional hooks, tonal contrast, safe haven, player spotlights, and a DM roadmap. Every field must be specific to THIS premise, not generic. Make it memorable. Respond with valid JSON only.`,
       },
       {
         role: 'user',
-        content: `Create a world bible for this campaign premise: "${storySeed}"
+        content: `Design a complete dark fantasy campaign for this premise: "${storySeed}"
+${prefContext}
+Return JSON matching this exact schema. Every field must be substantive and specific to the premise — no placeholder text:
 
-Return JSON matching exactly:
 {
-  "era": "Name of the age or era",
-  "magicSystem": "2-3 sentence description of how magic works in this world",
+  "era": "Name of the age — something evocative, not just 'The Dark Age'",
+  "magicSystem": "2-3 sentences on how magic works — its cost, rarity, and what makes it distinctive to this world",
   "geography": [
-    {"name": "place name", "description": "2 sentence desc", "type": "city|region|dungeon|wilderness|landmark"}
+    {"name": "place name", "description": "2 sentences — what it looks and feels like", "type": "city|region|dungeon|wilderness|landmark"}
   ],
   "pantheon": [
-    {"name": "god name", "domain": "domain", "alignment": "alignment", "conflict": "their conflict with another deity"}
+    {"name": "god name", "domain": "domain", "alignment": "alignment", "conflict": "their specific conflict with another deity or mortal power"}
   ],
-  "toneRules": ["rule 1", "rule 2", "rule 3", "rule 4"],
-  "forbiddenLoreHooks": ["mystery 1", "mystery 2", "mystery 3", "mystery 4"],
+  "toneRules": [
+    "rule 1 — specific to this premise, not generic dark fantasy",
+    "rule 2",
+    "rule 3",
+    "rule 4"
+  ],
+  "forbiddenLoreHooks": ["mystery 1 — something disturbing about this world's history", "mystery 2", "mystery 3", "mystery 4"],
   "factions": [
-    {"name": "faction name", "publicFace": "what they claim to be", "secretAgenda": "what they actually want", "power": "weak|moderate|strong"}
+    {"name": "faction name", "publicFace": "what they claim to be — their public reputation", "secretAgenda": "what they actually want — specific and surprising", "power": "weak|moderate|strong"}
   ],
   "primaryAntagonist": {
     "name": "A cryptic title or name (not their true name yet)",
-    "trueName": "Their real name, kept secret",
+    "trueName": "Their real name — kept secret until Act 3",
     "type": "primary",
-    "agenda": "Their goal in 1-2 sentences — concrete but vague enough to be mysterious",
-    "currentStep": "The first step of their plan currently in progress",
-    "planSteps": ["step 1", "step 2", "step 3", "step 4", "step 5"],
+    "agenda": "Their goal in 1-2 sentences — concrete and specific, vague enough to remain mysterious",
+    "currentStep": "The specific step of their plan currently underway — what they are doing RIGHT NOW",
+    "planSteps": ["step 1", "step 2", "step 3", "step 4", "step 5 — the completion of their goal"],
     "whatTheyKnow": "Nothing yet — the players are unknown to them",
     "isRevealed": false,
     "power": "legendary",
-    "allies": ["ally faction or name 1", "ally faction or name 2"],
-    "weaknesses": ["weakness 1", "weakness 2"]
+    "allies": ["ally faction or specific named person 1", "ally faction or specific named person 2"],
+    "weaknesses": ["specific weakness 1 — something the players could discover and use", "specific weakness 2"]
   },
-  "centralConflict": "2-3 sentences describing the broad shape of the campaign conflict — no specifics, just the emotional and thematic core",
+  "lieutenant": {
+    "name": "Their name — someone the players will meet before knowing they're the villain's lieutenant",
+    "trueName": "Same as name (lieutenants are not secret in the same way)",
+    "type": "secondary",
+    "agenda": "Their stated or apparent goal — what they seem to be pursuing",
+    "currentStep": "What they are actively doing right now in the story",
+    "planSteps": ["step 1", "step 2", "step 3"],
+    "whatTheyKnow": "What they know about the primary antagonist's plan",
+    "isRevealed": false,
+    "power": "major",
+    "allies": ["their personal allies, separate from the primary antagonist's"],
+    "weaknesses": ["their specific vulnerability"],
+    "tieToVillain": "1 sentence — how they are connected to the primary antagonist and why they serve",
+    "firstAppearanceHint": "What the players first notice about this person before realizing they're the lieutenant — describe a scene or interaction",
+    "personalMotivation": "What THEY want, independent of the villain — they're not just a lackey, they have their own goal the villain is helping them achieve"
+  },
+  "centralConflict": "2-3 sentences — the emotional and thematic core of the campaign. Not plot specifics. What does this campaign ultimately ask of the players?",
   "antagonistRoster": [],
   "openingHooks": [
-    "A subtle rumor, strange occurrence, or NPC warning that hints at the antagonist without naming them",
-    "A second breadcrumb — different in nature (visual, heard, felt)",
-    "A third early omen that can be seeded in the first session"
+    "A subtle hint that can be seeded in session 1 — specific, not generic",
+    "A second breadcrumb — different in nature (visual, heard, felt, smelled)",
+    "A third early omen — something that seems innocuous but is deeply significant"
   ],
+  "plotTwist": "The mid-campaign revelation that reframes everything the players thought they knew. Should make them say 'oh god, of course.' Not a random surprise — something that was always true but hidden.",
+  "mysteryLayer": {
+    "centralQuestion": "The one question that drives all investigation — specific enough to pursue, mysterious enough to sustain a campaign",
+    "clues": [
+      "clue 1 — earliest, most subtle. Something players could easily overlook",
+      "clue 2 — slightly more concrete, but still ambiguous",
+      "clue 3 — raises more questions than it answers",
+      "clue 4 — starts pointing at the truth in an uncomfortable direction",
+      "clue 5 — confirms part of the answer but opens a worse question",
+      "clue 6 — the final piece before revelation. Should make the revelation feel inevitable"
+    ],
+    "redHerrings": [
+      "false trail 1 — plausible, misleading, has its own internal logic",
+      "false trail 2 — points at the wrong person or cause convincingly"
+    ],
+    "revelation": "The full truth behind the central question — what actually happened/is happening. Be specific."
+  },
+  "safeHaven": {
+    "name": "Name of the home base — evocative, fits the world",
+    "description": "2 sentences — what it looks, sounds, smells like. It should feel lived-in and slightly imperfect.",
+    "keyNPC": "Name and one sentence about the person who runs/protects it — warm, slightly odd, genuinely fond of the characters",
+    "flavor": "One specific sensory detail that players will associate with safety — the smell of something always cooking, a particular lamp, a sound that means they're home"
+  },
+  "toneBreaks": [
+    "A specific NPC who is genuinely funny or absurd in an otherwise grim world — describe them in one sentence with their name",
+    "A recurring comic situation or running joke built into the world — specific to this premise",
+    "A moment of unexpected warmth or beauty in the dark — describe the scenario",
+    "An encounter that is lighter in difficulty and tone, designed to let players breathe — describe it"
+  ],
+  "futureHookSeeds": [
+    "IF players choose to [specific action X in this world], then [future consequence Y — be specific about what changes]",
+    "IF [specific NPC name from this campaign] survives/is spared, they will [specific future role]",
+    "The [specific object/location/secret from Act 1] will [become critical in Act 3 because of this specific reason]",
+    "If the players ignore [specific faction from this campaign], [that faction] will [specific retaliation action]",
+    "The [specific choice the players will face in Act 2] will [shape the Act 3 resolution in this specific way]",
+    "A recurring small NPC (name them) who, if players are kind to them, turns out to [have this crucial role later]"
+  ],
+  "campaignBrief": {
+    "hook": "2 sentences. Clear objective + immediate emotional pull. No mystery yet — just: what do they need to do and why should they care RIGHT NOW.",
+    "objective": "Exactly what the characters need to accomplish — concrete and actionable. Start with a verb.",
+    "motivation": "Why would any character care about this personally? Make it visceral. If character concepts were provided, appeal to them directly.",
+    "whereToStart": "Exactly where to go and who to talk to first. Give a name. Give a reason why that person specifically.",
+    "worldStakes": "What happens to the world — specifically — if they fail. Make it visceral and concrete.",
+    "characterStakes": "What the characters personally lose if they fail. More intimate than world stakes.",
+    "mysteryHint": "Pose the central mystery as a question the players will want to answer. Intriguing, not spoiling."
+  },
+  "spotlightDesign": {
+    "sharedMoments": [
+      "A scenario that REQUIRES two characters to cooperate — one creates the opening, the other executes. Describe the specific situation.",
+      "A moment where the characters must choose between individual goals and party loyalty — what is the specific dilemma?",
+      "A scene designed to create an inside joke or shared reference — something absurd that only works in this world"
+    ],
+    "encounterCurve": "Describe the encounter difficulty curve for this campaign: Easy → Medium → Easy → Hard → Medium → Hard → DEADLY (boss). For each difficulty tier, describe what it represents in THIS campaign's specific context."
+  },
   "dmRoadmap": {
     "act1Goals": [
-      "Establish the central threat through indirect consequences, not direct confrontation",
-      "Give the player a personal reason to care — tie the conflict to someone or something they value",
-      "Introduce at least one NPC who will matter deeply later",
-      "Make the villain feel real without revealing them"
+      "Specific goal 1 for Act 1 — tailored to this premise",
+      "Specific goal 2 for Act 1",
+      "Specific goal 3 for Act 1",
+      "Specific goal 4 for Act 1"
     ],
-    "act1MustIntroduce": ["name of key NPC 1", "name of key location", "name of key faction contact"],
-    "act1ClimaxEvent": "The specific event that ends Act 1 and makes retreat impossible — a revelation, a loss, a crossing of the point of no return",
+    "act1MustIntroduce": ["name of a key NPC specific to this campaign", "name of a key location", "name of a faction contact"],
+    "act1ClimaxEvent": "The specific event that ends Act 1 — a revelation, a loss, a crossing of the point of no return. Specific to this premise.",
     "act2Goals": [
-      "Force the player to make a choice that costs them something",
-      "Reveal one layer of the villain's true plan",
-      "Turn one alliance into a betrayal or one enemy into an unexpected ally",
-      "Escalate the personal stake established in Act 1"
+      "Specific goal 1 for Act 2",
+      "Specific goal 2 for Act 2",
+      "Specific goal 3 for Act 2",
+      "Specific goal 4 for Act 2"
     ],
-    "act2VillainEscalation": "The specific action the villain takes in Act 2 that makes them undeniable — something visible, something terrible, something personal",
-    "act2ClimaxEvent": "The darkest moment — the low point where the player questions whether victory is possible",
+    "act2VillainEscalation": "The specific action the villain takes in Act 2 — something visible, terrible, personal to the players",
+    "act2ClimaxEvent": "The darkest moment — the low point where players question whether victory is possible. Specific.",
     "act3ConvergenceThreads": [
-      "The NPC introduced in Act 1 reappears with crucial information or aid",
-      "The personal backstory hook becomes the key to defeating the villain",
-      "The choice from Act 2 has a consequence that shapes the ending"
+      "Thread 1 converging — specific NPC or plot element from Act 1 that returns",
+      "Thread 2 converging — how the central mystery connects to the final confrontation",
+      "Thread 3 converging — how a choice the players made in Act 2 shapes the ending"
     ],
-    "act3ClimaxEvent": "The final confrontation — describe the shape of it without predicting the outcome",
+    "act3ClimaxEvent": "The final confrontation — describe its shape, location, and what makes it climactic. Specific.",
     "act3ResolutionOptions": [
-      "Victory: the villain is stopped, but at a permanent cost",
-      "Pyrrhic victory: the immediate threat ends but the world is fundamentally changed",
-      "Tragic victory: the player saves the world but loses what they cared about most"
+      "Victory option: specific to this campaign's themes",
+      "Pyrrhic victory option: the immediate threat ends but something irreversible has changed",
+      "Tragic victory option: they save what matters most but lose something personal"
     ]
   }
 }
 
-Include 5-7 geography entries, 5-6 gods, exactly 4 tone rules, 3-4 forbidden lore hooks, exactly 3 factions. The antagonistRoster should be an empty array — secondary antagonists emerge during play. The primaryAntagonist should be legendary in power. Make the dmRoadmap specific to THIS campaign's premise — not generic.`,
+Requirements:
+- 5-7 geography entries (varied: city, dungeon, wilderness, landmark, region)
+- 5-6 gods in pantheon with genuine theological conflicts
+- Exactly 4 tone rules — specific to THIS premise, not boilerplate dark fantasy
+- 3-4 forbidden lore hooks
+- Exactly 3 factions with genuinely surprising secret agendas
+- The lieutenant must feel like a real person with their own goals, not just a henchman
+- The mystery layer clues must form a coherent trail — each one building on the last
+- The safeHaven must feel warm and specific — a place players will want to return to
+- The plotTwist must be earned — something that was always true but cleverly hidden
+- Make everything specific to THIS premise. Never use placeholder text.`,
       },
     ],
-    temperature: 0.85,
+    temperature: 0.88,
     response_format: { type: 'json_object' },
   });
 
   const content = response.choices[0].message.content || '{}';
   let parsed: WorldBible;
-  try { parsed = JSON.parse(content) as WorldBible; } catch { throw new Error('Failed to parse world bible from AI response'); }
-  // Ensure antagonistRoster includes primaryAntagonist
-  if (parsed.primaryAntagonist && (!parsed.antagonistRoster || parsed.antagonistRoster.length === 0)) {
-    parsed.antagonistRoster = [parsed.primaryAntagonist];
+  try {
+    parsed = JSON.parse(content) as WorldBible;
+  } catch {
+    throw new Error('Failed to parse world bible from AI response');
   }
+
+  // Ensure antagonistRoster contains both primaryAntagonist and lieutenant
+  const roster: import('../../../shared/types').Antagonist[] = [];
+  if (parsed.primaryAntagonist) roster.push(parsed.primaryAntagonist);
+  if (parsed.lieutenant) roster.push(parsed.lieutenant as import('../../../shared/types').Antagonist);
+  if (!parsed.antagonistRoster || parsed.antagonistRoster.length === 0) {
+    parsed.antagonistRoster = roster;
+  } else {
+    const names = new Set(parsed.antagonistRoster.map(a => a.name));
+    if (parsed.primaryAntagonist && !names.has(parsed.primaryAntagonist.name)) {
+      parsed.antagonistRoster.unshift(parsed.primaryAntagonist);
+    }
+    if (parsed.lieutenant && !names.has(parsed.lieutenant.name)) {
+      parsed.antagonistRoster.push(parsed.lieutenant as import('../../../shared/types').Antagonist);
+    }
+  }
+
+  if (!parsed.toneRules || parsed.toneRules.length === 0) parsed.toneRules = ['Actions have consequences.', 'Trust is earned.', 'Magic has cost.', 'Death is permanent.'];
+  if (!parsed.openingHooks || parsed.openingHooks.length === 0) parsed.openingHooks = ['Something stirs in the shadows.', 'An old warning resurfaces.', 'A stranger arrives with dire news.'];
+  if (!parsed.geography || parsed.geography.length === 0) parsed.geography = [{ name: 'The Starting Town', description: 'A small settlement at the edge of the wilderness.', type: 'city' }];
+  if (!parsed.factions || parsed.factions.length === 0) parsed.factions = [];
+  if (!parsed.pantheon || parsed.pantheon.length === 0) parsed.pantheon = [];
+
   return parsed;
+}
+
+export async function runStoryDirector(
+  worldState: WorldState,
+  worldBible: WorldBible,
+  characters: Character[],
+  act: number
+): Promise<{ beat: string; urgency: 'low' | 'high' | 'critical'; beatType: string } | null> {
+  try {
+    const actionsInAct = worldState.actionsInCurrentAct || 0;
+    const actionCount = worldState.actionCount || 0;
+    const sceneState = worldState.sceneState;
+    const lastPillar = worldState.lastPillarUsed || sceneState?.purpose || 'explore';
+    const spotlightBalance = worldState.spotlightBalance || {};
+    const sessionNotes = worldState.sessionNotes || [];
+    const futureHooks = (worldState.futureHooks || []).filter(h => !h.resolved);
+    const backstoryHooks = worldState.backstoryHooks || [];
+    const actGoalsAchieved = worldState.actGoalsAchieved || [];
+
+    const roadmap = worldBible.dmRoadmap;
+    const actGoals = act === 1 ? roadmap?.act1Goals : act === 2 ? roadmap?.act2Goals : roadmap?.act3ConvergenceThreads;
+    const totalGoals = actGoals?.length || 4;
+    const goalsComplete = actGoalsAchieved.length;
+
+    const context = `
+Campaign health check for Act ${act}:
+- Actions in current act: ${actionsInAct}
+- Total actions: ${actionCount}
+- Last scene type (pillar): ${lastPillar}
+- Spotlight balance: ${JSON.stringify(spotlightBalance)}
+- Unresolved future hooks: ${futureHooks.length} (${futureHooks.slice(-3).map(h => h.description).join('; ') || 'none'})
+- Backstory hooks: ${backstoryHooks.filter(h => h.status === 'active').length} active, ${backstoryHooks.filter(h => h.status === 'dormant').length} dormant
+- Act goals achieved: ${goalsComplete}/${totalGoals}
+- Recent session notes: ${sessionNotes.slice(-3).join(' | ') || 'none'}
+- Characters: ${characters.map(c => `${c.name} (${c.race} ${c.class}, Lv${c.level})`).join(', ')}
+- Central conflict: ${worldBible.centralConflict || 'unknown'}
+- Mystery layer question: ${worldBible.mysteryLayer?.centralQuestion || 'none'}
+`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a Story Director evaluating campaign health for a dark fantasy RPG. Given campaign state, determine if a specific intervention is needed in the next 1-2 player actions to keep the story on track. Be specific — name NPCs, name scenes, name mechanics. Return JSON only.`,
+        },
+        {
+          role: 'user',
+          content: `${context}
+
+Based on this campaign state, what specific thing MUST happen in the next 1-2 player actions?
+
+Consider:
+- Is the act overdue for a mystery clue drop? (Every 3-4 actions)
+- Is one character dominating spotlight while another is ignored?
+- Are there urgent future hooks that need to pay off now?
+- Are there active backstory hooks that need escalation?
+- Is the pillar balance off (all combat, no social/exploration)?
+- Are act goals dangerously behind?
+
+If the campaign is healthy and nothing is urgently needed, return {"healthy": true}.
+
+Otherwise return:
+{
+  "beat": "Specific directive: exactly what must happen, naming NPCs/locations/situations. 2-3 sentences max.",
+  "urgency": "low|high|critical",
+  "beatType": "mystery_clue|spotlight_shift|hook_payoff|backstory_escalation|pillar_balance|act_goal|pacing"
+}`,
+        },
+      ],
+      temperature: 0.6,
+      response_format: { type: 'json_object' },
+    });
+
+    const raw = response.choices[0].message.content || '{}';
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (parsed.healthy) return null;
+    if (!parsed.beat) return null;
+
+    return {
+      beat: parsed.beat as string,
+      urgency: (parsed.urgency as 'low' | 'high' | 'critical') || 'low',
+      beatType: (parsed.beatType as string) || 'pacing',
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function extractFutureHooks(
+  action: string,
+  narration: string,
+  worldState: WorldState,
+  characterName: string
+): Promise<{ id: string; description: string; source: string; createdAt: string; resolved: boolean }[]> {
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are analyzing a D&D session moment to extract future hooks — things that COULD have repercussions later if remembered. Extract 0-2 items only. Only flag genuinely notable moments, not mundane actions. Return JSON only.`,
+        },
+        {
+          role: 'user',
+          content: `Character: ${characterName}
+Current location: ${worldState.currentLocation || 'unknown'}
+Player action: "${action}"
+What happened: "${narration.slice(0, 500)}"
+
+Extract 0-2 future hooks from this moment. These are things that could matter later:
+- An NPC was threatened/wronged/helped — they might remember
+- A faction noticed something the players did
+- A promise or oath was made
+- An object of unknown significance appeared
+- A choice was made that one character might regret
+- Something was left behind or ignored that will matter
+
+Return: {"hooks": [{"description": "short description of the repercussion potential", "type": "npc_grudge|faction_memory|promise|object|choice|abandoned"}]}
+Or: {"hooks": []} if nothing notable happened.`,
+        },
+      ],
+      temperature: 0.5,
+      response_format: { type: 'json_object' },
+    });
+
+    const raw = response.choices[0].message.content || '{}';
+    const parsed = JSON.parse(raw) as { hooks?: { description: string; type?: string }[] };
+    const hooks = parsed.hooks || [];
+    if (!hooks.length) return [];
+
+    return hooks.slice(0, 2).map(h => ({
+      id: crypto.randomUUID(),
+      description: h.description,
+      source: action.slice(0, 100),
+      createdAt: new Date().toISOString(),
+      resolved: false,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateProactiveEvent(
