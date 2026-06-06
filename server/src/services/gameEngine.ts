@@ -94,7 +94,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 
   // Simple scalar fields
-  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount'] as const) {
+  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
   }
 
@@ -191,6 +191,9 @@ export async function applyConsequences(
     sessionNote?: string;
     characterHistoryNote?: CharacterHistoryEntry;
     antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
+    isRest?: boolean;
+    abilityUsed?: string;
+    consumedItems?: string[];
   },
   currentCharacter: Character,
   campaign: { id: string; world_state: WorldState; act?: number }
@@ -270,25 +273,57 @@ export async function applyConsequences(
     }
   }
 
-  // Apply status effects
-  if (actionResult.statusEffectChanges) {
+  // Apply status effects + decrement durations on every action
+  {
     let effects: StatusEffect[] = [...(currentCharacter.status_effects || [])];
-    if (actionResult.statusEffectChanges.remove) {
-      const toRemove = new Set(actionResult.statusEffectChanges.remove.map(n => n.toLowerCase()));
-      effects = effects.filter(e => !toRemove.has(e.name.toLowerCase()));
-    }
-    if (actionResult.statusEffectChanges.add) {
-      for (const e of actionResult.statusEffectChanges.add) {
-        if (!e.name || typeof e.name !== 'string') continue;
-        const validEffectTypes = new Set(['buff', 'debuff', 'neutral']);
-        const effectType = validEffectTypes.has(e.type) ? e.type : 'neutral';
-        const existing = effects.findIndex(x => x.name.toLowerCase() === e.name.toLowerCase());
-        const effect: StatusEffect = { name: e.name, description: e.description || '', type: effectType as StatusEffect['type'], duration: e.duration };
-        if (existing >= 0) effects[existing] = effect;
-        else effects.push(effect);
+
+    // Decrement finite durations each action
+    effects = effects
+      .map(e => e.duration != null ? { ...e, duration: e.duration - 1 } : e)
+      .filter(e => e.duration == null || e.duration > 0);
+
+    if (actionResult.statusEffectChanges) {
+      if (actionResult.statusEffectChanges.remove) {
+        const toRemove = new Set(actionResult.statusEffectChanges.remove.map(n => n.toLowerCase()));
+        effects = effects.filter(e => !toRemove.has(e.name.toLowerCase()));
+      }
+      if (actionResult.statusEffectChanges.add) {
+        for (const e of actionResult.statusEffectChanges.add) {
+          if (!e.name || typeof e.name !== 'string') continue;
+          const validEffectTypes = new Set(['buff', 'debuff', 'neutral']);
+          const effectType = validEffectTypes.has(e.type) ? e.type : 'neutral';
+          const existing = effects.findIndex(x => x.name.toLowerCase() === e.name.toLowerCase());
+          const effect: StatusEffect = { name: e.name, description: e.description || '', type: effectType as StatusEffect['type'], duration: e.duration };
+          if (existing >= 0) effects[existing] = effect;
+          else effects.push(effect);
+        }
       }
     }
     updates.status_effects = effects;
+  }
+
+  // Decrement ability cooldowns each action; reset all on rest
+  {
+    const abilities = currentCharacter.abilities || [];
+    if (abilities.length > 0) {
+      const updated = abilities.map(a => {
+        if (actionResult.isRest) return { ...a, currentCooldown: 0 };
+        if (actionResult.abilityUsed && a.name === actionResult.abilityUsed && a.cooldown) return { ...a, currentCooldown: a.cooldown };
+        if (a.currentCooldown && a.currentCooldown > 0) return { ...a, currentCooldown: a.currentCooldown - 1 };
+        return a;
+      });
+      if (JSON.stringify(updated) !== JSON.stringify(abilities)) updates.abilities = updated;
+    }
+  }
+
+  // Remove consumed items from inventory when AI narrates their use
+  if (actionResult.consumedItems && actionResult.consumedItems.length > 0) {
+    const consumed = new Set(actionResult.consumedItems.map(c => c.toLowerCase()));
+    const inv = updates.inventory ?? currentCharacter.inventory ?? [];
+    const afterConsume = inv
+      .map(item => consumed.has(item.name.toLowerCase()) ? { ...item, quantity: item.quantity - 1 } : item)
+      .filter(item => item.quantity > 0);
+    updates.inventory = afterConsume;
   }
 
   // Add session note to world state
@@ -552,11 +587,25 @@ export async function processAction(
       // Combat just started
       combatState = { inCombat: true, enemyName: aiResponse.enemyName, enemyCondition: 'healthy', roundNumber: 1, playerActionsAttempted: [action] };
     } else {
-      // Ongoing combat — increment round, log action
-      // Enemy condition steps down based on rounds fought (rough heuristic)
       const rounds = combatState.roundNumber + 1;
-      const enemyCondition = rounds <= 2 ? 'healthy' : rounds <= 5 ? 'wounded' : 'critical';
-      combatState = { ...combatState, roundNumber: rounds, enemyCondition, playerActionsAttempted: [...(combatState.playerActionsAttempted || []).slice(-8), action] };
+      // Enemy condition derived from damage dealt (hpChange negatives = damage to enemy)
+      // Fall back to a gentler round-count curve if no HP data available
+      const totalDamageDealt = (combatState as unknown as Record<string, number>).totalDamageDealt || 0;
+      const newDamage = aiResponse.hpChange && aiResponse.hpChange < 0 ? Math.abs(aiResponse.hpChange) : 0;
+      const cumulativeDamage = totalDamageDealt + newDamage;
+      // Use cumulative damage thresholds if we have them, otherwise degrade by round count
+      const enemyCondition: 'healthy' | 'wounded' | 'critical' = cumulativeDamage >= 30
+        ? 'critical' : cumulativeDamage >= 15
+        ? 'wounded' : rounds <= 3
+        ? 'healthy' : rounds <= 6
+        ? 'wounded' : 'critical';
+      combatState = {
+        ...combatState,
+        roundNumber: rounds,
+        enemyCondition,
+        playerActionsAttempted: [...(combatState.playerActionsAttempted || []).slice(-8), action],
+        totalDamageDealt: cumulativeDamage,
+      } as WorldState['combatState'];
     }
   } else if (aiResponse.isVictory || (!aiResponse.isCombat && combatState?.inCombat)) {
     combatState = null; // combat ended
@@ -666,6 +715,38 @@ export async function processAction(
     }
   }
 
+  // Track total action count for villain move timing
+  const newActionCount = (ws.actionCount || 0) + 1;
+
+  // Trigger villain move every 10 actions (in-session, not just on session start)
+  let villainMoveNote: string | undefined;
+  if (newActionCount % 10 === 0 && wb.primaryAntagonist) {
+    try {
+      const move = await generateVillainMove(ws, wb, campaign.act || 1);
+      villainMoveNote = move.sessionNote;
+      // Prepend villain move to the narration field isn't clean here — we'll save it as a session note
+    } catch { /* non-critical */ }
+  }
+
+  // Handle endgame phase triggers from AI
+  let endgamePhase = ws.endgamePhase;
+  if ((aiResponse as unknown as Record<string, unknown>).triggerFinalConfrontation) {
+    endgamePhase = 'confrontation';
+  } else if ((aiResponse as unknown as Record<string, unknown>).endgameResolved) {
+    endgamePhase = 'none';
+  } else if (!endgamePhase || endgamePhase === 'none') {
+    // Auto-escalate to approaching when villain plan is near completion
+    const antagonistProgress = ws.antagonistProgress || {};
+    const primaryAntagonist = wb.primaryAntagonist;
+    if (primaryAntagonist) {
+      const progress = antagonistProgress[primaryAntagonist.name];
+      const totalSteps = primaryAntagonist.planSteps?.length || 5;
+      if (progress && progress.stepIndex >= totalSteps - 1) {
+        endgamePhase = 'approaching';
+      }
+    }
+  }
+
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
     ...locationTracking,
@@ -675,10 +756,28 @@ export async function processAction(
     currentSceneSummary,
     actionsSinceLastSummary,
     sceneState: newSceneState,
+    actionCount: newActionCount,
+    ...(endgamePhase !== ws.endgamePhase ? { endgamePhase } : {}),
     ...(ledgerChanges.length > 0 ? { foreshadowingLedger: ledgerChanges } : {}),
     ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
     ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
   };
+
+  // Parse consumed items from AI narration (items the AI said the character used)
+  const consumedItems: string[] = [];
+  if (aiResponse.narration) {
+    const consumableNames = (character.inventory || [])
+      .filter(i => i.type === 'potion' || i.type === 'misc')
+      .map(i => i.name);
+    for (const itemName of consumableNames) {
+      const escaped = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const usePattern = new RegExp(`\\b(drink|drinks|drank|use|uses|used|consume|consumes|consumed|quaff|quaffs|quaffed)\\b.{0,30}\\b${escaped}\\b`, 'i');
+      const gonePattern = new RegExp(`\\b${escaped}\\b.{0,30}\\b(is consumed|is used|disappears|shatters|crumbles|is gone)\\b`, 'i');
+      if (usePattern.test(aiResponse.narration) || gonePattern.test(aiResponse.narration)) {
+        consumedItems.push(itemName);
+      }
+    }
+  }
 
   // Apply consequences
   const prevLevel = (character as Character).level;
@@ -695,9 +794,12 @@ export async function processAction(
       goldChange: aiResponse.isMerchant ? undefined : aiResponse.goldChange,
       loot: aiResponse.loot,
       statusEffectChanges: aiResponse.statusEffectChanges,
-      sessionNote: aiResponse.sessionNote,
+      sessionNote: villainMoveNote ? (aiResponse.sessionNote ? `${aiResponse.sessionNote} | ${villainMoveNote}` : villainMoveNote) : aiResponse.sessionNote,
       characterHistoryNote: aiResponse.characterHistoryNote as CharacterHistoryEntry | undefined,
       antagonistUpdate: aiResponse.antagonistUpdate,
+      isRest: aiResponse.isRest,
+      abilityUsed: aiResponse.abilityUsed,
+      consumedItems: consumedItems.length > 0 ? consumedItems : undefined,
     },
     character as Character,
     { id: campaignId, world_state: campaign.world_state as WorldState, act: campaign.act }

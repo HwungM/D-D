@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { gameApi, assetApi, campaignApi } from '../lib/api'
+import { gameApi, assetApi, campaignApi, characterApi } from '../lib/api'
 import { useGameStore, useAuthStore } from '../lib/store'
 import { matchSceneImage, inferMood } from '../lib/sceneUtils'
 import { createClient } from '@supabase/supabase-js'
@@ -778,19 +778,24 @@ export default function Game() {
           shopItems={shopItems}
           playerGold={currentCharacter.gold}
           playerInventory={currentCharacter.inventory}
-          onBuy={(item) => {
-            const newGold = currentCharacter.gold - item.price
-            const newItem = { id: item.id, name: item.name, description: item.description, quantity: item.quantity, type: item.type as 'weapon' | 'armor' | 'potion' | 'misc' | 'key', value: item.price }
-            const newInventory = [...currentCharacter.inventory, newItem]
-            setCharacter({ ...currentCharacter, gold: newGold, inventory: newInventory })
-            characterApi.update(currentCharacter.id, { gold: newGold, inventory: newInventory })
+          onBuy={async (item) => {
+            try {
+              const res = await characterApi.purchase(currentCharacter.id, item, campaignId!)
+              setCharacter(res.data.character)
+            } catch (e: unknown) {
+              const err = e as { response?: { data?: { error?: string } } }
+              alert(err?.response?.data?.error || 'Purchase failed')
+            }
           }}
-          onSell={(item) => {
+          onSell={async (item) => {
             const sellPrice = Math.floor((item.value || 0) / 2)
-            const newGold = currentCharacter.gold + sellPrice
-            const newInventory = currentCharacter.inventory.filter(i => i.id !== item.id)
-            setCharacter({ ...currentCharacter, gold: newGold, inventory: newInventory })
-            characterApi.update(currentCharacter.id, { gold: newGold, inventory: newInventory })
+            try {
+              const res = await characterApi.sell(currentCharacter.id, item.name, sellPrice)
+              setCharacter(res.data.character)
+            } catch (e: unknown) {
+              const err = e as { response?: { data?: { error?: string } } }
+              alert(err?.response?.data?.error || 'Sale failed')
+            }
           }}
           onClose={() => setShowShop(false)}
         />

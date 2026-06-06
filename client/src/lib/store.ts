@@ -153,7 +153,7 @@ export const useGameStore = create<GameState>()((set) => ({
       if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 
       // Simple scalar fields
-      const scalarFields = ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'sceneState', 'currentSceneSummary', 'actionsSinceLastSummary', 'villainMoveCount'] as const;
+      const scalarFields = ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'sceneState', 'currentSceneSummary', 'actionsSinceLastSummary', 'villainMoveCount', 'endgamePhase', 'actionCount'] as const;
       for (const key of scalarFields) {
         if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
       }
