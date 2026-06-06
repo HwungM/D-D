@@ -174,7 +174,7 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
 
 router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const allowedFields = ['name', 'backstory', 'portrait_url', 'hp', 'gold', 'inventory'];
+  const allowedFields = ['name', 'backstory', 'portrait_url', 'hp', 'gold', 'inventory', 'abilities'];
   const updates: Record<string, unknown> = {};
 
   for (const field of allowedFields) {

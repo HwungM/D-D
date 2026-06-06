@@ -93,7 +93,7 @@ export const useGameStore = create<GameState>()((set) => ({
             existing.set(npc.name, npc);
           }
         }
-        merged.npcMemory = Array.from(existing.values());
+        merged.npcMemory = Array.from(existing.values()).slice(-20);
       }
 
       // activeQuests: upsert by title

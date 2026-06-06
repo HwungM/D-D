@@ -42,9 +42,10 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
     merged.activeQuests = Array.from(existing.values());
   }
 
-  // discoveredLocations: union
+  // discoveredLocations: union, capped at 100
   if (changes.discoveredLocations) {
-    merged.discoveredLocations = Array.from(new Set([...(current.discoveredLocations || []), ...changes.discoveredLocations]));
+    const all = Array.from(new Set([...(current.discoveredLocations || []), ...changes.discoveredLocations]));
+    merged.discoveredLocations = all.slice(-100);
   }
 
   // factionStandings: merge (last write wins per faction)
@@ -195,7 +196,11 @@ export async function applyConsequences(
   campaign: { id: string; world_state: WorldState; act?: number }
 ): Promise<{ updatedCharacter: Character; updatedWorldState: WorldState }> {
   const updates: Partial<Character> = {};
-  let newWorldState = { ...campaign.world_state };
+
+  // Re-fetch latest world state right before writing to minimize race window in co-op
+  const { data: freshCampaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaign.id).single();
+  const latestWorldState = (freshCampaign?.world_state as WorldState) || campaign.world_state;
+  let newWorldState = { ...latestWorldState };
 
   // Apply world state changes (smart patch merge)
   if (actionResult.worldStateChanges) {
@@ -281,7 +286,7 @@ export async function applyConsequences(
 
   // Add session note to world state
   if (actionResult.sessionNote) {
-    let notes = [...(newWorldState.sessionNotes || []), actionResult.sessionNote];
+    let notes = [...(newWorldState.sessionNotes || []), actionResult.sessionNote].slice(-50); // cap at 50
     // Compress to journal entry when we have 8+ session notes
     if (notes.length >= 8) {
       try {
@@ -398,7 +403,7 @@ export async function processAction(
   const ws = campaign.world_state as WorldState;
   const wb = campaign.world_bible as WorldBible;
 
-  // Increment session count on first action (rough proxy)
+  // Session count is incremented in getOpeningScene — just initialize if missing here
   if (!ws.sessionCount) {
     ws.sessionCount = 1;
     await supabaseAdmin.from('campaigns').update({ world_state: ws }).eq('id', campaignId);
@@ -435,6 +440,10 @@ export async function processAction(
     });
   }
 
+  // Compute force-complication flag before calling AI
+  const currentSceneState = ws.sceneState;
+  const forceComplication = (currentSceneState?.stalledCount ?? 0) >= 3;
+
   const campaignContext = {
     journal: ws.campaignJournal || [],
     characterHistory: ws.characterHistory || [],
@@ -447,11 +456,8 @@ export async function processAction(
     foreshadowingLedger: ws.foreshadowingLedger,
     backstoryHooks: ws.backstoryHooks,
     actGoalsAchieved: ws.actGoalsAchieved,
+    forceComplication,
   };
-
-  // Compute force-complication flag before calling AI
-  const currentSceneState = ws.sceneState;
-  const forceComplication = (currentSceneState?.stalledCount ?? 0) >= 3;
 
   // Generate narration via GPT-4o
   const aiResponse = await generateNarration(
@@ -460,9 +466,13 @@ export async function processAction(
     wb,
     character as Character,
     recentHistory,
-    campaignContext,
-    forceComplication
+    campaignContext
   );
+
+  // Explicit rest detection — override AI if player clearly stated rest intent (but not negations)
+  const isNegatedRest = /\b(not|don'?t|won'?t|can'?t|no|never|stop|avoid|refuse)\b.{0,20}\b(rest|sleep|camp|recover)\b/i.test(action);
+  const isExplicitRest = !isNegatedRest && /\b(rest|sleep|camp|make camp|short rest|long rest|take a rest|take a break|set up camp|meditate|recover)\b/i.test(action);
+  if (isExplicitRest) aiResponse.isRest = true;
 
   // If AI wants player to roll, return early with setup narration + rollContext
   if (aiResponse.awaitingRoll && aiResponse.rollContext) {
@@ -607,9 +617,12 @@ export async function processAction(
         pacingMode: aiResponse.pacingMode || prevSceneState?.pacingMode || 'exploration',
       };
 
-  // Track active NPC from AI response
+  // Track active NPC from AI response — auto-clear on location change
   const activeNPCChange: Partial<WorldState> = {};
-  if (aiResponse.activeNPC !== undefined) {
+  const locationChanged = newLocation && ws.currentLocation && newLocation !== ws.currentLocation;
+  if (locationChanged) {
+    activeNPCChange.activeNPC = null; // leaving a location always ends the conversation
+  } else if (aiResponse.activeNPC !== undefined) {
     activeNPCChange.activeNPC = aiResponse.activeNPC;
   }
 
@@ -619,12 +632,16 @@ export async function processAction(
     const location = (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation || 'unknown';
     const existingInventory = ws.shopInventory?.[location];
     const actionsSinceHere = ws.actionsSinceLastSummary || 0;
-    // Reuse existing inventory if player hasn't been away long (fewer than 6 actions since last summary)
     if (existingInventory && actionsSinceHere < 6) {
       aiResponse.shopItems = existingInventory;
     } else {
-      // Fresh visit or returning after a while — save new inventory
-      shopInventoryChange.shopInventory = { ...(ws.shopInventory || {}), [location]: aiResponse.shopItems as ShopItem[] };
+      // Prune old shop inventories — keep at most 20 locations to avoid JSONB bloat
+      const existingShop = ws.shopInventory || {};
+      const keys = Object.keys(existingShop);
+      const pruned = keys.length >= 20
+        ? Object.fromEntries(keys.slice(-19).map(k => [k, existingShop[k]]))
+        : existingShop;
+      shopInventoryChange.shopInventory = { ...pruned, [location]: aiResponse.shopItems as ShopItem[] };
     }
   }
 
@@ -653,7 +670,8 @@ export async function processAction(
       deathDescription: aiResponse.deathDescription,
       xpGained,
       hpChange: aiResponse.isDeath ? -character.max_hp : aiResponse.hpChange,
-      goldChange: aiResponse.goldChange,
+      // Skip AI goldChange for merchant interactions — the shop UI handles gold client-side to avoid double-deduction
+      goldChange: aiResponse.isMerchant ? undefined : aiResponse.goldChange,
       loot: aiResponse.loot,
       statusEffectChanges: aiResponse.statusEffectChanges,
       sessionNote: aiResponse.sessionNote,
@@ -823,9 +841,14 @@ export async function getOpeningScene(
   const openingWs = campaign.world_state as WorldState;
   const openingWb = campaign.world_bible as WorldBible;
 
+  // Increment session count each time a player enters the game
+  const newSessionCount = (openingWs.sessionCount ?? 0) + 1;
+  openingWs.sessionCount = newSessionCount;
+  await supabaseAdmin.from('campaigns').update({ world_state: openingWs }).eq('id', campaignId);
+
   // Check if the villain should make a proactive move — every 3 sessions or on first return
   const villainMoveCount = openingWs.villainMoveCount ?? 0;
-  const sessionCount = openingWs.sessionCount ?? 0;
+  const sessionCount = newSessionCount;
   const villainMoveDue = sessionCount > 0 && (sessionCount % 3 === 0 || villainMoveCount === 0) && sessionCount > villainMoveCount * 3;
   let villainMovePreamble = '';
   if (villainMoveDue && openingWb.primaryAntagonist) {
