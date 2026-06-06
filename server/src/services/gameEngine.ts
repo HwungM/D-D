@@ -220,11 +220,6 @@ export async function applyConsequences(
   // Apply world state changes (smart patch merge)
   if (actionResult.worldStateChanges) {
     newWorldState = mergeWorldStateChanges(newWorldState, actionResult.worldStateChanges as Partial<WorldState>);
-
-    await supabaseAdmin
-      .from('campaigns')
-      .update({ world_state: newWorldState })
-      .eq('id', campaign.id);
   }
 
   // Apply HP changes
@@ -272,14 +267,11 @@ export async function applyConsequences(
       updates.level = levelCheck.newLevel;
       updates.max_hp = currentCharacter.max_hp + (levelCheck.hpGain ?? 0);
       updates.hp = Math.min(currentCharacter.hp + (levelCheck.hpGain ?? 0), updates.max_hp);
-      // Grant level-up ability if milestone
       const newAbility = getAbilityForLevel(currentCharacter.class, levelCheck.newLevel);
       if (newAbility) {
         const existingAbilities = currentCharacter.abilities || [];
         const alreadyHas = existingAbilities.some(a => a.name === newAbility.name);
-        if (!alreadyHas) {
-          updates.abilities = [...existingAbilities, newAbility];
-        }
+        if (!alreadyHas) updates.abilities = [...existingAbilities, newAbility];
       }
     }
   }
@@ -287,8 +279,6 @@ export async function applyConsequences(
   // Apply status effects + decrement durations on every action
   {
     let effects: StatusEffect[] = [...(currentCharacter.status_effects || [])];
-
-    // Decrement finite durations each action
     effects = effects
       .map(e => e.duration != null ? { ...e, duration: e.duration - 1 } : e)
       .filter(e => e.duration == null || e.duration > 0);
@@ -331,42 +321,36 @@ export async function applyConsequences(
   if (actionResult.consumedItems && actionResult.consumedItems.length > 0) {
     const consumed = new Set(actionResult.consumedItems.map(c => c.toLowerCase()));
     const inv = updates.inventory ?? currentCharacter.inventory ?? [];
-    const afterConsume = inv
+    updates.inventory = inv
       .map(item => consumed.has(item.name.toLowerCase()) ? { ...item, quantity: item.quantity - 1 } : item)
       .filter(item => item.quantity > 0);
-    updates.inventory = afterConsume;
   }
 
-  // Add session note to world state
+  // Accumulate all world state mutations before writing once
   if (actionResult.sessionNote) {
-    let notes = [...(newWorldState.sessionNotes || []), actionResult.sessionNote].slice(-50); // cap at 50
-    // Compress to journal entry when we have 8+ session notes
+    let notes = [...(newWorldState.sessionNotes || []), actionResult.sessionNote].slice(-50);
     if (notes.length >= 8) {
       try {
         const actNumber = campaign.act ?? 1;
         const sessionCount = (newWorldState.sessionCount ?? 0) + 1;
         const entry = await compressToJournalEntry(campaign.id, notes, actNumber, sessionCount);
         newWorldState.campaignJournal = [...(newWorldState.campaignJournal || []), entry];
-        notes = []; // clear after compression
-      } catch (e) {
-        notes = notes.slice(-10); // fallback: keep last 10
+        notes = [];
+      } catch {
+        notes = notes.slice(-10);
       }
     }
     newWorldState.sessionNotes = notes;
-    await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
   }
 
-  // Log characterHistoryNote
   if (actionResult.characterHistoryNote) {
     const history = [...(newWorldState.characterHistory || []), {
       ...actionResult.characterHistoryNote,
       createdAt: new Date().toISOString(),
     }];
-    newWorldState.characterHistory = history.slice(-50); // keep last 50
-    await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
+    newWorldState.characterHistory = history.slice(-50);
   }
 
-  // Update antagonistProgress
   if (actionResult.antagonistUpdate) {
     const au = actionResult.antagonistUpdate;
     const progress = { ...(newWorldState.antagonistProgress || {}) };
@@ -377,15 +361,12 @@ export async function applyConsequences(
       knowsPlayers: au.nowKnowsPlayers ?? existing.knowsPlayers,
     };
     newWorldState.antagonistProgress = progress;
-    await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
   }
 
-  // Apply death
   if (actionResult.isDeath) {
     updates.hp = 0;
     updates.is_alive = false;
     updates.death_note = actionResult.deathDescription || 'Fell in battle.';
-    // Record in world state so successors and NPCs remember
     const fallen = Array.isArray(newWorldState.fallenHeroes) ? newWorldState.fallenHeroes : [];
     fallen.push({
       name: currentCharacter.name,
@@ -397,8 +378,10 @@ export async function applyConsequences(
       location: newWorldState.currentLocation || 'Unknown',
     });
     newWorldState.fallenHeroes = fallen;
-    await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
   }
+
+  // Single atomic world state write — eliminates co-op race conditions
+  await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
 
   // Persist character updates
   if (Object.keys(updates).length > 0) {

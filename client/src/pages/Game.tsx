@@ -18,6 +18,8 @@ import InviteModal from '../components/InviteModal'
 import QuestLog from '../components/QuestLog'
 import WorldPanel from '../components/WorldPanel'
 import DeathScreen from '../components/DeathScreen'
+import CombatPanel from '../components/CombatPanel'
+import EpilogueScreen from '../components/EpilogueScreen'
 import ShopModal from '../components/ShopModal'
 import ActTransition from '../components/ActTransition'
 import JournalTab from '../components/JournalTab'
@@ -98,6 +100,8 @@ export default function Game() {
   const [recentNarrations, setRecentNarrations] = useState<string[]>([])
   const [showHighStakes, setShowHighStakes] = useState(false)
   const [highStakesData, setHighStakesData] = useState<{ narration: string; choices: HighStakesChoiceType[] } | null>(null)
+  const [showEpilogue, setShowEpilogue] = useState(false)
+  const [epilogueData, setEpilogueData] = useState<{ text: string; victory: boolean } | null>(null)
 
   const [showDiceModal, setShowDiceModal] = useState(false)
   const [diceModalData, setDiceModalData] = useState<{ narration: string; rollContext: RollContext } | null>(null)
@@ -425,6 +429,18 @@ export default function Game() {
         setTimeout(() => setShowActTransition(true), 600)
       }
 
+      // Epilogue — triggered when endgameResolved fires
+      if ((result as ActionResult & { endgameResolved?: boolean }).endgameResolved && campaignId && characterId) {
+        const victory = !!result.isVictory
+        setTimeout(async () => {
+          try {
+            const { data } = await gameApi.epilogue(campaignId, characterId, victory)
+            setEpilogueData({ text: data.epilogue, victory })
+            setShowEpilogue(true)
+          } catch { /* show nothing if epilogue gen fails */ }
+        }, 3000)
+      }
+
       // High stakes choice overlay
       if (result.isHighStakes && result.choiceCards && result.choiceCards.length > 0) {
         setHighStakesData({ narration: result.narration, choices: result.choiceCards as HighStakesChoiceType[] })
@@ -617,9 +633,16 @@ export default function Game() {
           background: 'linear-gradient(90deg, rgba(127,10,10,0), rgba(200,20,20,0.18), rgba(127,10,10,0))',
           borderBottom: '1px solid rgba(220,38,38,0.2)',
         }}>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#f87171', boxShadow: '0 0 8px #f87171', animation: 'pulse 1s ease-in-out infinite' }} />
-            <span className="font-sans text-xs uppercase tracking-widest" style={{ color: '#f87171', letterSpacing: '0.2em' }}>Combat</span>
+            <span className="font-sans text-xs uppercase tracking-widest" style={{ color: '#f87171', letterSpacing: '0.2em' }}>
+              {worldState?.combatState?.isBossFight ? `★ Boss — Phase ${worldState.combatState.bossPhase || 1}` : 'Combat'}
+            </span>
+            {worldState?.combatState?.roundNumber && (
+              <span className="font-mono text-xs" style={{ color: 'rgba(220,100,100,0.4)', fontSize: 10 }}>
+                Round {worldState.combatState.roundNumber}
+              </span>
+            )}
           </div>
           <span className="font-serif text-xs italic" style={{ color: 'rgba(220,100,100,0.45)' }}>Fight, flee, or find another way</span>
         </div>
@@ -743,6 +766,14 @@ export default function Game() {
               )}
             </div>
           )}
+          {inCombat && currentCharacter && (
+            <CombatPanel
+              combatState={worldState?.combatState}
+              abilities={currentCharacter.abilities || []}
+              onAction={handleAction}
+              disabled={isLoading || isTyping}
+            />
+          )}
           <ActionPanel
             suggestedActions={lastActionResult?.suggestedActions || []}
             onAction={handleAction}
@@ -824,6 +855,14 @@ export default function Game() {
             setShowHighStakes(false)
             setHighStakesData(null)
           }}
+        />
+      )}
+      {showEpilogue && epilogueData && currentCharacter && (
+        <EpilogueScreen
+          epilogue={epilogueData.text}
+          characterName={currentCharacter.name}
+          victory={epilogueData.victory}
+          onClose={() => navigate('/dashboard')}
         />
       )}
     </div>

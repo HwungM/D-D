@@ -85,6 +85,8 @@ export const gameApi = {
     api.post('/game/resolve-roll', data),
   devKill: (characterId: string) => api.post(`/game/dev-kill/${characterId}`),
   devClearCombat: (campaignId: string) => api.post(`/game/dev-clear-combat/${campaignId}`),
+  epilogue: (campaignId: string, characterId: string, victory: boolean) =>
+    api.post(`/game/epilogue/${campaignId}/${characterId}`, { victory }),
 }
 
 // TTS
