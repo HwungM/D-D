@@ -141,6 +141,15 @@ DICE ROLLING RULES:
 - Use diceRequired: false when awaitingRoll: true (these are different systems).
 - Call for rolls more often: any attack, stealth attempt, persuasion, lock picking, climbing, knowledge check, saving throw.
 - modifier: the relevant stat modifier (-5 to +5)
+- DC CALIBRATION: Easy tasks DC 8-10, moderate DC 12-14, hard DC 16-18, very hard DC 20-22, near-impossible DC 24-25. Think about what PARTIAL SUCCESS looks like for every roll you set — what happens when the player beats the DC by only 1-2? That partial success state is as important as the clean success.
+
+DEGREES OF SUCCESS (used by the roll outcome narrator):
+- Nat 1 (critical failure): Something goes dramatically wrong beyond just failing — a new complication, a broken item, an enemy emboldened, a secret exposed.
+- Miss by 4+ (clear failure): Direct consequence, no ambiguity. The door stays locked, the guard is suspicious, the ledge crumbles. Something closes off.
+- Miss by 1-3 (near miss): "Almost" — a minor setback or complication, not the full failure consequence. You slip but catch yourself. The lie almost holds. Partial information, partial progress.
+- Beat DC by 1-3 (partial success): You do it, but with a cost or complication attached. The door opens but you make noise. You persuade them but they want something in return. You land the hit but expose yourself.
+- Beat DC by 4+ (clean success): Exactly what you attempted, cleanly executed. No asterisks.
+- Nat 20 (critical success): You exceed expectations dramatically — a bonus effect beyond the task itself. The enemy is not just hit but off-balance. The persuasion doesn't just succeed, they become an ally. The lock opens and you spot the trap behind it.
 
 ITEM RULES:
 - Items in the character's inventory are story hooks and tools. Build situations where they become relevant.
@@ -211,6 +220,33 @@ DIRECTOR BEAT:
 - If PENDING DIRECTOR BEAT is set in the context, you MUST execute that beat this turn or next turn.
 - This is a campaign health directive from a higher system. It overrides your local scene preferences.
 - After executing it, set "directorBeatExecuted": true in your response.
+
+RACE & CLASS AWARENESS:
+Every character's race and class should influence how the world treats them and what narrative opportunities arise. Apply these consistently — not as constant reminders, but as the background texture of NPC reactions and scene framing.
+
+RACES — NPC reactions and narrative hooks:
+- Human: NPCs treat humans as the default, for better and worse. Factions recruit them aggressively. Ambition is respected and also exploited. Lean into political intrigue, alliances of convenience, and the tension between short lifespans and long-term legacies.
+- Elf: Other races react with a mixture of reverence and unease — they know an elf has seen things they haven't. Lean into ancient lore hooks: ruins that predate the current civilization, names the elf recognizes from history, old grudges still alive in elven memory. The elf's emotional restraint reads as coldness to some, wisdom to others.
+- Dwarf: Dwarves command respect from hard-working folk and suspicion from those who deal in deception. Lean into clan honor, old debts, and underground threats. A dwarf's word is binding — NPCs know this and test it. Grudges from generations past surface at inconvenient moments.
+- Halfling: The world underestimates halflings consistently. This is a gift and an irritant. Common folk trust halflings instinctively; nobles dismiss them until it is too late. Lean into moments of pleasant surprise — the halfling who talked their way past the gate, found the hidden passage, or survived by being precisely the kind of threat nobody planned for.
+- Gnome: Gnomes attract curiosity from scholars and paranoia from the superstitious. Their arcane sensitivity means they notice magical details others miss — treat this as a narrative advantage. Their eccentricity occasionally gets them into trouble with those who mistake enthusiasm for madness.
+- Half-Orc: The world reacts to a Half-Orc's physical presence first and personality second. Guards are wary. Bullies step back. Hardened soldiers take note. Lean into the tension between reputation and reality — moments where the Half-Orc's choice to show mercy or restraint lands harder because nobody expected it. Their toughness is respected by those who earn it.
+- Tiefling: Default NPC disposition is wary to hostile until trust is explicitly earned. Priests may refuse service. Children may point or whisper. Lean into social friction as dramatic fuel — offer the Tiefling moments to reclaim their dignity, shut down bigotry with precision, or weaponize others' fear of them. Their infernal heritage occasionally draws attention from dark powers that see it as a calling card.
+- Dragonborn: Dragonborn command attention by walking into a room. Dragon-affiliated cults, ancient orders, and tribal warriors treat them with heightened interest. Their heritage opens doors in places connected to draconic history — and marks them as targets for those who collect draconic trophies. Honor challenges are issued to Dragonborn first. Their defeats are witnessed. Their victories are remembered.
+
+CLASSES — narrative moments to spotlight and opportunities to create:
+- Fighter: Spotlight tactical decision-making and battlefield control. Issue formal challenges and duels. Enemies coordinate to bring them down — Fighters are identified as the greatest physical threat. Honor-focused factions respect their martial dedication. Off-combat moments: old war contacts, veterans who recognize their technique, commanders who want to recruit them.
+- Wizard: Seed arcane puzzles, hidden glyphs, and magical anomalies that reward their knowledge. Sages seek them out for consultation. Enemy mages treat them as priority targets. Lean into the tension between academic understanding of magic and its terrifying reality in the field. Ancient tomes are plot hooks. Magical catastrophes have history they can read.
+- Rogue: Always narrate stealth opportunities — even if the player doesn't take them, the option should feel present. In social situations, describe what a sharp eye catches: the nervous tic, the hidden blade, the inconsistency in the story. When Sneak Attack fires, describe the exact moment of vulnerability exploited — make it feel earned. Crime networks and black markets are more accessible. NPCs who have secrets watch a Rogue very carefully.
+- Cleric: Divine resonance: occasionally have their god acknowledge their service — a warmth in a holy symbol, a prayer answered with uncanny timing, a moment that feels touched. NPCs in spiritual distress are drawn to them. Undead and dark powers react to their divine presence. Lean into tests of faith — moments where their god seems absent, or where following their divine mandate costs something real. Other clergy are potential allies or rivals.
+- Ranger: The natural world is alive and communicative for a Ranger. Animals behave differently — birds fall silent when something dangerous is near, and the Ranger notices. Tracks, scents, signs of passage that others miss are highlighted in narration. Wilderness threats feel navigable rather than fatal. Quarry cannot hide long. In cities, the Ranger's discomfort is a texture — too many smells, too many people, exits always noted.
+- Paladin: Create moral dilemmas with no clean answer and make them land directly on the Paladin's oath. Their oath matters — when tempted to break it, make the temptation feel genuinely compelling, not cartoonish. Divine moments: occasionally have their god acknowledge their service when they uphold the oath at personal cost. Conversely, when they compromise their principles, let the silence speak. Undead and fiends react to their divine aura. Former enemies sometimes come to them for absolution.
+- Barbarian: Violence respects violence. Tribal warriors issue challenges. Mercenary captains want to recruit or test them. Rage should feel like a narrative event — describe its onset and its aftermath. Lean into the primal vs. civilized tension: Barbarians in formal social settings, Barbarians choosing restraint. Their sheer endurance becomes a story element — enemies learn quickly that putting them down requires something extraordinary.
+- Bard: Reward social creativity generously. The right words change the outcome of scenes — let the Bard feel this. NPCs remember them by name. Rumors they've spread come back to them. Performances leave traces in the world. Lean into information gathering as a class fantasy — a Bard who works a tavern right knows everything by morning. Their inspiration creates actual narrative moments for the characters who receive it.
+- Druid: The natural world is not backdrop — it is a character. Corruption of nature is personal to a Druid. Spirits and ancient presences react to their presence in sacred places. Lean into transformation as a narrative tool beyond combat — a Druid can listen to a river, speak to a raven, feel the wrongness in poisoned soil. Civilization vs. nature tension is their permanent texture. Their magic feels older and stranger than other spellcasters'.
+- Monk: Their stillness in chaos reads as unnerving. Enemies who expect panic find calm. Spiritual challenges and tests of will arrive more frequently — their discipline is a magnet for such trials. Lean into precision over power: a Monk's victories often come from seeing the moment and taking it, not from overwhelming force. Their self-sufficiency means they notice when they're being relied upon. Monasteries, martial orders, and those who respect discipline treat them with specific recognition.
+- Sorcerer: Magic reacts to them in ways it doesn't react to Wizards — ambient arcane phenomena, wild resonances, other magic-users sensing their bloodline. Lean into the cost-that-wasn't-chosen: their power is extraordinary and not entirely under control. Other spellcasters are fascinated, envious, or frightened. Ancient bloodlines open old doors and attract old attention. When their magic goes sideways, it goes sideways dramatically.
+- Warlock: The patron is a presence in the story. Their influence is felt in the margin — a whispered suggestion, a dream that feels directed, a moment when the power surges because the patron approved. Lean into the price of the deal: demands arrive at inconvenient times, and the Warlock must decide how much to comply. NPCs who are spiritually sensitive sense something wrong about them. Former allies of the patron may recognize the mark and have opinions. The deal's full terms were never spelled out — discover them as you go.
 
 RESPONSE FORMAT: Always respond with valid JSON matching this schema:
 {
@@ -789,6 +825,21 @@ export async function* generateNarrationStreaming(
   }
 }
 
+function getDegreeOfSuccess(
+  rollTotal: number,
+  dc: number,
+  isCritSuccess: boolean,
+  isCritFail: boolean
+): { label: string; degree: 'crit_fail' | 'clear_fail' | 'near_miss' | 'partial_success' | 'clean_success' | 'crit_success'; margin: number } {
+  if (isCritSuccess) return { label: 'CRITICAL SUCCESS (natural 20)', degree: 'crit_success', margin: rollTotal - dc };
+  if (isCritFail) return { label: 'CRITICAL FAILURE (natural 1)', degree: 'crit_fail', margin: rollTotal - dc };
+  const margin = rollTotal - dc;
+  if (margin >= 4) return { label: `CLEAN SUCCESS (beat DC by ${margin})`, degree: 'clean_success', margin };
+  if (margin >= 1) return { label: `PARTIAL SUCCESS (beat DC by only ${margin})`, degree: 'partial_success', margin };
+  if (margin >= -3) return { label: `NEAR MISS (missed DC by ${Math.abs(margin)})`, degree: 'near_miss', margin };
+  return { label: `CLEAR FAILURE (missed DC by ${Math.abs(margin)})`, degree: 'clear_fail', margin };
+}
+
 export async function generateRollOutcome(
   rollResult: number,
   rollTotal: number,
@@ -801,7 +852,8 @@ export async function generateRollOutcome(
   character: Character,
   recentHistory: string[]
 ): Promise<{ narration: string; worldStateChanges?: Partial<WorldState>; hpChange?: number; goldChange?: number; suggestedActions: string[]; sceneImagePrompt: string; isDeath?: boolean; isVictory?: boolean; isCombat?: boolean; loot?: unknown[] }> {
-  const resultLabel = isCritSuccess ? 'CRITICAL SUCCESS (natural 20)' : isCritFail ? 'CRITICAL FAILURE (natural 1)' : success ? 'SUCCESS' : 'FAILURE';
+  const { label: resultLabel, degree } = getDegreeOfSuccess(rollTotal, dc, isCritSuccess, isCritFail);
+
   const flavorHint = isCritSuccess && rollContext.critSuccessDescription
     ? rollContext.critSuccessDescription
     : isCritFail && rollContext.critFailDescription
@@ -810,19 +862,30 @@ export async function generateRollOutcome(
         ? rollContext.successDescription
         : rollContext.failDescription;
 
+  const degreeGuidance: Record<string, string> = {
+    crit_fail: 'CRITICAL FAILURE: Something goes dramatically wrong beyond just failing. A new complication emerges — a weapon drops, a secret is exposed, an enemy is emboldened, the situation escalates into something worse.',
+    clear_fail: 'CLEAR FAILURE: Direct consequence, no ambiguity. A door closed, a suspicion confirmed, a resource spent for nothing. Don\'t soften it — but also have something happen AS a result of failing, not just absence of success.',
+    near_miss: 'NEAR MISS: "Almost" — the player nearly had it. A minor setback or complication, not the full failure consequence. They slip but catch themselves. The lie almost holds. Partial information, partial progress. The story continues — just slightly worse.',
+    partial_success: 'PARTIAL SUCCESS: They do it, but with a cost or complication. The door opens but they made noise. The persuasion works but the NPC wants something in return. The attack lands but leaves them exposed. Yes, AND something costs them.',
+    clean_success: 'CLEAN SUCCESS: Exactly what was attempted, cleanly executed. No asterisks, no complications. A moment of competence. Let it feel good.',
+    crit_success: 'CRITICAL SUCCESS: Exceed expectations dramatically. The task is accomplished AND something extra happens — an enemy is off-balance, a new opportunity appears, an ally is inspired, a bonus is earned. This is a highlight moment.',
+  };
+
   const prompt = `You are a DM resolving the outcome of a dice roll.
 The player attempted: ${rollContext.description}
 They rolled ${rollResult} + ${rollTotal - rollResult} (${rollContext.stat.toUpperCase()} modifier) = ${rollTotal} vs DC ${dc} — ${resultLabel}.
 Flavor hint for this outcome: "${flavorHint}"
+
+DEGREE OF SUCCESS DIRECTIVE:
+${degreeGuidance[degree]}
 
 Character: ${character.name} (${character.race} ${character.class}, Level ${character.level})
 HP: ${character.hp}/${character.max_hp} | Location: ${worldState.currentLocation || 'unknown'}
 Recent history:
 ${recentHistory.slice(-4).join('\n')}
 
-Write vivid outcome narration (100-150 words) that matches the ${resultLabel} result.
-${isCritFail ? 'A critical failure is dramatic and costly — something goes very wrong.' : ''}
-${isCritSuccess ? 'A critical success is extraordinary — exceed expectations dramatically.' : ''}
+Write vivid outcome narration (100-150 words) that precisely matches the ${resultLabel} degree.
+The near miss and partial success cases are the most narratively rich — use them to keep the story moving with texture rather than just pass/fail.
 
 Respond with JSON:
 {
