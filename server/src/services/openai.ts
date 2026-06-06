@@ -172,6 +172,14 @@ ENDGAME RULES:
 - When endgamePhase is "confrontation": THIS IS THE FINAL BATTLE. No escape. Every action has ultimate weight. Make the villain feel overwhelming but beatable. After the player wins (isVictory: true), set "endgameResolved": true.
 - When the story naturally builds to the final confrontation (villain is revealed, final location reached, all threads converging), set "triggerFinalConfrontation": true.
 
+BACKSTORY INTEGRATION:
+- The character's backstory is their history before the campaign. It is true and established.
+- NPCs from the character's past can appear. Enemies they made before. People they loved. Places they fled.
+- The backstory should surface organically — not all at once, but in moments: a face in a crowd, a name on a wanted poster, a reaction from an NPC who recognizes them.
+- When the backstory mentions a specific person, place, or event — those are seeds. Plant them. Pay them off.
+- The character's motivation in the backstory should inform how NPCs approach them and what temptations the DM creates.
+- Never summarize the backstory back to the player. Show it through the world's reaction to them.
+
 SPOTLIGHT RULES (co-op only):
 - Track which character has had more "hero moments" — scenes built around their abilities, backstory, or choices.
 - If one character has had 3+ consecutive moments where they drove the story, build the next scene around the OTHER character.
@@ -570,9 +578,10 @@ WORLD STATE:
 - ACTIVE NPC: ${worldState.activeNPC || 'none — character is not in conversation with anyone specific'}
 ${keyNpcContext}${npcContext}${questContext}
 
-CHARACTER: ${character.name} (${character.race} ${character.class}, Level ${character.level})${unusualNote}
-HP: ${character.hp}/${character.max_hp} | Gold: ${character.gold}
-${character.backstory ? `BACKSTORY: ${character.backstory.slice(0, 300)} — weave this into narration and NPC reactions where relevant.` : ''}
+CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATION: ${worldState.currentLocation || 'Unknown'}
+CLASS: ${character.class} | RACE: ${character.race} | LEVEL: ${character.level}${unusualNote}
+Gold: ${character.gold}
+BACKSTORY: ${character.backstory || 'Unknown origins'}
 ${character.status_effects && character.status_effects.length > 0 ? `ACTIVE STATUS EFFECTS: ${character.status_effects.map(e => `${e.name} (${e.type})`).join(', ')} — these affect what the character can do.` : ''}
 Notable inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
 STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
@@ -853,6 +862,7 @@ export async function generateCoopNarration(
     return `${label}: ${c.name} (${c.race} ${c.class}, Level ${c.level})
 HP: ${c.hp}/${c.max_hp} | Gold: ${c.gold}
 Stats: STR ${s.str} DEX ${s.dex} CON ${s.con} INT ${s.int} WIS ${s.wis} CHA ${s.cha}
+BACKSTORY: ${c.backstory || 'Unknown origins'}
 ${c.status_effects && c.status_effects.length > 0 ? `Status Effects: ${c.status_effects.map(e => e.name).join(', ')}` : ''}
 Abilities available: ${abilities.length > 0 ? abilities.map(a => `${a.name}${a.mechanic ? ` (${a.mechanic})` : ''}`).join('; ') : 'none'}
 Notable inventory: ${c.inventory.slice(0, 4).map(i => i.name).join(', ') || 'nothing special'}`;
@@ -1218,7 +1228,7 @@ PLAYER PREFERENCES (use these to tailor the campaign):
 ${playerPreferences.tone ? `- Desired tone: ${playerPreferences.tone} — let this calibrate the toneRules and overall feel.` : ''}
 ${playerPreferences.favoritePillars?.length ? `- What they love most: ${playerPreferences.favoritePillars.join(', ')} — weight spotlightDesign.encounterCurve and suggested encounters toward these.` : ''}
 ${playerPreferences.playerCount ? `- Party size: ${playerPreferences.playerCount} players — scale the safeHaven, spotlightDesign.sharedMoments, and encounter difficulty accordingly.` : ''}
-${playerPreferences.characterConcepts?.length ? `- Character concepts: ${playerPreferences.characterConcepts.join('; ')} — use these to make campaignBrief.motivation personal, personalMotivation of the lieutenant feel relevant, and shape backstory hooks.` : ''}
+${playerPreferences.characterConcepts?.length ? `- Character concepts and backstories: ${playerPreferences.characterConcepts.join('; ')} — These character concepts and backstories are CANON. Build NPCs, factions, and opening hooks that directly reference what these characters care about, fear, or are running from. At least one faction or NPC in the world should have a direct tie to one of these character backstories. Use these to make campaignBrief.motivation personal, personalMotivation of the lieutenant feel relevant, and shape backstory hooks.` : ''}
 ` : '';
 
   const response = await openai.chat.completions.create({

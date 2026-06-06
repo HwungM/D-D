@@ -205,7 +205,39 @@ function classImageUrl(cls: CharacterClass): string {
   return `/assets/classes/${cls.toLowerCase()}.png`
 }
 
-const STEPS = ['Gender', 'Race', 'Look', 'Class', 'Identity']
+const STEPS = ['Gender', 'Race', 'Look', 'Class', 'Attributes', 'Identity']
+
+const STAT_KEYS = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const
+type StatKey = typeof STAT_KEYS[number]
+
+const STAT_LABELS: Record<StatKey, string> = {
+  str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA',
+}
+
+const STAT_NAMES: Record<StatKey, string> = {
+  str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma',
+}
+
+const CLASS_PRIMARY_STAT: Record<CharacterClass, StatKey> = {
+  Fighter: 'str', Wizard: 'int', Rogue: 'dex', Cleric: 'wis', Ranger: 'dex',
+  Paladin: 'str', Barbarian: 'str', Bard: 'cha', Druid: 'wis', Monk: 'dex',
+  Sorcerer: 'cha', Warlock: 'cha',
+}
+
+function roll4d6DropLowest(): number {
+  const rolls = [1, 2, 3, 4].map(() => Math.floor(Math.random() * 6) + 1)
+  rolls.sort((a, b) => a - b)
+  return rolls[1] + rolls[2] + rolls[3]
+}
+
+function generateSixScores(): number[] {
+  return [1, 2, 3, 4, 5, 6].map(() => roll4d6DropLowest()).sort((a, b) => b - a)
+}
+
+function statModifier(stat: number): string {
+  const mod = Math.floor((stat - 10) / 2)
+  return mod >= 0 ? `+${mod}` : `${mod}`
+}
 
 export default function CharacterCreate() {
   const { campaignId } = useParams<{ campaignId: string }>()
@@ -221,6 +253,8 @@ export default function CharacterCreate() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [lobbyState, setLobbyState] = useState<{ characterId: string; expectedPlayers: number } | null>(null)
+  const [rolledScores, setRolledScores] = useState<number[]>(() => generateSixScores())
+  const [assignments, setAssignments] = useState<Partial<Record<StatKey, number>>>({})
 
   // Lobby realtime subscription — waits until all players have characters
   useEffect(() => {
@@ -262,6 +296,12 @@ export default function CharacterCreate() {
     setLoading(true)
     setError('')
     try {
+      // Build final stats: assigned score + race bonus
+      const raceBonuses = RACE_STAT_BONUSES[selectedRace]
+      const finalStats = Object.fromEntries(
+        STAT_KEYS.map(k => [k, (assignments[k] ?? 10) + (raceBonuses[k] ?? 0)])
+      ) as Record<StatKey, number>
+
       const { data } = await characterApi.create({
         campaignId,
         name,
@@ -269,6 +309,7 @@ export default function CharacterCreate() {
         class: selectedClass,
         backstory,
         portraitUrl: selectedPortrait || undefined,
+        stats: finalStats,
       })
       const characterId = data.character.id
 
@@ -595,14 +636,177 @@ export default function CharacterCreate() {
             <div className="mt-8 flex gap-3">
               <button onClick={() => setStep(2)} className="fantasy-btn-secondary">← Back</button>
               <button onClick={() => setStep(4)} disabled={!selectedClass} className="fantasy-btn px-8 disabled:opacity-40">
+                Roll Attributes →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: Attributes */}
+        {step === 4 && selectedRace && selectedClass && (
+          <div className="animate-fade-in">
+            <h2 className="font-fantasy text-2xl text-parchment-200 mb-1">Your Attributes</h2>
+            <p className="text-slate-500 font-serif italic text-sm mb-6">
+              Roll 4d6, drop the lowest — assign each score to a stat. Race bonuses apply on top.
+            </p>
+
+            {/* Rolled scores pool */}
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-xs uppercase tracking-widest font-sans" style={{ color: '#c8922a' }}>Rolled Scores</span>
+                <button
+                  onClick={() => {
+                    setRolledScores(generateSixScores())
+                    setAssignments({})
+                  }}
+                  className="text-xs font-sans px-3 py-1 border transition-all"
+                  style={{ borderColor: 'rgba(200,146,42,0.4)', color: '#c8922a', background: 'rgba(200,146,42,0.06)' }}
+                >
+                  Re-roll
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {rolledScores.map((score, i) => {
+                  // Determine how many times this score has been assigned vs how many times it appears before index i
+                  const assignedCount = Object.values(assignments).filter(v => v === score).length
+                  const appearsUpToHere = rolledScores.slice(0, i + 1).filter(s => s === score).length
+                  const isConsumed = assignedCount >= appearsUpToHere
+                  return (
+                    <div
+                      key={i}
+                      className="w-12 h-12 flex items-center justify-center border font-fantasy text-lg transition-all"
+                      style={
+                        isConsumed
+                          ? { borderColor: '#374151', color: '#4b5563', background: 'rgba(15,25,35,0.3)' }
+                          : { borderColor: '#c8922a', color: '#d4c5a0', background: 'rgba(200,146,42,0.08)' }
+                      }
+                    >
+                      {score}
+                    </div>
+                  )
+                })}
+              </div>
+              <p className="text-xs text-slate-600 mt-2 font-serif">
+                {Object.keys(assignments).length}/6 assigned
+                {Object.keys(assignments).length === 6 ? ' — all stats assigned!' : ''}
+              </p>
+            </div>
+
+            {/* Stat assignment grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+              {STAT_KEYS.map(statKey => {
+                const raceBonuses = RACE_STAT_BONUSES[selectedRace]
+                const raceBonus = raceBonuses[statKey] ?? 0
+                const assigned = assignments[statKey]
+                const finalVal = assigned !== undefined ? assigned + raceBonus : null
+                const isPrimary = CLASS_PRIMARY_STAT[selectedClass] === statKey
+
+                // Available scores: rolledScores minus already-assigned ones (accounting for duplicates)
+                const availableScores = [...rolledScores]
+                const tempUsed = Object.entries(assignments)
+                  .filter(([k]) => k !== statKey)
+                  .map(([, v]) => v)
+                for (const used of tempUsed) {
+                  const idx = availableScores.indexOf(used)
+                  if (idx !== -1) availableScores.splice(idx, 1)
+                }
+                const uniqueAvailable = [...new Set(availableScores)].sort((a, b) => b - a)
+
+                return (
+                  <div
+                    key={statKey}
+                    className="border p-3 transition-all"
+                    style={
+                      isPrimary
+                        ? { borderColor: 'rgba(200,146,42,0.5)', background: 'rgba(200,146,42,0.04)' }
+                        : { borderColor: '#1f2937', background: 'rgba(10,14,24,0.8)' }
+                    }
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <span className="font-sans text-xs uppercase tracking-widest font-bold" style={{ color: isPrimary ? '#c8922a' : '#d4c5a0' }}>
+                          {STAT_LABELS[statKey]}
+                        </span>
+                        {isPrimary && (
+                          <span className="ml-1.5 text-xs font-sans" style={{ color: 'rgba(200,146,42,0.7)' }}>★ recommended</span>
+                        )}
+                      </div>
+                      {raceBonus > 0 && (
+                        <span className="text-xs font-sans" style={{ color: 'rgba(200,146,42,0.6)' }}>+{raceBonus} race</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-600 font-serif mb-2">{STAT_NAMES[statKey]}</p>
+
+                    <select
+                      value={assigned ?? ''}
+                      onChange={e => {
+                        const val = e.target.value
+                        setAssignments(prev => {
+                          const next = { ...prev }
+                          if (val === '') {
+                            delete next[statKey]
+                          } else {
+                            next[statKey] = parseInt(val, 10)
+                          }
+                          return next
+                        })
+                      }}
+                      className="w-full text-sm font-sans py-1.5 px-2 border appearance-none cursor-pointer"
+                      style={{
+                        background: '#0a0e18',
+                        borderColor: assigned !== undefined ? '#c8922a' : '#374151',
+                        color: assigned !== undefined ? '#d4c5a0' : '#6b7280',
+                      }}
+                    >
+                      <option value="">— assign —</option>
+                      {assigned !== undefined && (
+                        <option value={assigned}>{assigned}</option>
+                      )}
+                      {uniqueAvailable.map(score => (
+                        <option key={score} value={score}>{score}</option>
+                      ))}
+                    </select>
+
+                    {finalVal !== null && (
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-xs text-slate-500 font-sans">
+                          {assigned}{raceBonus > 0 ? ` +${raceBonus}` : ''} =
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-fantasy text-lg" style={{ color: '#d4c5a0' }}>{finalVal}</span>
+                          <span
+                            className="text-xs font-sans font-bold px-1.5 py-0.5 border"
+                            style={{
+                              borderColor: finalVal >= 16 ? '#c8922a' : finalVal <= 8 ? '#c0392b' : '#374151',
+                              color: finalVal >= 16 ? '#c8922a' : finalVal <= 8 ? '#c0392b' : '#6b7280',
+                              background: 'rgba(0,0,0,0.3)',
+                            }}
+                          >
+                            {statModifier(finalVal)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="mt-8 flex gap-3">
+              <button onClick={() => setStep(3)} className="fantasy-btn-secondary">← Back</button>
+              <button
+                onClick={() => setStep(5)}
+                disabled={Object.keys(assignments).length < 6}
+                className="fantasy-btn px-8 disabled:opacity-40"
+              >
                 Name Your Legend →
               </button>
             </div>
           </div>
         )}
 
-        {/* STEP 4: Name & Review */}
-        {step === 4 && (
+        {/* STEP 5: Name & Review */}
+        {step === 5 && (
           <div className="animate-fade-in">
             <h2 className="font-fantasy text-2xl text-parchment-200 mb-2">Your Legend</h2>
             <p className="text-slate-500 font-serif italic text-sm mb-8">What do they call you? What brought you here?</p>
@@ -676,7 +880,7 @@ export default function CharacterCreate() {
             )}
 
             <div className="mt-8 flex gap-3">
-              <button onClick={() => setStep(3)} className="fantasy-btn-secondary">← Back</button>
+              <button onClick={() => setStep(4)} className="fantasy-btn-secondary">← Back</button>
               <button
                 onClick={handleCreate}
                 disabled={!name.trim() || loading}
