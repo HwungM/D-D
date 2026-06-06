@@ -220,7 +220,8 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "abilityUsed": "Ability Name" | null,
   "isRest": boolean,
   "triggerFinalConfrontation": boolean,
-  "endgameResolved": boolean
+  "endgameResolved": boolean,
+  "consumedItems": ["item name"] | null
 }`;
 
 export async function generateSceneSummary(
@@ -302,6 +303,7 @@ export type NarrationResult = {
   enemyDefeated?: string;
   isBossFight?: boolean;
   bossPhaseAdvance?: boolean;
+  consumedItems?: string[];
 };
 
 export type NarrationCampaignContext = {
@@ -341,7 +343,7 @@ function buildNarrationMessages(
     ? `\n⚠ UNUSUAL COMBO: ${character.race} ${character.class} — the DM may acknowledge this in-world with subtle reactions from NPCs.`
     : '';
 
-  // Build abilities block
+  // Build abilities block — include mechanic so AI enforces actual numbers
   const knownAbilities = character.abilities || [];
   let abilitiesBlock = '';
   if (knownAbilities.length > 0) {
@@ -349,8 +351,8 @@ function buildNarrationMessages(
     const onCooldown = knownAbilities.filter(a => a.currentCooldown && a.currentCooldown > 0);
     abilitiesBlock = `
 ━━━ CHARACTER ABILITIES ━━━
-AVAILABLE:
-${available.length > 0 ? available.map(a => `- ${a.name}: ${a.description}`).join('\n') : '(none available)'}
+AVAILABLE (apply mechanic exactly when used):
+${available.length > 0 ? available.map(a => `- ${a.name}: ${a.description}${a.mechanic ? `\n  MECHANIC: ${a.mechanic}` : ''}`).join('\n') : '(none available)'}
 ON COOLDOWN (cannot use):
 ${onCooldown.length > 0 ? onCooldown.map(a => `- ${a.name} [ON COOLDOWN]`).join('\n') : '(none on cooldown)'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━`;

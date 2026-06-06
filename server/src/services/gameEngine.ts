@@ -597,13 +597,14 @@ export async function processAction(
   let combatState = ws.combatState ?? null;
   if (aiResponse.isCombat && aiResponse.enemyName) {
     if (!combatState?.inCombat) {
-      // Combat just started — build initial enemy list
+      // Combat just started — build initial enemy list; sync legacy enemyName from enemies[0] if provided
       const initialEnemies: import('../../../shared/types').CombatEnemy[] = aiResponse.combatEnemies
         ? aiResponse.combatEnemies
         : [{ name: aiResponse.enemyName, archetype: 'soldier', maxHp: 30, condition: 'healthy' }];
+      const primaryName = initialEnemies[0]?.name || aiResponse.enemyName;
       combatState = {
         inCombat: true,
-        enemyName: aiResponse.enemyName,
+        enemyName: primaryName,
         enemyCondition: 'healthy',
         roundNumber: 1,
         playerActionsAttempted: [action],
@@ -626,6 +627,9 @@ export async function processAction(
       let enemies = combatState.enemies || [];
       if (aiResponse.combatEnemies && aiResponse.combatEnemies.length > 0) {
         enemies = aiResponse.combatEnemies;
+        // Sync legacy enemyName to first living enemy (backward compat)
+        const firstLiving = enemies.find(e => !e.isDefeated);
+        if (firstLiving) (combatState as Record<string, unknown>).enemyName = firstLiving.name;
       } else if (aiResponse.enemyDefeated) {
         enemies = enemies.map(e => e.name === aiResponse.enemyDefeated ? { ...e, isDefeated: true, condition: 'critical' as const } : e);
       } else {
@@ -802,9 +806,15 @@ export async function processAction(
     ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
   };
 
-  // Parse consumed items from AI narration (items the AI said the character used)
-  const consumedItems: string[] = [];
-  if (aiResponse.narration) {
+  // Consumed items: prefer AI's explicit list, fall back to narration regex
+  let consumedItems: string[] = [];
+  if (aiResponse.consumedItems && aiResponse.consumedItems.length > 0) {
+    // AI explicitly named what was consumed — most reliable
+    consumedItems = aiResponse.consumedItems.filter(name =>
+      (character.inventory || []).some(i => i.name.toLowerCase() === name.toLowerCase())
+    );
+  } else if (aiResponse.narration) {
+    // Fallback: scan narration for consumption verbs
     const consumableNames = (character.inventory || [])
       .filter(i => i.type === 'potion' || i.type === 'misc')
       .map(i => i.name);

@@ -165,6 +165,14 @@ export default function Game() {
             suggestedActions: lastNarration.metadata.suggestedActions as string[],
           } as ActionResult)
         }
+        // Restore pending dice roll if player disconnected mid-roll
+        if (lastNarration?.metadata?.awaitingRoll && lastNarration.metadata.rollContext) {
+          setDiceModalData({
+            narration: lastNarration.content,
+            rollContext: lastNarration.metadata.rollContext as RollContext,
+          })
+          setShowDiceModal(true)
+        }
       } else if (loaded.length > 0) {
         // Party has history but this character is new — show recent story on start screen for context
         const recent = loaded.filter(e => e.event_type === 'narration').slice(-5).map(e => e.content)
@@ -645,6 +653,37 @@ export default function Game() {
             )}
           </div>
           <span className="font-serif text-xs italic" style={{ color: 'rgba(220,100,100,0.45)' }}>Fight, flee, or find another way</span>
+        </div>
+      )}
+
+      {/* Status effects strip */}
+      {currentCharacter?.status_effects && currentCharacter.status_effects.length > 0 && (
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1 overflow-x-auto" style={{
+          background: 'rgba(6,8,13,0.85)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+          scrollbarWidth: 'none',
+        }}>
+          {currentCharacter.status_effects.map((effect, i) => (
+            <div
+              key={i}
+              title={effect.description}
+              className="flex items-center gap-1 shrink-0 px-2 py-0.5 rounded-full"
+              style={{
+                background: effect.type === 'buff' ? 'rgba(34,197,94,0.08)' : effect.type === 'debuff' ? 'rgba(239,68,68,0.08)' : 'rgba(200,146,42,0.08)',
+                border: `1px solid ${effect.type === 'buff' ? 'rgba(34,197,94,0.25)' : effect.type === 'debuff' ? 'rgba(239,68,68,0.25)' : 'rgba(200,146,42,0.2)'}`,
+              }}
+            >
+              <span style={{ fontSize: 8, color: effect.type === 'buff' ? '#22c55e' : effect.type === 'debuff' ? '#ef4444' : '#c8922a' }}>
+                {effect.type === 'buff' ? '▲' : effect.type === 'debuff' ? '▼' : '◆'}
+              </span>
+              <span className="font-serif" style={{ fontSize: 10, color: effect.type === 'buff' ? 'rgba(34,197,94,0.8)' : effect.type === 'debuff' ? 'rgba(239,68,68,0.75)' : 'rgba(200,146,42,0.75)' }}>
+                {effect.name}
+              </span>
+              {effect.duration != null && (
+                <span style={{ fontSize: 9, color: 'rgba(160,140,100,0.4)' }}>{effect.duration}t</span>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

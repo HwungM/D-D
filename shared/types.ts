@@ -59,6 +59,7 @@ export interface CharacterStats {
 export interface Ability {
   name: string;
   description: string;
+  mechanic?: string; // exact mechanical effect: what numbers change, what conditions apply
   cooldown?: number;
   currentCooldown?: number;
 }
