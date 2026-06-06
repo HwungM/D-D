@@ -5,16 +5,19 @@ interface DiceRollModalProps {
   narration: string
   rollContext: RollContext
   characterName: string
-  onRoll: (result: number, total: number, success: boolean, isCritSuccess: boolean, isCritFail: boolean) => void
+  onRoll: () => Promise<{ rollResult: number; rollTotal: number; dc: number; success: boolean; isCritSuccess: boolean; isCritFail: boolean }>
+  onContinue: () => void
 }
 
-export default function DiceRollModal({ narration, rollContext, characterName, onRoll }: DiceRollModalProps) {
+export default function DiceRollModal({ narration, rollContext, characterName, onRoll, onContinue }: DiceRollModalProps) {
   const [rolled, setRolled] = useState(false)
   const [rolling, setRolling] = useState(false)
   const [displayNum, setDisplayNum] = useState<number | null>(null)
   const [finalResult, setFinalResult] = useState<number | null>(null)
+  const [serverResult, setServerResult] = useState<{ rollResult: number; rollTotal: number; dc: number; success: boolean; isCritSuccess: boolean; isCritFail: boolean } | null>(null)
   const [showContinue, setShowContinue] = useState(false)
   const [shake, setShake] = useState(false)
+  const [error, setError] = useState('')
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const statLabel = rollContext.stat.toUpperCase()
@@ -22,15 +25,10 @@ export default function DiceRollModal({ narration, rollContext, characterName, o
   const modifier = rollContext.modifier
   const isDramatic = rollContext.isDramatic
 
-  function handleRollClick() {
+  async function handleRollClick() {
     if (rolling || rolled) return
     setRolling(true)
-
-    const trueRoll = Math.floor(Math.random() * 20) + 1
-    const total = trueRoll + modifier
-    const success = total >= dc
-    const isCritSuccess = trueRoll === 20
-    const isCritFail = trueRoll === 1
+    setError('')
 
     const duration = isDramatic ? 3000 : 1200
     const fastPhase = duration * 0.55
@@ -40,6 +38,16 @@ export default function DiceRollModal({ narration, rollContext, characterName, o
     const tickSlow = 180
 
     let useSlow = false
+    let authoritativeRoll: Awaited<ReturnType<typeof onRoll>>
+
+    try {
+      authoritativeRoll = await onRoll()
+    } catch {
+      setRolling(false)
+      setDisplayNum(null)
+      setError('The roll could not be resolved. Try again.')
+      return
+    }
 
     intervalRef.current = setInterval(() => {
       elapsed += useSlow ? tickSlow : tickFast
@@ -54,8 +62,9 @@ export default function DiceRollModal({ narration, rollContext, characterName, o
           setDisplayNum(Math.floor(Math.random() * 20) + 1)
           if (elapsed >= slowPhase) {
             if (intervalRef.current) clearInterval(intervalRef.current)
-            setDisplayNum(trueRoll)
-            setFinalResult(trueRoll)
+            setDisplayNum(authoritativeRoll.rollResult)
+            setFinalResult(authoritativeRoll.rollResult)
+            setServerResult(authoritativeRoll)
             setRolled(true)
             setRolling(false)
             if (isDramatic) {
@@ -73,10 +82,11 @@ export default function DiceRollModal({ narration, rollContext, characterName, o
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [])
 
-  const total = finalResult !== null ? finalResult + modifier : null
-  const success = total !== null ? total >= dc : null
-  const isCritSuccess = finalResult === 20
-  const isCritFail = finalResult === 1
+  const displayModifier = serverResult ? serverResult.rollTotal - serverResult.rollResult : modifier
+  const total = serverResult?.rollTotal ?? (finalResult !== null ? finalResult + displayModifier : null)
+  const success = serverResult?.success ?? (total !== null ? total >= dc : null)
+  const isCritSuccess = serverResult?.isCritSuccess ?? finalResult === 20
+  const isCritFail = serverResult?.isCritFail ?? finalResult === 1
 
   function getDieColor(): string {
     if (!rolled) return 'rgba(200,146,42,0.9)'
@@ -134,9 +144,9 @@ export default function DiceRollModal({ narration, rollContext, characterName, o
               >
                 {statLabel}
               </span>
-              {modifier !== 0 && (
-                <span className="font-mono text-xs" style={{ color: modifier > 0 ? 'rgba(100,180,100,0.8)' : 'rgba(220,80,80,0.8)' }}>
-                  {modifier > 0 ? `+${modifier}` : modifier}
+              {displayModifier !== 0 && (
+                <span className="font-mono text-xs" style={{ color: displayModifier > 0 ? 'rgba(100,180,100,0.8)' : 'rgba(220,80,80,0.8)' }}>
+                  {displayModifier > 0 ? `+${displayModifier}` : displayModifier}
                 </span>
               )}
             </div>
@@ -223,14 +233,20 @@ export default function DiceRollModal({ narration, rollContext, characterName, o
             </p>
           )}
 
+          {error && (
+            <p className="font-serif text-sm italic" style={{ color: 'rgba(239,68,68,0.75)' }}>
+              {error}
+            </p>
+          )}
+
           {/* Result display */}
           {rolled && total !== null && finalResult !== null && (
             <div className="text-center">
               <p className="font-mono text-sm" style={{ color: 'rgba(160,140,110,0.7)' }}>
                 Rolled {finalResult}
-                {modifier !== 0 && (
-                  <span style={{ color: modifier > 0 ? 'rgba(100,180,100,0.8)' : 'rgba(220,80,80,0.8)' }}>
-                    {' '}{modifier > 0 ? '+' : ''}{modifier} {statLabel}
+                {displayModifier !== 0 && (
+                  <span style={{ color: displayModifier > 0 ? 'rgba(100,180,100,0.8)' : 'rgba(220,80,80,0.8)' }}>
+                    {' '}{displayModifier > 0 ? '+' : ''}{displayModifier} {statLabel}
                   </span>
                 )}
                 {' '}= <span style={{ color: getDieColor(), fontWeight: 'bold' }}>{total}</span>
@@ -256,10 +272,7 @@ export default function DiceRollModal({ narration, rollContext, characterName, o
         {/* Continue button — player must click to see outcome */}
         {showContinue && finalResult !== null && (
           <button
-            onClick={() => {
-              const t = finalResult + modifier
-              onRoll(finalResult, t, t >= dc, finalResult === 20, finalResult === 1)
-            }}
+            onClick={onContinue}
             className="font-serif px-8 py-3 transition-all"
             style={{
               background: isCritSuccess ? 'rgba(251,191,36,0.12)' : isCritFail ? 'rgba(239,68,68,0.12)' : success ? 'rgba(74,222,128,0.1)' : 'rgba(200,80,80,0.1)',
