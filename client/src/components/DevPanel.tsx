@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { gameApi, characterApi } from '../lib/api'
+import { characterApi } from '../lib/api'
 import type { Character } from '../../../shared/types'
 
 interface DevPanelProps {
@@ -11,7 +11,7 @@ interface DevPanelProps {
   onCharacterUpdate: (updates: Partial<Character>) => void
 }
 
-export default function DevPanel({ campaignId, character, inCombat, onKill, onClearCombat, onCharacterUpdate }: DevPanelProps) {
+export default function DevPanel({ character, inCombat, onKill, onClearCombat, onCharacterUpdate }: DevPanelProps) {
   const [expanded, setExpanded] = useState(false)
   const [hpInput, setHpInput] = useState('')
   const [goldInput, setGoldInput] = useState('')
@@ -61,8 +61,8 @@ export default function DevPanel({ campaignId, character, inCombat, onKill, onCl
         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(196,181,253,0.9)' }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(196,181,253,0.6)' }}
       >
-        <span>⚙ DEV PANEL — TESTING MODE</span>
-        <span>{expanded ? '▲' : '▼'}</span>
+        <span>âš™ DEV PANEL â€” TESTING MODE</span>
+        <span>{expanded ? 'â–²' : 'â–¼'}</span>
       </button>
 
       {expanded && (
@@ -74,7 +74,7 @@ export default function DevPanel({ campaignId, character, inCombat, onKill, onCl
             className="font-mono text-xs px-3 py-1.5 transition-all disabled:opacity-40"
             style={{ border: '1px solid rgba(239,68,68,0.4)', color: 'rgba(239,68,68,0.8)', background: 'rgba(239,68,68,0.08)' }}
           >
-            ☠ Kill Character
+            â˜  Kill Character
           </button>
 
           {/* Clear combat */}
@@ -84,7 +84,7 @@ export default function DevPanel({ campaignId, character, inCombat, onKill, onCl
             className="font-mono text-xs px-3 py-1.5 transition-all disabled:opacity-40"
             style={{ border: '1px solid rgba(96,165,250,0.4)', color: 'rgba(96,165,250,0.8)', background: 'rgba(96,165,250,0.08)' }}
           >
-            ⚔ Clear Combat
+            âš” Clear Combat
           </button>
 
           {/* Full heal */}
@@ -125,7 +125,7 @@ export default function DevPanel({ campaignId, character, inCombat, onKill, onCl
               type="number"
               value={goldInput}
               onChange={e => setGoldInput(e.target.value)}
-              placeholder="Gold ±"
+              placeholder="Gold Â±"
               className="font-mono text-xs py-1.5 px-2 outline-none w-20 bg-transparent"
               style={{ border: '1px solid rgba(234,179,8,0.2)', color: 'rgba(234,179,8,0.8)' }}
             />
@@ -140,7 +140,7 @@ export default function DevPanel({ campaignId, character, inCombat, onKill, onCl
           </div>
 
           <span className="font-mono text-xs ml-1" style={{ color: 'rgba(196,181,253,0.3)' }}>
-            HP: {character.hp}/{character.max_hp} · Gold: {character.gold}g
+            HP: {character.hp}/{character.max_hp} Â· Gold: {character.gold}g
           </span>
         </div>
       )}
