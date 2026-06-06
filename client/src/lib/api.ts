@@ -62,6 +62,7 @@ export const characterApi = {
     backstory?: string
     generatePortrait?: boolean
     portraitUrl?: string
+    stats?: { str: number; dex: number; con: number; int: number; wis: number; cha: number }
   }) => api.post('/characters', data),
   listByCampaign: (campaignId: string) => api.get(`/characters/campaign/${campaignId}`),
   get: (id: string) => api.get(`/characters/${id}`),
