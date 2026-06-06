@@ -181,6 +181,10 @@ export interface WorldState {
   actionsInCurrentAct?: number;  // resets to 0 each time the act advances
   endgamePhase?: 'none' | 'approaching' | 'confrontation';
   actionCount?: number; // total actions taken this campaign, used for villain move timing
+  futureHooks?: { id: string; description: string; source: string; createdAt: string; resolved: boolean }[];
+  spotlightBalance?: Record<string, number>;  // characterId -> spotlight moment count
+  pendingDirectorBeat?: { beat: string; urgency: 'low' | 'high' | 'critical'; expiresAfter: number } | null;
+  lastPillarUsed?: string[];  // last 5 scene pillars used, for three-pillar balance tracking
 }
 
 export interface WorldBible {
@@ -196,6 +200,41 @@ export interface WorldBible {
   antagonistRoster: Antagonist[];
   openingHooks: string[];
   dmRoadmap?: DmRoadmap;
+  lieutenant?: Antagonist;
+  plotTwist?: string;
+  mysteryLayer?: {
+    centralQuestion: string;
+    clues: string[];
+    redHerrings: string[];
+    revelation: string;
+  };
+  safeHaven?: {
+    name: string;
+    description: string;
+    keyNPC: string;
+    flavor: string;
+  };
+  toneBreaks?: string[];
+  futureHookSeeds?: string[];
+  campaignBrief?: {
+    hook: string;
+    objective: string;
+    motivation: string;
+    whereToStart: string;
+    worldStakes: string;
+    characterStakes: string;
+    mysteryHint: string;
+  };
+  spotlightDesign?: {
+    sharedMoments: string[];
+    encounterCurve: string;
+  };
+  playerPreferences?: {
+    tone: string;
+    favoritePillars: string[];
+    playerCount: number;
+    characterConcepts: string[];
+  };
 }
 
 export interface GeographyEntry {

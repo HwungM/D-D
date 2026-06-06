@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard'
 import CharacterCreate from './pages/CharacterCreate'
 import Game from './pages/Game'
 import JoinCampaign from './pages/JoinCampaign'
+import CampaignWizard from './pages/CampaignWizard'
+import CampaignBrief from './pages/CampaignBrief'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { session } = useAuthStore()
@@ -34,6 +36,8 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/join/:code" element={<JoinCampaign />} />
       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+      <Route path="/create-campaign" element={<PrivateRoute><CampaignWizard /></PrivateRoute>} />
+      <Route path="/campaign/:campaignId/brief" element={<PrivateRoute><CampaignBrief /></PrivateRoute>} />
       <Route path="/campaign/:campaignId/create-character" element={<PrivateRoute><CharacterCreate /></PrivateRoute>} />
       <Route path="/campaign/:campaignId/play/:characterId" element={<PrivateRoute><Game /></PrivateRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
