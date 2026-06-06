@@ -185,6 +185,10 @@ export interface WorldState {
   spotlightBalance?: Record<string, number>;  // characterId -> spotlight moment count
   pendingDirectorBeat?: { beat: string; urgency: 'low' | 'high' | 'critical'; expiresAfter: number } | null;
   lastPillarUsed?: string[];  // last 5 scene pillars used, for three-pillar balance tracking
+  pendingTurn?: {
+    actions: { characterId: string; userId: string; action: string; characterName: string; submittedAt: string }[];
+    roundId: string;
+  } | null;
 }
 
 export interface WorldBible {

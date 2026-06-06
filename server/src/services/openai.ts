@@ -248,6 +248,14 @@ CLASSES — narrative moments to spotlight and opportunities to create:
 - Sorcerer: Magic reacts to them in ways it doesn't react to Wizards — ambient arcane phenomena, wild resonances, other magic-users sensing their bloodline. Lean into the cost-that-wasn't-chosen: their power is extraordinary and not entirely under control. Other spellcasters are fascinated, envious, or frightened. Ancient bloodlines open old doors and attract old attention. When their magic goes sideways, it goes sideways dramatically.
 - Warlock: The patron is a presence in the story. Their influence is felt in the margin — a whispered suggestion, a dream that feels directed, a moment when the power surges because the patron approved. Lean into the price of the deal: demands arrive at inconvenient times, and the Warlock must decide how much to comply. NPCs who are spiritually sensitive sense something wrong about them. Former allies of the patron may recognize the mark and have opinions. The deal's full terms were never spelled out — discover them as you go.
 
+CO-OP NARRATION RULES (only applies when two characters act simultaneously):
+- Both characters are present in the same scene. Address each by name.
+- Weave their actions together — one's action creates opportunity or complication for the other.
+- Make them feel like a team. Their combined effort should be more interesting than either alone.
+- Apply mechanical changes independently: use character1Changes for Character 1, character2Changes for Character 2.
+- Write as if you are a DM running a real table with two players side by side.
+- Narration length: 200-300 words to give both characters adequate presence.
+
 RESPONSE FORMAT: Always respond with valid JSON matching this schema:
 {
   "narration": "string — the story text the player sees",
@@ -393,6 +401,8 @@ export type NarrationResult = {
   consumedItems?: string[];
   directorBeatExecuted?: boolean;
   spotlightCharacterId?: string;
+  character1Changes?: { hpChange?: number; loot?: NarrationResult['loot']; statusEffectChanges?: NarrationResult['statusEffectChanges'] };
+  character2Changes?: { hpChange?: number; loot?: NarrationResult['loot']; statusEffectChanges?: NarrationResult['statusEffectChanges'] };
 };
 
 export type NarrationCampaignContext = {
@@ -823,6 +833,101 @@ export async function* generateNarrationStreaming(
   } catch {
     yield { type: 'done', result: parseNarrationResponse({ narration: 'The world holds its breath...' }) };
   }
+}
+
+export async function generateCoopNarration(
+  actions: { character: Character; action: string }[],
+  worldState: WorldState,
+  worldBible: WorldBible,
+  recentHistory: string[]
+): Promise<NarrationResult & { character1Changes?: NarrationResult['character1Changes']; character2Changes?: NarrationResult['character2Changes'] }> {
+  if (actions.length < 2) throw new Error('generateCoopNarration requires exactly 2 actions');
+
+  const [a1, a2] = actions;
+  const c1 = a1.character;
+  const c2 = a2.character;
+
+  function charBlock(c: Character, label: string): string {
+    const s = c.stats;
+    const abilities = (c.abilities || []).filter(a => !a.currentCooldown || a.currentCooldown <= 0);
+    return `${label}: ${c.name} (${c.race} ${c.class}, Level ${c.level})
+HP: ${c.hp}/${c.max_hp} | Gold: ${c.gold}
+Stats: STR ${s.str} DEX ${s.dex} CON ${s.con} INT ${s.int} WIS ${s.wis} CHA ${s.cha}
+${c.status_effects && c.status_effects.length > 0 ? `Status Effects: ${c.status_effects.map(e => e.name).join(', ')}` : ''}
+Abilities available: ${abilities.length > 0 ? abilities.map(a => `${a.name}${a.mechanic ? ` (${a.mechanic})` : ''}`).join('; ') : 'none'}
+Notable inventory: ${c.inventory.slice(0, 4).map(i => i.name).join(', ') || 'nothing special'}`;
+  }
+
+  const worldContext = `WORLD: ${worldBible.era} | ${worldBible.magicSystem}
+Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
+Central conflict: ${worldBible.centralConflict || ''}
+${worldState.combatState?.inCombat ? `IN COMBAT: ${worldState.combatState.enemyName} (${worldState.combatState.enemyCondition}) — Round ${worldState.combatState.roundNumber}` : ''}
+${worldState.activeQuests && worldState.activeQuests.filter(q => q.status === 'active').length > 0 ? `Active quests: ${worldState.activeQuests.filter(q => q.status === 'active').map(q => q.title).join(', ')}` : ''}
+
+${charBlock(c1, 'CHARACTER 1')}
+
+${charBlock(c2, 'CHARACTER 2')}
+
+RECENT HISTORY:
+${recentHistory.slice(-6).join('\n')}
+
+CHARACTER 1 (${c1.name}) ACTION: ${a1.action}
+CHARACTER 2 (${c2.name}) ACTION: ${a2.action}
+
+Write ONE unified narration (200-300 words) weaving both actions together. Apply the CO-OP NARRATION RULES.
+
+Respond with JSON:
+{
+  "narration": "string — unified narration addressing both characters",
+  "worldStateChanges": object | null,
+  "suggestedActions": ["action1", "action2", "action3"],
+  "sceneImagePrompt": "string",
+  "isLevelUp": false,
+  "isDeath": false,
+  "isCombat": boolean,
+  "isVictory": boolean,
+  "enemyName": "string | null",
+  "advanceAct": false,
+  "isHighStakes": false,
+  "choiceCards": null,
+  "sceneMomentum": "advancing" | "stalling" | "transitioning",
+  "pacingMode": "exploration" | "tension" | "climax" | "resolution",
+  "scenePurpose": "explore" | "gather_info" | "combat" | "social" | "travel" | "rest" | "climax",
+  "combatEnemies": null,
+  "sessionNote": "string | null",
+  "character1Changes": {
+    "hpChange": number | null,
+    "loot": [{"id": "uid", "name": "string", "description": "string", "quantity": 1, "type": "weapon|armor|potion|misc|key", "value": 10}] | null,
+    "statusEffectChanges": {"add": [], "remove": []} | null
+  },
+  "character2Changes": {
+    "hpChange": number | null,
+    "loot": [{"id": "uid", "name": "string", "description": "string", "quantity": 1, "type": "weapon|armor|potion|misc|key", "value": 10}] | null,
+    "statusEffectChanges": {"add": [], "remove": []} | null
+  }
+}`;
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: DM_SYSTEM_PROMPT },
+      { role: 'user', content: worldContext },
+    ],
+    temperature: 0.85,
+    response_format: { type: 'json_object' },
+  });
+
+  const content = response.choices[0].message.content || '{}';
+  let parsed: Record<string, unknown> = {};
+  try { parsed = JSON.parse(content); } catch { /* use empty defaults */ }
+
+  const base = parseNarrationResponse(parsed);
+
+  return {
+    ...base,
+    character1Changes: (parsed.character1Changes as NarrationResult['character1Changes']) || undefined,
+    character2Changes: (parsed.character2Changes as NarrationResult['character2Changes']) || undefined,
+  };
 }
 
 function getDegreeOfSuccess(

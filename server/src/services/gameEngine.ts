@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabase';
-import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks } from './openai';
+import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks, generateCoopNarration } from './openai';
 import OpenAI from 'openai';
 import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus } from '../../../shared/types';
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
@@ -1139,5 +1139,151 @@ export async function getOpeningScene(
     suggestedActions: aiResponse.suggestedActions,
     isDeath: false,
     isLevelUp: false,
+  };
+}
+
+export async function processCoopAction(
+  campaignId: string,
+  pendingActions: { characterId: string; userId: string; action: string; characterName: string }[]
+): Promise<ActionResult & { character2Changes?: { hp?: number; gold?: number; inventory?: unknown } }> {
+  // Load both characters
+  const charResults = await Promise.all(
+    pendingActions.map(pa =>
+      supabaseAdmin.from('characters').select('*').eq('id', pa.characterId).single()
+    )
+  );
+
+  const characters = charResults.map((r, i) => {
+    if (r.error || !r.data) throw new Error(`Character not found: ${pendingActions[i].characterId}`);
+    return r.data as Character;
+  });
+
+  // Load campaign
+  const { data: campaign, error: campError } = await supabaseAdmin
+    .from('campaigns')
+    .select('*')
+    .eq('id', campaignId)
+    .single();
+  if (campError || !campaign) throw new Error('Campaign not found');
+
+  const ws = campaign.world_state as WorldState;
+  const wb = campaign.world_bible as WorldBible;
+
+  // Get recent history (use first character as reference)
+  const recentHistory = await getRecentHistory(campaignId, pendingActions[0].characterId);
+
+  // Call generateCoopNarration
+  const aiResponse = await generateCoopNarration(
+    pendingActions.map((pa, i) => ({ character: characters[i], action: pa.action })),
+    ws,
+    wb,
+    recentHistory
+  );
+
+  const xpGained = Math.floor(Math.random() * 20) + 10;
+
+  // Build world state changes (tracking both characters)
+  const newActionCount = (ws.actionCount || 0) + 1;
+  const newActionsInCurrentAct = (ws.actionsInCurrentAct || 0) + 1;
+  const worldStateChangesWithTracking: Partial<WorldState> = {
+    ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
+    actionCount: newActionCount,
+    actionsInCurrentAct: newActionsInCurrentAct,
+    characterLastSeen: {
+      ...(ws.characterLastSeen || {}),
+      ...Object.fromEntries(pendingActions.map(pa => [pa.characterId, new Date().toISOString()])),
+    },
+    pendingTurn: null,
+  };
+
+  // Apply consequences to Character 1
+  const char1Result = await applyConsequences(
+    pendingActions[0].characterId,
+    {
+      worldStateChanges: worldStateChangesWithTracking,
+      xpGained,
+      hpChange: aiResponse.character1Changes?.hpChange ?? aiResponse.hpChange,
+      loot: aiResponse.character1Changes?.loot ?? undefined,
+      statusEffectChanges: aiResponse.character1Changes?.statusEffectChanges ?? undefined,
+      sessionNote: aiResponse.sessionNote,
+    },
+    characters[0],
+    { id: campaignId, world_state: ws, act: campaign.act }
+  );
+
+  // Apply consequences to Character 2 (world state already updated — applyConsequences re-fetches)
+  const char2Result = await applyConsequences(
+    pendingActions[1].characterId,
+    {
+      xpGained,
+      hpChange: aiResponse.character2Changes?.hpChange ?? undefined,
+      loot: aiResponse.character2Changes?.loot ?? undefined,
+      statusEffectChanges: aiResponse.character2Changes?.statusEffectChanges ?? undefined,
+    },
+    characters[1],
+    { id: campaignId, world_state: char1Result.updatedWorldState, act: campaign.act }
+  );
+
+  // Save story events for both characters
+  await Promise.all([
+    supabaseAdmin.from('story_events').insert({
+      campaign_id: campaignId,
+      character_id: pendingActions[0].characterId,
+      event_type: 'action',
+      content: pendingActions[0].action,
+      metadata: { coopRound: true },
+    }),
+    supabaseAdmin.from('story_events').insert({
+      campaign_id: campaignId,
+      character_id: pendingActions[1].characterId,
+      event_type: 'action',
+      content: pendingActions[1].action,
+      metadata: { coopRound: true },
+    }),
+    supabaseAdmin.from('story_events').insert({
+      campaign_id: campaignId,
+      character_id: pendingActions[0].characterId,
+      event_type: 'narration',
+      content: aiResponse.narration,
+      metadata: { coopRound: true, suggestedActions: aiResponse.suggestedActions },
+    }),
+    supabaseAdmin.from('story_events').insert({
+      campaign_id: campaignId,
+      character_id: pendingActions[1].characterId,
+      event_type: 'narration',
+      content: aiResponse.narration,
+      metadata: { coopRound: true, suggestedActions: aiResponse.suggestedActions },
+    }),
+  ]);
+
+  const updatedChar1 = char1Result.updatedCharacter;
+  const updatedChar2 = char2Result.updatedCharacter;
+
+  return {
+    narration: aiResponse.narration,
+    worldStateChanges: aiResponse.worldStateChanges as Partial<WorldState>,
+    characterChanges: {
+      hp: updatedChar1.hp,
+      xp: updatedChar1.xp,
+      level: updatedChar1.level,
+      gold: updatedChar1.gold,
+      inventory: updatedChar1.inventory,
+      status_effects: updatedChar1.status_effects,
+    },
+    sceneImagePrompt: aiResponse.sceneImagePrompt,
+    suggestedActions: aiResponse.suggestedActions,
+    isLevelUp: false,
+    isDeath: false,
+    isCombat: aiResponse.isCombat,
+    isVictory: aiResponse.isVictory,
+    enemyName: aiResponse.enemyName,
+    loot: (aiResponse.character1Changes?.loot || aiResponse.loot) as ActionResult['loot'],
+    isHighStakes: aiResponse.isHighStakes,
+    choiceCards: aiResponse.choiceCards,
+    character2Changes: {
+      hp: updatedChar2.hp,
+      gold: updatedChar2.gold,
+      inventory: updatedChar2.inventory,
+    },
   };
 }

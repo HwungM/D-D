@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
-import { processAction, getOpeningScene, resolveRollAction } from '../services/gameEngine';
+import { processAction, getOpeningScene, resolveRollAction, processCoopAction } from '../services/gameEngine';
 import { generateEpilogue } from '../services/openai';
 import type { WorldState, WorldBible, Character } from '../../../shared/types';
 import { z } from 'zod';
@@ -25,7 +25,7 @@ router.post('/action', requireAuth, async (req: AuthRequest, res: Response): Pro
   // Verify ownership
   const { data: character } = await supabaseAdmin
     .from('characters')
-    .select('user_id')
+    .select('user_id, name')
     .eq('id', characterId)
     .eq('user_id', req.user!.id)
     .single();
@@ -36,6 +36,62 @@ router.post('/action', requireAuth, async (req: AuthRequest, res: Response): Pro
   }
 
   try {
+    // Check if co-op campaign (more than 1 member)
+    const { count: memberCount } = await supabaseAdmin
+      .from('campaign_members')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', campaignId);
+
+    if (memberCount && memberCount > 1) {
+      const { data: campaign } = await supabaseAdmin
+        .from('campaigns')
+        .select('world_state')
+        .eq('id', campaignId)
+        .single();
+
+      if (!campaign) {
+        res.status(404).json({ error: 'Campaign not found' });
+        return;
+      }
+
+      const ws = campaign.world_state as WorldState;
+      const roundId = ws.pendingTurn?.roundId || crypto.randomUUID();
+      const pendingActions = ws.pendingTurn?.actions || [];
+
+      // Prevent double-submit
+      if (pendingActions.some(a => a.characterId === characterId)) {
+        res.status(409).json({ error: 'Already submitted for this round' });
+        return;
+      }
+
+      const newActions = [...pendingActions, {
+        characterId,
+        userId: req.user!.id,
+        action,
+        characterName: (character as { name: string }).name,
+        submittedAt: new Date().toISOString(),
+      }];
+
+      if (newActions.length < memberCount) {
+        // Save pending, return waiting
+        await supabaseAdmin.from('campaigns').update({
+          world_state: { ...ws, pendingTurn: { actions: newActions, roundId } }
+        }).eq('id', campaignId);
+        res.json({ status: 'waiting', waitingFor: 'partner' });
+        return;
+      }
+
+      // All submitted — process together
+      await supabaseAdmin.from('campaigns').update({
+        world_state: { ...ws, pendingTurn: null }
+      }).eq('id', campaignId);
+
+      const result = await processCoopAction(campaignId, newActions);
+      res.json({ status: 'complete', ...result });
+      return;
+    }
+
+    // Solo path
     const result = await processAction(characterId, action, campaignId);
     res.json(result);
   } catch (err) {
