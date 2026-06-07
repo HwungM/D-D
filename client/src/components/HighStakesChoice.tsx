@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { FormEvent, useRef, useState } from 'react'
 import type { HighStakesChoice as HighStakesChoiceType } from '../../../shared/types'
 
 interface Props {
@@ -9,129 +9,143 @@ interface Props {
 }
 
 export default function HighStakesChoice({ narration, choices, onChoose, onCustom }: Props) {
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
-  const [chosen, setChosen] = useState<number | null>(null)
+  const [response, setResponse] = useState('')
+  const [showIdeas, setShowIdeas] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  function handleChoose(idx: number, title: string) {
-    if (chosen !== null) return
-    setChosen(idx)
-    setTimeout(() => onChoose(title), 400)
+  function submit(e?: FormEvent) {
+    e?.preventDefault()
+    const trimmed = response.trim()
+    if (!trimmed || submitting) return
+    setSubmitting(true)
+    window.setTimeout(() => onChoose(trimmed), 220)
+  }
+
+  function draft(choice: HighStakesChoiceType) {
+    setResponse(choice.title)
+    setShowIdeas(false)
+    window.setTimeout(() => inputRef.current?.focus(), 0)
   }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(6px)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
+      style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(7px)' }}
     >
-      {/* Header */}
-      <div className="mb-6 text-center">
-        <p
-          className="font-sans text-xs uppercase tracking-[0.3em] mb-4"
-          style={{ color: 'rgba(200,146,42,0.7)' }}
-        >
-          Critical Decision
-        </p>
-        <div
-          style={{
-            width: 60,
-            height: 1,
-            background: 'linear-gradient(90deg, transparent, rgba(200,146,42,0.5), transparent)',
-            margin: '0 auto',
-          }}
-        />
-      </div>
-
-      {/* Narration setup text */}
-      <div className="max-w-xl text-center mb-10 px-6">
-        <p
-          className="font-serif text-base leading-relaxed"
-          style={{ color: 'rgba(212,197,160,0.85)' }}
-        >
-          {narration}
-        </p>
-      </div>
-
-      {/* Choice cards */}
       <div
-        className="flex gap-4 px-6 max-w-4xl w-full"
-        style={{ flexWrap: choices.length > 2 ? 'wrap' : 'nowrap', justifyContent: 'center' }}
+        className="w-full max-w-3xl"
+        style={{
+          background: 'linear-gradient(180deg, rgba(9,13,20,0.97), rgba(5,7,11,0.98))',
+          border: '1px solid rgba(200,146,42,0.22)',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.65), 0 0 44px rgba(200,146,42,0.08)',
+        }}
       >
-        {choices.map((choice, idx) => {
-          const isHovered = hoveredIdx === idx
-          const isChosen = chosen === idx
-          return (
-            <button
-              key={idx}
-              onClick={() => handleChoose(idx, choice.title)}
-              onMouseEnter={() => setHoveredIdx(idx)}
-              onMouseLeave={() => setHoveredIdx(null)}
-              disabled={chosen !== null}
+        <div className="px-5 sm:px-7 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <p
+            className="font-sans text-[11px] uppercase mb-3"
+            style={{ color: 'rgba(200,146,42,0.72)', letterSpacing: '0.18em' }}
+          >
+            The situation turns
+          </p>
+          <p className="font-serif text-base leading-relaxed whitespace-pre-wrap" style={{ color: 'rgba(232,212,168,0.9)' }}>
+            {narration}
+          </p>
+        </div>
+
+        <form onSubmit={submit} className="px-5 sm:px-7 py-5 space-y-4">
+          <div>
+            <label className="block font-serif text-xs uppercase mb-2" style={{ color: 'rgba(200,146,42,0.62)', letterSpacing: '0.12em' }}>
+              What do you do?
+            </label>
+            <textarea
+              ref={inputRef}
+              value={response}
+              onChange={e => setResponse(e.target.value)}
+              rows={4}
+              autoFocus
+              className="w-full resize-none font-serif text-sm outline-none"
+              placeholder="Write your own response. You can negotiate, run, sacrifice something, attack, reveal a secret, ask a question, use an item, or do something stranger."
               style={{
-                flex: '1 1 220px',
-                maxWidth: '280px',
-                minHeight: '200px',
-                background: isChosen
-                  ? 'rgba(200,146,42,0.12)'
-                  : isHovered
-                    ? 'rgba(200,146,42,0.07)'
-                    : 'rgba(255,255,255,0.025)',
-                border: isChosen
-                  ? '1px solid rgba(200,146,42,0.7)'
-                  : isHovered
-                    ? '1px solid rgba(200,146,42,0.5)'
-                    : '1px solid rgba(255,255,255,0.08)',
-                boxShadow: isHovered || isChosen
-                  ? '0 0 24px rgba(200,146,42,0.15)'
-                  : 'none',
-                transform: isHovered && chosen === null ? 'scale(1.02)' : 'scale(1)',
-                transition: 'all 0.2s ease',
-                padding: '24px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                textAlign: 'left',
-                cursor: chosen !== null ? 'default' : 'pointer',
+                background: 'rgba(255,255,255,0.035)',
+                border: '1px solid rgba(255,255,255,0.09)',
+                borderColor: response.trim() ? 'rgba(200,146,42,0.34)' : 'rgba(255,255,255,0.09)',
+                color: '#d4c5a0',
+                padding: '12px 14px',
+                caretColor: '#c8922a',
+              }}
+            />
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setShowIdeas(v => !v)}
+              className="font-serif text-xs px-3 py-2 transition-all"
+              style={{
+                background: showIdeas ? 'rgba(200,146,42,0.12)' : 'rgba(255,255,255,0.03)',
+                border: showIdeas ? '1px solid rgba(200,146,42,0.42)' : '1px solid rgba(255,255,255,0.08)',
+                color: showIdeas ? '#d9c79a' : 'rgba(180,160,120,0.62)',
+                letterSpacing: '0.04em',
               }}
             >
-              {/* Card title */}
-              <h3
-                className="font-fantasy text-xl mb-3"
-                style={{ color: isHovered || isChosen ? '#c8922a' : '#d4c5a0' }}
-              >
-                {choice.title}
-              </h3>
-
-              {/* Description */}
-              <p
-                className="font-serif text-sm leading-relaxed flex-1"
-                style={{ color: 'rgba(200,180,140,0.75)' }}
-              >
-                {choice.description}
-              </p>
-
-              {/* Consequence hint */}
-              <p
-                className="font-serif text-xs italic mt-4"
-                style={{ color: 'rgba(180,80,60,0.7)' }}
-              >
-                {choice.consequenceHint}
-              </p>
+              {showIdeas ? 'Hide Ideas' : 'Need Ideas?'}
             </button>
-          )
-        })}
-      </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onCustom}
+                className="font-serif text-xs px-3 py-2 transition-all"
+                style={{ color: 'rgba(160,140,110,0.48)', border: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                Return to chat
+              </button>
+              <button
+                type="submit"
+                disabled={!response.trim() || submitting}
+                className="font-serif text-sm px-5 py-2 transition-all disabled:opacity-35 disabled:cursor-not-allowed"
+                style={{
+                  background: response.trim() && !submitting
+                    ? 'linear-gradient(135deg, rgba(192,57,43,0.35), rgba(140,30,20,0.45))'
+                    : 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(192,57,43,0.45)',
+                  color: '#e8b09a',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                Respond
+              </button>
+            </div>
+          </div>
 
-      {/* Custom response escape hatch */}
-      <div className="mt-8">
-        <button
-          onClick={onCustom}
-          className="font-serif text-xs transition-colors"
-          style={{ color: 'rgba(160,140,110,0.35)' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(200,180,140,0.6)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(160,140,110,0.35)' }}
-        >
-          write my own response instead
-        </button>
+          {showIdeas && choices.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1">
+              {choices.map((choice, idx) => (
+                <button
+                  key={`${choice.title}-${idx}`}
+                  type="button"
+                  onClick={() => draft(choice)}
+                  className="text-left min-h-[132px] px-3 py-3 transition-all"
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(200,146,42,0.16)',
+                    color: '#d9c79a',
+                  }}
+                >
+                  <span className="block font-fantasy text-base mb-2" style={{ color: '#e8c87a' }}>
+                    {choice.title}
+                  </span>
+                  <span className="block font-serif text-xs leading-relaxed mb-3" style={{ color: 'rgba(200,180,140,0.72)' }}>
+                    {choice.description}
+                  </span>
+                  <span className="block font-serif text-[11px] italic" style={{ color: 'rgba(180,80,60,0.7)' }}>
+                    {choice.consequenceHint}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </form>
       </div>
     </div>
   )

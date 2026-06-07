@@ -193,7 +193,7 @@ export default function Game() {
       const loaded: StoryEvent[] = data.events || []
       historicalIds.current = new Set(loaded.map(e => e.id))
       setEvents(loaded)
-      // Only auto-start if THIS character has their own history — not just party members'
+      // Only auto-start if THIS character has their own history - not just party members'
       const myEvents = loaded.filter(e => e.character_id === characterId)
       if (myEvents.length === 0) setIsNewCharacter(true)
       if (myEvents.length > 0) {
@@ -220,7 +220,7 @@ export default function Game() {
           setShowDiceModal(true)
         }
       } else if (loaded.length > 0) {
-        // Party has history but this character is new — show recent story on start screen for context
+        // Party has history but this character is new - show recent story on start screen for context
         const recent = loaded.filter(e => e.event_type === 'narration').slice(-5).map(e => e.content)
         setRecentNarrations(recent)
       }
@@ -403,7 +403,7 @@ export default function Game() {
       ? `[PARTY ACTION] ${action}`
       : action
 
-    // Only switch scene immediately based on location — not action text (avoids wrong images)
+    // Only switch scene immediately based on location - not action text (avoids wrong images)
     const immediateScene = matchSceneImage(worldState?.currentLocation || '')
     if (immediateScene) setSceneImage(immediateScene)
 
@@ -423,7 +423,7 @@ export default function Game() {
       const result = data as ActionResult & { status?: string; submittedCount?: number; neededCount?: number; expiresAt?: string }
       setLastActionResult(result)
 
-      // Co-op waiting — partner hasn't submitted yet
+      // Co-op waiting - partner hasn't submitted yet
       if (result.status === 'waiting') {
         setCoopWaiting(true)
         setCoopSubmittedCount(typeof result.submittedCount === 'number' ? result.submittedCount : 1)
@@ -432,7 +432,7 @@ export default function Game() {
         setLoading(false)
         return
       }
-      // Co-op complete — partner submitted, we got the combined narration
+      // Co-op complete - partner submitted, we got the combined narration
       if (result.status === 'complete') {
         setCoopWaiting(false)
         setCoopSubmittedCount(0)
@@ -535,7 +535,7 @@ export default function Game() {
         setTimeout(() => setShowActTransition(true), 600)
       }
 
-      // Epilogue — triggered when endgameResolved fires
+      // Epilogue - triggered when endgameResolved fires
       if ((result as ActionResult & { endgameResolved?: boolean }).endgameResolved && campaignId && characterId) {
         const victory = !!result.isVictory
         setTimeout(async () => {
@@ -595,7 +595,7 @@ export default function Game() {
     }
   }
 
-  // ── Start screen ──────────────────────────────────────────────────────────
+  // -- Start screen ----------------------------------------------------------
   if (!started) {
     return (
       <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: '#060a0f' }}>
@@ -608,7 +608,7 @@ export default function Game() {
             </div>
           ) : (
             <div className="w-28 h-28 mx-auto mb-6 rounded-full border-2 border-ember-400/40 flex items-center justify-center" style={{ boxShadow: '0 0 50px rgba(192,57,43,0.3)' }}>
-              <span className="font-fantasy text-4xl text-ember-400">⚔</span>
+              <span className="font-fantasy text-4xl text-ember-400">+</span>
             </div>
           )}
           <h2 className="font-fantasy text-5xl text-parchment-200 mb-2" style={{ textShadow: '0 0 40px rgba(192,57,43,0.3)' }}>Your Adventure Awaits</h2>
@@ -680,11 +680,11 @@ export default function Game() {
   const hpPercent = currentCharacter ? (currentCharacter.hp / currentCharacter.max_hp) * 100 : 100
   const hpColor = hpPercent > 60 ? '#22c55e' : hpPercent > 30 ? '#eab308' : '#ef4444'
 
-  // ── Main game layout ──────────────────────────────────────────────────────
+  // -- Main game layout ------------------------------------------------------
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: '#06080d', color: '#d4c5a0' }}>
 
-      {/* ── Header ── */}
+      {/* -- Header -- */}
       <header className="shrink-0 flex items-center justify-between px-3 py-2 gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' as const,
         background: 'rgba(6,8,13,0.97)',
         borderBottom: '1px solid rgba(255,255,255,0.055)',
@@ -771,7 +771,7 @@ export default function Game() {
           <div className="flex items-center gap-3">
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#f87171', boxShadow: '0 0 8px #f87171', animation: 'pulse 1s ease-in-out infinite' }} />
             <span className="font-sans text-xs uppercase tracking-widest" style={{ color: '#f87171', letterSpacing: '0.2em' }}>
-              {worldState?.combatState?.isBossFight ? `★ Boss — Phase ${worldState.combatState.bossPhase || 1}` : 'Combat'}
+              {worldState?.combatState?.isBossFight ? `Boss - Phase ${worldState.combatState.bossPhase || 1}` : 'Combat'}
             </span>
             {worldState?.combatState?.roundNumber && (
               <span className="font-mono text-xs" style={{ color: 'rgba(220,100,100,0.4)', fontSize: 10 }}>
@@ -801,7 +801,7 @@ export default function Game() {
               }}
             >
               <span style={{ fontSize: 8, color: effect.type === 'buff' ? '#22c55e' : effect.type === 'debuff' ? '#ef4444' : '#c8922a' }}>
-                {effect.type === 'buff' ? '▲' : effect.type === 'debuff' ? '▼' : '◆'}
+                {effect.type === 'buff' ? '+' : effect.type === 'debuff' ? '-' : '*'}
               </span>
               <span className="font-serif" style={{ fontSize: 10, color: effect.type === 'buff' ? 'rgba(34,197,94,0.8)' : effect.type === 'debuff' ? 'rgba(239,68,68,0.75)' : 'rgba(200,146,42,0.75)' }}>
                 {effect.name}
@@ -814,7 +814,7 @@ export default function Game() {
         </div>
       )}
 
-      {/* ── Dev Panel (testing campaigns only) ── */}
+      {/* -- Dev Panel (testing campaigns only) -- */}
       {campaignType === 'testing' && campaignId && currentCharacter && (
         <DevPanel
           campaignId={campaignId}
@@ -826,10 +826,10 @@ export default function Game() {
         />
       )}
 
-      {/* ── Main content area ── */}
+      {/* -- Main content area -- */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
 
-        {/* ── LEFT: Persistent scene panel ── */}
+        {/* -- LEFT: Persistent scene panel -- */}
         <div className="flex flex-col shrink-0 overflow-hidden md:border-r" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
           <div className="w-full md:w-[420px]">
             <SceneDisplay
@@ -847,7 +847,7 @@ export default function Game() {
           )}
         </div>
 
-        {/* ── RIGHT: Narrative / Sidebar ── */}
+        {/* -- RIGHT: Narrative / Sidebar -- */}
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
 
           {showSidebar ? (
@@ -912,7 +912,7 @@ export default function Game() {
             </div>
           )}
 
-          {/* Party Action toggle — only shown when co-op members share same location */}
+          {/* Party Action toggle - only shown when co-op members share same location */}
           {partyMembersHere.length > 0 && (
             <div className="px-4 pt-2 pb-0 flex items-center gap-2">
               <button
@@ -923,7 +923,7 @@ export default function Game() {
                   : { border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.4)' }
                 }
               >
-                <span style={{ fontSize: 10 }}>⚔</span>
+                <span style={{ fontSize: 10 }}>+</span>
                 Coordinate Action
                 {partyActionMode && <span style={{ color: 'rgba(200,146,42,0.7)', fontSize: 10 }}>ON</span>}
               </button>

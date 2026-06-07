@@ -1,4 +1,4 @@
-import { useState, FormEvent, KeyboardEvent } from 'react'
+import { useRef, useState, FormEvent, KeyboardEvent } from 'react'
 
 interface ActionPanelProps {
   suggestedActions: string[]
@@ -23,6 +23,7 @@ export default function ActionPanel({
 }: ActionPanelProps) {
   const [input, setInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const suggestions = suggestedActions.slice(0, 4)
   const hasSuggestions = suggestions.length > 0
 
@@ -44,6 +45,13 @@ export default function ActionPanel({
       e.preventDefault()
       submitAction(input)
     }
+  }
+
+  function draftSuggestion(action: string) {
+    if (disabled) return
+    setInput(action)
+    setShowSuggestions(false)
+    window.setTimeout(() => textareaRef.current?.focus(), 0)
   }
 
   return (
@@ -77,13 +85,14 @@ export default function ActionPanel({
         <form onSubmit={handleSubmit} className="flex gap-2 items-end">
           <div className="flex-1 relative">
             <textarea
+              ref={textareaRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={disabled}
               rows={2}
               className="w-full resize-none font-serif text-sm outline-none transition-all duration-200"
-              placeholder={disabled ? (disabledReason || 'Your character cannot act...') : 'What do you do? Enter to act, Shift+Enter for a new line.'}
+              placeholder={disabled ? (disabledReason || 'Your character cannot act...') : 'Describe what you try, say, inspect, cast, risk, or ask. Enter to act.'}
               style={{
                 background: 'rgba(255,255,255,0.03)',
                 border: '1px solid rgba(255,255,255,0.08)',
@@ -127,10 +136,10 @@ export default function ActionPanel({
               letterSpacing: '0.04em',
             }}
           >
-            {showSuggestions ? 'Hide Suggestions' : 'Suggestions'}
+            {showSuggestions ? 'Hide Ideas' : 'Need Ideas?'}
           </button>
           <span className="font-serif text-xs italic" style={{ color: 'rgba(160,140,110,0.42)' }}>
-            {hasSuggestions ? 'Optional ideas if you want a nudge.' : 'No suggestions yet.'}
+            {hasSuggestions ? 'Optional nudges. Click one to draft it, then edit or send.' : 'No ideas yet. Trust your instinct.'}
           </span>
         </div>
 
@@ -140,7 +149,7 @@ export default function ActionPanel({
               <button
                 key={`${action}-${i}`}
                 type="button"
-                onClick={() => submitAction(action)}
+                onClick={() => draftSuggestion(action)}
                 disabled={disabled}
                 className="text-left min-h-[54px] px-3 py-2 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
                 style={{
@@ -150,7 +159,7 @@ export default function ActionPanel({
                 }}
               >
                 <span className="block font-serif text-[10px] uppercase mb-1" style={{ color: 'rgba(200,146,42,0.62)', letterSpacing: '0.08em' }}>
-                  Idea {i + 1}
+                  Draft Idea {i + 1}
                 </span>
                 <span className="block font-serif text-sm leading-snug">
                   {action}
