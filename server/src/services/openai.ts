@@ -159,7 +159,9 @@ OPTIONAL SUGGESTION RULES:
 - Return 3-4 concrete, meaningfully different ideas. Each should be a player-facing command, usually 3-10 words.
 - Avoid generic options like "continue", "look around", "ask about it", or "move forward" unless the action names a specific target, method, or risk.
 - Mix approaches when the scene supports it: direct, subtle, social, investigative, protective, reckless, magical, class-aware, or party-aware.
-- At least one suggestion should push the scene forward. At least one can invite curiosity or caution.
+- At least one suggestion should push the scene forward. At least one can invite curiosity or caution. At least one should use a concrete current-scene element: a visible feature, NPC, item, threat, clue, exit, sound, weather condition, or magical effect.
+- When inventory, status effects, or available abilities are relevant, include one suggestion that names the useful item, effect, or ability. Do not invent items or abilities.
+- In combat, suggestions must reference a target, tactic, cover, terrain, ally, ability, or escape route. Never offer vague combat ideas.
 - In co-op scenes, include at least one idea that explicitly uses teamwork, covers an ally, follows up on an ally's move, or splits roles.
 - Suggestions should help a stuck player think, but they should never make the scene feel like a visual novel.
 
@@ -597,6 +599,26 @@ RULES: Maintain enemy continuity - they remember every action. When an enemy is 
 CURRENT SITUATION (summary of what is happening RIGHT NOW):
 ${worldState.currentSceneSummary}` : '';
 
+  const visibleSceneInputs = [
+    worldState.currentLocation ? `location: ${worldState.currentLocation}` : null,
+    worldState.timeOfDay ? `time: ${worldState.timeOfDay}` : null,
+    worldState.weather ? `weather: ${worldState.weather}` : null,
+    worldState.activeNPC ? `active NPC: ${worldState.activeNPC}` : null,
+    combatState?.inCombat ? `combat: ${combatState.enemyName || 'active enemy'} (${combatState.enemyCondition || 'unknown condition'})` : null,
+    worldState.currentSceneSummary ? `scene summary: ${worldState.currentSceneSummary}` : null,
+  ].filter(Boolean).join(' | ');
+  const availableSuggestionTools = [
+    character.inventory.length > 0 ? `inventory: ${character.inventory.slice(0, 6).map(i => i.name).join(', ')}` : null,
+    knownAbilities.length > 0 ? `abilities: ${knownAbilities.filter(a => !a.currentCooldown || a.currentCooldown <= 0).slice(0, 5).map(a => a.name).join(', ') || 'none available'}` : null,
+    character.status_effects && character.status_effects.length > 0 ? `status effects: ${character.status_effects.map(e => `${e.name} (${e.type})`).join(', ')}` : null,
+    statHints ? `stat strengths/limits: ${statHints}` : null,
+  ].filter(Boolean).join(' | ');
+  const suggestionContextBlock = `
+SUGGESTION INPUTS:
+- Current scene anchors: ${visibleSceneInputs || 'use the immediate narration and recent history'}
+- Character tools: ${availableSuggestionTools || 'no special tools currently relevant'}
+- Optional suggestions must feel grounded in these inputs. If you cannot justify an idea from the scene, character, party, or known world state, do not offer it.`;
+
   const sceneState = worldState.sceneState;
   const forceComplication = campaignContext?.forceComplication;
   const autoPackingMode = sceneState?.pacingMode || (
@@ -662,6 +684,7 @@ ${character.status_effects && character.status_effects.length > 0 ? `ACTIVE STAT
 Notable inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
 STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
 ${abilitiesBlock}
+${suggestionContextBlock}
 ${endgameBlock}
 
 ${campaignContext ? `CAMPAIGN: Act ${campaignContext.act} | ${campaignContext.centralConflict}
@@ -805,7 +828,7 @@ function cleanStringArray(value: unknown, limit = 3): string[] {
 }
 
 function cleanSuggestedActions(value: unknown, fallback: string[] = []): string[] {
-  const actions = cleanStringArray(value, 3);
+  const actions = cleanStringArray(value, 4);
   return actions.length > 0 ? actions : fallback;
 }
 
@@ -951,7 +974,7 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
   const isHighStakes = asBoolean(parsed.isHighStakes) && !!choiceCards;
   const fallbackActions = awaitingRoll || isHighStakes
     ? []
-    : ['Look closer', 'Speak carefully', 'Move forward'];
+    : ['Study the immediate danger', 'Press someone for answers', 'Use the terrain', 'Take a cautious route'];
 
   return {
     narration: asString(parsed.narration) || 'The world holds its breath...',
@@ -1160,6 +1183,13 @@ CHARACTER 2 (${c2.name}) ACTION: ${a2.action}
 ${spotlightDirective ? `\n${spotlightDirective}` : ''}
 Write ONE unified narration (200-300 words) weaving both actions together. Apply the CO-OP NARRATION RULES.
 
+OPTIONAL SUGGESTIONS:
+- suggestedActions are optional nudges, not required choices.
+- Return 3-4 ideas grounded in this exact scene, location, party state, active quest, inventory, abilities, and both submitted actions.
+- Include at least one teamwork idea that uses both characters or lets one cover/follow up on the other.
+- If combat is active, every idea must name a target, tactic, terrain feature, ally, or escape route.
+- Do not offer generic ideas like "continue", "look around", or "move forward".
+
 Respond with JSON:
 {
   "narration": "string - unified narration addressing both characters",
@@ -1270,11 +1300,15 @@ ${degreeGuidance[degree]}
 
 Character: ${character.name} (${character.race} ${character.class}, Level ${character.level})
 HP: ${character.hp}/${character.max_hp} | Location: ${worldState.currentLocation || 'unknown'}
+Inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
+Available abilities: ${(character.abilities || []).filter(a => !a.currentCooldown || a.currentCooldown <= 0).slice(0, 5).map(a => a.name).join(', ') || 'none'}
+Scene state: ${worldState.currentSceneSummary || 'use recent history and the roll outcome'}
 Recent history:
 ${recentHistory.slice(-4).join('\n')}
 
 Write vivid outcome narration (100-150 words) that precisely matches the ${resultLabel} degree.
 The near miss and partial success cases are the most narratively rich - use them to keep the story moving with texture rather than just pass/fail.
+Suggested actions should be 3-4 optional ideas grounded in the changed situation after the roll. Include a concrete scene feature, NPC, item, ability, ally, threat, clue, or exit when relevant. Avoid generic ideas.
 
 Respond with JSON:
 {
@@ -1309,7 +1343,7 @@ Respond with JSON:
     worldStateChanges: asRecord(parsed.worldStateChanges) as Partial<WorldState> | undefined,
     hpChange: clampNumber(parsed.hpChange, -1000, 1000),
     goldChange: clampNumber(parsed.goldChange, -10000, 10000),
-    suggestedActions: cleanSuggestedActions(parsed.suggestedActions, ['Take stock', 'Press forward', 'Change tactics']),
+    suggestedActions: cleanSuggestedActions(parsed.suggestedActions, ['Check what changed', 'Use a nearby advantage', 'Follow up fast', 'Regroup before acting']),
     sceneImagePrompt: asString(parsed.sceneImagePrompt) || '',
     isDeath: asBoolean(parsed.isDeath),
     isVictory: asBoolean(parsed.isVictory),
