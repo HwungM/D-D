@@ -110,6 +110,24 @@ export interface NpcMemory {
   isKeyNPC?: boolean;        // if true, pinned to keyNPCs and never pruned
 }
 
+export interface CampaignSpineSnapshot {
+  currentArc: {
+    act: number;
+    label: string;
+    progress: number;
+    pressure: 'low' | 'rising' | 'dangerous' | 'climax';
+  };
+  lastRecap: string;
+  openThreads: string[];
+  keyRelationships: {
+    name: string;
+    disposition: NpcMemory['disposition'];
+    note: string;
+  }[];
+  nextPressure: string;
+  updatedAt: string;
+}
+
 export interface CombatEnemy {
   name: string;
   archetype: 'beast' | 'soldier' | 'mage' | 'boss' | 'minion';
@@ -146,6 +164,7 @@ export interface WorldState {
   npcMemory?: NpcMemory[];
   sessionNotes?: string[];
   campaignJournal?: CampaignJournalEntry[];
+  campaignSpine?: CampaignSpineSnapshot;
   characterHistory?: CharacterHistoryEntry[];
   antagonistProgress?: Record<string, { stepIndex: number; lastAction: string; knowsPlayers: boolean }>;
   sessionCount?: number;

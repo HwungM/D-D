@@ -23,6 +23,88 @@ function isActiveQuest(value: unknown): value is ActiveQuest {
   return isRecord(value) && typeof value.title === 'string' && typeof value.description === 'string';
 }
 
+function campaignLengthTargetActions(worldBible?: WorldBible): number {
+  const length = worldBible?.playerPreferences?.campaignLength;
+  if (length === 'one_shot') return 8;
+  if (length === 'short') return 18;
+  if (length === 'long') return 60;
+  if (length === 'open_ended') return 75;
+  return 35;
+}
+
+function getActLabel(worldBible: WorldBible | undefined, act: number): string {
+  if (!worldBible?.dmRoadmap) return act === 1 ? 'Opening Arc' : act === 2 ? 'Rising Arc' : 'Endgame Arc';
+  if (act === 1) return worldBible.dmRoadmap.act1ClimaxEvent || 'Opening Arc';
+  if (act === 2) return worldBible.dmRoadmap.act2ClimaxEvent || 'Rising Arc';
+  return worldBible.dmRoadmap.act3ClimaxEvent || 'Endgame Arc';
+}
+
+function buildCampaignSpineSnapshot(worldState: WorldState, worldBible: WorldBible | undefined, act = 1): WorldState['campaignSpine'] {
+  const targetActions = campaignLengthTargetActions(worldBible);
+  const actionsInArc = Math.max(0, worldState.actionsInCurrentAct || 0);
+  const progress = Math.max(0, Math.min(100, Math.round((actionsInArc / targetActions) * 100)));
+  const pressure = worldState.endgamePhase === 'confrontation'
+    ? 'climax'
+    : worldState.combatState?.inCombat || worldState.pendingDirectorBeat?.urgency === 'critical'
+      ? 'dangerous'
+      : progress >= 65 || worldState.pendingDirectorBeat?.urgency === 'high'
+        ? 'rising'
+        : 'low';
+
+  const latestJournal = (worldState.campaignJournal || []).slice(-1)[0];
+  const latestNote = (worldState.sessionNotes || []).slice(-1)[0];
+  const lastRecap = worldState.currentSceneSummary || latestJournal?.summary || latestNote || 'The campaign is still finding its first lasting shape.';
+
+  const openThreads = [
+    ...(worldState.activeQuests || [])
+      .filter(quest => quest.status === 'active')
+      .map(quest => `Quest: ${quest.title}`),
+    ...(worldState.futureHooks || [])
+      .filter(hook => !hook.resolved)
+      .slice(-4)
+      .map(hook => `Future hook: ${hook.description}`),
+    ...(worldState.backstoryHooks || [])
+      .filter(hook => hook.status !== 'resolved')
+      .slice(-3)
+      .map(hook => `Backstory: ${hook.characterName} - ${hook.hook}`),
+    ...(worldState.foreshadowingLedger || [])
+      .filter(entry => entry.payoffStatus !== 'paid_off')
+      .slice(-3)
+      .map(entry => `Foreshadowing: ${entry.description}`),
+    ...(worldBible?.primaryAntagonist ? [`Antagonist: ${worldBible.primaryAntagonist.name} wants ${worldBible.primaryAntagonist.agenda}`] : []),
+  ].slice(0, 8);
+
+  const relationshipMap = new Map<string, NpcMemory>();
+  for (const npc of [...(worldState.npcMemory || []), ...(worldState.keyNPCs || [])]) {
+    relationshipMap.set(npc.name, { ...relationshipMap.get(npc.name), ...npc });
+  }
+  const keyRelationships = Array.from(relationshipMap.values())
+    .sort((a, b) => Number(!!b.isKeyNPC) - Number(!!a.isKeyNPC) || (b.interactionCount || 0) - (a.interactionCount || 0))
+    .slice(0, 6)
+    .map(npc => ({
+      name: npc.name,
+      disposition: npc.disposition || 'unknown',
+      note: npc.notes || 'Known to the campaign.',
+    }));
+
+  const nextPressure = worldState.pendingDirectorBeat?.beat
+    || (openThreads[0] ? `Follow up on ${openThreads[0].replace(/^(Quest|Future hook|Backstory|Foreshadowing|Antagonist): /, '')}` : 'Let the next player choice define the pressure.');
+
+  return {
+    currentArc: {
+      act,
+      label: getActLabel(worldBible, act),
+      progress,
+      pressure,
+    },
+    lastRecap,
+    openThreads,
+    keyRelationships,
+    nextPressure,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState>): WorldState {
   const merged = { ...current };
 
@@ -121,7 +203,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 
   // Simple scalar fields
-  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs'] as const) {
+  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
   }
 
@@ -223,7 +305,7 @@ export async function applyConsequences(
     consumedItems?: string[];
   },
   currentCharacter: Character,
-  campaign: { id: string; world_state: WorldState; act?: number }
+  campaign: { id: string; world_state: WorldState; act?: number; world_bible?: WorldBible }
 ): Promise<{ updatedCharacter: Character; updatedWorldState: WorldState }> {
   const validItemTypes = new Set(['weapon', 'armor', 'potion', 'misc', 'key']);
   const updates: Partial<Character> = {};
@@ -397,6 +479,7 @@ export async function applyConsequences(
   }
 
   // Single atomic world state write â€” eliminates co-op race conditions
+  newWorldState.campaignSpine = buildCampaignSpineSnapshot(newWorldState, campaign.world_bible, campaign.act ?? 1);
   await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
 
   // Persist character updates
@@ -913,7 +996,7 @@ export async function processAction(
       consumedItems: consumedItems.length > 0 ? consumedItems : undefined,
     },
     character as Character,
-    { id: campaignId, world_state: campaign.world_state as WorldState, act: campaign.act }
+    { id: campaignId, world_state: campaign.world_state as WorldState, act: campaign.act, world_bible: wb }
   );
 
   // Advance act if triggered
@@ -937,7 +1020,9 @@ export async function processAction(
       });
       const wsUpdates: Partial<WorldState> = { actionsInCurrentAct: 0 };
       if (hooksChanged) wsUpdates.backstoryHooks = updatedHooks;
-      await supabaseAdmin.from('campaigns').update({ world_state: { ...postActWs, ...wsUpdates } }).eq('id', campaignId);
+      const advancedWorldState = { ...postActWs, ...wsUpdates };
+      advancedWorldState.campaignSpine = buildCampaignSpineSnapshot(advancedWorldState, wb, newAct);
+      await supabaseAdmin.from('campaigns').update({ world_state: advancedWorldState }).eq('id', campaignId);
     }
   }
 
@@ -985,7 +1070,7 @@ export async function processAction(
   return {
     narration: aiResponse.narration,
     diceRoll: diceResult,
-    worldStateChanges: aiResponse.worldStateChanges as Partial<WorldState>,
+    worldStateChanges: updatedWorldState,
     characterChanges: {
       hp: updatedCharacter.hp,
       xp: updatedCharacter.xp,
@@ -1048,7 +1133,7 @@ export async function resolveRollAction(
 
   const xpGained = success ? Math.floor(Math.random() * 20) + 10 : 5;
 
-  const { updatedCharacter } = await applyConsequences(
+  const { updatedCharacter, updatedWorldState } = await applyConsequences(
     characterId,
     {
       worldStateChanges: aiResponse.worldStateChanges as Partial<WorldState>,
@@ -1059,7 +1144,7 @@ export async function resolveRollAction(
       loot: aiResponse.loot as { id: string; name: string; description: string; quantity: number; type: string; value?: number }[] | undefined,
     },
     character as Character,
-    { id: campaignId, world_state: campaign.world_state as WorldState, act: campaign.act }
+    { id: campaignId, world_state: campaign.world_state as WorldState, act: campaign.act, world_bible: campaign.world_bible as WorldBible }
   );
 
   await supabaseAdmin.from('story_events').insert({
@@ -1086,7 +1171,7 @@ export async function resolveRollAction(
       total: rollTotal,
       description: `${rollContext.stat.toUpperCase()} check vs DC ${dc}`,
     },
-    worldStateChanges: aiResponse.worldStateChanges as Partial<WorldState>,
+    worldStateChanges: updatedWorldState,
     characterChanges: {
       hp: updatedCharacter.hp,
       xp: updatedCharacter.xp,
@@ -1261,7 +1346,7 @@ export async function processCoopAction(
       sessionNote: aiResponse.sessionNote,
     },
     characters[0],
-    { id: campaignId, world_state: ws, act: campaign.act }
+    { id: campaignId, world_state: ws, act: campaign.act, world_bible: wb }
   );
 
   // Apply consequences to Character 2 (world state already updated â€” applyConsequences re-fetches)
@@ -1274,7 +1359,7 @@ export async function processCoopAction(
       statusEffectChanges: aiResponse.character2Changes?.statusEffectChanges ?? undefined,
     },
     characters[1],
-    { id: campaignId, world_state: char1Result.updatedWorldState, act: campaign.act }
+    { id: campaignId, world_state: char1Result.updatedWorldState, act: campaign.act, world_bible: wb }
   );
 
   // Save story events for both characters
@@ -1314,7 +1399,7 @@ export async function processCoopAction(
 
   return {
     narration: aiResponse.narration,
-    worldStateChanges: aiResponse.worldStateChanges as Partial<WorldState>,
+    worldStateChanges: char2Result.updatedWorldState,
     characterChanges: {
       hp: updatedChar1.hp,
       xp: updatedChar1.xp,
