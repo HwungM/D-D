@@ -10,13 +10,19 @@ interface InviteModalProps {
 export default function InviteModal({ campaignId, campaignName, onClose }: InviteModalProps) {
   const [inviteCode, setInviteCode] = useState('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [retryTick, setRetryTick] = useState(0)
 
   useEffect(() => {
+    setLoading(true)
+    setError(false)
     campaignApi.createInvite(campaignId).then(({ data }) => {
       setInviteCode(data.invite.invite_code)
-    }).catch(() => {}).finally(() => setLoading(false))
-  }, [campaignId])
+    }).catch(() => {
+      setError(true)
+    }).finally(() => setLoading(false))
+  }, [campaignId, retryTick])
 
   const inviteUrl = `${window.location.origin}/join/${inviteCode}`
 
@@ -57,6 +63,19 @@ export default function InviteModal({ campaignId, campaignName, onClose }: Invit
               <div className="mt-5 border border-white/10 bg-white/[0.025] p-4">
                 <div className="h-3 w-3/4 animate-pulse bg-parchment-100/10" />
                 <div className="mt-3 h-3 w-1/2 animate-pulse bg-parchment-100/8" />
+              </div>
+            ) : error ? (
+              <div className="mt-5 border border-red-300/24 bg-red-300/[0.045] p-4 text-center">
+                <p className="font-serif text-sm leading-relaxed text-red-100/74">
+                  The gate would not open. The invite could not be created.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setRetryTick((tick) => tick + 1)}
+                  className="mt-4 border border-amber-300/46 bg-amber-300/12 px-4 py-2 font-fantasy text-[10px] uppercase tracking-[0.18em] text-amber-100 transition-all hover:border-amber-200"
+                >
+                  Try Again
+                </button>
               </div>
             ) : (
               <div className="mt-5 space-y-4">

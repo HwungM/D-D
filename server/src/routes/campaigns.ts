@@ -223,6 +223,21 @@ router.post('/:id/invite', requireAuth, async (req: AuthRequest, res: Response):
     return;
   }
 
+  // Reuse an existing unexpired invite for this campaign instead of minting a new one each time
+  const { data: existingInvite } = await supabaseAdmin
+    .from('party_invites')
+    .select()
+    .eq('campaign_id', id)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingInvite) {
+    res.json({ invite: existingInvite });
+    return;
+  }
+
   // Generate unique invite code
   const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
 

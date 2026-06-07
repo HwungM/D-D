@@ -16,7 +16,6 @@ export default function CampaignBrief() {
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [inviteLoading, setInviteLoading] = useState(false)
   const [inviteCopied, setInviteCopied] = useState(false)
-  const [waitingForParty, setWaitingForParty] = useState(false)
   const [partyMembers, setPartyMembers] = useState<Array<{
     userId: string
     username: string
@@ -39,6 +38,7 @@ export default function CampaignBrief() {
   const targetPlayerCount = playerPreferences?.targetPlayerCount || playerPreferences?.playerCount || (isCollaborative ? 2 : 1)
   const waitForParty = playerPreferences?.waitForParty !== false && targetPlayerCount > 1
   const readyCount = partyMembers.filter(member => member.character && member.character.is_alive !== false).length
+  const waitingForParty = Boolean(inviteCode) && targetPlayerCount > 1 && partyMembers.length < targetPlayerCount
 
   useEffect(() => {
     if (!campaignId || !isCollaborative) return
@@ -87,7 +87,6 @@ export default function CampaignBrief() {
     const inviteUrl = `${window.location.origin}/join/${inviteCode}`
     navigator.clipboard.writeText(inviteUrl).then(() => {
       setInviteCopied(true)
-      setWaitingForParty(true)
       setTimeout(() => setInviteCopied(false), 2000)
     })
   }

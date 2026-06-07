@@ -90,6 +90,7 @@ export default function Game() {
   const narratorRef = useRef<HTMLDivElement>(null)
   const historicalIds = useRef<Set<string>>(new Set())
   const coopWaitingRef = useRef(false)
+  const coopResolvedAtRef = useRef(0)
 
 
   const [showLevelUp, setShowLevelUp] = useState(false)
@@ -162,11 +163,14 @@ export default function Game() {
           setCoopSubmittedCount(pendingTurn.actions.length)
           setCoopNeededCount(Math.max(pendingTurn.actions.length + (submitted ? 1 : 0), readyMemberCount || pendingTurn.actions.length + 1))
           setCoopExpiresAt(pendingTurn.expiresAt || null)
-          if (submitted) {
+          // Guard against a stale poll re-locking input right after realtime resolved this turn
+          const justResolved = Date.now() - coopResolvedAtRef.current < 8000
+          if (submitted && !justResolved) {
             setCoopWaiting(true)
             setLoading(false)
           }
         } else {
+          coopResolvedAtRef.current = 0
           setCoopSubmittedCount(0)
           setCoopNeededCount(0)
           setCoopExpiresAt(null)
@@ -264,6 +268,7 @@ export default function Game() {
 
           if (coopWaitingRef.current && isOwnEvent && newEvent.event_type === 'narration') {
             addEvent(newEvent)
+            coopResolvedAtRef.current = Date.now()
             setCoopWaiting(false)
             setCoopSubmittedCount(0)
             setCoopNeededCount(0)
@@ -1037,7 +1042,12 @@ export default function Game() {
               <div className="h-2 w-2 shrink-0 border border-amber-100/40 bg-amber-300" style={{ animation: 'pulse 1.5s ease-in-out infinite' }} />
               <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 min-w-0">
                 <span className="font-fantasy text-[10px] uppercase tracking-[0.18em] text-amber-100/76">
-                  {coopPartnerName ? `Waiting for ${coopPartnerName}` : 'Waiting for your party'}
+                  {(() => {
+                    const holdouts = stillChoosingNames.filter(name => name !== 'you')
+                    if (holdouts.length > 0) return `Waiting for ${holdouts.join(' and ')}`
+                    if (coopPartnerName) return `Waiting for ${coopPartnerName}`
+                    return 'Waiting for your party'
+                  })()}
                 </span>
                 {(coopProgressLabel || stillChoosingNames.length > 0) && (
                   <span className="font-serif text-xs text-parchment-200/54">
