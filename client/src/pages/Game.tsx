@@ -34,7 +34,6 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 const DEFAULT_SCENES = [
-  '/media/everrealm-hero-desktop.png',
   '/media/loading/everrealm-crystal-party.png',
   '/media/loading/everrealm-portal-party.png',
   '/media/loading/everrealm-moonlit-party.png',
