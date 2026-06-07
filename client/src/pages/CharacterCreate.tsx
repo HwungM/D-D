@@ -244,7 +244,12 @@ export default function CharacterCreate() {
   const [backstory, setBackstory] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [lobbyState, setLobbyState] = useState<{ characterId: string; expectedPlayers: number } | null>(null)
+  const [lobbyState, setLobbyState] = useState<{
+    characterId: string
+    expectedPlayers: number
+    readyCount: number
+    allowStartNow: boolean
+  } | null>(null)
   const [rolledScores, setRolledScores] = useState<number[]>(() => generateSixScores())
   const [assignments, setAssignments] = useState<Partial<Record<StatKey, number>>>({})
 
@@ -262,6 +267,8 @@ export default function CharacterCreate() {
     countReadyCharacters().then((readyCount) => {
       if (readyCount >= lobbyState.expectedPlayers) {
         navigate(`/campaign/${campaignId}/play/${lobbyState.characterId}`)
+      } else {
+        setLobbyState(prev => prev ? { ...prev, readyCount } : prev)
       }
     }).catch(() => {})
 
@@ -277,6 +284,8 @@ export default function CharacterCreate() {
         countReadyCharacters().then((readyCount) => {
           if (readyCount >= lobbyState.expectedPlayers) {
             navigate(`/campaign/${campaignId}/play/${lobbyState.characterId}`)
+          } else {
+            setLobbyState(prev => prev ? { ...prev, readyCount } : prev)
           }
         }).catch(() => {})
       })
@@ -311,7 +320,7 @@ export default function CharacterCreate() {
       try {
         const { data: campData } = await campaignApi.get(campaignId)
         const preferences = campData.campaign.world_bible?.playerPreferences
-        const expectedPlayers = preferences?.playerCount || 1
+        const expectedPlayers = preferences?.targetPlayerCount || preferences?.playerCount || 1
         const shouldWaitForParty = preferences?.waitForParty !== false && expectedPlayers > 1
         if (shouldWaitForParty) {
           // Check current character count
@@ -320,7 +329,12 @@ export default function CharacterCreate() {
           if (readyCount >= expectedPlayers) {
             navigate(`/campaign/${campaignId}/play/${characterId}`)
           } else {
-            setLobbyState({ characterId, expectedPlayers })
+            setLobbyState({
+              characterId,
+              expectedPlayers,
+              readyCount,
+              allowStartNow: preferences?.partyIntent === 'collab_start_now' || preferences?.waitForParty === false,
+            })
             setLoading(false)
           }
           return
@@ -351,7 +365,10 @@ export default function CharacterCreate() {
           </div>
           <h2 className="font-fantasy text-3xl text-parchment-200 mb-3">Your character is ready.</h2>
           <p className="font-serif text-sm leading-relaxed mb-6" style={{ color: 'rgba(180,160,120,0.6)' }}>
-            Waiting for your companion to finish their character...
+            Waiting for your party to finish their characters.
+          </p>
+          <p className="font-serif text-xs uppercase tracking-widest mb-5" style={{ color: 'rgba(200,146,42,0.68)' }}>
+            {lobbyState.readyCount}/{lobbyState.expectedPlayers} ready
           </p>
           <div className="flex items-center justify-center gap-2 mb-8">
             {[0, 1, 2].map(j => (
@@ -361,16 +378,29 @@ export default function CharacterCreate() {
               }} />
             ))}
           </div>
-          <button
-            onClick={() => navigate(`/campaign/${campaignId}/play/${lobbyState.characterId}`)}
-            className="font-serif text-sm px-6 py-2.5 transition-all"
-            style={{
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'rgba(180,160,120,0.5)',
-            }}
-          >
-            Start Solo for now â†’
-          </button>
+          {lobbyState.allowStartNow ? (
+            <button
+              onClick={() => navigate(`/campaign/${campaignId}/play/${lobbyState.characterId}`)}
+              className="font-serif text-sm px-6 py-2.5 transition-all"
+              style={{
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'rgba(180,160,120,0.5)',
+              }}
+            >
+              Start now, invite later
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate(`/campaign/${campaignId}/brief`)}
+              className="font-serif text-sm px-6 py-2.5 transition-all"
+              style={{
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'rgba(180,160,120,0.5)',
+              }}
+            >
+              Return to party lobby
+            </button>
+          )}
         </div>
       </div>
     )

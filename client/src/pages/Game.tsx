@@ -117,6 +117,9 @@ export default function Game() {
   const [campaignType, setCampaignType] = useState<'adventure' | 'testing'>('adventure')
   const [coopWaiting, setCoopWaitingState] = useState(false)
   const [coopPartnerName, setCoopPartnerName] = useState('')
+  const [coopSubmittedCount, setCoopSubmittedCount] = useState(0)
+  const [coopNeededCount, setCoopNeededCount] = useState(0)
+  const [coopExpiresAt, setCoopExpiresAt] = useState<string | null>(null)
   function setCoopWaiting(val: boolean) { coopWaitingRef.current = val; setCoopWaitingState(val) }
 
   useEffect(() => {
@@ -134,6 +137,36 @@ export default function Game() {
       if (partner?.character?.name) setCoopPartnerName(partner.character.name)
     }).catch(() => {})
   }, [campaignId, user?.id])
+
+  const syncSceneState = useCallback(() => {
+    if (!campaignId || !characterId) return
+    gameApi.getScene(campaignId, characterId).then(({ data }) => {
+      if (data.character) {
+        setCharacter(data.character as Character)
+        if (data.character.is_alive === false) setTimeout(() => setShowDeathScreen(true), 300)
+      }
+      if (data.worldState) {
+        setWorldState(data.worldState)
+        const pendingTurn = data.worldState.pendingTurn
+        if (pendingTurn?.actions?.length) {
+          const submitted = pendingTurn.actions.some((action: { characterId: string }) => action.characterId === characterId)
+          const readyMemberCount = partyMembers.filter(member => member.character && member.character.is_alive !== false).length
+          setCoopSubmittedCount(pendingTurn.actions.length)
+          setCoopNeededCount(Math.max(pendingTurn.actions.length + (submitted ? 1 : 0), readyMemberCount || pendingTurn.actions.length + 1))
+          setCoopExpiresAt(pendingTurn.expiresAt || null)
+          if (submitted) {
+            setCoopWaiting(true)
+            setLoading(false)
+          }
+        } else {
+          setCoopSubmittedCount(0)
+          setCoopNeededCount(0)
+          setCoopExpiresAt(null)
+          if (coopWaitingRef.current) setCoopWaiting(false)
+        }
+      }
+    }).catch(() => {})
+  }, [campaignId, characterId, partyMembers.length, setCharacter, setLoading, setWorldState])
 
   useEffect(() => {
     if (!campaignId || !characterId) return
@@ -200,6 +233,15 @@ export default function Game() {
     refreshParty()
   }, [campaignId, characterId])
 
+  useEffect(() => {
+    if (!campaignId || !characterId || partyMembers.length < 2) return
+    const interval = window.setInterval(() => {
+      syncSceneState()
+      refreshParty()
+    }, 5000)
+    return () => window.clearInterval(interval)
+  }, [campaignId, characterId, partyMembers.length, refreshParty, syncSceneState])
+
   // Supabase Realtime
   useEffect(() => {
     if (!campaignId || !supabaseUrl || !supabaseAnonKey) return
@@ -215,12 +257,17 @@ export default function Game() {
           if (coopWaitingRef.current && isOwnEvent && newEvent.event_type === 'narration') {
             addEvent(newEvent)
             setCoopWaiting(false)
+            setCoopSubmittedCount(0)
+            setCoopNeededCount(0)
+            setCoopExpiresAt(null)
             setLoading(false)
             setIsTyping(true)
             const suggestedActions = Array.isArray(newEvent.metadata?.suggestedActions)
               ? newEvent.metadata.suggestedActions as string[]
               : undefined
             setLastActionResult({ narration: newEvent.content, suggestedActions } as ActionResult)
+            syncSceneState()
+            refreshParty()
             return
           }
 
@@ -234,7 +281,7 @@ export default function Game() {
       )
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [campaignId, characterId, addEvent, refreshParty])
+  }, [campaignId, characterId, addEvent, refreshParty, syncSceneState])
 
   useEffect(() => {
     if (narratorRef.current) narratorRef.current.scrollTop = narratorRef.current.scrollHeight
@@ -373,18 +420,24 @@ export default function Game() {
     })
     try {
       const { data } = await gameApi.action(characterId, campaignId, finalAction)
-      const result = data as ActionResult & { status?: string }
+      const result = data as ActionResult & { status?: string; submittedCount?: number; neededCount?: number; expiresAt?: string }
       setLastActionResult(result)
 
       // Co-op waiting — partner hasn't submitted yet
       if (result.status === 'waiting') {
         setCoopWaiting(true)
+        setCoopSubmittedCount(typeof result.submittedCount === 'number' ? result.submittedCount : 1)
+        setCoopNeededCount(typeof result.neededCount === 'number' ? result.neededCount : Math.max(2, partyMembers.length))
+        setCoopExpiresAt(typeof result.expiresAt === 'string' ? result.expiresAt : null)
         setLoading(false)
         return
       }
       // Co-op complete — partner submitted, we got the combined narration
       if (result.status === 'complete') {
         setCoopWaiting(false)
+        setCoopSubmittedCount(0)
+        setCoopNeededCount(0)
+        setCoopExpiresAt(null)
       }
 
       // Player-driven dice roll
@@ -874,9 +927,16 @@ export default function Game() {
               borderTop: '1px solid rgba(200,146,42,0.15)',
             }}>
               <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#c8922a', animation: 'pulse 1.5s ease-in-out infinite' }} />
-              <span className="font-serif text-xs" style={{ color: 'rgba(200,146,42,0.7)' }}>
-                {coopPartnerName ? `Waiting for ${coopPartnerName}...` : 'Waiting for your party...'}
-              </span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 min-w-0">
+                <span className="font-serif text-xs" style={{ color: 'rgba(200,146,42,0.78)' }}>
+                  {coopPartnerName ? `Waiting for ${coopPartnerName}` : 'Waiting for your party'}
+                </span>
+                {coopNeededCount > 0 && (
+                  <span className="font-serif text-xs" style={{ color: 'rgba(180,160,120,0.48)' }}>
+                    {coopSubmittedCount}/{coopNeededCount} actions locked in{coopExpiresAt ? ` - expires ${new Date(coopExpiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
+                  </span>
+                )}
+              </div>
             </div>
           )}
           {inCombat && currentCharacter && (
