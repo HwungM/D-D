@@ -20,17 +20,20 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
   if (others.length === 0) return null
 
   return (
-    <div className="shrink-0 bg-slate-950 px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+    <div className="shrink-0 px-4 py-3" style={{
+      background: 'linear-gradient(180deg, rgba(13,18,28,0.94), rgba(6,8,13,0.98))',
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
+    }}>
       <div className="flex items-center justify-between gap-3 mb-2">
-        <span className="text-xs uppercase tracking-widest text-slate-500 shrink-0">Party</span>
-        <span className="text-xs font-serif text-slate-600">{others.length} companion{others.length === 1 ? '' : 's'}</span>
+        <span className="text-xs uppercase tracking-widest shrink-0" style={{ color: 'rgba(34,211,238,0.52)' }}>Party</span>
+        <span className="text-xs font-serif" style={{ color: 'rgba(180,160,120,0.42)' }}>{others.length} companion{others.length === 1 ? '' : 's'}</span>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         {others.map(member => {
           const char = member.character
           if (!char) {
             return (
-              <div key={member.userId} className="flex items-center gap-2 px-2 py-1.5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div key={member.userId} className="flex items-center gap-2 px-2 py-1.5 rounded-md" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700" />
                 <div>
                   <p className="text-xs text-slate-400 font-serif">{member.username}</p>
@@ -47,7 +50,10 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
           const lastLocation = worldState?.characterLocations?.[char.id]
 
           return (
-            <div key={member.userId} className="flex items-center gap-2 min-w-[180px] px-2 py-1.5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div key={member.userId} className="flex items-center gap-2 min-w-[180px] px-2 py-1.5 rounded-md" style={{
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(34,211,238,0.025))',
+              border: '1px solid rgba(255,255,255,0.07)',
+            }}>
               <div className="relative shrink-0">
                 <img
                   src={char.portrait_url || racePortraitUrl(char.race)}

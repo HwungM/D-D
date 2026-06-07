@@ -684,17 +684,19 @@ export default function Game() {
     currentCharacter?.name,
     ...partyMembersHere.map(member => member.character?.name),
   ].filter(Boolean) as string[]
+  const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', world: 'World', journal: 'Journal' } as const
 
   // -- Main game layout ------------------------------------------------------
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: '#06080d', color: '#d4c5a0' }}>
+    <div className="everrealm-game-shell h-screen flex flex-col overflow-hidden" style={{ background: '#06080d', color: '#d4c5a0' }}>
 
       {/* -- Header -- */}
-      <header className="shrink-0 flex items-center justify-between px-3 py-2 gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' as const,
-        background: 'rgba(6,8,13,0.97)',
-        borderBottom: '1px solid rgba(255,255,255,0.055)',
-        backdropFilter: 'blur(10px)',
-        zIndex: 20,
+      <header className="everrealm-game-header shrink-0 flex items-center justify-between px-3 sm:px-4 py-2.5 gap-3 overflow-x-auto" style={{ scrollbarWidth: 'none' as const,
+        background: 'linear-gradient(90deg, rgba(6,8,13,0.97), rgba(13,18,28,0.96), rgba(6,8,13,0.97))',
+        borderBottom: '1px solid rgba(200,146,42,0.16)',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.28)',
+        backdropFilter: 'blur(14px)',
+        zIndex: 30,
       }}>
         {/* Left: nav + character */}
         <div className="flex items-center gap-3 min-w-0">
@@ -756,7 +758,7 @@ export default function Game() {
                 onClick={() => { setSidebarTab(tab); setShowSidebar(sidebarTab !== tab || !showSidebar) }}
                 className="font-serif text-xs px-2.5 py-1 transition-all"
                 style={isActive
-                  ? { border: '1px solid rgba(192,57,43,0.4)', color: '#e8b09a', background: 'rgba(192,57,43,0.1)' }
+                  ? { border: '1px solid rgba(34,211,238,0.36)', color: '#bff4ff', background: 'rgba(34,211,238,0.08)' }
                   : { border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.45)' }
                 }
               >
@@ -832,11 +834,15 @@ export default function Game() {
       )}
 
       {/* -- Main content area -- */}
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+      <div className="everrealm-game-main flex flex-col lg:flex-row flex-1 overflow-hidden gap-0 lg:gap-3 lg:p-3 min-h-0">
 
         {/* -- LEFT: Persistent scene panel -- */}
-        <div className="flex flex-col shrink-0 overflow-hidden md:border-r" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-          <div className="w-full h-[32vh] min-h-[220px] md:w-[420px] md:h-[48vh] md:min-h-[360px]">
+        <div className="everrealm-scene-column flex flex-col shrink-0 overflow-hidden lg:rounded-md" style={{
+          border: '1px solid rgba(200,146,42,0.12)',
+          background: 'rgba(255,255,255,0.025)',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.32)',
+        }}>
+          <div className="w-full h-[34vh] min-h-[230px] lg:w-[42vw] xl:w-[46vw] lg:max-w-[760px] lg:h-full lg:min-h-0">
             <SceneDisplay
               imageUrl={currentSceneImage}
               location={worldState?.currentLocation}
@@ -858,22 +864,49 @@ export default function Game() {
           )}
         </div>
 
-        {/* -- RIGHT: Narrative / Sidebar -- */}
-        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-
-          {showSidebar ? (
-            /* Sidebar content */
-            <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.06) transparent' }}>
-              <SidebarErrorBoundary tabName={sidebarTab}>
-                {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
-                {sidebarTab === 'quests' && <QuestLog worldState={isNewCharacter ? null : worldState} />}
-                {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
-                {sidebarTab === 'journal' && <JournalTab events={events} characterId={characterId} />}
-              </SidebarErrorBoundary>
+        {/* -- CENTER: Narrative feed -- */}
+        <div className="everrealm-story-column flex-1 flex flex-col overflow-hidden min-h-0 lg:rounded-md" style={{
+          border: '1px solid rgba(255,255,255,0.07)',
+          background: 'linear-gradient(180deg, rgba(13,18,28,0.92), rgba(6,8,13,0.98))',
+          boxShadow: '0 20px 70px rgba(0,0,0,0.24)',
+        }}>
+          <div className="shrink-0 px-4 py-3 flex items-center justify-between gap-3" style={{
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            background: 'linear-gradient(90deg, rgba(200,146,42,0.06), rgba(34,211,238,0.035), transparent)',
+          }}>
+            <div className="min-w-0">
+              <p className="font-serif text-[11px] uppercase" style={{ color: 'rgba(34,211,238,0.68)', letterSpacing: '0.16em' }}>
+                Dungeon Master
+              </p>
+              <h1 className="font-fantasy text-base truncate" style={{ color: '#f2dfb6' }}>
+                {campaignName || 'The Everrealm'}
+              </h1>
             </div>
-          ) : (
-            /* Narrative feed */
-            <div ref={narratorRef} className="flex-1 overflow-y-auto py-2 space-y-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.06) transparent' }}>
+            <div className="hidden sm:flex items-center gap-2 shrink-0">
+              {worldState?.sceneState?.purpose && (
+                <span className="font-serif text-[10px] uppercase px-2 py-1" style={{
+                  color: 'rgba(232,212,168,0.72)',
+                  background: 'rgba(200,146,42,0.06)',
+                  border: '1px solid rgba(200,146,42,0.14)',
+                  letterSpacing: '0.1em',
+                }}>
+                  {worldState.sceneState.purpose.replace(/_/g, ' ')}
+                </span>
+              )}
+              {partyHereNames.length > 1 && (
+                <span className="font-serif text-[10px] uppercase px-2 py-1" style={{
+                  color: 'rgba(191,244,255,0.7)',
+                  background: 'rgba(34,211,238,0.06)',
+                  border: '1px solid rgba(34,211,238,0.14)',
+                  letterSpacing: '0.1em',
+                }}>
+                  Party gathered
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div ref={narratorRef} className="everrealm-story-feed flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.18) transparent' }}>
 
               {showDice && lastActionResult?.diceRoll && (
                 <div className="px-4">
@@ -920,17 +953,16 @@ export default function Game() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
+          </div>
 
           {/* Party Action toggle - only shown when co-op members share same location */}
           {partyMembersHere.length > 0 && (
-            <div className="px-4 pt-2 pb-0 flex items-center gap-2">
+            <div className="px-4 pt-2 pb-0 flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setPartyActionMode(p => !p)}
-                className="flex items-center gap-1.5 font-serif text-xs px-2.5 py-1 transition-all"
+                className="flex items-center gap-1.5 font-serif text-xs px-2.5 py-1.5 rounded-sm transition-all"
                 style={partyActionMode
-                  ? { border: '1px solid rgba(200,146,42,0.5)', color: 'rgba(200,146,42,0.9)', background: 'rgba(200,146,42,0.08)' }
+                  ? { border: '1px solid rgba(34,211,238,0.42)', color: 'rgba(191,244,255,0.9)', background: 'rgba(34,211,238,0.08)' }
                   : { border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.4)' }
                 }
               >
@@ -947,7 +979,7 @@ export default function Game() {
           )}
           {coopWaiting && (
             <div className="px-4 py-2 flex items-center gap-2 shrink-0" style={{
-              background: 'rgba(200,146,42,0.05)',
+              background: 'linear-gradient(90deg, rgba(200,146,42,0.07), rgba(34,211,238,0.04))',
               borderTop: '1px solid rgba(200,146,42,0.15)',
             }}>
               <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#c8922a', animation: 'pulse 1.5s ease-in-out infinite' }} />
@@ -982,7 +1014,67 @@ export default function Game() {
             isCoop={partyMembersHere.length > 0}
           />
         </div>
+
+        {showSidebar && (
+          <aside className="hidden xl:flex w-[360px] shrink-0 flex-col overflow-hidden rounded-md animate-slide-in-right" style={{
+            border: '1px solid rgba(34,211,238,0.14)',
+            background: 'linear-gradient(180deg, rgba(13,18,28,0.98), rgba(6,8,13,0.98))',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.34)',
+          }}>
+            <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <div>
+                <p className="font-serif text-[10px] uppercase" style={{ color: 'rgba(34,211,238,0.58)', letterSpacing: '0.16em' }}>Codex</p>
+                <h2 className="font-fantasy text-base" style={{ color: '#f2dfb6' }}>{sidebarLabels[sidebarTab]}</h2>
+              </div>
+              <button
+                onClick={() => setShowSidebar(false)}
+                className="font-serif text-xs px-2.5 py-1 rounded-sm transition-all"
+                style={{ border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(180,160,120,0.56)', background: 'rgba(255,255,255,0.03)' }}
+              >
+                Close
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.18) transparent' }}>
+              <SidebarErrorBoundary tabName={sidebarTab}>
+                {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
+                {sidebarTab === 'quests' && <QuestLog worldState={isNewCharacter ? null : worldState} />}
+                {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
+                {sidebarTab === 'journal' && <JournalTab events={events} characterId={characterId} />}
+              </SidebarErrorBoundary>
+            </div>
+          </aside>
+        )}
       </div>
+
+      {showSidebar && (
+        <div className="fixed inset-0 z-40 xl:hidden" style={{ background: 'rgba(0,0,0,0.58)', backdropFilter: 'blur(6px)' }}>
+          <button className="absolute inset-0 cursor-default" aria-label="Close panel" onClick={() => setShowSidebar(false)} />
+          <div className="absolute inset-x-2 bottom-2 max-h-[86vh] overflow-hidden rounded-md animate-slide-up-panel" style={{
+            border: '1px solid rgba(34,211,238,0.18)',
+            background: 'linear-gradient(180deg, rgba(13,18,28,0.99), rgba(6,8,13,0.99))',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.45)',
+          }}>
+            <div className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <h2 className="font-fantasy text-base" style={{ color: '#f2dfb6' }}>{sidebarLabels[sidebarTab]}</h2>
+              <button
+                onClick={() => setShowSidebar(false)}
+                className="font-serif text-xs px-3 py-1.5 rounded-sm"
+                style={{ border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(180,160,120,0.7)', background: 'rgba(255,255,255,0.04)' }}
+              >
+                Close
+              </button>
+            </div>
+            <div className="max-h-[74vh] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.18) transparent' }}>
+              <SidebarErrorBoundary tabName={sidebarTab}>
+                {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
+                {sidebarTab === 'quests' && <QuestLog worldState={isNewCharacter ? null : worldState} />}
+                {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
+                {sidebarTab === 'journal' && <JournalTab events={events} characterId={characterId} />}
+              </SidebarErrorBoundary>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Overlays */}
       {showLevelUp && levelUpData && (

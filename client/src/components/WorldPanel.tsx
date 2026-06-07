@@ -5,10 +5,10 @@ interface WorldPanelProps {
 }
 
 const DISPOSITION_STYLE: Record<string, { color: string; label: string; icon: string }> = {
-  friendly: { color: '#4ade80', label: 'Friendly', icon: '🤝' },
-  neutral:  { color: '#c89228', label: 'Neutral',  icon: '😐' },
-  hostile:  { color: '#f87171', label: 'Hostile',  icon: '⚔️' },
-  unknown:  { color: 'rgba(180,160,120,0.4)', label: 'Unknown', icon: '❓' },
+  friendly: { color: '#4ade80', label: 'Friendly', icon: '+' },
+  neutral:  { color: '#c89228', label: 'Neutral',  icon: '=' },
+  hostile:  { color: '#f87171', label: 'Hostile',  icon: '!' },
+  unknown:  { color: 'rgba(180,160,120,0.4)', label: 'Unknown', icon: '?' },
 }
 
 function reputationBar(value: unknown) {
@@ -30,7 +30,7 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
   if (!worldState) {
     return (
       <div className="p-5 text-center" style={{ color: 'rgba(160,140,110,0.4)' }}>
-        <p className="font-serif text-sm italic">The world is still taking shape…</p>
+        <p className="font-serif text-sm italic">The world is still taking shape...</p>
       </div>
     )
   }
@@ -47,8 +47,21 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
 
   return (
     <div className="p-4 space-y-5 text-sm">
+      <div className="grid grid-cols-2 gap-2">
+        {worldState.currentLocation && (
+          <div className="rounded-md px-3 py-2" style={{ background: 'rgba(34,211,238,0.045)', border: '1px solid rgba(34,211,238,0.12)' }}>
+            <p className="text-[10px] uppercase tracking-widest" style={{ color: 'rgba(34,211,238,0.55)' }}>Location</p>
+            <p className="font-serif text-xs truncate" style={{ color: '#d4c5a0' }}>{worldState.currentLocation}</p>
+          </div>
+        )}
+        {worldState.weather && (
+          <div className="rounded-md px-3 py-2" style={{ background: 'rgba(200,146,42,0.045)', border: '1px solid rgba(200,146,42,0.12)' }}>
+            <p className="text-[10px] uppercase tracking-widest" style={{ color: 'rgba(200,146,42,0.55)' }}>Weather</p>
+            <p className="font-serif text-xs truncate" style={{ color: '#d4c5a0' }}>{safeStr(worldState.weather).replace(/_/g, ' ')}</p>
+          </div>
+        )}
+      </div>
 
-      {/* Campaign Journal */}
       {journal.length > 0 && (
         <div>
           <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)' }}>Campaign Journal</p>
@@ -56,10 +69,10 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
             {journal.slice(-4).map((entry, i) => {
               const e = entry as Record<string, unknown>
               return (
-                <div key={i} className="px-3 py-2.5" style={{ background: 'rgba(200,146,42,0.04)', border: '1px solid rgba(200,146,42,0.12)' }}>
+                <div key={i} className="rounded-md px-3 py-2.5" style={{ background: 'rgba(200,146,42,0.04)', border: '1px solid rgba(200,146,42,0.12)' }}>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-mono" style={{ color: 'rgba(200,146,42,0.5)' }}>
-                      Act {safeStr(e.actNumber)} · Session {safeStr(e.sessionNumber)}
+                      Act {safeStr(e.actNumber)} / Session {safeStr(e.sessionNumber)}
                     </span>
                   </div>
                   <p className="font-serif text-xs leading-relaxed" style={{ color: 'rgba(180,160,120,0.7)' }}>
@@ -69,7 +82,7 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
                     <div className="mt-1.5 space-y-0.5">
                       {(e.keyDecisions as unknown[]).slice(0, 3).map((d, j) => (
                         <p key={j} className="text-xs" style={{ color: 'rgba(160,140,110,0.5)', paddingLeft: '8px' }}>
-                          · {safeStr(d)}
+                          - {safeStr(d)}
                         </p>
                       ))}
                     </div>
@@ -81,7 +94,6 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
         </div>
       )}
 
-      {/* NPCs */}
       <div>
         <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)' }}>Known Characters</p>
         {npcs.length === 0 ? (
@@ -92,17 +104,17 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
               if (!npc || typeof npc !== 'object') return null
               const disp = DISPOSITION_STYLE[safeStr(npc.disposition)] ?? DISPOSITION_STYLE.unknown
               return (
-                <div key={i} className="px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div key={i} className="rounded-md px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-base leading-none">{disp.icon}</span>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full text-xs" style={{ color: disp.color, background: `${disp.color}18`, border: `1px solid ${disp.color}33` }}>{disp.icon}</span>
                     <span className="font-serif text-xs" style={{ color: '#d4c5a0' }}>{safeStr(npc.name)}</span>
                     <span className="ml-auto text-xs" style={{ color: disp.color, fontSize: '10px' }}>{disp.label}</span>
                   </div>
                   {npc.notes && (
-                    <p className="text-xs leading-relaxed" style={{ color: 'rgba(160,140,110,0.55)', paddingLeft: '26px' }}>{safeStr(npc.notes)}</p>
+                    <p className="text-xs leading-relaxed" style={{ color: 'rgba(160,140,110,0.55)', paddingLeft: '28px' }}>{safeStr(npc.notes)}</p>
                   )}
                   {npc.lastMet && (
-                    <p className="text-xs mt-0.5" style={{ color: 'rgba(160,140,110,0.3)', paddingLeft: '26px', fontSize: '10px' }}>Last seen: {safeStr(npc.lastMet)}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'rgba(160,140,110,0.3)', paddingLeft: '28px', fontSize: '10px' }}>Last seen: {safeStr(npc.lastMet)}</p>
                   )}
                 </div>
               )
@@ -111,7 +123,6 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
         )}
       </div>
 
-      {/* Faction standings */}
       {factionEntries.length > 0 && (
         <div>
           <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)' }}>Faction Standings</p>
@@ -134,15 +145,14 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
         </div>
       )}
 
-      {/* Session notes / DM notes */}
       {fallenHeroes.length > 0 && (
         <div>
           <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)', letterSpacing: '0.15em' }}>Fallen Heroes</p>
           <div className="space-y-2">
             {fallenHeroes.map((hero, i) => (
-              <div key={i} className="px-3 py-2" style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)' }}>
+              <div key={i} className="rounded-md px-3 py-2" style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)' }}>
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span style={{ color: 'rgba(239,68,68,0.6)', fontSize: 10 }}>☠</span>
+                  <span style={{ color: 'rgba(239,68,68,0.6)', fontSize: 10 }}>X</span>
                   <span className="font-serif text-xs font-semibold" style={{ color: 'rgba(220,160,140,0.8)' }}>
                     {safeStr(hero.name)}
                   </span>
@@ -152,7 +162,7 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
                 </div>
                 <p className="font-serif text-xs italic" style={{ color: 'rgba(180,140,130,0.6)' }}>
                   {safeStr(hero.cause)}
-                  {hero.location ? ` — ${safeStr(hero.location)}` : ''}
+                  {hero.location ? ` - ${safeStr(hero.location)}` : ''}
                 </p>
               </div>
             ))}
@@ -165,7 +175,7 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
           <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)' }}>DM Notes</p>
           <div className="space-y-1">
             {sessionNotes.map((note, i) => (
-              <p key={i} className="font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(160,140,110,0.5)' }}>• {safeStr(note)}</p>
+              <p key={i} className="font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(160,140,110,0.5)' }}>- {safeStr(note)}</p>
             ))}
           </div>
         </div>

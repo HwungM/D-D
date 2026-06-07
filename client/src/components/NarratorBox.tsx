@@ -38,7 +38,7 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
 
   useEffect(() => {
     if (!text) return
-    // Historical events show instantly — no animation, no sound
+    // Historical events show instantly, with no animation or sound.
     if (instant) {
       setDisplayed(text)
       setTyping(false)
@@ -67,23 +67,23 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
   if (isPlayerAction) {
     const isOtherPlayer = !!playerName
     return (
-      <div className="animate-fade-in flex items-start gap-3 px-2 py-1">
+      <div className="animate-fade-in flex items-start gap-3 px-1 sm:px-2 py-1">
         <div
           className="shrink-0 w-8 h-8 rounded-full border overflow-hidden flex items-center justify-center text-xs font-fantasy"
           style={isOtherPlayer
             ? { background: 'rgba(139,92,246,0.15)', borderColor: 'rgba(139,92,246,0.5)', color: '#a78bfa' }
-            : { background: 'rgba(100,116,139,0.3)', borderColor: 'rgba(100,116,139,0.5)', color: '#cbd5e1' }
+            : { background: 'rgba(34,211,238,0.1)', borderColor: 'rgba(34,211,238,0.34)', color: '#bff4ff' }
           }
         >
           {playerPortrait ? (
             <img src={playerPortrait} alt="" className="w-full h-full object-cover object-top" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          ) : '⚔'}
+          ) : '>'}
         </div>
         <div
-          className="flex-1 border px-3 py-2"
+          className="flex-1 border rounded-md px-3 py-2"
           style={isOtherPlayer
-            ? { background: 'rgba(139,92,246,0.05)', borderColor: 'rgba(139,92,246,0.25)' }
-            : { background: 'rgba(30,41,59,0.6)', borderColor: 'rgba(51,65,85,0.8)' }
+            ? { background: 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(34,211,238,0.035))', borderColor: 'rgba(139,92,246,0.25)' }
+            : { background: 'linear-gradient(135deg, rgba(30,41,59,0.68), rgba(13,18,28,0.78))', borderColor: 'rgba(148,163,184,0.16)' }
           }
         >
           {isOtherPlayer && (
@@ -104,14 +104,13 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
   const borderColor = MOOD_BORDER_COLOR[mood]
 
   return (
-    <div className="animate-fade-in narrator-box relative">
+    <div className="animate-fade-in narrator-box relative px-1 sm:px-2">
       <div
-        className="relative p-5 pt-6"
+        className="relative p-4 sm:p-5 rounded-md overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, #f5e6c8 0%, #ede0b8 30%, #f0dba8 60%, #e8d49a 100%)',
-          borderTop: `2px solid ${borderColor}`,
-          borderBottom: `2px solid ${borderColor}`,
-          boxShadow: `0 0 15px ${borderColor}, inset 0 0 30px rgba(0,0,0,0.08)`,
+          background: 'linear-gradient(135deg, rgba(245,230,200,0.96) 0%, rgba(237,224,184,0.94) 52%, rgba(240,219,168,0.92) 100%)',
+          border: `1px solid ${borderColor}`,
+          boxShadow: `0 14px 36px rgba(0,0,0,0.28), 0 0 16px ${borderColor}, inset 0 0 30px rgba(0,0,0,0.08)`,
           animation: 'flickerBorder 4s ease-in-out infinite',
         }}
       >
@@ -121,10 +120,10 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.2'/%3E%3C/svg%3E")`,
           }}
         />
-        <div className="flex gap-4 relative z-10">
+        <div className="flex gap-3 sm:gap-4 relative z-10">
           <div className="shrink-0">
             <div
-              className="w-[60px] h-[60px] rounded-full overflow-hidden border-2 relative"
+              className="w-12 h-12 sm:w-[60px] sm:h-[60px] rounded-full overflow-hidden border-2 relative"
               style={{
                 borderColor: 'rgba(139,90,43,0.5)',
                 boxShadow: `0 0 12px ${borderColor}, inset 0 0 8px rgba(0,0,0,0.3)`,
@@ -134,12 +133,12 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
               <img src={portraitUrl} alt="Dungeon Master" className="w-full h-full object-cover" />
             </div>
             {typing && (
-              <div className="mt-1 text-center text-amber-700/70 text-base select-none" style={{ animation: 'candleFlame 0.8s ease-in-out infinite' }}>
-                ✍
+              <div className="mt-1 text-center text-amber-700/70 text-xs select-none" style={{ animation: 'candleFlame 0.8s ease-in-out infinite' }}>
+                writing
               </div>
             )}
           </div>
-          <p className="font-serif text-sm leading-relaxed text-gray-800 whitespace-pre-wrap flex-1 pt-1">
+          <p className="font-serif text-sm sm:text-[15px] leading-relaxed text-gray-800 whitespace-pre-wrap flex-1 pt-0.5">
             {displayed}
             {typing && (
               <span className="inline-block w-0.5 h-4 bg-gray-600 ml-0.5 align-middle" style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />

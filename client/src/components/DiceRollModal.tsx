@@ -249,7 +249,7 @@ export default function DiceRollModal({ narration, rollContext, onRoll, onContin
                   </span>
                 )}
                 {' '}= <span style={{ color: getDieColor(), fontWeight: 'bold' }}>{total}</span>
-                {' '}vs DC {dc} —{' '}
+                {' '}vs DC {dc} -{' '}
                 <span style={{
                   color: isCritSuccess ? '#fbbf24' : isCritFail ? '#ef4444' : success ? '#4ade80' : 'rgba(220,80,80,0.8)',
                   fontWeight: 'bold',
@@ -268,7 +268,7 @@ export default function DiceRollModal({ narration, rollContext, onRoll, onContin
           )}
         </div>
 
-        {/* Continue button — player must click to see outcome */}
+        {/* Continue button - player must click to see outcome */}
         {showContinue && finalResult !== null && (
           <button
             onClick={onContinue}
@@ -281,7 +281,7 @@ export default function DiceRollModal({ narration, rollContext, onRoll, onContin
               letterSpacing: '0.1em',
             }}
           >
-            {isCritSuccess ? 'See What Happens →' : isCritFail ? 'Face the Consequences →' : success ? 'Claim Your Victory →' : 'Accept Your Fate →'}
+            {isCritSuccess ? 'See What Happens >' : isCritFail ? 'Face the Consequences >' : success ? 'Claim Your Victory >' : 'Accept Your Fate >'}
           </button>
         )}
       </div>
