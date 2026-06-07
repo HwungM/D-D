@@ -265,10 +265,27 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
     merged.activeQuests = Array.from(existing.values());
   }
 
-  // discoveredLocations: union, capped at 100
+  // discoveredLocations: union, capped at 100. When over the cap, keep the most
+  // significant places (most-visited, most-recently-visited) rather than just
+  // the most-recently-discovered — otherwise a beloved home base discovered
+  // early gets silently evicted the moment the party finds its 101st location.
   if (changes.discoveredLocations) {
     const all = Array.from(new Set([...(current.discoveredLocations || []), ...changes.discoveredLocations]));
-    merged.discoveredLocations = all.slice(-100);
+    if (all.length <= 100) {
+      merged.discoveredLocations = all;
+    } else {
+      const nodeByName = new Map((current.locationGraph?.nodes || []).map(node => [node.name.toLowerCase(), node]));
+      const scored = all.map((name, index) => {
+        const node = nodeByName.get(name.toLowerCase());
+        const visits = node?.visits || 0;
+        const lastVisited = node?.lastVisitedAt ? Date.parse(node.lastVisitedAt) || 0 : 0;
+        // Recently-discovered-but-unvisited entries still rank above stale, never-revisited ones.
+        const recencyBonus = index;
+        return { name, score: visits * 1000 + (lastVisited > 0 ? 1 : 0) * 500 + recencyBonus };
+      });
+      scored.sort((a, b) => b.score - a.score);
+      merged.discoveredLocations = scored.slice(0, 100).map(entry => entry.name);
+    }
   }
 
   // factionStandings: merge (last write wins per faction)
