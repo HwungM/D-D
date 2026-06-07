@@ -70,7 +70,7 @@ const SYSTEMS = [
   { name: 'Scene Art', status: 'Visual-aware', accent: '#22d3ee' },
   { name: 'Memory', status: 'Long campaign spine', accent: '#f59e0b' },
   { name: 'Maps', status: 'Queued next', accent: '#a78bfa' },
-  { name: 'Inventory', status: 'Needs remodel', accent: '#f97316' },
+  { name: 'Inventory', status: 'Codex-ready', accent: '#f97316' },
 ]
 
 const FEATURED_IMAGES = [
