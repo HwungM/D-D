@@ -640,6 +640,20 @@ RULES: Maintain enemy continuity - they remember every action. When an enemy is 
 CURRENT SITUATION (summary of what is happening RIGHT NOW):
 ${worldState.currentSceneSummary}` : '';
 
+  const locationGraph = worldState.locationGraph;
+  const currentMapNode = locationGraph?.nodes?.find(node => node.name === (locationGraph.currentLocation || worldState.currentLocation));
+  const mapContextBlock = locationGraph ? `
+LOCATION MAP:
+- Current location: ${locationGraph.currentLocation || worldState.currentLocation || 'unknown'}
+- Nearby roads: ${locationGraph.nearby?.join(', ') || 'none mapped yet'}
+- Current markers: ${[
+    currentMapNode?.npcsPresent?.length ? `NPCs: ${currentMapNode.npcsPresent.join(', ')}` : null,
+    currentMapNode?.questHooks?.length ? `Quests: ${currentMapNode.questHooks.join(', ')}` : null,
+    currentMapNode?.connectedTo?.length ? `Paths: ${currentMapNode.connectedTo.join(', ')}` : null,
+  ].filter(Boolean).join(' | ') || 'none'}
+- Known regions: ${locationGraph.regions?.slice(0, 5).map(region => `${region.name} (${region.locations.slice(0, 4).join(', ')})`).join(' | ') || 'none'}
+Use nearby mapped places when travel, investigation, or pursuit is relevant. If a new named place is discovered, moved to, or becomes important, include it in worldStateChanges.discoveredLocations and set worldStateChanges.currentLocation when the party actually changes location.` : '';
+
   const visibleSceneInputs = [
     worldState.currentLocation ? `location: ${worldState.currentLocation}` : null,
     worldState.timeOfDay ? `time: ${worldState.timeOfDay}` : null,
@@ -716,6 +730,7 @@ WORLD STATE:
 - ACTIVE NPC: ${worldState.activeNPC || 'none - character is not in conversation with anyone specific'}
 - Actions since last high-stakes moment: ${worldState.actionCount ? (worldState.actionCount - (worldState.lastHighStakesAction || 0)) : 'unknown'}
 ${keyNpcContext}${npcContext}${questContext}
+${mapContextBlock}
 
 CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATION: ${worldState.currentLocation || 'Unknown'}
 CLASS: ${character.class} | RACE: ${character.race} | LEVEL: ${character.level}${unusualNote}

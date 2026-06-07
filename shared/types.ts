@@ -128,6 +128,29 @@ export interface CampaignSpineSnapshot {
   updatedAt: string;
 }
 
+export interface LocationNode {
+  name: string;
+  region: string;
+  description?: string;
+  type?: 'city' | 'region' | 'dungeon' | 'wilderness' | 'landmark' | 'unknown';
+  discoveredAt?: string;
+  lastVisitedAt?: string;
+  visits: number;
+  connectedTo: string[];
+  npcsPresent: string[];
+  questHooks: string[];
+  partyHere: string[];
+  tags: string[];
+}
+
+export interface LocationGraph {
+  currentLocation?: string;
+  nodes: LocationNode[];
+  regions: { name: string; locations: string[] }[];
+  nearby: string[];
+  updatedAt: string;
+}
+
 export interface CombatEnemy {
   name: string;
   archetype: 'beast' | 'soldier' | 'mage' | 'boss' | 'minion';
@@ -160,6 +183,7 @@ export interface WorldState {
   completedEvents?: string[];
   factionStandings?: Record<string, number>;
   discoveredLocations?: string[];
+  locationGraph?: LocationGraph;
   globalFlags?: Record<string, boolean | string | number>;
   npcMemory?: NpcMemory[];
   sessionNotes?: string[];

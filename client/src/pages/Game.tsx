@@ -17,6 +17,7 @@ import PartyPanel from '../components/PartyPanel'
 import InviteModal from '../components/InviteModal'
 import QuestLog from '../components/QuestLog'
 import WorldPanel from '../components/WorldPanel'
+import MapPanel from '../components/MapPanel'
 import DeathScreen from '../components/DeathScreen'
 import CombatPanel from '../components/CombatPanel'
 import EpilogueScreen from '../components/EpilogueScreen'
@@ -85,7 +86,7 @@ export default function Game() {
   const [started, setStarted] = useState(false)
   const [showDice, setShowDice] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
-  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'world'>('character')
+  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'map' | 'world'>('character')
   const narratorRef = useRef<HTMLDivElement>(null)
   const historicalIds = useRef<Set<string>>(new Set())
   const coopWaitingRef = useRef(false)
@@ -741,7 +742,7 @@ export default function Game() {
     currentCharacter?.name,
     ...partyMembersHere.map(member => member.character?.name),
   ].filter(Boolean) as string[]
-  const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', world: 'World' } as const
+  const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', map: 'Realm Map', world: 'World' } as const
   const sceneArtUrl = visibleSceneArt(currentSceneImage)
 
   // -- Main game layout ------------------------------------------------------
@@ -811,8 +812,8 @@ export default function Game() {
               Invite
             </button>
           )}
-          {(['character', 'quests', 'world'] as const).map(tab => {
-            const labels = { character: 'Sheet', quests: 'Quests', world: 'World' }
+          {(['character', 'quests', 'map', 'world'] as const).map(tab => {
+            const labels = { character: 'Sheet', quests: 'Quests', map: 'Map', world: 'World' }
             const isActive = showSidebar && sidebarTab === tab
             return (
               <button
@@ -1085,6 +1086,7 @@ export default function Game() {
               <SidebarErrorBoundary tabName={sidebarTab}>
                 {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
                 {sidebarTab === 'quests' && <QuestLog worldState={isNewCharacter ? null : worldState} />}
+                {sidebarTab === 'map' && <MapPanel worldState={worldState} />}
                 {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
               </SidebarErrorBoundary>
             </div>
@@ -1115,6 +1117,7 @@ export default function Game() {
               <SidebarErrorBoundary tabName={sidebarTab}>
                 {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
                 {sidebarTab === 'quests' && <QuestLog worldState={isNewCharacter ? null : worldState} />}
+                {sidebarTab === 'map' && <MapPanel worldState={worldState} />}
                 {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
               </SidebarErrorBoundary>
             </div>

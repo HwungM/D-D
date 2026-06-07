@@ -39,6 +39,120 @@ function getActLabel(worldBible: WorldBible | undefined, act: number): string {
   return worldBible.dmRoadmap.act3ClimaxEvent || 'Endgame Arc';
 }
 
+function normalizeLocationName(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function inferRegionForLocation(location: string, worldBible?: WorldBible): string {
+  const geo = worldBible?.geography?.find(entry => entry.name.toLowerCase() === location.toLowerCase());
+  if (geo?.type === 'region') return geo.name;
+  const region = worldBible?.geography?.find(entry =>
+    entry.type === 'region' && location.toLowerCase().includes(entry.name.toLowerCase())
+  );
+  return region?.name || 'Known Realm';
+}
+
+function buildLocationGraphSnapshot(worldState: WorldState, worldBible: WorldBible | undefined): WorldState['locationGraph'] {
+  const now = new Date().toISOString();
+  const currentLocation = normalizeLocationName(worldState.currentLocation);
+  const geography = worldBible?.geography || [];
+  const names = new Set<string>();
+
+  for (const entry of geography) names.add(entry.name);
+  for (const loc of worldState.discoveredLocations || []) {
+    const name = normalizeLocationName(loc);
+    if (name) names.add(name);
+  }
+  for (const loc of Object.values(worldState.characterLocations || {})) {
+    const name = normalizeLocationName(loc);
+    if (name) names.add(name);
+  }
+  if (currentLocation) names.add(currentLocation);
+
+  const questHooksByLocation = new Map<string, string[]>();
+  for (const quest of worldState.activeQuests || []) {
+    if (quest.status !== 'active') continue;
+    for (const location of names) {
+      if (quest.description.toLowerCase().includes(location.toLowerCase()) || quest.title.toLowerCase().includes(location.toLowerCase())) {
+        questHooksByLocation.set(location, [...(questHooksByLocation.get(location) || []), quest.title]);
+      }
+    }
+  }
+
+  const npcsByLocation = new Map<string, string[]>();
+  for (const npc of [...(worldState.npcMemory || []), ...(worldState.keyNPCs || [])]) {
+    const lastMet = normalizeLocationName(npc.lastMet);
+    if (!lastMet) continue;
+    npcsByLocation.set(lastMet, Array.from(new Set([...(npcsByLocation.get(lastMet) || []), npc.name])));
+    names.add(lastMet);
+  }
+  if (worldState.activeNPC && currentLocation) {
+    npcsByLocation.set(currentLocation, Array.from(new Set([...(npcsByLocation.get(currentLocation) || []), worldState.activeNPC])));
+  }
+
+  const partyByLocation = new Map<string, string[]>();
+  for (const [characterId, location] of Object.entries(worldState.characterLocations || {})) {
+    const name = normalizeLocationName(location);
+    if (!name) continue;
+    partyByLocation.set(name, [...(partyByLocation.get(name) || []), characterId]);
+  }
+
+  const existingNodes = new Map((worldState.locationGraph?.nodes || []).map(node => [node.name.toLowerCase(), node]));
+  const sortedNames = Array.from(names).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  const nodes = sortedNames.map(name => {
+    const previous = existingNodes.get(name.toLowerCase());
+    const geo = geography.find(entry => entry.name.toLowerCase() === name.toLowerCase());
+    const region = inferRegionForLocation(name, worldBible);
+    const isCurrent = currentLocation.toLowerCase() === name.toLowerCase();
+    const existingConnections = previous?.connectedTo || [];
+    const connectedTo = Array.from(new Set([
+      ...existingConnections,
+      ...(currentLocation && name !== currentLocation && (isCurrent || existingConnections.includes(currentLocation)) ? [currentLocation] : []),
+    ])).slice(0, 8);
+
+    return {
+      name,
+      region,
+      description: geo?.description || previous?.description,
+      type: geo?.type || previous?.type || 'unknown',
+      discoveredAt: previous?.discoveredAt || now,
+      lastVisitedAt: isCurrent ? now : previous?.lastVisitedAt,
+      visits: (previous?.visits || 0) + (isCurrent ? 1 : 0),
+      connectedTo,
+      npcsPresent: npcsByLocation.get(name) || [],
+      questHooks: questHooksByLocation.get(name) || [],
+      partyHere: partyByLocation.get(name) || (isCurrent ? ['current'] : []),
+      tags: Array.from(new Set([
+        ...(previous?.tags || []),
+        ...(geo?.type ? [geo.type] : []),
+        ...(isCurrent ? ['current'] : []),
+        ...((questHooksByLocation.get(name) || []).length ? ['quest'] : []),
+        ...((npcsByLocation.get(name) || []).length ? ['npc'] : []),
+      ])).slice(0, 8),
+    };
+  });
+
+  const regionMap = new Map<string, string[]>();
+  for (const node of nodes) {
+    regionMap.set(node.region, [...(regionMap.get(node.region) || []), node.name]);
+  }
+  const regions = Array.from(regionMap.entries()).map(([name, locations]) => ({ name, locations }));
+  const nearby = currentLocation
+    ? Array.from(new Set([
+      ...(nodes.find(node => node.name === currentLocation)?.connectedTo || []),
+      ...nodes.filter(node => node.region === inferRegionForLocation(currentLocation, worldBible) && node.name !== currentLocation).map(node => node.name),
+    ])).slice(0, 6)
+    : nodes.slice(0, 6).map(node => node.name);
+
+  return {
+    currentLocation: currentLocation || undefined,
+    nodes,
+    regions,
+    nearby,
+    updatedAt: now,
+  };
+}
+
 function buildCampaignSpineSnapshot(worldState: WorldState, worldBible: WorldBible | undefined, act = 1): WorldState['campaignSpine'] {
   const targetActions = campaignLengthTargetActions(worldBible);
   const actionsInArc = Math.max(0, worldState.actionsInCurrentAct || 0);
@@ -203,7 +317,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 
   // Simple scalar fields
-  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs'] as const) {
+  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
   }
 
@@ -479,6 +593,7 @@ export async function applyConsequences(
   }
 
   // Single atomic world state write â€” eliminates co-op race conditions
+  newWorldState.locationGraph = buildLocationGraphSnapshot(newWorldState, campaign.world_bible);
   newWorldState.campaignSpine = buildCampaignSpineSnapshot(newWorldState, campaign.world_bible, campaign.act ?? 1);
   await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
 
@@ -1021,6 +1136,7 @@ export async function processAction(
       const wsUpdates: Partial<WorldState> = { actionsInCurrentAct: 0 };
       if (hooksChanged) wsUpdates.backstoryHooks = updatedHooks;
       const advancedWorldState = { ...postActWs, ...wsUpdates };
+      advancedWorldState.locationGraph = buildLocationGraphSnapshot(advancedWorldState, wb);
       advancedWorldState.campaignSpine = buildCampaignSpineSnapshot(advancedWorldState, wb, newAct);
       await supabaseAdmin.from('campaigns').update({ world_state: advancedWorldState }).eq('id', campaignId);
     }

@@ -199,7 +199,7 @@ Files:
 
 Status:
 
-- The in-game screen has **not** yet received the full UI remodel.
+- The in-game screen has received a broad UI remodel and now mostly matches the landing/dashboard direction.
 - The previous "moment of choice" direction was rolled back toward chat-first.
 - Suggested actions are now more optional / hidden behind action UI instead of dominating the turn.
 - Scene context panel was added:
@@ -210,8 +210,9 @@ Status:
   - combat state
   - summary
 - Dice rolls were made more server-authoritative in prior work.
-- Roll animation still exists.
+- Dice/result overlays, high-stakes decisions, combat/level-up/death/epilogue, entry/loading, merchant/enemy/loot, character sheet/inventory, and narrative chrome have all been remodeled.
 - AI DM prompting was tightened in earlier passes.
+- Campaign spine and map/location foundations now feed the World/Map sidebar.
 
 User preference:
 
@@ -222,15 +223,12 @@ User preference:
 
 Still needs:
 
-- Full in-game UI remodel.
-- Better chat composer.
-- Better scene art layout.
-- Better right-side world/party panel.
-- Better animations and transitions.
-- Sound design pass.
-- Map/location panel eventually.
-- Inventory and character sheet visual overhaul.
-- Better support for long campaigns and campaign endings.
+- Co-op production test and polish.
+- Map/location QA with real campaigns.
+- Long-campaign spine tuning after actual play.
+- Sound design polish.
+- Performance/code splitting.
+- Character portrait generation and art replacement later.
 
 ### Co-op
 
@@ -365,42 +363,7 @@ Local browser visual check note:
 
 Recommended order from here:
 
-1. **In-game UI remodel foundation**
-   - This is the biggest visible gap right now.
-   - The dashboard changed, but game screen still feels beta.
-   - Keep D&D chat-first, but make the play surface feel cinematic and alive.
-   - Remodel:
-     - scene art stage
-     - narrator/chat feed
-     - composer
-     - optional suggestions drawer/button
-     - party/world sidebar
-     - dice/result overlays
-     - transitions and sounds
-
-2. **Loading screen remodel**
-   - Use new Everrealm loading art.
-   - Add rotating tips/DM prep flavor.
-   - Different loading modes:
-     - creating campaign
-     - generating opening
-     - waiting for party
-     - resolving action
-     - rolling dice
-   - Add subtle animation, not cheesy spinner-only loading.
-
-3. **Campaign wizard remodel**
-   - Make the flow make sense:
-     - adventure style
-     - party mode
-     - campaign length
-     - tone/art preference
-     - wait for party if collaborative
-     - then character creation
-   - Remove confusing "tell me about your character" unless it has a clear purpose.
-   - Support AI companions later.
-
-4. **Co-op production test and polish**
+1. **Co-op production test and polish**
    - Test invite join on production:
      - King creates campaign
      - invites Sun Mi
@@ -410,23 +373,22 @@ Recommended order from here:
      - game waits/resolves correctly
    - Add missing feedback states.
 
-5. **Long campaign spine**
-   - Build robust memory + recap + arc tracking.
-   - Respect chosen campaign length.
-   - Make the DM able to end arcs and campaigns meaningfully.
+2. **Map/location V2 QA and polish**
+   - Verify `Map` tab on existing and new campaigns.
+   - Confirm `LocationGraph` seeds from world bible and updates after travel/discovery.
+   - Confirm party/NPC/quest markers appear from `characterLocations`, `activeNPC`, `npcMemory.lastMet`, and `activeQuests`.
+   - Polish layout only after data behavior is confirmed.
 
-6. **Map/location system**
-   - Not overkill if scoped correctly.
-   - Start with generated/world-state locations and character positions.
-   - Later: scrollable maps, points of interest, party/NPC markers.
-   - AI DM should know the current location and nearby relevant places.
+3. **Long campaign spine QA and tuning**
+   - Confirm `campaignSpine` updates after actions, rolls, co-op turns, act transitions, and future hooks.
+   - Tune open thread noise and relationship focus if needed.
+   - Make sure campaign length pacing feels right in actual play.
 
-7. **Inventory/character sheet remodel**
-   - Make inventory useful and visual.
-   - Equipment slots, item actions, context menus, item art.
-   - Character sheet should feel like a premium RPG panel.
+4. **Performance/code splitting**
+   - Address large Vite bundle warning.
+   - Lazy-load big pages/components and heavy overlays.
 
-8. **Character portrait generation system**
+5. **Character portrait generation system**
    - Ambitious but desired.
    - After character creation, generate:
      - portrait
@@ -435,18 +397,14 @@ Recommended order from here:
      - possibly outfit/pose variants
    - Need external storage/generation strategy before building hard.
 
-9. **Art asset replacement**
+6. **Art asset replacement**
    - Replace old dark-fantasy scene images with genre-fluid Everrealm art.
    - Keep item assets if they still look good.
    - New art bible should drive all future image prompts.
 
-10. **Performance/code splitting**
-    - Address large Vite bundle.
-    - Lazy-load big pages/components.
-
 ## Specific Next Build Recommendation
 
-Start with **In-game UI remodel foundation**.
+Start with **co-op production test and polish**, unless another agent is already doing it. If co-op is handled elsewhere, continue with **Map/location V2 QA** or **long-campaign spine tuning**.
 
 Target files:
 
@@ -537,14 +495,113 @@ Then decide whether those local changes are expected. Do not blindly restore unl
 
 ## Current State Summary For New Chat
 
-The Everrealm is in a strong transitional state:
+The Everrealm is now much closer to the intended premium fantasy game app.
 
-- Brand and art direction are now much clearer.
-- Dashboard/hub has been remodeled.
-- Landing is themed and has the trailer.
-- Co-op and campaign setup have partial foundations.
-- AI DM prompting has been tightened but still needs long-campaign infrastructure.
-- The biggest visible gap is the actual in-game play screen, which still looks closer to the beta chat UI.
+Major completed UI/system passes after the original handoff:
 
-Next Codex should continue by remodeling the in-game experience while preserving the chat-first D&D core.
+- Landing/login and dashboard/hub already use the Everrealm visual direction.
+- In-game UI has been remodeled to match the dashboard/login style:
+  - cinematic scene stage
+  - black glass panels
+  - thin parchment/cyan/amber borders
+  - fantasy serif display type
+  - chat-first narrator feed
+  - optional Ideas drawer/buttons instead of always-visible suggestions
+  - stronger composer, combat/dice/level-up/death/epilogue/high-stakes surfaces
+  - character sheet, inventory, merchant/enemy/loot popups, loading/entry screens, invite flow, and wizard clarity have all received passes.
+- Campaign spine exists:
+  - `shared/types.ts` has `CampaignSpineSnapshot`.
+  - `server/src/services/gameEngine.ts` builds deterministic `campaignSpine` after consequences.
+  - client store merges it.
+  - `WorldPanel` renders arc momentum, recap, next pressure, open threads, and relationship focus.
+- Medium map/location foundation exists:
+  - `shared/types.ts` has `LocationNode` and `LocationGraph`.
+  - `server/src/routes/campaigns.ts` seeds new campaigns with an initial location graph from `world_bible.geography`.
+  - `server/src/services/gameEngine.ts` rebuilds `locationGraph` after turns from discovered locations, current location, character positions, NPC lastMet/current NPC, active quests, and world bible geography.
+  - `server/src/services/openai.ts` feeds compact map context into the DM prompt and tells the model to update `discoveredLocations` / `currentLocation` on travel or discoveries.
+  - `client/src/components/MapPanel.tsx` is a dedicated map tab with current location, regions, roads/connections, party/NPC/quest markers, and nearby places.
+  - `client/src/pages/Game.tsx` includes `Map` in the Codex sidebar.
+  - `client/src/pages/Dashboard.tsx` labels Maps as `Graph-ready`.
+
+Current design language to preserve:
+
+- Use `font-fantasy` for labels, titles, buttons, and codex headings.
+- Use `font-serif` for readable narrative/body copy.
+- Keep cards and panels square or nearly square; avoid soft rounded SaaS cards unless an existing component already needs it.
+- Main surfaces should be black/deep glass: `bg-black/56`, `bg-black/62`, `bg-white/[0.025]`, subtle `backdrop-blur-md`.
+- Borders are thin and luminous, usually `border-parchment-100/34`, `border-cyan-200/18`, `border-amber-300/18`, `border-white/10`.
+- Accent palette:
+  - parchment/cream for text
+  - amber/gold for legacy, action, active progress
+  - cyan for realm/map/system intelligence
+  - violet for codex/magic/NPC relationship accents
+  - red only for combat/danger
+- Avoid old beta UI texture:
+  - no `fantasy-btn` / `fantasy-input`
+  - no `bg-slate-*`, `text-slate-*`, `border-slate-*`
+  - no broken mojibake glyphs such as `Ã`, `â`, `ð`
+  - no always-visible suggestion wall
+  - no generic marketing landing page when building an actual app screen
+- For in-game changes, preserve the core loop:
+  - scene art and context support the action
+  - narrator/chat feed remains primary
+  - player writes the action
+  - Ideas are optional and hidden behind a button/drawer
+  - map/world/sheet panels are supporting tools, not replacements for play.
+
+Important current technical state:
+
+- `main` is the working branch.
+- Vercel deploys client from `client`; Railway deploys server.
+- Build currently passes, but Vite warns that the JS chunk is over 500 kB. This is known and should become a performance/code-splitting pass.
+- The app has some older encoded comment/string artifacts in `server/src/services/gameEngine.ts` and `server/src/services/openai.ts`. Avoid adding new mojibake; do not spend credits cleaning all old comments unless asked.
+- Browser smoke often redirects protected routes to landing without a signed-in local session. That is expected.
+
+Recommended remaining queue before/around co-op tests:
+
+1. Co-op production test and polish.
+   - King creates campaign.
+   - Generate invite.
+   - Sun Mi joins.
+   - Both create characters.
+   - Confirm waiting states, party gate, shared timeline, turn lock, and resolution.
+   - Patch any confusing copy/loading/error/sync state.
+2. Map/location V2 QA.
+   - Verify existing and new campaigns display `Map` tab correctly.
+   - Confirm locations appear after travel/discovery.
+   - Confirm NPC/quest markers appear when `npcMemory.lastMet`, `activeNPC`, and `activeQuests` reference a place.
+   - Improve visual map layout only after data behaves.
+3. Long campaign memory QA.
+   - Play enough turns to confirm `campaignSpine` updates and world panel remains readable.
+   - Watch that open threads do not become noisy.
+   - Consider a small server cleanup to cap/format spine threads more elegantly if needed.
+4. Performance/code splitting.
+   - Lazy-load large route components and modals.
+   - Start with `Game`, character creation, campaign wizard, and heavy overlays.
+5. Character portrait generation system.
+   - Needs a storage/generation strategy before coding.
+6. Art replacement.
+   - Replace older dark-fantasy scene images with genre-fluid Everrealm-style art.
+
+Prompt for next AI:
+
+```text
+Continue work on The Everrealm in C:\Users\Hwung\D-D on main.
+
+Read HANDOFF_EVERREALM.md first. Do not re-audit from scratch unless needed. Check git status first and preserve user changes.
+
+Current direction: The Everrealm is a premium fantasy game app with chat-first D&D at the core. Preserve the established style: cinematic painted Everrealm art, black glass panels, thin parchment/cyan/amber borders, `font-fantasy` headings/buttons, `font-serif` narrative copy, square RPG codex surfaces, optional suggestions hidden behind Ideas, and no old slate/beta UI.
+
+Recent completed work includes remodeled in-game UI, character sheet/inventory, campaign wizard clarity, campaign spine tracking, and a medium map/location foundation with `LocationGraph`, `MapPanel`, seeded campaign maps, server map graph updates, and DM prompt map context.
+
+Next priority: co-op production test and polish unless the user asks otherwise. Test King/Sun Mi create/join/create-character/shared-turn flow. Patch confusing waiting, invite, lobby, turn lock, loading, or sync states. If co-op is being handled elsewhere, continue with Map/location V2 QA and long-campaign spine polish.
+
+Run:
+- npm run typecheck --prefix client
+- npm run typecheck --prefix server
+- npm run build --prefix client
+- git diff --check
+
+When done, give concise summary and exact git add/commit/push commands.
+```
 

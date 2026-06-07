@@ -69,7 +69,7 @@ const SYSTEMS = [
   { name: 'Party', status: 'Invite-ready', accent: '#22c55e' },
   { name: 'Scene Art', status: 'Visual-aware', accent: '#22d3ee' },
   { name: 'Memory', status: 'Long campaign spine', accent: '#f59e0b' },
-  { name: 'Maps', status: 'Queued next', accent: '#a78bfa' },
+  { name: 'Maps', status: 'Graph-ready', accent: '#a78bfa' },
   { name: 'Inventory', status: 'Codex-ready', accent: '#f97316' },
 ]
 

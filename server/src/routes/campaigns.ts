@@ -3,6 +3,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
 import { generateStorySeed, generateWorldBible } from '../services/openai';
 import { z } from 'zod';
+import type { LocationGraph, WorldBible, WorldState } from '../../../shared/types';
 
 const router = Router();
 
@@ -20,6 +21,41 @@ const createSchema = z.object({
   storySeed: z.string().min(1),
   campaignType: z.enum(['adventure', 'testing']).optional().default('adventure'),
 });
+
+function initialLocationGraph(worldBible: WorldBible): LocationGraph {
+  const now = new Date().toISOString();
+  const currentLocation = worldBible.geography[0]?.name || 'Unknown';
+  const nodes = worldBible.geography.map((entry, index) => {
+    const current = entry.name === currentLocation;
+    const nearby = worldBible.geography
+      .filter((candidate, candidateIndex) => candidate.name !== entry.name && Math.abs(candidateIndex - index) <= 2)
+      .map(candidate => candidate.name)
+      .slice(0, 4);
+    return {
+      name: entry.name,
+      region: entry.type === 'region' ? entry.name : worldBible.geography.find(candidate => candidate.type === 'region')?.name || 'Known Realm',
+      description: entry.description,
+      type: entry.type,
+      discoveredAt: now,
+      lastVisitedAt: current ? now : undefined,
+      visits: current ? 1 : 0,
+      connectedTo: nearby,
+      npcsPresent: [],
+      questHooks: [],
+      partyHere: current ? ['current'] : [],
+      tags: current ? [entry.type, 'current'] : [entry.type],
+    };
+  });
+  const regionMap = new Map<string, string[]>();
+  for (const node of nodes) regionMap.set(node.region, [...(regionMap.get(node.region) || []), node.name]);
+  return {
+    currentLocation,
+    nodes,
+    regions: Array.from(regionMap.entries()).map(([name, locations]) => ({ name, locations })),
+    nearby: nodes.find(node => node.name === currentLocation)?.connectedTo || [],
+    updatedAt: now,
+  };
+}
 
 router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const parse = createSchema.safeParse(req.body);
@@ -45,6 +81,19 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
 
   try {
     const worldBible = await generateWorldBible(storySeed, playerPreferences);
+    const openingLocation = worldBible.geography[0]?.name || 'Unknown';
+    const locationGraph = initialLocationGraph(worldBible);
+    const initialWorldState: WorldState = {
+      currentLocation: openingLocation,
+      timeOfDay: 'day',
+      weather: 'overcast',
+      activeQuests: [],
+      completedEvents: [],
+      factionStandings: {},
+      discoveredLocations: [openingLocation],
+      locationGraph,
+      globalFlags: {},
+    };
 
     const { data: campaign, error } = await supabaseAdmin
       .from('campaigns')
@@ -52,16 +101,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
         name,
         story_seed: storySeed,
         created_by: req.user!.id,
-        world_state: {
-          currentLocation: worldBible.geography[0]?.name || 'Unknown',
-          timeOfDay: 'day',
-          weather: 'overcast',
-          activeQuests: [],
-          completedEvents: [],
-          factionStandings: {},
-          discoveredLocations: [],
-          globalFlags: {},
-        },
+        world_state: initialWorldState,
         world_bible: worldBible,
         act: 1,
         campaign_type: campaignType,
