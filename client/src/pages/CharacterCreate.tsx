@@ -355,125 +355,180 @@ export default function CharacterCreate() {
   // Lobby waiting screen for co-op campaigns
   if (lobbyState) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'radial-gradient(ellipse at center top, #0f1923 0%, #070d14 100%)' }}>
-        <div className="text-center max-w-md px-8">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-full border-2 flex items-center justify-center" style={{
-            borderColor: 'rgba(200,146,42,0.4)',
-            boxShadow: '0 0 40px rgba(200,146,42,0.15)',
-          }}>
-            <span className="font-fantasy text-2xl" style={{ color: '#c8922a' }}>!</span>
+      <div className="relative min-h-screen overflow-hidden bg-[#050607] text-parchment-100">
+        <div className="absolute inset-0">
+          <img src="/media/loading/everrealm-portal-party.png" alt="" className="h-full w-full object-cover opacity-[0.48]" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.94)_0%,rgba(0,0,0,0.58)_50%,rgba(0,0,0,0.9)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.18)_0%,rgba(0,0,0,0.6)_60%,rgba(0,0,0,0.96)_100%)]" />
+        </div>
+        <div className="relative z-10 flex min-h-screen items-center justify-center px-5">
+          <div className="w-full max-w-lg border border-parchment-100/34 bg-black/62 p-6 text-center shadow-[0_30px_130px_rgba(0,0,0,0.72)] backdrop-blur-md">
+            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center border border-amber-200/34 bg-amber-300/8">
+              <span className="font-fantasy text-2xl text-amber-200">E</span>
+            </div>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.3em] text-cyan-200/62">Party Gate</p>
+            <h2 className="mt-2 font-fantasy text-4xl text-parchment-100">Your character is ready.</h2>
+            <p className="mt-4 font-serif text-sm leading-relaxed text-parchment-200/66">
+              Waiting for your party to finish their characters.
+            </p>
+            <div className="mx-auto mt-6 max-w-xs border border-amber-200/20 bg-amber-300/[0.045] p-4">
+              <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-amber-200/62">Party Readiness</p>
+              <p className="mt-2 font-fantasy text-3xl text-parchment-100">
+                {lobbyState.readyCount}/{lobbyState.expectedPlayers}
+              </p>
+              <div className="mt-3 h-1 bg-white/10">
+                <div
+                  className="h-full bg-[linear-gradient(90deg,rgba(34,211,238,0.78),rgba(245,158,11,0.92))]"
+                  style={{ width: `${Math.min(100, (lobbyState.readyCount / lobbyState.expectedPlayers) * 100)}%` }}
+                />
+              </div>
+            </div>
+            {lobbyState.allowStartNow ? (
+              <button
+                onClick={() => navigate(`/campaign/${campaignId}/play/${lobbyState.characterId}`)}
+                className="mt-6 border border-amber-300/46 bg-amber-300/12 px-6 py-3 font-fantasy text-xs uppercase tracking-[0.2em] text-amber-100 transition-all hover:border-amber-200"
+              >
+                Start now, invite later
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate(`/campaign/${campaignId}/brief`)}
+                className="mt-6 border border-white/12 px-6 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-parchment-200/66 transition-all hover:border-white/24 hover:text-parchment-100"
+              >
+                Return to party lobby
+              </button>
+            )}
           </div>
-          <h2 className="font-fantasy text-3xl text-parchment-200 mb-3">Your character is ready.</h2>
-          <p className="font-serif text-sm leading-relaxed mb-6" style={{ color: 'rgba(180,160,120,0.6)' }}>
-            Waiting for your party to finish their characters.
-          </p>
-          <p className="font-serif text-xs uppercase tracking-widest mb-5" style={{ color: 'rgba(200,146,42,0.68)' }}>
-            {lobbyState.readyCount}/{lobbyState.expectedPlayers} ready
-          </p>
-          <div className="flex items-center justify-center gap-2 mb-8">
-            {[0, 1, 2].map(j => (
-              <div key={j} className="w-2 h-2 rounded-full" style={{
-                background: 'rgba(200,146,42,0.6)',
-                animation: `bounce 1.2s ease-in-out ${j * 0.2}s infinite`,
-              }} />
-            ))}
-          </div>
-          {lobbyState.allowStartNow ? (
-            <button
-              onClick={() => navigate(`/campaign/${campaignId}/play/${lobbyState.characterId}`)}
-              className="font-serif text-sm px-6 py-2.5 transition-all"
-              style={{
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: 'rgba(180,160,120,0.5)',
-              }}
-            >
-              Start now, invite later
-            </button>
-          ) : (
-            <button
-              onClick={() => navigate(`/campaign/${campaignId}/brief`)}
-              className="font-serif text-sm px-6 py-2.5 transition-all"
-              style={{
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: 'rgba(180,160,120,0.5)',
-              }}
-            >
-              Return to party lobby
-            </button>
-          )}
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'radial-gradient(ellipse at center top, #0f1923 0%, #070d14 100%)' }}>
-      {/* Header */}
-      <div className="px-6 py-5 border-b border-slate-800/60">
-        <div className="max-w-3xl mx-auto">
-          <p className="text-xs uppercase tracking-widest text-ember-400/60 font-sans mb-1">Character Creation</p>
-          <div className="flex items-center gap-3">
-            {STEPS.map((s, i) => (
-              <div key={s} className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-6 h-6 rounded-full border flex items-center justify-center text-xs font-sans transition-all duration-300"
-                    style={i < step
-                      ? { borderColor: '#c0392b', background: '#641e16', color: '#f5e6c8' }
-                      : i === step
-                      ? { borderColor: '#c0392b', background: 'rgba(192,57,43,0.15)', color: '#c0392b' }
-                      : { borderColor: '#374151', background: 'transparent', color: '#4b5563' }
-                    }
-                  >
-                    {i + 1}
-                  </div>
-                  <span className={`text-xs font-sans hidden sm:block ${i === step ? 'text-parchment-200' : i < step ? 'text-slate-500' : 'text-slate-700'}`}>
-                    {s}
-                  </span>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <div className="w-8 h-px" style={{ background: i < step ? '#641e16' : '#1f2937' }} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+    <div className="min-h-screen overflow-hidden bg-[#050607] text-parchment-100">
+      <div className="fixed inset-0 pointer-events-none">
+        <picture>
+          <source media="(max-width: 767px)" srcSet="/media/everrealm-hero-mobile.png" />
+          <img src="/media/everrealm-hero-desktop.png" alt="" className="h-full w-full object-cover opacity-[0.42]" />
+        </picture>
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.94)_0%,rgba(0,0,0,0.62)_52%,rgba(0,0,0,0.9)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.18)_0%,rgba(0,0,0,0.58)_58%,rgba(0,0,0,0.96)_100%)]" />
       </div>
 
-      <div className="flex-1 max-w-3xl mx-auto w-full px-6 py-8">
+      <header className="relative z-10 border-b border-parchment-100/22 bg-black/36 px-5 py-4 backdrop-blur-md">
+        <div className="mx-auto flex max-w-[1540px] items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center border border-parchment-100/70 bg-black/28">
+              <span className="font-fantasy text-xl text-amber-200">E</span>
+            </div>
+            <div>
+              <p className="font-fantasy text-xl uppercase tracking-[0.1em] text-parchment-100">The Everrealm</p>
+              <p className="font-serif text-xs uppercase tracking-[0.22em] text-amber-200/54">Soul forge</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate(`/campaign/${campaignId}/brief`)}
+            className="border border-parchment-200/14 bg-black/22 px-4 py-2 font-fantasy text-[10px] uppercase tracking-[0.2em] text-parchment-200/66 transition-all hover:border-amber-200/45 hover:text-parchment-100"
+          >
+            Brief
+          </button>
+        </div>
+      </header>
+
+      <main className="relative z-10 mx-auto grid max-w-[1340px] gap-5 px-4 py-5 lg:grid-cols-[330px_minmax(0,1fr)] lg:px-6 lg:py-7">
+        <aside className="border border-parchment-100/28 bg-black/56 p-5 backdrop-blur-md">
+          <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/62">Character Creation</p>
+          <h1 className="mt-2 font-fantasy text-4xl leading-none text-parchment-100">Soul Forge</h1>
+          <p className="mt-4 font-serif text-sm leading-relaxed text-parchment-200/66">
+            Shape the face, blood, path, and story the realm will remember.
+          </p>
+
+          <div className="mt-7 space-y-2">
+            {STEPS.map((s, i) => (
+              <button
+                key={s}
+                type="button"
+                disabled={i > step}
+                onClick={() => setStep(i)}
+                className="flex w-full items-center justify-between border px-3 py-3 text-left transition-all disabled:cursor-not-allowed"
+                style={{
+                  borderColor: i === step ? 'rgba(245,158,11,0.52)' : 'rgba(255,255,255,0.08)',
+                  background: i === step ? 'rgba(245,158,11,0.08)' : i < step ? 'rgba(34,211,238,0.05)' : 'rgba(255,255,255,0.018)',
+                  opacity: i > step ? 0.48 : 1,
+                }}
+              >
+                <span>
+                  <span className="block font-fantasy text-[10px] uppercase tracking-[0.18em] text-parchment-200/48">Step {i + 1}</span>
+                  <span className="mt-1 block font-fantasy text-sm text-parchment-100">{s}</span>
+                </span>
+                <span className="font-fantasy text-[10px] text-amber-100/64">{String(i + 1).padStart(2, '0')}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-6 border border-white/10 bg-white/[0.025] p-4">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-amber-200/58">Current Soul</p>
+            <div className="mt-3 space-y-2 font-serif text-sm text-parchment-200/62">
+              <p>{gender ? `${gender[0].toUpperCase()}${gender.slice(1)}` : 'Identity unset'}</p>
+              <p>{selectedRace || 'Heritage unset'}</p>
+              <p>{selectedClass || 'Path unset'}</p>
+              <p>{name || 'Name unset'}</p>
+            </div>
+          </div>
+        </aside>
+
+        <section className="min-h-[700px] border border-parchment-100/34 bg-black/62 p-5 shadow-[0_30px_130px_rgba(0,0,0,0.72)] backdrop-blur-md sm:p-7">
+          <div className="mb-7 flex flex-col justify-between gap-4 border-b border-white/10 pb-6 sm:flex-row sm:items-end">
+            <div>
+              <p className="font-fantasy text-[10px] uppercase tracking-[0.3em] text-cyan-200/62">Step {step + 1} / {STEPS.length}</p>
+              <h2 className="mt-2 font-fantasy text-4xl text-parchment-100">{STEPS[step]}</h2>
+            </div>
+            <div className="flex gap-1">
+              {STEPS.map((_, i) => (
+                <span
+                  key={i}
+                  className="h-1 w-10 border border-white/10"
+                  style={{ background: i <= step ? 'rgba(245,158,11,0.72)' : 'rgba(255,255,255,0.08)' }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="mx-auto max-w-4xl">
 
         {/* STEP 0: Gender */}
         {step === 0 && (
           <div className="animate-fade-in">
-            <h2 className="font-fantasy text-2xl text-parchment-200 mb-2">Who Are You?</h2>
-            <p className="text-slate-500 font-serif italic text-sm mb-8">This shapes your appearance in the world.</p>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-amber-200/62">Choose Your Soul</p>
+            <p className="mt-2 text-parchment-200/68 font-serif italic text-sm mb-8">This shapes how the world first sees you.</p>
             <div className="grid grid-cols-2 gap-6 max-w-lg">
               {(['male', 'female'] as Gender[]).map(g => (
                 <button
                   key={g}
                   onClick={() => { setGender(g); setSelectedPortrait(null) }}
-                  className="group relative border transition-all duration-300 overflow-hidden"
+                  className="group relative min-h-[168px] border transition-all duration-300 overflow-hidden"
                   style={gender === g
-                    ? { borderColor: '#c0392b', background: 'rgba(192,57,43,0.08)', boxShadow: '0 0 20px rgba(192,57,43,0.2)' }
-                    : { borderColor: '#1f2937', background: 'rgba(15,25,35,0.8)' }
+                    ? { borderColor: 'rgba(245,158,11,0.58)', background: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(34,211,238,0.05))', boxShadow: '0 0 38px rgba(245,158,11,0.1)' }
+                    : { borderColor: 'rgba(255,255,255,0.12)', background: 'rgba(0,0,0,0.36)' }
                   }
                 >
                   <div className="p-10 flex flex-col items-center gap-3">
                     <div
-                      className="w-16 h-16 rounded-full border-2 flex items-center justify-center text-2xl transition-all duration-300"
+                      className="w-16 h-16 border flex items-center justify-center text-2xl transition-all duration-300"
                       style={gender === g
-                        ? { borderColor: '#c0392b', background: 'rgba(192,57,43,0.15)' }
-                        : { borderColor: '#374151', background: 'rgba(15,25,35,0.5)' }
+                        ? { borderColor: 'rgba(245,158,11,0.54)', background: 'rgba(245,158,11,0.1)' }
+                        : { borderColor: 'rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.035)' }
                       }
                     >
                       {g === 'male' ? 'M' : 'F'}
                     </div>
-                    <span className="font-fantasy text-lg capitalize" style={{ color: gender === g ? '#f5e6c8' : '#6b7280' }}>
+                    <span className="font-fantasy text-lg capitalize" style={{ color: gender === g ? '#f5e6c8' : 'rgba(180,160,120,0.55)' }}>
                       {g === 'male' ? 'Male' : 'Female'}
                     </span>
                   </div>
                   {gender === g && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-ember-400" />
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-300" />
                   )}
                 </button>
               ))}
@@ -482,7 +537,7 @@ export default function CharacterCreate() {
               <button
                 onClick={() => setStep(1)}
                 disabled={!gender}
-                className="fantasy-btn px-8 disabled:opacity-40"
+                className="border border-amber-300/46 bg-amber-300/12 px-6 py-3 font-fantasy text-xs uppercase tracking-[0.2em] text-amber-100 transition-all hover:border-amber-200 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 Choose Your Race
               </button>
@@ -493,8 +548,8 @@ export default function CharacterCreate() {
         {/* STEP 1: Race */}
         {step === 1 && (
           <div className="animate-fade-in">
-            <h2 className="font-fantasy text-2xl text-parchment-200 mb-2">Your Heritage</h2>
-            <p className="text-slate-500 font-serif italic text-sm mb-6">Where did you come from? What blood runs in your veins?</p>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-amber-200/62">Your Heritage</p>
+            <p className="mt-2 text-parchment-200/68 font-serif italic text-sm mb-6">Where did you come from? What blood runs in your veins?</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {RACES.map(race => {
                 const key = race.toLowerCase().replace(/['\s]/g, '-').replace('--', '-')
@@ -505,11 +560,11 @@ export default function CharacterCreate() {
                     onClick={() => { setSelectedRace(race); setSelectedPortrait(null) }}
                     className="group relative border overflow-hidden transition-all duration-300 text-left"
                     style={selectedRace === race
-                      ? { borderColor: '#c0392b', boxShadow: '0 0 15px rgba(192,57,43,0.3)' }
-                      : { borderColor: '#1f2937' }
+                      ? { borderColor: 'rgba(245,158,11,0.58)', boxShadow: '0 0 28px rgba(245,158,11,0.12)' }
+                      : { borderColor: 'rgba(255,255,255,0.12)' }
                     }
                   >
-                    <div className="relative h-32 bg-slate-900 overflow-hidden">
+                    <div className="relative h-32 bg-black overflow-hidden">
                       <img
                         src={imgUrl}
                         alt={race}
@@ -519,14 +574,14 @@ export default function CharacterCreate() {
                           img.src = `/assets/races/${key}.png`
                         }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
                       {selectedRace === race && (
-                        <div className="absolute inset-0 border-2 border-ember-400/60" style={{ background: 'rgba(192,57,43,0.1)' }} />
+                        <div className="absolute inset-0 border-2 border-amber-200/60" style={{ background: 'rgba(245,158,11,0.08)' }} />
                       )}
                     </div>
-                    <div className="p-2.5" style={{ background: selectedRace === race ? 'rgba(192,57,43,0.06)' : '#0a0e18' }}>
+                    <div className="p-2.5" style={{ background: selectedRace === race ? 'rgba(245,158,11,0.08)' : 'rgba(0,0,0,0.72)' }}>
                       <p className="font-fantasy text-sm text-parchment-200">{race}</p>
-                      <p className="text-xs text-slate-600 mt-0.5 font-serif">
+                      <p className="text-xs text-parchment-200/42 mt-0.5 font-serif">
                         {Object.entries(RACE_STAT_BONUSES[race]).map(([k, v]) => `+${v} ${k.toUpperCase()}`).join(' ')}
                       </p>
                     </div>
@@ -535,23 +590,23 @@ export default function CharacterCreate() {
               })}
             </div>
             {selectedRace && (
-              <div className="mt-4 p-4 border border-slate-800 bg-slate-900/50 space-y-3">
+              <div className="mt-4 p-4 border border-white/10 bg-white/[0.025] space-y-3">
                 <p className="text-parchment-200 font-serif text-sm leading-relaxed">{RACE_INFO[selectedRace].description}</p>
-                <div className="border-t border-slate-800 pt-3 space-y-2">
+                <div className="border-t border-white/10 pt-3 space-y-2">
                   <div className="flex gap-2 items-start">
                     <span className="text-xs uppercase tracking-widest font-sans shrink-0 mt-0.5" style={{ color: '#c8922a' }}>Tendency</span>
-                    <p className="text-slate-400 font-serif text-xs leading-relaxed">{RACE_INFO[selectedRace].tendency}</p>
+                    <p className="text-parchment-200/58 font-serif text-xs leading-relaxed">{RACE_INFO[selectedRace].tendency}</p>
                   </div>
                   <div className="flex gap-2 items-start">
                     <span className="text-xs uppercase tracking-widest font-sans shrink-0 mt-0.5" style={{ color: '#c8922a' }}>Suits</span>
-                    <p className="text-slate-400 font-serif text-xs leading-relaxed">{RACE_INFO[selectedRace].playstyle}</p>
+                    <p className="text-parchment-200/58 font-serif text-xs leading-relaxed">{RACE_INFO[selectedRace].playstyle}</p>
                   </div>
                 </div>
               </div>
             )}
             <div className="mt-8 flex gap-3">
-              <button onClick={() => setStep(0)} className="fantasy-btn-secondary">Back</button>
-              <button onClick={() => setStep(2)} disabled={!selectedRace} className="fantasy-btn px-8 disabled:opacity-40">
+              <button onClick={() => setStep(0)} className="border border-white/12 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-parchment-200/66 transition-all hover:border-white/24 hover:text-parchment-100">Back</button>
+              <button onClick={() => setStep(2)} disabled={!selectedRace} className="border border-amber-300/46 bg-amber-300/12 px-6 py-3 font-fantasy text-xs uppercase tracking-[0.2em] text-amber-100 transition-all hover:border-amber-200 disabled:cursor-not-allowed disabled:opacity-35">
                 Choose Your Look
               </button>
             </div>
@@ -561,8 +616,8 @@ export default function CharacterCreate() {
         {/* STEP 2: Portrait */}
         {step === 2 && selectedRace && gender && (
           <div className="animate-fade-in">
-            <h2 className="font-fantasy text-2xl text-parchment-200 mb-2">Your Face</h2>
-            <p className="text-slate-500 font-serif italic text-sm mb-6">Choose how the world sees you.</p>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-amber-200/62">Your Face</p>
+            <p className="mt-2 text-parchment-200/68 font-serif italic text-sm mb-6">Choose how the world sees you.</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {portraits.map((p) => (
                 <button
@@ -570,8 +625,8 @@ export default function CharacterCreate() {
                   onClick={() => setSelectedPortrait(p.url)}
                   className="group relative border overflow-hidden transition-all duration-300"
                   style={selectedPortrait === p.url
-                    ? { borderColor: '#c0392b', boxShadow: '0 0 20px rgba(192,57,43,0.4)' }
-                    : { borderColor: '#1f2937' }
+                    ? { borderColor: 'rgba(245,158,11,0.58)', boxShadow: '0 0 28px rgba(245,158,11,0.14)' }
+                    : { borderColor: 'rgba(255,255,255,0.12)' }
                   }
                 >
                   <div className="relative aspect-square overflow-hidden">
@@ -582,13 +637,13 @@ export default function CharacterCreate() {
                       onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }}
                     />
                     {selectedPortrait === p.url && (
-                      <div className="absolute inset-0 border-2 border-ember-400" style={{ background: 'rgba(192,57,43,0.15)' }}>
-                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-ember-500" title="Selected" />
+                      <div className="absolute inset-0 border-2 border-amber-200/70" style={{ background: 'rgba(245,158,11,0.12)' }}>
+                        <div className="absolute top-2 right-2 h-5 w-5 border border-amber-100 bg-amber-300" title="Selected" />
                       </div>
                     )}
                   </div>
-                  <div className="p-2 text-center" style={{ background: '#0a0e18' }}>
-                    <p className="text-xs font-serif text-slate-400">{p.label}</p>
+                  <div className="p-2 text-center" style={{ background: 'rgba(0,0,0,0.72)' }}>
+                    <p className="text-xs font-serif text-parchment-200/62">{p.label}</p>
                   </div>
                 </button>
               ))}
@@ -599,11 +654,11 @@ export default function CharacterCreate() {
               </p>
             )}
             <div className="mt-4 flex gap-3">
-              <button onClick={() => setStep(1)} className="fantasy-btn-secondary">Back</button>
+              <button onClick={() => setStep(1)} className="border border-white/12 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-parchment-200/66 transition-all hover:border-white/24 hover:text-parchment-100">Back</button>
               <button
                 onClick={() => setStep(3)}
                 disabled={!selectedPortrait}
-                className="fantasy-btn px-8 disabled:opacity-40"
+                className="border border-amber-300/46 bg-amber-300/12 px-6 py-3 font-fantasy text-xs uppercase tracking-[0.2em] text-amber-100 transition-all hover:border-amber-200 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 Choose Your Class
               </button>
@@ -614,8 +669,8 @@ export default function CharacterCreate() {
         {/* STEP 3: Class */}
         {step === 3 && (
           <div className="animate-fade-in">
-            <h2 className="font-fantasy text-2xl text-parchment-200 mb-2">Your Path</h2>
-            <p className="text-slate-500 font-serif italic text-sm mb-6">How do you survive in a world like this?</p>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-amber-200/62">Your Path</p>
+            <p className="mt-2 text-parchment-200/68 font-serif italic text-sm mb-6">How do you survive in a world like this?</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {CLASSES.map(cls => (
                 <button
@@ -623,8 +678,8 @@ export default function CharacterCreate() {
                   onClick={() => setSelectedClass(cls)}
                   className="group relative border overflow-hidden transition-all duration-300 text-left"
                   style={selectedClass === cls
-                    ? { borderColor: '#c0392b', boxShadow: '0 0 15px rgba(192,57,43,0.25)' }
-                    : { borderColor: '#1f2937' }
+                    ? { borderColor: 'rgba(245,158,11,0.58)', boxShadow: '0 0 28px rgba(245,158,11,0.12)' }
+                    : { borderColor: 'rgba(255,255,255,0.12)' }
                   }
                 >
                   <div className="relative h-28 overflow-hidden">
@@ -634,39 +689,39 @@ export default function CharacterCreate() {
                       className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110"
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
                     {selectedClass === cls && (
-                      <div className="absolute inset-0 border-2 border-ember-400/60" style={{ background: 'rgba(192,57,43,0.1)' }} />
+                      <div className="absolute inset-0 border-2 border-amber-200/60" style={{ background: 'rgba(245,158,11,0.08)' }} />
                     )}
                   </div>
-                  <div className="p-2.5" style={{ background: selectedClass === cls ? 'rgba(192,57,43,0.06)' : '#0a0e18' }}>
+                  <div className="p-2.5" style={{ background: selectedClass === cls ? 'rgba(245,158,11,0.08)' : 'rgba(0,0,0,0.72)' }}>
                     <p className="font-fantasy text-sm text-parchment-200">{cls}</p>
-                    <p className="text-xs text-slate-600 font-sans mt-0.5">{CLASS_STATS[cls]}</p>
+                    <p className="text-xs text-parchment-200/42 font-sans mt-0.5">{CLASS_STATS[cls]}</p>
                   </div>
                 </button>
               ))}
             </div>
             {selectedClass && (
-              <div className="mt-4 p-4 border border-slate-800 bg-slate-900/50 space-y-3">
+              <div className="mt-4 p-4 border border-white/10 bg-white/[0.025] space-y-3">
                 <div className="flex items-center gap-3">
                   <span className="text-xs border px-2 py-0.5 font-sans uppercase tracking-widest" style={{ borderColor: '#c8922a', color: '#c8922a' }}>{CLASS_INFO[selectedClass].role}</span>
                 </div>
                 <p className="text-parchment-200 font-serif text-sm leading-relaxed">{CLASS_INFO[selectedClass].description}</p>
-                <div className="border-t border-slate-800 pt-3 space-y-2">
+                <div className="border-t border-white/10 pt-3 space-y-2">
                   <div className="flex gap-2 items-start">
                     <span className="text-xs uppercase tracking-widest font-sans shrink-0 mt-0.5" style={{ color: '#c8922a' }}>Tendency</span>
-                    <p className="text-slate-400 font-serif text-xs leading-relaxed">{CLASS_INFO[selectedClass].tendency}</p>
+                    <p className="text-parchment-200/58 font-serif text-xs leading-relaxed">{CLASS_INFO[selectedClass].tendency}</p>
                   </div>
                   <div className="flex gap-2 items-start">
                     <span className="text-xs uppercase tracking-widest font-sans shrink-0 mt-0.5" style={{ color: '#c8922a' }}>Suits</span>
-                    <p className="text-slate-400 font-serif text-xs leading-relaxed">{CLASS_INFO[selectedClass].playstyle}</p>
+                    <p className="text-parchment-200/58 font-serif text-xs leading-relaxed">{CLASS_INFO[selectedClass].playstyle}</p>
                   </div>
                 </div>
               </div>
             )}
             <div className="mt-8 flex gap-3">
-              <button onClick={() => setStep(2)} className="fantasy-btn-secondary">Back</button>
-              <button onClick={() => setStep(4)} disabled={!selectedClass} className="fantasy-btn px-8 disabled:opacity-40">
+              <button onClick={() => setStep(2)} className="border border-white/12 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-parchment-200/66 transition-all hover:border-white/24 hover:text-parchment-100">Back</button>
+              <button onClick={() => setStep(4)} disabled={!selectedClass} className="border border-amber-300/46 bg-amber-300/12 px-6 py-3 font-fantasy text-xs uppercase tracking-[0.2em] text-amber-100 transition-all hover:border-amber-200 disabled:cursor-not-allowed disabled:opacity-35">
                 Roll Attributes
               </button>
             </div>
@@ -676,8 +731,8 @@ export default function CharacterCreate() {
         {/* STEP 4: Attributes */}
         {step === 4 && selectedRace && selectedClass && (
           <div className="animate-fade-in">
-            <h2 className="font-fantasy text-2xl text-parchment-200 mb-1">Your Attributes</h2>
-            <p className="text-slate-500 font-serif italic text-sm mb-6">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-amber-200/62">Your Attributes</p>
+            <p className="mt-2 text-parchment-200/68 font-serif italic text-sm mb-6">
               Roll 4d6, drop the lowest - assign each score to a stat. Race bonuses apply on top.
             </p>
 
@@ -690,7 +745,7 @@ export default function CharacterCreate() {
                     setRolledScores(generateSixScores())
                     setAssignments({})
                   }}
-                  className="text-xs font-sans px-3 py-1 border transition-all"
+                  className="px-3 py-2 border transition-all font-fantasy text-[10px] uppercase tracking-[0.16em]"
                   style={{ borderColor: 'rgba(200,146,42,0.4)', color: '#c8922a', background: 'rgba(200,146,42,0.06)' }}
                 >
                   Re-roll
@@ -708,8 +763,8 @@ export default function CharacterCreate() {
                       className="w-12 h-12 flex items-center justify-center border font-fantasy text-lg transition-all"
                       style={
                         isConsumed
-                          ? { borderColor: '#374151', color: '#4b5563', background: 'rgba(15,25,35,0.3)' }
-                          : { borderColor: '#c8922a', color: '#d4c5a0', background: 'rgba(200,146,42,0.08)' }
+                          ? { borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(180,160,120,0.28)', background: 'rgba(255,255,255,0.018)' }
+                          : { borderColor: 'rgba(245,158,11,0.5)', color: '#f2dfb6', background: 'rgba(245,158,11,0.08)' }
                       }
                     >
                       {score}
@@ -717,7 +772,7 @@ export default function CharacterCreate() {
                   )
                 })}
               </div>
-              <p className="text-xs text-slate-600 mt-2 font-serif">
+              <p className="text-xs text-parchment-200/42 mt-2 font-serif">
                 {Object.keys(assignments).length}/6 assigned
                 {Object.keys(assignments).length === 6 ? ' - all stats assigned!' : ''}
               </p>
@@ -749,8 +804,8 @@ export default function CharacterCreate() {
                     className="border p-3 transition-all"
                     style={
                       isPrimary
-                        ? { borderColor: 'rgba(200,146,42,0.5)', background: 'rgba(200,146,42,0.04)' }
-                        : { borderColor: '#1f2937', background: 'rgba(10,14,24,0.8)' }
+                        ? { borderColor: 'rgba(245,158,11,0.52)', background: 'rgba(245,158,11,0.06)' }
+                        : { borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.38)' }
                     }
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -766,7 +821,7 @@ export default function CharacterCreate() {
                         <span className="text-xs font-sans" style={{ color: 'rgba(200,146,42,0.6)' }}>+{raceBonus} race</span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-600 font-serif mb-2">{STAT_NAMES[statKey]}</p>
+                    <p className="text-xs text-parchment-200/42 font-serif mb-2">{STAT_NAMES[statKey]}</p>
 
                     <select
                       value={assigned ?? ''}
@@ -784,9 +839,9 @@ export default function CharacterCreate() {
                       }}
                       className="w-full text-sm font-sans py-1.5 px-2 border appearance-none cursor-pointer"
                       style={{
-                        background: '#0a0e18',
-                        borderColor: assigned !== undefined ? '#c8922a' : '#374151',
-                        color: assigned !== undefined ? '#d4c5a0' : '#6b7280',
+                        background: 'rgba(0,0,0,0.72)',
+                        borderColor: assigned !== undefined ? 'rgba(245,158,11,0.52)' : 'rgba(255,255,255,0.12)',
+                        color: assigned !== undefined ? '#f2dfb6' : 'rgba(180,160,120,0.45)',
                       }}
                     >
                       <option value="">- assign -</option>
@@ -800,11 +855,11 @@ export default function CharacterCreate() {
 
                     {finalVal !== null && (
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-xs text-slate-500 font-sans">
+                        <span className="text-xs text-parchment-200/42 font-sans">
                           {assigned}{raceBonus > 0 ? ` +${raceBonus}` : ''} =
                         </span>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-fantasy text-lg" style={{ color: '#d4c5a0' }}>{finalVal}</span>
+                          <span className="font-fantasy text-lg" style={{ color: '#f2dfb6' }}>{finalVal}</span>
                           <span
                             className="text-xs font-sans font-bold px-1.5 py-0.5 border"
                             style={{
@@ -824,11 +879,11 @@ export default function CharacterCreate() {
             </div>
 
             <div className="mt-8 flex gap-3">
-              <button onClick={() => setStep(3)} className="fantasy-btn-secondary">Back</button>
+              <button onClick={() => setStep(3)} className="border border-white/12 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-parchment-200/66 transition-all hover:border-white/24 hover:text-parchment-100">Back</button>
               <button
                 onClick={() => setStep(5)}
                 disabled={Object.keys(assignments).length < 6}
-                className="fantasy-btn px-8 disabled:opacity-40"
+                className="border border-amber-300/46 bg-amber-300/12 px-6 py-3 font-fantasy text-xs uppercase tracking-[0.2em] text-amber-100 transition-all hover:border-amber-200 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 Name Your Legend
               </button>
@@ -839,31 +894,31 @@ export default function CharacterCreate() {
         {/* STEP 5: Name & Review */}
         {step === 5 && (
           <div className="animate-fade-in">
-            <h2 className="font-fantasy text-2xl text-parchment-200 mb-2">Your Legend</h2>
-            <p className="text-slate-500 font-serif italic text-sm mb-8">What do they call you? What brought you here?</p>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-amber-200/62">Your Legend</p>
+            <p className="mt-2 text-parchment-200/68 font-serif italic text-sm mb-8">What do they call you? What brought you here?</p>
 
             <div className="grid md:grid-cols-2 gap-8">
               {/* Form */}
               <div className="space-y-5">
                 <div>
-                  <label className="block text-xs uppercase tracking-widest text-slate-500 mb-2">Name</label>
+                  <label className="block font-fantasy text-[10px] uppercase tracking-[0.22em] text-amber-200/58 mb-2">Name</label>
                   <input
                     type="text"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    className="fantasy-input w-full text-lg font-serif"
+                    className="w-full border border-amber-300/28 bg-black/50 px-4 py-3 text-lg font-serif text-parchment-100 outline-none placeholder:text-parchment-200/30"
                     placeholder="What do they call you?"
                     autoFocus
                   />
                 </div>
                 <div>
-                  <label className="block text-xs uppercase tracking-widest text-slate-500 mb-2">
-                    Backstory <span className="text-slate-700 normal-case tracking-normal">(optional - the DM reads this)</span>
+                  <label className="block font-fantasy text-[10px] uppercase tracking-[0.22em] text-amber-200/58 mb-2">
+                    Backstory <span className="font-serif text-parchment-200/34 normal-case tracking-normal">(optional - the DM reads this)</span>
                   </label>
                   <textarea
                     value={backstory}
                     onChange={e => setBackstory(e.target.value)}
-                    className="fantasy-input w-full h-36 resize-none font-serif text-sm"
+                    className="w-full h-36 resize-none border border-cyan-200/18 bg-black/50 px-4 py-3 font-serif text-sm text-parchment-100 outline-none placeholder:text-parchment-200/30"
                     placeholder="Who were you before? What drives you? What have you lost?"
                   />
                 </div>
@@ -871,15 +926,15 @@ export default function CharacterCreate() {
 
               {/* Preview card */}
               <div>
-                <p className="text-xs uppercase tracking-widest text-slate-600 mb-3">Preview</p>
-                <div className="border border-slate-800 bg-slate-900/60 overflow-hidden">
+                <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-cyan-200/58 mb-3">Preview</p>
+                <div className="border border-white/12 bg-black/48 overflow-hidden">
                   {selectedPortrait && (
                     <div className="relative h-48 overflow-hidden">
                       <img src={selectedPortrait} alt="portrait" className="w-full h-full object-cover object-top" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
                       <div className="absolute bottom-3 left-4 right-4">
                         <p className="font-fantasy text-xl text-parchment-100">{name || '-'}</p>
-                        <p className="text-slate-400 text-xs font-serif">{selectedRace} {selectedClass}</p>
+                        <p className="text-parchment-200/58 text-xs font-serif">{selectedRace} {selectedClass}</p>
                       </div>
                     </div>
                   )}
@@ -887,13 +942,13 @@ export default function CharacterCreate() {
                     {selectedClass && (
                       <div className="space-y-1">
                         <span className="text-xs border px-1.5 py-0.5 font-sans uppercase tracking-widest" style={{ borderColor: '#c8922a', color: '#c8922a' }}>{CLASS_INFO[selectedClass].role}</span>
-                        <p className="text-slate-400 font-serif text-xs italic">{CLASS_INFO[selectedClass].description.split('. ')[0]}.</p>
+                        <p className="text-parchment-200/58 font-serif text-xs italic">{CLASS_INFO[selectedClass].description.split('. ')[0]}.</p>
                       </div>
                     )}
                     {selectedRace && (
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {Object.entries(RACE_STAT_BONUSES[selectedRace]).map(([stat, bonus]) => (
-                          <span key={stat} className="text-xs border border-slate-700 px-2 py-0.5 text-slate-400 font-sans">
+                          <span key={stat} className="text-xs border border-white/12 px-2 py-0.5 text-parchment-200/58 font-sans">
                             +{bonus} {stat.toUpperCase()}
                           </span>
                         ))}
@@ -911,18 +966,20 @@ export default function CharacterCreate() {
             )}
 
             <div className="mt-8 flex gap-3">
-              <button onClick={() => setStep(4)} className="fantasy-btn-secondary">Back</button>
+              <button onClick={() => setStep(4)} className="border border-white/12 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-parchment-200/66 transition-all hover:border-white/24 hover:text-parchment-100">Back</button>
               <button
                 onClick={handleCreate}
                 disabled={!name.trim() || loading}
-                className="fantasy-btn px-10 disabled:opacity-40"
+                className="border border-amber-300/46 bg-amber-300/12 px-6 py-3 font-fantasy text-xs uppercase tracking-[0.2em] text-amber-100 transition-all hover:border-amber-200 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 {loading ? <span className="animate-pulse">Forging your legend...</span> : 'Enter the World'}
               </button>
             </div>
           </div>
         )}
-      </div>
+          </div>
+        </section>
+      </main>
     </div>
   )
 }
