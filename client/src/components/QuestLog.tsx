@@ -4,107 +4,105 @@ interface QuestLogProps {
   worldState: WorldState | null
 }
 
-const STATUS_STYLE: Record<string, { label: string; color: string; dot: string }> = {
-  active:    { label: 'Active',     color: '#c89228', dot: '#f59e0b' },
-  completed: { label: 'Completed',  color: '#4ade80', dot: '#22c55e' },
-  failed:    { label: 'Failed',     color: '#f87171', dot: '#ef4444' },
+const STATUS_STYLE: Record<string, { label: string; color: string }> = {
+  active: { label: 'Active', color: '#f59e0b' },
+  completed: { label: 'Completed', color: '#22c55e' },
+  failed: { label: 'Failed', color: '#ef4444' },
 }
 
-const TIME_ICONS: Record<string, string> = {
-  dawn: '🌅', day: '☀️', dusk: '🌇', night: '🌙',
+function formatLabel(value?: string) {
+  return value ? value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : ''
 }
 
 export default function QuestLog({ worldState }: QuestLogProps) {
-  const allQuests = Array.isArray(worldState?.activeQuests) ? worldState!.activeQuests! : []
-  const activeQuests = allQuests.filter(q => q?.status === 'active')
-  const doneQuests   = allQuests.filter(q => q?.status && q.status !== 'active')
-  const locations    = Array.isArray(worldState?.discoveredLocations) ? worldState!.discoveredLocations! : []
+  const allQuests = Array.isArray(worldState?.activeQuests) ? worldState.activeQuests : []
+  const activeQuests = allQuests.filter(quest => quest?.status === 'active')
+  const resolvedQuests = allQuests.filter(quest => quest?.status && quest.status !== 'active')
+  const locations = Array.isArray(worldState?.discoveredLocations) ? worldState.discoveredLocations : []
 
   if (!worldState) {
     return (
-      <div className="p-5 text-center" style={{ color: 'rgba(160,140,110,0.4)' }}>
-        <p className="font-serif text-sm italic">The adventure has not yet begun…</p>
+      <div className="p-5 text-center">
+        <p className="font-serif text-sm italic text-parchment-200/52">The adventure has not yet begun.</p>
       </div>
     )
   }
 
   return (
-    <div className="p-4 space-y-5 text-sm">
-      {/* World context strip */}
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-6 p-4 text-sm text-parchment-100">
+      <div className="grid grid-cols-2 gap-2">
         {worldState.currentLocation && (
-          <span className="font-serif text-xs px-2 py-0.5" style={{ background: 'rgba(200,146,42,0.08)', border: '1px solid rgba(200,146,42,0.2)', color: '#c89228' }}>
-            📍 {worldState.currentLocation}
-          </span>
+          <div className="border border-cyan-200/18 bg-cyan-200/[0.055] px-3 py-3">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-cyan-200/64">Location</p>
+            <p className="mt-1 font-serif text-sm text-parchment-100">{worldState.currentLocation}</p>
+          </div>
         )}
-        {worldState.timeOfDay && (
-          <span className="font-serif text-xs px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.6)' }}>
-            {TIME_ICONS[worldState.timeOfDay] ?? '🕐'} {worldState.timeOfDay.charAt(0).toUpperCase() + worldState.timeOfDay.slice(1)}
-          </span>
-        )}
-        {worldState.weather && (
-          <span className="font-serif text-xs px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.6)' }}>
-            🌤 {worldState.weather}
-          </span>
+        {(worldState.timeOfDay || worldState.weather) && (
+          <div className="border border-amber-300/18 bg-amber-300/[0.055] px-3 py-3">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-amber-200/64">Conditions</p>
+            <p className="mt-1 font-serif text-sm text-parchment-100">
+              {[formatLabel(worldState.timeOfDay), formatLabel(worldState.weather)].filter(Boolean).join(' / ')}
+            </p>
+          </div>
         )}
       </div>
 
-      {/* Active quests */}
-      <div>
-        <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)' }}>Active Quests</p>
+      <section>
+        <p className="mb-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/62">Active Quests</p>
         {activeQuests.length === 0 ? (
-          <p className="font-serif text-xs italic" style={{ color: 'rgba(160,140,110,0.3)' }}>No active quests</p>
+          <p className="border border-white/8 bg-white/[0.025] px-3 py-4 font-serif text-sm italic text-parchment-200/52">
+            No active quests have been logged yet. Keep pressing the world for names, promises, and stakes.
+          </p>
         ) : (
           <div className="space-y-2">
-            {activeQuests.map((q, i) => {
-              const st = STATUS_STYLE[q.status] ?? STATUS_STYLE.active
+            {activeQuests.map((quest, index) => {
+              const style = STATUS_STYLE[quest.status] ?? STATUS_STYLE.active
               return (
-                <div key={i} className="px-3 py-2.5" style={{ background: 'rgba(200,146,42,0.05)', border: '1px solid rgba(200,146,42,0.15)' }}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: st.dot, boxShadow: `0 0 5px ${st.dot}80` }} />
-                    <span className="font-serif text-xs" style={{ color: '#d4c5a0' }}>{q.title}</span>
+                <article key={`${quest.title}-${index}`} className="border border-amber-300/18 bg-amber-300/[0.045] px-3 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 shrink-0" style={{ background: style.color, boxShadow: `0 0 14px ${style.color}` }} />
+                    <h3 className="font-serif text-base font-semibold text-parchment-100">{quest.title}</h3>
+                    <span className="ml-auto font-fantasy text-[10px] uppercase tracking-[0.16em]" style={{ color: style.color }}>{style.label}</span>
                   </div>
-                  <p className="text-xs leading-relaxed" style={{ color: 'rgba(160,140,110,0.6)', paddingLeft: '14px' }}>{q.description}</p>
-                </div>
+                  <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/72">{quest.description}</p>
+                </article>
               )
             })}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Completed / failed quests */}
-      {doneQuests.length > 0 && (
-        <div>
-          <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.35)' }}>Resolved</p>
-          <div className="space-y-1.5">
-            {doneQuests.map((q, i) => {
-              const st = STATUS_STYLE[q.status] ?? STATUS_STYLE.completed
+      {resolvedQuests.length > 0 && (
+        <section>
+          <p className="mb-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/52">Resolved</p>
+          <div className="space-y-2">
+            {resolvedQuests.map((quest, index) => {
+              const style = STATUS_STYLE[quest.status] ?? STATUS_STYLE.completed
               return (
-                <div key={i} className="px-3 py-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <article key={`${quest.title}-${index}`} className="border border-white/8 bg-white/[0.025] px-3 py-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: st.dot, opacity: 0.5 }} />
-                    <span className="font-serif text-xs line-through" style={{ color: 'rgba(160,140,110,0.4)' }}>{q.title}</span>
-                    <span className="ml-auto text-xs" style={{ color: st.color, opacity: 0.6 }}>{st.label}</span>
+                    <span className="h-2 w-2 shrink-0 opacity-70" style={{ background: style.color }} />
+                    <h3 className="font-serif text-sm text-parchment-200/68">{quest.title}</h3>
+                    <span className="ml-auto font-fantasy text-[10px] uppercase tracking-[0.16em]" style={{ color: style.color }}>{style.label}</span>
                   </div>
-                </div>
+                </article>
               )
             })}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Discovered locations */}
       {locations.length > 0 && (
-        <div>
-          <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.35)' }}>Discovered Places</p>
-          <div className="flex flex-wrap gap-1.5">
-            {locations.map((loc, i) => (
-              <span key={i} className="font-serif text-xs px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(180,160,120,0.5)' }}>
-                {loc}
+        <section>
+          <p className="mb-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/52">Discovered Places</p>
+          <div className="flex flex-wrap gap-2">
+            {locations.map(location => (
+              <span key={location} className="border border-white/10 bg-white/[0.025] px-3 py-2 font-serif text-xs text-parchment-200/68">
+                {location}
               </span>
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   )

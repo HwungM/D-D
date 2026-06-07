@@ -832,7 +832,7 @@ CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATIO
 ACTION: ${action}
 Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â
 
-IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older context. Update worldStateChanges.npcMemory for named NPCs. Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.
+IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older context. If any named NPC appears, speaks, is referenced as a contact, gives information, changes disposition, or becomes the active conversation partner, update worldStateChanges.npcMemory with that NPC's name, disposition, notes, lastMet, metCharacters, and interactionCount. Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.
 
 QUALITY BAR BEFORE YOU ANSWER:
 - Does the narration change the situation in a concrete way?

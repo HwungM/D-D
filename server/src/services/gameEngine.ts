@@ -742,6 +742,23 @@ export async function processAction(
     activeNPCChange.activeNPC = aiResponse.activeNPC;
   }
 
+  // If the model sets activeNPC but forgets npcMemory, still save a lightweight character card.
+  const activeNpcName = typeof activeNPCChange.activeNPC === 'string' ? activeNPCChange.activeNPC.trim() : '';
+  const existingNpcNames = new Set([
+    ...(ws.npcMemory || []).map(npc => npc.name.toLowerCase()),
+    ...(((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory || []).map(npc => npc.name.toLowerCase())),
+  ]);
+  const autoNpcMemory: NpcMemory[] = activeNpcName && !existingNpcNames.has(activeNpcName.toLowerCase())
+    ? [{
+        name: activeNpcName,
+        disposition: 'unknown',
+        notes: `Met ${character.name} near ${newLocation || ws.currentLocation || 'the current scene'}.`,
+        lastMet: newLocation || ws.currentLocation,
+        metCharacters: [character.name],
+        interactionCount: 1,
+      }]
+    : [];
+
   // Persist shop inventory per location â€” same visit shows same items, but resets after leaving and doing 5+ things elsewhere
   const shopInventoryChange: Partial<WorldState> = {};
   if (aiResponse.isMerchant && aiResponse.shopItems && aiResponse.shopItems.length > 0) {
@@ -824,6 +841,9 @@ export async function processAction(
 
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
+    ...(autoNpcMemory.length > 0
+      ? { npcMemory: [...(((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory) || []), ...autoNpcMemory] }
+      : {}),
     ...locationTracking,
     ...activeNPCChange,
     ...shopInventoryChange,
