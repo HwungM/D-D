@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { campaignApi } from '../lib/api'
 import { TONE_ICONS, pickRandom4 } from '../lib/seeds'
+import LoadingScreen from '../components/LoadingScreen'
 import type { StorySeedOption } from '../../../shared/types'
 
 // ---------------------------------------------------------------------------
@@ -181,24 +182,7 @@ export default function CampaignWizard() {
   // Loading overlay
   // -------------------------------------------------------------------------
   if (creating) {
-    return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center" style={{ background: '#0a0d12' }}>
-        <div className="absolute inset-0" style={{
-          backgroundImage: `url('/assets/scenes/ancient-ruins.png')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          opacity: 0.08,
-        }} />
-        <div className="relative z-10 text-center">
-          <div className="w-12 h-12 mx-auto mb-6 border-2 rounded-full animate-spin" style={{
-            borderColor: 'rgba(200,146,42,0.25)',
-            borderTopColor: '#c8922a',
-          }} />
-          <p className="font-fantasy text-2xl text-parchment-200 mb-2">The world takes shape...</p>
-          <p className="font-serif text-sm" style={{ color: 'rgba(200,146,42,0.5)' }}>Your campaign is being woven into existence</p>
-        </div>
-      </div>
-    )
+    return <LoadingScreen mode="campaign" message="The Game Master is building your first horizon..." />
   }
 
   // -------------------------------------------------------------------------
