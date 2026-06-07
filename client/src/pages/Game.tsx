@@ -605,61 +605,112 @@ export default function Game() {
   // -- Start screen ----------------------------------------------------------
   if (!started) {
     return (
-      <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: '#060a0f' }}>
-        <div className="absolute inset-0" style={{ backgroundImage: `url(${DEFAULT_SCENES[0]})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.12, filter: 'blur(3px)' }} />
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, rgba(180,80,30,0.08) 0%, #060a0f 65%)' }} />
-        <div className="relative z-10 text-center max-w-lg px-8">
-          {currentCharacter?.portrait_url ? (
-            <div className="w-28 h-28 mx-auto mb-6 rounded-full overflow-hidden border-2" style={{ borderColor: 'rgba(192,57,43,0.5)', boxShadow: '0 0 50px rgba(192,57,43,0.3)' }}>
-              <img src={currentCharacter.portrait_url} alt="" className="w-full h-full object-cover object-top" />
-            </div>
-          ) : (
-            <div className="w-28 h-28 mx-auto mb-6 rounded-full border-2 border-ember-400/40 flex items-center justify-center" style={{ boxShadow: '0 0 50px rgba(192,57,43,0.3)' }}>
-              <span className="font-fantasy text-4xl text-ember-400">+</span>
-            </div>
-          )}
-          <h2 className="font-fantasy text-5xl text-parchment-200 mb-2" style={{ textShadow: '0 0 40px rgba(192,57,43,0.3)' }}>Your Adventure Awaits</h2>
-          {currentCharacter && (
-            <p className="font-serif text-sm uppercase tracking-widest mb-4" style={{ color: 'rgba(200,146,42,0.6)', letterSpacing: '0.15em' }}>
-              {currentCharacter.name} - {currentCharacter.race} {currentCharacter.class}
-            </p>
-          )}
-          {campaignName && (
-            <p className="font-serif text-sm italic mb-8" style={{ color: 'rgba(180,160,120,0.5)' }}>{campaignName}</p>
-          )}
-          {recentNarrations.length > 0 && !isNewCharacter ? (
-            <div className="mb-10 text-left" style={{ border: '1px solid rgba(200,146,42,0.12)', background: 'rgba(200,146,42,0.03)', padding: '16px 20px' }}>
-              <p className="text-xs uppercase tracking-widest mb-3 text-center" style={{ color: 'rgba(200,146,42,0.4)', letterSpacing: '0.2em' }}>
-                The story so far...
-              </p>
-              <div className="space-y-2">
-                {recentNarrations.slice(-3).map((n, i) => (
-                  <p key={i} className="font-serif text-xs leading-relaxed line-clamp-2" style={{ color: 'rgba(160,140,110,0.65)' }}>
-                    {n.slice(0, 180)}{n.length > 180 ? '...' : ''}
-                  </p>
-                ))}
+      <div className="relative min-h-screen overflow-hidden bg-[#050607] text-parchment-100">
+        <div className="absolute inset-0">
+          <img
+            src={DEFAULT_SCENES[0]}
+            alt=""
+            className="h-full w-full object-cover"
+            style={{ opacity: 0.54, filter: 'saturate(1.02) contrast(1.08)' }}
+            onError={e => { (e.currentTarget as HTMLImageElement).src = '/media/everrealm-hero-desktop.png' }}
+          />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.94)_0%,rgba(0,0,0,0.58)_48%,rgba(0,0,0,0.91)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.28)_0%,rgba(0,0,0,0.42)_48%,rgba(0,0,0,0.94)_100%)]" />
+        </div>
+
+        <header className="relative z-10 border-b border-parchment-100/22 bg-black/34 px-5 py-4 backdrop-blur-md">
+          <div className="mx-auto flex max-w-[1540px] items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center border border-parchment-100/70 bg-black/28">
+                <span className="font-fantasy text-xl text-amber-200">E</span>
+              </div>
+              <div>
+                <p className="font-fantasy text-xl uppercase tracking-[0.1em] text-parchment-100">The Everrealm</p>
+                <p className="font-serif text-xs uppercase tracking-[0.22em] text-amber-200/54">Living campaign</p>
               </div>
             </div>
-          ) : (
-            <p className="font-serif italic mb-10 leading-relaxed text-sm" style={{ color: 'rgba(160,140,110,0.7)' }}>
-              The Dungeon Master stands ready. When you step through, there is no turning back.
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard')}
+              className="border border-parchment-200/14 bg-black/22 px-4 py-2 font-fantasy text-[10px] uppercase tracking-[0.2em] text-parchment-200/66 transition-all hover:border-amber-200/45 hover:text-parchment-100"
+            >
+              Hall
+            </button>
+          </div>
+        </header>
+
+        <main className="relative z-10 mx-auto grid min-h-[calc(100vh-73px)] max-w-[1320px] items-center gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_440px] lg:px-6">
+          <section className="max-w-4xl">
+            <p className="font-fantasy text-[11px] uppercase tracking-[0.36em] text-amber-200/78">
+              {isNewCharacter ? 'First Door' : 'Continue Legend'}
             </p>
-          )}
-          <button
-            onClick={handleStart}
-            disabled={isLoading || isTyping}
-            className="font-serif text-base px-14 py-3.5 transition-all disabled:opacity-50"
-            style={{
-              background: 'linear-gradient(135deg, rgba(192,57,43,0.25), rgba(140,30,20,0.4))',
-              border: '1px solid rgba(192,57,43,0.45)',
-              color: '#e8b09a',
-              letterSpacing: '0.08em',
-              boxShadow: '0 0 30px rgba(192,57,43,0.15)',
-            }}
-          >
-            {isLoading ? <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>The world stirs...</span> : 'Enter the Story'}
-          </button>
-        </div>
+            <h1 className="mt-4 font-fantasy text-5xl uppercase leading-[0.95] tracking-[0.08em] text-parchment-100 sm:text-6xl lg:text-7xl">
+              Enter the Story
+            </h1>
+            <p className="mt-5 max-w-2xl font-serif text-lg italic leading-relaxed text-parchment-200/74">
+              {recentNarrations.length > 0 && !isNewCharacter
+                ? 'The scene is waiting where you left it. Step back through the door and let the next choice matter.'
+                : 'The Dungeon Master stands ready. When you step through, the world begins listening.'}
+            </p>
+          </section>
+
+          <aside className="border border-parchment-100/34 bg-black/62 p-5 shadow-[0_30px_130px_rgba(0,0,0,0.72)] backdrop-blur-md">
+            <div className="flex items-start gap-4 border-b border-white/10 pb-5">
+              {currentCharacter?.portrait_url ? (
+                <div className="h-24 w-24 shrink-0 overflow-hidden border border-amber-200/34 bg-black/48">
+                  <img src={currentCharacter.portrait_url} alt="" className="h-full w-full object-cover object-top" />
+                </div>
+              ) : (
+                <div className="flex h-24 w-24 shrink-0 items-center justify-center border border-amber-200/34 bg-black/48">
+                  <span className="font-fantasy text-3xl text-amber-200">E</span>
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/62">Adventurer</p>
+                <h2 className="mt-2 truncate font-fantasy text-3xl text-parchment-100">
+                  {currentCharacter?.name || 'Unnamed Hero'}
+                </h2>
+                {currentCharacter && (
+                  <p className="mt-1 font-serif text-xs uppercase tracking-[0.18em] text-amber-200/62">
+                    {currentCharacter.race} {currentCharacter.class}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="border border-cyan-200/18 bg-cyan-200/[0.045] p-3">
+                <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-cyan-200/64">Campaign</p>
+                <p className="mt-2 truncate font-serif text-sm text-parchment-100">{campaignName || 'Unknown timeline'}</p>
+              </div>
+              <div className="border border-amber-200/18 bg-amber-300/[0.045] p-3">
+                <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-amber-200/64">Status</p>
+                <p className="mt-2 font-serif text-sm text-parchment-100">{isNewCharacter ? 'Opening scene' : 'Ready to resume'}</p>
+              </div>
+            </div>
+
+            {recentNarrations.length > 0 && !isNewCharacter && (
+              <div className="mt-5 border border-white/10 bg-white/[0.025] p-4">
+                <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-amber-200/62">Story So Far</p>
+                <div className="mt-3 space-y-3">
+                  {recentNarrations.slice(-2).map((n, i) => (
+                    <p key={i} className="line-clamp-3 font-serif text-sm leading-relaxed text-parchment-200/64">
+                      {n.slice(0, 220)}{n.length > 220 ? '...' : ''}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleStart}
+              disabled={isLoading || isTyping}
+              className="mt-5 w-full border border-amber-300/46 bg-amber-300/12 px-5 py-4 font-fantasy text-xs uppercase tracking-[0.22em] text-amber-100 shadow-[0_0_36px_rgba(245,158,11,0.12)] transition-all hover:border-amber-200 hover:bg-amber-300/18 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {isLoading ? <span className="animate-pulse">The World Stirs</span> : 'Enter the Story'}
+            </button>
+          </aside>
+        </main>
       </div>
     )
   }
