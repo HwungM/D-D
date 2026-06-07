@@ -100,6 +100,7 @@ export default function SceneDisplay({
             src={currentUrl}
             alt="Scene"
             className="w-full h-full object-cover"
+            onError={e => { (e.currentTarget as HTMLImageElement).src = '/media/everrealm-hero-desktop.png' }}
             style={{
               transform: `translate(${parallax.x}px, ${parallax.y}px) scale(1.1)`,
               transition: 'transform 0.12s ease-out',
@@ -114,6 +115,7 @@ export default function SceneDisplay({
             src={nextUrl}
             alt="Scene"
             className="w-full h-full object-cover"
+            onError={e => { (e.currentTarget as HTMLImageElement).src = '/media/everrealm-hero-desktop.png' }}
             style={{ transform: `translate(${parallax.x}px, ${parallax.y}px) scale(1.1)` }}
           />
         </div>

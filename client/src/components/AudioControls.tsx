@@ -8,20 +8,28 @@ export default function AudioControls() {
   return (
     <div className="flex items-center gap-2">
       <button
+        type="button"
         onClick={() => setMusicOn(audioManager.toggleMusic())}
         title={musicOn ? 'Mute music' : 'Unmute music'}
-        className={`w-7 h-7 flex items-center justify-center border transition-colors duration-200 text-xs
-          ${musicOn ? 'border-ember-500 text-ember-400 hover:bg-ember-600/10' : 'border-slate-700 text-slate-600 hover:border-slate-500'}`}
+        className={`border px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200 ${
+          musicOn
+            ? 'border-amber-300/42 bg-amber-300/10 text-amber-100 hover:border-amber-200'
+            : 'border-white/10 bg-white/[0.025] text-parchment-200/42 hover:border-white/20'
+        }`}
       >
-        ♪
+        Music
       </button>
       <button
+        type="button"
         onClick={() => setSfxOn(audioManager.toggleSfx())}
         title={sfxOn ? 'Mute sounds' : 'Unmute sounds'}
-        className={`w-7 h-7 flex items-center justify-center border transition-colors duration-200 text-xs
-          ${sfxOn ? 'border-ember-500 text-ember-400 hover:bg-ember-600/10' : 'border-slate-700 text-slate-600 hover:border-slate-500'}`}
+        className={`border px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200 ${
+          sfxOn
+            ? 'border-cyan-200/36 bg-cyan-200/8 text-cyan-100 hover:border-cyan-100/70'
+            : 'border-white/10 bg-white/[0.025] text-parchment-200/42 hover:border-white/20'
+        }`}
       >
-        ◆
+        Sound
       </button>
     </div>
   )

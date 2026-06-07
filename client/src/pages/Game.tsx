@@ -34,12 +34,19 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 const DEFAULT_SCENES = [
-  '/assets/scenes/tavern.png',
-  '/assets/scenes/forest-road.png',
-  '/assets/scenes/dungeon-corridor.png',
-  '/assets/scenes/castle-gate.png',
-  '/assets/scenes/ancient-ruins.png',
+  '/media/everrealm-hero-desktop.png',
+  '/media/loading/everrealm-crystal-party.png',
+  '/media/loading/everrealm-portal-party.png',
+  '/media/loading/everrealm-moonlit-party.png',
+  '/media/loading/everrealm-storm-party.png',
+  '/media/loading/everrealm-snow-ascent.png',
 ]
+
+function visibleSceneArt(imageUrl: string | null) {
+  if (!imageUrl) return '/media/everrealm-hero-desktop.png'
+  if (imageUrl.startsWith('/assets/scenes/')) return '/media/everrealm-hero-desktop.png'
+  return imageUrl
+}
 
 function normalizeEvents(events: StoryEvent[]): StoryEvent[] {
   const result: StoryEvent[] = []
@@ -685,13 +692,14 @@ export default function Game() {
     ...partyMembersHere.map(member => member.character?.name),
   ].filter(Boolean) as string[]
   const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', world: 'World', journal: 'Journal' } as const
+  const sceneArtUrl = visibleSceneArt(currentSceneImage)
 
   // -- Main game layout ------------------------------------------------------
   return (
     <div className="everrealm-game-shell relative h-screen flex flex-col overflow-hidden bg-[#050607] text-parchment-100">
       <div className="fixed inset-0 pointer-events-none">
         <img
-          src={currentSceneImage || '/media/everrealm-hero-desktop.png'}
+          src={sceneArtUrl}
           alt=""
           className="h-full w-full object-cover opacity-[0.34] blur-[1px] scale-[1.02]"
         />
@@ -748,10 +756,7 @@ export default function Game() {
           {campaignId && (
             <button
               onClick={() => setShowInviteModal(true)}
-              className="font-serif text-xs px-2.5 py-1 transition-all"
-              style={{ border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.4)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,146,42,0.3)'; (e.currentTarget as HTMLElement).style.color = 'rgba(200,146,42,0.8)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'; (e.currentTarget as HTMLElement).style.color = 'rgba(180,160,120,0.4)' }}
+              className="border border-amber-300/34 bg-amber-300/9 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] text-amber-100 transition-all duration-200 hover:border-amber-200"
             >
               Invite
             </button>
@@ -763,11 +768,11 @@ export default function Game() {
               <button
                 key={tab}
                 onClick={() => { setSidebarTab(tab); setShowSidebar(sidebarTab !== tab || !showSidebar) }}
-                className="font-serif text-xs px-2.5 py-1 transition-all"
-                style={isActive
-                  ? { border: '1px solid rgba(34,211,238,0.36)', color: '#bff4ff', background: 'rgba(34,211,238,0.08)' }
-                  : { border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.45)' }
-                }
+                className={`border px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200 ${
+                  isActive
+                    ? 'border-cyan-200/50 bg-cyan-200/12 text-cyan-50'
+                    : 'border-white/10 bg-white/[0.025] text-parchment-200/62 hover:border-amber-200/34 hover:text-parchment-100'
+                }`}
               >
                 {labels[tab]}
               </button>
@@ -848,7 +853,7 @@ export default function Game() {
         <div className="everrealm-scene-column flex flex-col shrink-0 overflow-hidden border border-cyan-200/16 bg-black/42 shadow-[0_24px_120px_rgba(0,0,0,0.55)] backdrop-blur-md">
           <div className="w-full h-[36vh] min-h-[250px] lg:w-[42vw] xl:w-[46vw] lg:max-w-[760px] lg:h-full lg:min-h-0">
             <SceneDisplay
-              imageUrl={currentSceneImage || '/media/everrealm-hero-desktop.png'}
+              imageUrl={sceneArtUrl}
               location={worldState?.currentLocation}
               timeOfDay={worldState?.timeOfDay}
               weather={worldState?.weather}
@@ -1016,9 +1021,7 @@ export default function Game() {
         </div>
 
         {showSidebar && (
-          <aside className="hidden xl:flex w-[360px] shrink-0 flex-col overflow-hidden border border-cyan-200/14 bg-black/50 backdrop-blur-md animate-slide-in-right" style={{
-            boxShadow: '0 24px 80px rgba(0,0,0,0.34)',
-          }}>
+          <aside className="fixed bottom-4 right-4 top-[92px] z-40 hidden w-[380px] flex-col overflow-hidden border border-cyan-200/18 bg-black/82 shadow-[0_30px_130px_rgba(0,0,0,0.7)] backdrop-blur-md xl:flex animate-slide-in-right">
             <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
               <div>
                 <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/58">Codex</p>
