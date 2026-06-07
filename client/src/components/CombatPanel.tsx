@@ -8,11 +8,11 @@ interface Props {
 }
 
 const ARCHETYPE_ICONS: Record<string, string> = {
-  beast: '🐺',
-  soldier: '⚔',
-  mage: '✦',
-  boss: '♛',
-  minion: '•',
+  beast: 'BST',
+  soldier: 'GRD',
+  mage: 'ARC',
+  boss: 'BOS',
+  minion: 'MIN',
 }
 
 const CONDITION_COLOR: Record<string, string> = {
@@ -30,7 +30,7 @@ const CONDITION_WIDTH: Record<string, string> = {
 function EnemyBar({ enemy }: { enemy: CombatEnemy }) {
   const color = CONDITION_COLOR[enemy.condition]
   const width = CONDITION_WIDTH[enemy.condition]
-  const icon = ARCHETYPE_ICONS[enemy.archetype] || '•'
+  const icon = ARCHETYPE_ICONS[enemy.archetype] || 'FOE'
 
   return (
     <div
@@ -40,7 +40,7 @@ function EnemyBar({ enemy }: { enemy: CombatEnemy }) {
         textDecoration: enemy.isDefeated ? 'line-through' : 'none',
       }}
     >
-      <span style={{ fontSize: 11, width: 16, textAlign: 'center', opacity: 0.7 }}>{icon}</span>
+      <span className="border border-white/10 bg-white/[0.025] px-1.5 py-0.5 font-fantasy text-[8px] uppercase tracking-[0.1em] text-parchment-200/48">{icon}</span>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-0.5">
           <span
@@ -56,10 +56,10 @@ function EnemyBar({ enemy }: { enemy: CombatEnemy }) {
             {enemy.isDefeated ? 'defeated' : enemy.condition}
           </span>
         </div>
-        <div className="w-full rounded-full overflow-hidden" style={{ height: 2, background: 'rgba(255,255,255,0.06)' }}>
+        <div className="w-full overflow-hidden" style={{ height: 2, background: 'rgba(255,255,255,0.08)' }}>
           {!enemy.isDefeated && (
             <div
-              className="h-full rounded-full transition-all duration-700"
+              className="h-full transition-all duration-700"
               style={{ width, background: color, boxShadow: `0 0 4px ${color}80` }}
             />
           )}
@@ -88,21 +88,19 @@ export default function CombatPanel({ combatState, abilities, onAction, disabled
 
   return (
     <div
-      className="mx-4 mb-2 px-3 py-2.5"
+      className="mx-4 mb-2 border border-red-200/20 bg-black/58 px-4 py-3 shadow-[0_18px_60px_rgba(0,0,0,0.42)]"
       style={{
-        background: 'rgba(80,5,5,0.25)',
-        border: '1px solid rgba(220,38,38,0.2)',
-        borderTop: '2px solid rgba(220,38,38,0.35)',
+        borderTopColor: combatState.isBossFight ? 'rgba(248,113,113,0.55)' : 'rgba(245,158,11,0.38)',
       }}
     >
       {/* Enemy status */}
       <div className="mb-2.5">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="font-sans text-xs uppercase tracking-widest" style={{ color: 'rgba(240,80,80,0.6)', fontSize: 9, letterSpacing: '0.2em' }}>
-            {combatState.isBossFight ? `★ Boss Fight · Phase ${combatState.bossPhase || 1}` : `Enemies · Round ${combatState.roundNumber}`}
+          <span className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-red-100/70">
+            {combatState.isBossFight ? `Boss Fight / Phase ${combatState.bossPhase || 1}` : `Enemies / Round ${combatState.roundNumber}`}
           </span>
           {allDefeated && (
-            <span className="font-serif text-xs" style={{ color: 'rgba(34,197,94,0.7)' }}>All fallen ✓</span>
+            <span className="font-fantasy text-[10px] uppercase tracking-[0.18em]" style={{ color: 'rgba(34,197,94,0.78)' }}>All Fallen</span>
           )}
         </div>
         <div className="space-y-1.5">
@@ -113,9 +111,9 @@ export default function CombatPanel({ combatState, abilities, onAction, disabled
       {/* Abilities */}
       {availableAbilities.length > 0 && (
         <>
-          <div style={{ height: 1, background: 'rgba(220,38,38,0.1)', marginBottom: 8 }} />
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 10 }} />
           <div>
-            <p className="font-sans text-xs uppercase mb-1.5" style={{ color: 'rgba(200,146,42,0.45)', fontSize: 9, letterSpacing: '0.2em' }}>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-amber-200/58 mb-2">
               Available Abilities
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -125,12 +123,11 @@ export default function CombatPanel({ combatState, abilities, onAction, disabled
                   disabled={disabled}
                   onClick={() => onAction(`Use ${ability.name}`)}
                   title={ability.description}
-                  className="font-serif text-xs px-2.5 py-1 transition-all disabled:opacity-40"
+                  className="border px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.14em] transition-all disabled:cursor-not-allowed disabled:opacity-40"
                   style={{
                     background: 'rgba(200,146,42,0.08)',
                     border: '1px solid rgba(200,146,42,0.25)',
                     color: 'rgba(200,146,42,0.85)',
-                    fontSize: 11,
                   }}
                   onMouseEnter={e => {
                     if (!disabled) {
@@ -143,7 +140,7 @@ export default function CombatPanel({ combatState, abilities, onAction, disabled
                     ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,146,42,0.25)'
                   }}
                 >
-                  ✦ {ability.name}
+                  {ability.name}
                 </button>
               ))}
             </div>
@@ -154,7 +151,7 @@ export default function CombatPanel({ combatState, abilities, onAction, disabled
       {/* Cooldowns hint */}
       {onCooldown.length > 0 && (
         <p className="font-serif text-xs mt-1.5" style={{ color: 'rgba(160,120,80,0.35)', fontSize: 10 }}>
-          On cooldown: {onCooldown.map(a => `${a.name} (${a.currentCooldown})`).join(' · ')}
+          On cooldown: {onCooldown.map(a => `${a.name} (${a.currentCooldown})`).join(' / ')}
         </p>
       )}
     </div>
