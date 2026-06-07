@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { campaignApi, characterApi } from '../lib/api'
 import { useAuthStore } from '../lib/store'
@@ -10,108 +10,99 @@ const ALL_SEEDS: StorySeedOption[] = [
   {
     id: 'seed-1',
     title: 'The Shattered Throne',
-    premise: 'A king has been murdered and his throne sits empty. Five factions each claim the right to rule. The kingdom is weeks from civil war — and something ancient stirs beneath the capital, waiting for the chaos.',
-    tone: 'Political intrigue & betrayal',
+    premise: 'A king has been murdered and his throne sits empty. Five factions each claim the right to rule. The kingdom is weeks from civil war, and something ancient stirs beneath the capital, waiting for the chaos.',
+    tone: 'Political intrigue and betrayal',
     startingLocation: 'Ashveil City',
   },
   {
     id: 'seed-2',
     title: 'The Bleaching',
-    premise: 'Animals die without cause. Crops rot before harvest. Magic itself feels thin. Something is draining the life from the land, slowly, from somewhere deep in the northern wastes. No one who went to investigate has returned.',
-    tone: 'Creeping dread & mystery',
+    premise: 'Animals die without cause. Crops rot before harvest. Magic itself feels thin. Something is draining the life from the land, slowly, from somewhere deep in the northern wastes.',
+    tone: 'Creeping mystery',
     startingLocation: 'The village of Dunmore',
   },
   {
     id: 'seed-3',
     title: 'Oathbreakers',
-    premise: 'The most powerful archmage in the world was found dead this morning. Every nation wants the killer found immediately. You were seen near the tower the night it happened. You have until dawn to prove your innocence — or flee.',
-    tone: 'Tense investigation & survival',
+    premise: 'The most powerful archmage in the world was found dead this morning. Every nation wants the killer found immediately. You were seen near the tower the night it happened.',
+    tone: 'Tense investigation',
     startingLocation: 'The city of Vareth',
   },
   {
     id: 'seed-4',
     title: 'The Last Gate',
-    premise: 'A portal to the Abyss tore open thirty days ago. Demons poured through for a week — then went silent. The silence is worse. Something is organizing them. Something that does not want to be found until it is ready.',
-    tone: 'Dark horror & desperate odds',
+    premise: 'A portal tore open thirty days ago. Monsters poured through for a week, then went silent. The silence is worse. Something is organizing them.',
+    tone: 'Desperate odds',
     startingLocation: 'Fort Ashenmere',
   },
   {
     id: 'seed-5',
     title: 'The Hollow Crown',
-    premise: 'The young queen has not been seen in three days. The court pretends everything is normal. The guards pretend everything is normal. The city pretends everything is normal. You are the only one who finds this strange.',
-    tone: 'Paranoia & conspiracy',
+    premise: 'The young queen has not been seen in three days. The court pretends everything is normal. The guards pretend everything is normal. You are the only one who finds this strange.',
+    tone: 'Paranoia and conspiracy',
     startingLocation: 'The Royal Capital',
   },
   {
     id: 'seed-6',
     title: 'Salt and Iron',
-    premise: "The merchant guilds hired you to escort a shipment to a coastal fort. Simple work. Except the ship's captain is lying, the cargo is not what they claimed, and the fort stopped responding to ravens two weeks ago.",
-    tone: 'Gritty survival & secrets',
+    premise: "The merchant guilds hired you to escort a shipment to a coastal fort. Simple work. Except the captain is lying, the cargo is not what they claimed, and the fort stopped answering ravens.",
+    tone: 'Secrets and survival',
     startingLocation: 'The port of Thornhaven',
   },
   {
     id: 'seed-7',
     title: 'The Buried God',
-    premise: 'Miners broke through into something old beneath the mountain. The dreams started the next night. Miners who went back down never came up. Now the town hears the voice too — a deep voice, patient, promising everything.',
-    tone: 'Cosmic horror & temptation',
+    premise: 'Miners broke through into something old beneath the mountain. The dreams started the next night. Miners who went back down never came up.',
+    tone: 'Cosmic temptation',
     startingLocation: 'The mining town of Greyfall',
   },
   {
     id: 'seed-8',
     title: 'Blood of the Compact',
-    premise: "A century ago, seven heroes bound themselves in a pact with a death god to seal away a great evil. The pact is breaking. The heroes' descendants are dying one by one — and you are one of them.",
-    tone: 'Fate, legacy & urgency',
+    premise: "A century ago, seven heroes sealed away a great evil. The pact is breaking. The heroes' descendants are dying one by one, and you are one of them.",
+    tone: 'Legacy and urgency',
     startingLocation: 'The Shrine of Ash',
-  },
-  {
-    id: 'seed-9',
-    title: "The Warlord's Road",
-    premise: 'An unstoppable warlord has united the eastern tribes and is marching west. You have been sent to assassinate them before they reach the mountain pass. You arrive and discover the warlord is twelve years old.',
-    tone: 'Moral weight & war',
-    startingLocation: 'The eastern border camp',
-  },
-  {
-    id: 'seed-10',
-    title: 'City of Masks',
-    premise: 'In the floating city of Vel Soran, everyone wears a mask and no one speaks their real name. You came here to find someone. The problem is you\'ve forgotten who.',
-    tone: 'Surreal mystery & identity',
-    startingLocation: 'Vel Soran',
-  },
-  {
-    id: 'seed-11',
-    title: 'The Long Winter',
-    premise: 'It has not stopped snowing for six months. The sun rises for three hours a day now. Refugees pour into the southern cities. Something ended the seasons — and it was not an accident.',
-    tone: 'Survival & epic stakes',
-    startingLocation: 'The city of Emberwall',
-  },
-  {
-    id: 'seed-12',
-    title: 'The Debt',
-    premise: 'A powerful patron did you a great favor once. Now they have called in the debt. You owe them one task — no questions asked. The task: retrieve a box from a vault beneath the most heavily guarded city in the world.',
-    tone: 'Heist & moral compromise',
-    startingLocation: 'The city of Ironveil',
   },
 ]
 
-const TONE_ICONS: Record<string, string> = {
-  'Political intrigue & betrayal': '👑',
-  'Creeping dread & mystery': '🌑',
-  'Tense investigation & survival': '🕯',
-  'Dark horror & desperate odds': '🩸',
-  'Paranoia & conspiracy': '🎭',
-  'Gritty survival & secrets': '⚓',
-  'Cosmic horror & temptation': '🕳',
-  'Fate, legacy & urgency': '⚔️',
-  'Moral weight & war': '🏹',
-  'Surreal mystery & identity': '🎭',
-  'Survival & epic stakes': '❄️',
-  'Heist & moral compromise': '🗝',
-}
+const SYSTEMS = [
+  { name: 'Party', status: 'Invite-ready', accent: '#22c55e' },
+  { name: 'Scene Art', status: 'Visual-aware', accent: '#22d3ee' },
+  { name: 'Memory', status: 'Long campaign spine', accent: '#f59e0b' },
+  { name: 'Maps', status: 'Queued next', accent: '#a78bfa' },
+  { name: 'Inventory', status: 'Needs remodel', accent: '#f97316' },
+]
+
+const FEATURED_IMAGES = [
+  '/media/loading/everrealm-crystal-party.png',
+  '/media/loading/everrealm-portal-party.png',
+  '/media/loading/everrealm-moonlit-party.png',
+  '/media/loading/everrealm-storm-party.png',
+  '/media/loading/everrealm-snow-ascent.png',
+  '/media/loading/everrealm-eclipse-citadel.png',
+]
+
+const CARD_SCENES = [
+  '/media/everrealm-hero-desktop.png',
+  '/media/loading/everrealm-crystal-party.png',
+  '/media/loading/everrealm-portal-party.png',
+  '/media/loading/everrealm-moonlit-party.png',
+  '/media/loading/everrealm-storm-party.png',
+]
 
 function pickRandom4(exclude: string[] = []): StorySeedOption[] {
-  const pool = ALL_SEEDS.filter(s => !exclude.includes(s.id))
-  const shuffled = [...pool].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, 4)
+  const pool = ALL_SEEDS.filter(seed => !exclude.includes(seed.id))
+  return [...pool].sort(() => Math.random() - 0.5).slice(0, 4)
+}
+
+function campaignDate(campaign: Campaign) {
+  const date = campaign.updated_at || campaign.created_at
+  return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function getCampaignImage(campaign: Campaign) {
+  const index = Math.abs(campaign.name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)) % CARD_SCENES.length
+  return CARD_SCENES[index]
 }
 
 export default function Dashboard() {
@@ -133,20 +124,39 @@ export default function Dashboard() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [continuingId, setContinuingId] = useState<string | null>(null)
-  const [creatingTestWorld, setCreatingTestWorld] = useState(false)
-
   const [audioUnlocked, setAudioUnlocked] = useState(() =>
     localStorage.getItem('audioUnlocked') === '1' || localStorage.getItem('audio_music') === 'true'
   )
 
+  const adventureCampaigns = useMemo(
+    () => campaigns.filter(campaign => campaign.campaign_type !== 'testing'),
+    [campaigns]
+  )
+  const testingCampaigns = useMemo(
+    () => campaigns.filter(campaign => campaign.campaign_type === 'testing'),
+    [campaigns]
+  )
+  const featuredCampaign = adventureCampaigns[0]
+  const heroImage = featuredCampaign ? getCampaignImage(featuredCampaign) : '/media/everrealm-hero-desktop.png'
+  const canCreate = Boolean(campaignName.trim() && (useCustomPremise ? customPremise.trim().length > 20 : selectedSeed))
+
   function unlockAudio() {
+    audioManager.playDoorOpen()
     audioManager.startAmbient()
+    audioManager.startGameplay()
     localStorage.setItem('audioUnlocked', '1')
     setAudioUnlocked(true)
   }
 
   useEffect(() => {
-    if (audioUnlocked) audioManager.startAmbient()
+    audioManager.bindUiSounds()
+  }, [])
+
+  useEffect(() => {
+    if (audioUnlocked) {
+      audioManager.startAmbient()
+      audioManager.startGameplay()
+    }
   }, [audioUnlocked])
 
   useEffect(() => {
@@ -156,9 +166,20 @@ export default function Dashboard() {
   }, [])
 
   function refreshSeeds() {
-    const currentIds = seeds.map(s => s.id)
+    const currentIds = seeds.map(seed => seed.id)
     setSelectedSeed(null)
     setSeeds(pickRandom4(currentIds))
+  }
+
+  function openNewTestWorld() {
+    setSeeds(pickRandom4())
+    setSelectedSeed(null)
+    setCampaignName('')
+    setUseCustomPremise(false)
+    setCustomPremise('')
+    setCampaignError('')
+    setShowNewCampaign(true)
+    audioManager.playMagic()
   }
 
   async function createCampaign(type: 'adventure' | 'testing' = 'adventure') {
@@ -166,6 +187,7 @@ export default function Dashboard() {
     if (!premise || !campaignName.trim()) return
     setCreatingCampaign(true)
     setCampaignError('')
+    audioManager.playConfirm()
     try {
       const { data } = await campaignApi.create(campaignName, premise, type)
       navigate(`/campaign/${data.campaign.id}/create-character`)
@@ -176,26 +198,16 @@ export default function Dashboard() {
     }
   }
 
-  function openNewTestWorld() {
-    setSeeds(pickRandom4())
-    setSelectedSeed(null)
-    setCampaignName('')
-    setUseCustomPremise(false)
-    setCustomPremise('')
-    setCampaignError('')
-    setCreatingTestWorld(true)
-    setShowNewCampaign(true)
-  }
-
   async function handleContinue(campaign: Campaign) {
     setContinuingId(campaign.id)
+    audioManager.playDoorOpen()
     try {
       const { data } = await characterApi.listByCampaign(campaign.id)
       const chars = data.characters || []
-      const alive = chars.find((c: { is_alive: boolean }) => c.is_alive)
-      const char = alive || chars[chars.length - 1]
-      if (char) {
-        navigate(`/campaign/${campaign.id}/play/${char.id}`)
+      const alive = chars.find((character: { is_alive: boolean }) => character.is_alive)
+      const character = alive || chars[chars.length - 1]
+      if (character) {
+        navigate(`/campaign/${campaign.id}/play/${character.id}`)
       } else {
         navigate(`/campaign/${campaign.id}/create-character`)
       }
@@ -208,9 +220,7 @@ export default function Dashboard() {
     setDeletingId(id)
     try {
       await campaignApi.delete(id)
-      setCampaigns(prev => prev.filter(c => c.id !== id))
-    } catch {
-      // silently fail
+      setCampaigns(prev => prev.filter(campaign => campaign.id !== id))
     } finally {
       setDeletingId(null)
       setConfirmDeleteId(null)
@@ -222,6 +232,7 @@ export default function Dashboard() {
     if (!code) return
     setJoiningByCode(true)
     setJoinError('')
+    audioManager.playMagic()
     try {
       const { data } = await campaignApi.acceptInvite(code)
       navigate(`/campaign/${data.campaign.id}/create-character`)
@@ -233,11 +244,10 @@ export default function Dashboard() {
   }
 
   function handleLogout() {
+    audioManager.playPageTurn()
     logout()
     navigate('/')
   }
-
-  const canCreate = campaignName.trim() && (useCustomPremise ? customPremise.trim().length > 20 : !!selectedSeed)
 
   if (creatingCampaign) {
     return <LoadingScreen mode="campaign" />
@@ -245,390 +255,269 @@ export default function Dashboard() {
 
   if (!audioUnlocked) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center cursor-pointer"
-        style={{ background: '#0a0d12' }}
-        onClick={unlockAudio}
-      >
-        <div className="absolute inset-0" style={{
-          backgroundImage: `url('/assets/scenes/tavern.png')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center top',
-          opacity: 0.1,
-        }} />
-        <div className="relative z-10 text-center select-none">
-          <div className="w-16 h-16 mx-auto mb-8 flex items-center justify-center" style={{ color: '#c8922a', filter: 'drop-shadow(0 0 20px rgba(200,146,42,0.6))' }}>
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-14 h-14">
-              <path d="M12 2L14.5 8.5H21L15.7 12.6L17.9 19.5L12 15.5L6.1 19.5L8.3 12.6L3 8.5H9.5L12 2Z"/>
-            </svg>
-          </div>
-          <h1 className="font-fantasy text-5xl text-parchment-200 mb-4" style={{ textShadow: '0 0 40px rgba(200,146,42,0.4)', letterSpacing: '0.05em' }}>
-            The Everrealm
-          </h1>
-          <p className="font-serif text-sm mt-6" style={{ color: 'rgba(200,146,42,0.5)', letterSpacing: '0.2em', animation: 'pulse 2s ease-in-out infinite' }}>
-            CLICK TO ENTER
-          </p>
-        </div>
-      </div>
+      <main className="relative min-h-screen overflow-hidden bg-[#050607] text-parchment-100">
+        <picture className="absolute inset-0 block">
+          <source media="(max-width: 767px)" srcSet="/media/everrealm-hero-mobile.png" />
+          <img src="/media/everrealm-hero-desktop.png" alt="" className="h-full w-full object-cover" />
+        </picture>
+        <div className="absolute inset-0 bg-black/68" />
+        <button
+          type="button"
+          onClick={unlockAudio}
+          className="relative z-10 flex min-h-screen w-full items-center justify-center px-6 text-center"
+        >
+          <span className="block">
+            <span className="block font-fantasy text-[11px] uppercase tracking-[0.36em] text-amber-200/76">
+              Sound and fire await
+            </span>
+            <span className="mt-4 block font-fantasy text-5xl uppercase tracking-[0.1em] text-parchment-100 md:text-7xl">
+              The Everrealm
+            </span>
+            <span className="mx-auto mt-6 block h-12 w-12 border border-cyan-200/35 bg-cyan-200/8 shadow-[0_0_42px_rgba(34,211,238,0.24)]" />
+            <span className="mt-6 block font-fantasy text-xs uppercase tracking-[0.26em] text-parchment-200/72">
+              Enter the hall
+            </span>
+          </span>
+        </button>
+      </main>
     )
   }
 
   return (
-    <div className="min-h-screen text-parchment-100 relative" style={{ background: '#0a0d12' }}>
-      {/* Background atmospheric layer */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `url('/assets/scenes/tavern.png')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center top',
-          opacity: 0.07,
-        }} />
-        <div className="absolute inset-0" style={{
-          background: 'radial-gradient(ellipse at 50% 0%, rgba(120,50,20,0.15) 0%, transparent 60%)',
-        }} />
-        <div className="absolute bottom-0 left-0 right-0 h-64" style={{
-          background: 'linear-gradient(to top, #0a0d12, transparent)',
-        }} />
+    <main className="relative min-h-screen overflow-hidden bg-[#050607] text-parchment-100">
+      <div className="fixed inset-0 pointer-events-none">
+        <picture className="absolute inset-0 block">
+          <source media="(max-width: 767px)" srcSet="/media/everrealm-hero-mobile.png" />
+          <img src={heroImage} alt="" className="h-full w-full object-cover opacity-[0.36] blur-[1px] scale-[1.02]" />
+        </picture>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(20,184,166,0.16),transparent_34%),linear-gradient(90deg,rgba(5,6,7,0.92),rgba(5,6,7,0.66)_48%,rgba(5,6,7,0.92))]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/64 via-black/18 to-[#050607]" />
       </div>
 
-      {/* Header */}
-      <header className="relative z-10 px-6 py-5 flex items-center justify-between" style={{
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        background: 'rgba(10,13,18,0.8)',
-        backdropFilter: 'blur(10px)',
-      }}>
-        <div className="flex items-center gap-4">
-          <div className="w-8 h-8 flex items-center justify-center" style={{
-            color: '#c8922a',
-            filter: 'drop-shadow(0 0 8px rgba(200,146,42,0.5))',
-          }}>
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7">
-              <path d="M12 2L14.5 8.5H21L15.7 12.6L17.9 19.5L12 15.5L6.1 19.5L8.3 12.6L3 8.5H9.5L12 2Z"/>
-            </svg>
+      <Header userName={user?.username || 'Adventurer'} onLogout={handleLogout} />
+
+      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 pb-16 pt-7 sm:px-6 lg:px-8">
+        <section className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
+          <div className="relative min-h-[330px] overflow-hidden border border-cyan-200/16 bg-black/42 shadow-[0_24px_120px_rgba(0,0,0,0.55)] backdrop-blur-md">
+            <img src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/88 via-black/58 to-black/28" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_24%,rgba(245,158,11,0.2),transparent_30%),radial-gradient(circle_at_76%_62%,rgba(34,211,238,0.16),transparent_34%)]" />
+
+            <div className="relative z-10 flex min-h-[330px] max-w-2xl flex-col justify-end p-5 sm:p-7">
+              <p className="font-fantasy text-[11px] uppercase tracking-[0.32em] text-cyan-200/78">
+                Adventurer's Hall
+              </p>
+              <h1 className="mt-3 font-fantasy text-4xl uppercase tracking-[0.05em] text-parchment-100 sm:text-5xl">
+                The next door is waiting.
+              </h1>
+              <p className="mt-4 max-w-xl font-serif text-base leading-relaxed text-parchment-200/78 sm:text-lg">
+                Pick up the campaign, gather Sun Mi with an invite code, or spin up a test world without disturbing the real legend.
+              </p>
+
+              <div className="mt-7 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => featuredCampaign ? handleContinue(featuredCampaign) : navigate('/create-campaign')}
+                  className="group border border-amber-300/46 bg-amber-300/12 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.22em] text-parchment-100 shadow-[0_0_36px_rgba(245,158,11,0.12)] transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-200 hover:bg-amber-300/20"
+                >
+                  {featuredCampaign ? (continuingId === featuredCampaign.id ? 'Opening...' : 'Continue Latest') : 'Start a Campaign'}
+                  <span className="ml-3 text-cyan-200 transition-transform duration-300 group-hover:translate-x-1">-&gt;</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/create-campaign')}
+                  className="border border-cyan-200/28 bg-cyan-200/8 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.22em] text-cyan-100 transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan-100/70 hover:bg-cyan-200/14"
+                >
+                  New Legend
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <PartyGate
+            joinCode={joinCode}
+            setJoinCode={setJoinCode}
+            joinError={joinError}
+            joiningByCode={joiningByCode}
+            onJoin={joinByCode}
+          />
+        </section>
+
+        <section className="grid gap-5 lg:grid-cols-[1fr_360px]">
+          <div className="min-w-0">
+            <SectionHeader
+              label="Ongoing legends"
+              title="Your Campaigns"
+              actionLabel="New Campaign"
+              onAction={() => navigate('/create-campaign')}
+            />
+
+            {loading ? (
+              <LoadingShelf />
+            ) : adventureCampaigns.length === 0 ? (
+              <EmptyState onStart={() => navigate('/create-campaign')} />
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {adventureCampaigns.map(campaign => (
+                  <CampaignCard
+                    key={campaign.id}
+                    campaign={campaign}
+                    onContinue={() => handleContinue(campaign)}
+                    onDelete={() => setConfirmDeleteId(campaign.id)}
+                    isContinuing={continuingId === campaign.id}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          <aside className="space-y-5">
+            <WorldSystems />
+            <DevShelf
+              campaigns={testingCampaigns}
+              onNew={openNewTestWorld}
+              onContinue={handleContinue}
+              onDelete={setConfirmDeleteId}
+              continuingId={continuingId}
+            />
+          </aside>
+        </section>
+      </div>
+
+      {confirmDeleteId && (
+        <DeleteModal
+          deleting={Boolean(deletingId)}
+          onCancel={() => setConfirmDeleteId(null)}
+          onDelete={() => deleteCampaign(confirmDeleteId)}
+        />
+      )}
+
+      {showNewCampaign && (
+        <TestWorldModal
+          seeds={seeds}
+          selectedSeed={selectedSeed}
+          setSelectedSeed={setSelectedSeed}
+          refreshSeeds={refreshSeeds}
+          campaignName={campaignName}
+          setCampaignName={setCampaignName}
+          useCustomPremise={useCustomPremise}
+          setUseCustomPremise={setUseCustomPremise}
+          customPremise={customPremise}
+          setCustomPremise={setCustomPremise}
+          canCreate={canCreate}
+          campaignError={campaignError}
+          onCancel={() => {
+            setShowNewCampaign(false)
+            setCampaignError('')
+          }}
+          onCreate={() => createCampaign('testing')}
+        />
+      )}
+    </main>
+  )
+}
+
+function Header({ userName, onLogout }: { userName: string; onLogout: () => void }) {
+  return (
+    <header className="relative z-20 border-b border-white/8 bg-black/58 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center border border-cyan-200/26 bg-cyan-200/8 shadow-[0_0_28px_rgba(34,211,238,0.16)]">
+            <span className="font-fantasy text-xl text-amber-200">E</span>
           </div>
           <div>
-            <h1 className="font-fantasy text-xl text-parchment-200 leading-none" style={{ letterSpacing: '0.05em' }}>The Everrealm</h1>
-            <p className="text-xs font-serif mt-0.5" style={{ color: 'rgba(200,146,42,0.6)', letterSpacing: '0.12em' }}>ADVENTURER'S HALL</p>
+            <p className="font-fantasy text-xl uppercase tracking-[0.1em] text-parchment-100">The Everrealm</p>
+            <p className="font-serif text-xs uppercase tracking-[0.22em] text-amber-200/54">Living campaign hub</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-xs font-serif" style={{ color: 'rgba(180,160,120,0.5)' }}>{user?.username || 'Adventurer'}</span>
-          <button onClick={handleLogout} className="text-xs font-serif px-3 py-1.5 transition-all" style={{
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: 'rgba(180,160,120,0.6)',
-          }}
-          onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = 'rgba(180,160,120,0.3)'; (e.target as HTMLElement).style.color = 'rgba(220,200,160,0.9)' }}
-          onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; (e.target as HTMLElement).style.color = 'rgba(180,160,120,0.6)' }}
+        <div className="flex items-center gap-3">
+          <span className="hidden font-serif text-sm text-parchment-200/62 sm:inline">{userName}</span>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="border border-parchment-200/14 bg-black/22 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.2em] text-parchment-200/66 transition-all duration-200 hover:border-amber-200/45 hover:text-parchment-100"
           >
             Sign Out
           </button>
         </div>
-      </header>
+      </div>
+    </header>
+  )
+}
 
-      <div className="relative z-10 max-w-5xl mx-auto px-6 py-10">
+function PartyGate({ joinCode, setJoinCode, joinError, joiningByCode, onJoin }: {
+  joinCode: string
+  setJoinCode: (value: string) => void
+  joinError: string
+  joiningByCode: boolean
+  onJoin: () => void
+}) {
+  return (
+    <section className="relative overflow-hidden border border-amber-200/18 bg-black/48 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.38)] backdrop-blur-md">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400/0 via-amber-300/75 to-cyan-300/0" />
+      <p className="font-fantasy text-[11px] uppercase tracking-[0.3em] text-amber-200/72">Party Gate</p>
+      <h2 className="mt-3 font-fantasy text-3xl text-parchment-100">Join Sun Mi</h2>
+      <p className="mt-3 font-serif text-sm leading-relaxed text-parchment-200/68">
+        Enter the shared invite code and step into the same campaign timeline.
+      </p>
 
-        {/* Adventures */}
-        <section className="mb-14">
-          <div className="flex items-end justify-between mb-6">
-            <div>
-              <h2 className="font-fantasy text-2xl text-parchment-200">Your Campaigns</h2>
-              <p className="text-xs font-serif mt-1" style={{ color: 'rgba(180,160,120,0.5)', letterSpacing: '0.1em' }}>ONGOING LEGENDS</p>
-            </div>
-            <button
-              onClick={() => navigate('/create-campaign')}
-              className="flex items-center gap-2 px-4 py-2 font-serif text-sm transition-all"
-              style={{
-                background: 'linear-gradient(135deg, rgba(192,57,43,0.2), rgba(120,30,20,0.3))',
-                border: '1px solid rgba(192,57,43,0.4)',
-                color: '#e8b89a',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(192,57,43,0.35), rgba(140,40,25,0.4))' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(192,57,43,0.2), rgba(120,30,20,0.3))' }}
-            >
-              <span style={{ color: '#e8855a' }}>+</span> New Campaign
-            </button>
-          </div>
-
-          {loading ? (
-            <div className="flex items-center gap-3 py-8" style={{ color: 'rgba(180,160,120,0.4)' }}>
-              <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(200,146,42,0.3)', borderTopColor: 'rgba(200,146,42,0.8)' }} />
-              <span className="text-sm font-serif italic">Consulting the annals...</span>
-            </div>
-          ) : campaigns.filter(c => c.campaign_type !== 'testing').length === 0 ? (
-            <div className="py-16 text-center" style={{
-              border: '1px solid rgba(255,255,255,0.05)',
-              background: 'rgba(255,255,255,0.02)',
-            }}>
-              <div className="text-4xl mb-4 opacity-30">⚔</div>
-              <p className="font-serif italic text-sm mb-4" style={{ color: 'rgba(180,160,120,0.5)' }}>No campaigns yet. The realm awaits your tale.</p>
-              <button onClick={() => navigate('/create-campaign')} className="fantasy-btn text-xs">Begin a Campaign</button>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {campaigns.filter(c => c.campaign_type !== 'testing').map((campaign) => (
-                <CampaignCard
-                  key={campaign.id}
-                  campaign={campaign}
-                  onContinue={() => handleContinue(campaign)}
-                  onDelete={() => setConfirmDeleteId(campaign.id)}
-                  isContinuing={continuingId === campaign.id}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Testing Worlds */}
-        <section className="mb-14">
-          <div className="flex items-end justify-between mb-6">
-            <div>
-              <h2 className="font-fantasy text-2xl" style={{ color: 'rgba(196,181,253,0.9)' }}>Testing Worlds</h2>
-              <p className="text-xs font-serif mt-1" style={{ color: 'rgba(147,51,234,0.5)', letterSpacing: '0.1em' }}>DEV SANDBOX</p>
-            </div>
-            <button
-              onClick={openNewTestWorld}
-              className="flex items-center gap-2 px-4 py-2 font-serif text-sm transition-all"
-              style={{
-                background: 'linear-gradient(135deg, rgba(88,28,135,0.2), rgba(60,10,100,0.3))',
-                border: '1px solid rgba(147,51,234,0.4)',
-                color: '#c4b5fd',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(88,28,135,0.35), rgba(60,10,100,0.4))' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(88,28,135,0.2), rgba(60,10,100,0.3))' }}
-            >
-              <span style={{ color: '#a78bfa' }}>+</span> New Test World
-            </button>
-          </div>
-
-          {loading ? null : campaigns.filter(c => c.campaign_type === 'testing').length === 0 ? (
-            <div className="py-10 text-center" style={{
-              border: '1px solid rgba(147,51,234,0.08)',
-              background: 'rgba(147,51,234,0.03)',
-            }}>
-              <div className="text-3xl mb-3 opacity-20">⚙</div>
-              <p className="font-serif italic text-sm" style={{ color: 'rgba(147,51,234,0.4)' }}>No test worlds yet. Create one to access dev tools.</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {campaigns.filter(c => c.campaign_type === 'testing').map((campaign) => (
-                <CampaignCard
-                  key={campaign.id}
-                  campaign={campaign}
-                  onContinue={() => handleContinue(campaign)}
-                  onDelete={() => setConfirmDeleteId(campaign.id)}
-                  isContinuing={continuingId === campaign.id}
-                  isTesting
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Join Campaign */}
-        <section className="max-w-md">
-          <div className="mb-4">
-            <h2 className="font-fantasy text-xl text-parchment-200">Join a Party</h2>
-            <p className="text-xs font-serif mt-1" style={{ color: 'rgba(180,160,120,0.5)', letterSpacing: '0.1em' }}>ENTER INVITE CODE</p>
-          </div>
-          <div style={{ border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)', padding: '20px' }}>
-            <p className="text-xs font-serif italic mb-4" style={{ color: 'rgba(180,160,120,0.5)' }}>
-              Your companion will share an 8-letter code from their game.
-            </p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={joinCode}
-                onChange={e => { setJoinCode(e.target.value.toUpperCase()); setJoinError('') }}
-                className="flex-1 bg-transparent font-mono text-center text-lg tracking-[0.3em] uppercase outline-none py-2 px-3"
-                style={{
-                  border: '1px solid rgba(200,146,42,0.25)',
-                  color: '#e8c87a',
-                  background: 'rgba(200,146,42,0.05)',
-                }}
-                placeholder="· · · · · · · ·"
-                maxLength={8}
-              />
-              <button
-                onClick={joinByCode}
-                disabled={joiningByCode || joinCode.trim().length < 6}
-                className="px-5 py-2 font-serif text-sm transition-all disabled:opacity-40"
-                style={{
-                  background: 'rgba(200,146,42,0.15)',
-                  border: '1px solid rgba(200,146,42,0.3)',
-                  color: '#e8c87a',
-                }}
-              >
-                {joiningByCode ? '...' : 'Join'}
-              </button>
-            </div>
-            {joinError && <p className="text-xs font-serif mt-2" style={{ color: '#e87a7a' }}>{joinError}</p>}
-          </div>
-        </section>
+      <div className="mt-6 flex gap-2">
+        <input
+          type="text"
+          value={joinCode}
+          onChange={event => {
+            setJoinCode(event.target.value.toUpperCase())
+          }}
+          className="min-w-0 flex-1 border border-amber-200/24 bg-amber-200/[0.04] px-3 py-3 text-center font-mono text-lg uppercase tracking-[0.28em] text-amber-100 outline-none transition-colors focus:border-cyan-200/55"
+          placeholder="--------"
+          maxLength={8}
+        />
+        <button
+          type="button"
+          onClick={onJoin}
+          disabled={joiningByCode || joinCode.trim().length < 6}
+          className="border border-cyan-200/28 bg-cyan-200/9 px-4 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-cyan-100 transition-all duration-200 hover:border-cyan-100/70 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {joiningByCode ? '...' : 'Join'}
+        </button>
       </div>
 
-      {/* Delete confirmation modal */}
-      {confirmDeleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }}>
-          <div style={{ background: '#111318', border: '1px solid rgba(192,57,43,0.4)', padding: '28px', maxWidth: '380px', width: '100%' }}>
-            <h3 className="font-fantasy text-lg text-parchment-200 mb-2">Destroy This Campaign?</h3>
-            <p className="text-sm font-serif mb-6" style={{ color: 'rgba(180,160,120,0.7)' }}>
-              All progress, characters, and story will be lost forever. This cannot be undone.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmDeleteId(null)}
-                className="flex-1 py-2 text-sm font-serif transition-all"
-                style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.7)' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => deleteCampaign(confirmDeleteId)}
-                disabled={!!deletingId}
-                className="flex-1 py-2 text-sm font-serif transition-all disabled:opacity-50"
-                style={{ background: 'rgba(192,57,43,0.2)', border: '1px solid rgba(192,57,43,0.5)', color: '#e87a7a' }}
-              >
-                {deletingId ? 'Deleting...' : 'Delete Forever'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {joinError && (
+        <p className="mt-3 border border-red-400/25 bg-red-500/8 px-3 py-2 font-serif text-sm text-red-200">
+          {joinError}
+        </p>
       )}
 
-      {/* New Campaign Modal */}
-      {showNewCampaign && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.9)' }}>
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{
-            background: '#0e1118',
-            border: '1px solid rgba(200,146,42,0.2)',
-            boxShadow: '0 0 60px rgba(200,146,42,0.08)',
-          }}>
-            {/* Modal header */}
-            <div className="flex justify-between items-center px-6 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-              <div>
-                <h2 className="font-fantasy text-xl text-parchment-200">{creatingTestWorld ? 'New Test World' : 'Begin a New Legend'}</h2>
-                <p className="text-xs font-serif mt-1" style={{ color: creatingTestWorld ? 'rgba(147,51,234,0.6)' : 'rgba(200,146,42,0.5)', letterSpacing: '0.1em' }}>{creatingTestWorld ? 'TESTING ENVIRONMENT' : 'CHOOSE YOUR FATE'}</p>
-              </div>
-              <button onClick={() => { setShowNewCampaign(false); setCreatingTestWorld(false) }} style={{ color: 'rgba(180,160,120,0.4)' }} className="text-xl hover:text-parchment-300 transition-colors">✕</button>
-            </div>
-
-            <div className="px-6 py-5">
-              {/* Campaign name */}
-              <div className="mb-6">
-                <label className="block text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(200,146,42,0.7)', letterSpacing: '0.12em' }}>Campaign Name</label>
-                <input
-                  type="text"
-                  value={campaignName}
-                  onChange={e => setCampaignName(e.target.value)}
-                  className="w-full bg-transparent outline-none py-2.5 px-3 font-serif text-parchment-200"
-                  style={{ border: '1px solid rgba(200,146,42,0.25)', background: 'rgba(200,146,42,0.04)' }}
-                  placeholder="Name your legend..."
-                />
-              </div>
-
-              {/* Premise toggle */}
-              <div className="flex items-center justify-between mb-4">
-                <label className="text-xs uppercase tracking-widest" style={{ color: 'rgba(180,160,120,0.6)', letterSpacing: '0.12em' }}>
-                  {useCustomPremise ? 'Write Your Premise' : 'Choose a Premise'}
-                </label>
-                <div className="flex gap-2">
-                  {!useCustomPremise && (
-                    <button
-                      onClick={refreshSeeds}
-                      className="text-xs font-serif px-2 py-1 transition-all"
-                      style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.5)' }}
-                    >
-                      ↻ More
-                    </button>
-                  )}
-                  <button
-                    onClick={() => { setUseCustomPremise(!useCustomPremise); setSelectedSeed(null) }}
-                    className="text-xs font-serif px-2 py-1 transition-all"
-                    style={{ border: '1px solid rgba(192,57,43,0.3)', color: 'rgba(220,130,100,0.8)' }}
-                  >
-                    {useCustomPremise ? '← Browse' : '✎ Write My Own'}
-                  </button>
-                </div>
-              </div>
-
-              {useCustomPremise ? (
-                <div className="mb-6">
-                  <textarea
-                    value={customPremise}
-                    onChange={e => setCustomPremise(e.target.value)}
-                    className="w-full bg-transparent outline-none py-3 px-3 font-serif text-sm resize-none"
-                    style={{ border: '1px solid rgba(200,146,42,0.2)', background: 'rgba(200,146,42,0.03)', minHeight: '140px', color: '#d4c5a0' }}
-                    placeholder="Describe the world, the conflict, the opening scene... The Dungeon Master will weave your words into a living campaign."
-                  />
-                  <p className="text-xs font-serif mt-1.5" style={{ color: customPremise.length < 20 ? 'rgba(220,100,80,0.6)' : 'rgba(120,160,100,0.7)' }}>
-                    {customPremise.length < 20 ? 'Write at least a sentence...' : `${customPremise.length} characters — the Dungeon Master is intrigued`}
-                  </p>
-                </div>
-              ) : (
-                <div className="mb-6 space-y-2.5">
-                  {seeds.map((seed) => (
-                    <button
-                      key={seed.id}
-                      onClick={() => setSelectedSeed(seed)}
-                      className="w-full text-left p-4 transition-all"
-                      style={selectedSeed?.id === seed.id
-                        ? { background: 'rgba(192,57,43,0.12)', border: '1px solid rgba(192,57,43,0.45)' }
-                        : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }
-                      }
-                    >
-                      <div className="flex items-start gap-3">
-                        <span className="text-lg mt-0.5 shrink-0">{TONE_ICONS[seed.tone] || '📜'}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <h4 className="font-fantasy text-base text-parchment-200">{seed.title}</h4>
-                            {selectedSeed?.id === seed.id && (
-                              <span className="text-xs shrink-0" style={{ color: 'rgba(192,57,43,0.9)' }}>Selected ✓</span>
-                            )}
-                          </div>
-                          <p className="text-sm font-serif leading-relaxed mb-2" style={{ color: 'rgba(200,185,155,0.8)' }}>{seed.premise}</p>
-                          <div className="flex gap-3 text-xs font-serif" style={{ color: 'rgba(150,140,110,0.6)' }}>
-                            <span>{seed.tone}</span>
-                            <span>·</span>
-                            <span>{seed.startingLocation}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {campaignError && (
-                <div className="px-3 py-2 mb-4 text-sm font-serif" style={{ background: 'rgba(192,57,43,0.1)', border: '1px solid rgba(192,57,43,0.3)', color: '#e87a7a' }}>
-                  {campaignError}
-                </div>
-              )}
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => { setShowNewCampaign(false); setCampaignError(''); setCreatingTestWorld(false) }}
-                  className="flex-1 py-2.5 text-sm font-serif transition-all"
-                  style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(180,160,120,0.6)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => createCampaign(creatingTestWorld ? 'testing' : 'adventure')}
-                  disabled={!canCreate}
-                  className="flex-1 py-2.5 text-sm font-serif transition-all disabled:opacity-40"
-                  style={{
-                    background: canCreate ? (creatingTestWorld ? 'linear-gradient(135deg, rgba(88,28,135,0.3), rgba(60,10,100,0.4))' : 'linear-gradient(135deg, rgba(192,57,43,0.3), rgba(140,30,20,0.4))') : 'transparent',
-                    border: creatingTestWorld ? '1px solid rgba(147,51,234,0.4)' : '1px solid rgba(192,57,43,0.4)',
-                    color: creatingTestWorld ? '#c4b5fd' : '#e8b09a',
-                  }}
-                >
-                  {creatingTestWorld ? 'Create Test World' : 'Begin the Legend'}
-                </button>
-              </div>
-            </div>
+      <div className="mt-6 grid grid-cols-3 gap-2">
+        {['Shared turns', 'Invite codes', 'Party memory'].map(label => (
+          <div key={label} className="border border-white/8 bg-white/[0.03] px-3 py-3 text-center">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.16em] text-parchment-200/68">{label}</p>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function SectionHeader({ label, title, actionLabel, onAction }: {
+  label: string
+  title: string
+  actionLabel: string
+  onAction: () => void
+}) {
+  return (
+    <div className="mb-4 flex items-end justify-between gap-4">
+      <div>
+        <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/58">{label}</p>
+        <h2 className="mt-1 font-fantasy text-3xl text-parchment-100">{title}</h2>
+      </div>
+      <button
+        type="button"
+        onClick={onAction}
+        className="shrink-0 border border-amber-300/36 bg-amber-300/10 px-4 py-2 font-fantasy text-[10px] uppercase tracking-[0.18em] text-amber-100 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-200"
+      >
+        + {actionLabel}
+      </button>
     </div>
   )
 }
@@ -640,93 +529,328 @@ function CampaignCard({ campaign, onContinue, onDelete, isContinuing = false, is
   isContinuing?: boolean
   isTesting?: boolean
 }) {
-  const [hovered, setHovered] = useState(false)
-
-  const backgroundScenes: Record<number, string> = {
-    1: '/assets/scenes/tavern.png',
-    2: '/assets/scenes/forest-road.png',
-    3: '/assets/scenes/dungeon-corridor.png',
-    4: '/assets/scenes/castle-gate.png',
-    5: '/assets/scenes/ancient-ruins.png',
-  }
-  const sceneIndex = (campaign.name.charCodeAt(0) % 5) + 1
-  const bgScene = backgroundScenes[sceneIndex] || backgroundScenes[1]
+  const image = getCampaignImage(campaign)
+  const currentLocation = campaign.world_state?.currentLocation || 'Unknown road'
+  const scenePurpose = (campaign.world_state as { scenePurpose?: string } | undefined)?.scenePurpose || 'The DM is holding the next beat.'
 
   return (
-    <div
-      className="relative overflow-hidden cursor-pointer transition-all duration-300"
-      style={{
-        border: hovered ? '1px solid rgba(200,146,42,0.35)' : '1px solid rgba(255,255,255,0.07)',
-        background: '#0d1017',
-        transform: hovered ? 'translateY(-2px)' : 'none',
-        boxShadow: hovered ? '0 8px 30px rgba(0,0,0,0.5)' : '0 2px 10px rgba(0,0,0,0.3)',
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Scene thumbnail */}
-      <div className="h-28 relative overflow-hidden">
-        <div
-          className="absolute inset-0 transition-transform duration-700"
-          style={{
-            backgroundImage: `url('${bgScene}')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            transform: hovered ? 'scale(1.05)' : 'scale(1)',
-            opacity: 0.5,
-          }}
-        />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(13,16,23,0.2) 0%, rgba(13,16,23,0.7) 100%)' }} />
-        <div className="absolute bottom-2 left-3 right-3">
-          <div className="flex items-center gap-1.5">
-            <span className="w-1 h-1 rounded-full" style={{ background: isTesting ? '#a78bfa' : '#16a34a', boxShadow: `0 0 4px ${isTesting ? '#a78bfa' : '#16a34a'}` }} />
-            <span className="text-xs font-serif" style={{ color: isTesting ? 'rgba(196,181,253,0.7)' : 'rgba(180,230,180,0.7)', letterSpacing: '0.08em' }}>
-              {isTesting ? 'Test World' : `Act ${campaign.act}`}
-            </span>
+    <article className="group relative min-h-[360px] overflow-hidden border border-white/10 bg-black/50 shadow-[0_18px_80px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-1 hover:border-cyan-200/42 hover:shadow-[0_30px_110px_rgba(0,0,0,0.52)]">
+      <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-48 transition-transform duration-700 group-hover:scale-[1.04]" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/64 to-black/12" />
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-300/0 via-amber-300/75 to-cyan-300/0 opacity-65" />
+
+      <div className="relative z-10 flex min-h-[360px] flex-col p-4">
+        <div className="flex items-center justify-between gap-3">
+          <span className="border border-white/12 bg-black/42 px-3 py-1 font-fantasy text-[10px] uppercase tracking-[0.18em] text-parchment-200/76">
+            {isTesting ? 'Test World' : `Act ${campaign.act || 1}`}
+          </span>
+          <button
+            type="button"
+            onClick={event => {
+              event.stopPropagation()
+              onDelete()
+            }}
+            className="grid h-8 w-8 place-items-center border border-white/10 bg-black/36 font-serif text-parchment-200/42 transition-colors hover:border-red-300/40 hover:text-red-200"
+            title="Delete campaign"
+          >
+            x
+          </button>
+        </div>
+
+        <div className="mt-auto">
+          <p className="font-serif text-xs uppercase tracking-[0.2em] text-cyan-200/62">{currentLocation}</p>
+          <h3 className="mt-2 font-fantasy text-3xl leading-tight text-parchment-100">{campaign.name}</h3>
+          <p
+            className="mt-3 font-serif text-sm leading-relaxed text-parchment-200/72"
+            style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+          >
+            {scenePurpose || campaign.story_seed}
+          </p>
+
+          <div className="mt-5 flex items-center justify-between gap-3">
+            <p className="font-serif text-xs text-parchment-200/46">Last changed {campaignDate(campaign)}</p>
+            <button
+              type="button"
+              onClick={event => {
+                event.stopPropagation()
+                onContinue()
+              }}
+              disabled={isContinuing}
+              className="border border-amber-300/38 bg-amber-300/12 px-4 py-2 font-fantasy text-[10px] uppercase tracking-[0.18em] text-amber-100 transition-all duration-200 hover:border-amber-200 hover:bg-amber-300/18 disabled:opacity-50"
+            >
+              {isContinuing ? 'Opening...' : 'Enter'}
+            </button>
           </div>
         </div>
       </div>
+    </article>
+  )
+}
 
-      {/* Content */}
-      <div className="p-4">
-        <h3 className="font-fantasy text-base text-parchment-200 mb-1.5 leading-tight">{campaign.name}</h3>
-        <p className="text-xs font-serif leading-relaxed mb-3 line-clamp-2" style={{ color: 'rgba(180,160,120,0.6)' }}>
-          {campaign.story_seed}
-        </p>
-        <div className="flex items-center justify-between text-xs font-serif mb-3" style={{ color: 'rgba(150,140,110,0.5)' }}>
-          <span>{new Date(campaign.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+function WorldSystems() {
+  return (
+    <section className="border border-cyan-200/14 bg-black/44 p-5 backdrop-blur-md">
+      <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/58">World Engine</p>
+      <h2 className="mt-2 font-fantasy text-2xl text-parchment-100">Living systems</h2>
+      <div className="mt-5 space-y-3">
+        {SYSTEMS.map(system => (
+          <div key={system.name} className="flex items-center justify-between gap-3 border border-white/8 bg-white/[0.025] px-3 py-3">
+            <div className="flex items-center gap-3">
+              <span className="h-2.5 w-2.5" style={{ background: system.accent, boxShadow: `0 0 18px ${system.accent}` }} />
+              <span className="font-fantasy text-sm uppercase tracking-[0.12em] text-parchment-100">{system.name}</span>
+            </div>
+            <span className="font-serif text-xs text-parchment-200/54">{system.status}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function DevShelf({ campaigns, onNew, onContinue, onDelete, continuingId }: {
+  campaigns: Campaign[]
+  onNew: () => void
+  onContinue: (campaign: Campaign) => void
+  onDelete: (id: string) => void
+  continuingId: string | null
+}) {
+  return (
+    <section className="border border-violet-300/14 bg-violet-950/12 p-5 backdrop-blur-md">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-violet-200/52">Dev Shelf</p>
+          <h2 className="mt-2 font-fantasy text-2xl text-parchment-100">Test Worlds</h2>
         </div>
+        <button
+          type="button"
+          onClick={onNew}
+          className="border border-violet-200/26 bg-violet-300/9 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.14em] text-violet-100 transition-colors hover:border-violet-100/60"
+        >
+          + Test
+        </button>
+      </div>
+      <div className="mt-4 space-y-2">
+        {campaigns.length === 0 ? (
+          <p className="border border-white/8 bg-white/[0.025] px-3 py-4 font-serif text-sm italic text-parchment-200/44">
+            No sandbox worlds yet.
+          </p>
+        ) : (
+          campaigns.map(campaign => (
+            <div key={campaign.id} className="flex items-center justify-between gap-3 border border-white/8 bg-black/28 px-3 py-3">
+              <div className="min-w-0">
+                <p className="truncate font-fantasy text-sm text-parchment-100">{campaign.name}</p>
+                <p className="font-serif text-xs text-violet-100/45">Act {campaign.act || 1}</p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() => onContinue(campaign)}
+                  className="border border-violet-200/22 px-2 py-1 font-fantasy text-[10px] uppercase tracking-[0.12em] text-violet-100/72"
+                >
+                  {continuingId === campaign.id ? '...' : 'Open'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(campaign.id)}
+                  className="border border-red-300/18 px-2 py-1 font-fantasy text-[10px] uppercase tracking-[0.12em] text-red-100/62"
+                >
+                  x
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  )
+}
 
-        <div className="flex gap-2">
-          <button
-            onClick={e => { e.stopPropagation(); onContinue() }}
-            disabled={isContinuing}
-            className="flex-1 py-2 text-xs font-serif transition-all disabled:opacity-60"
-            style={isTesting
-              ? { background: 'rgba(88,28,135,0.15)', border: '1px solid rgba(147,51,234,0.35)', color: '#c4b5fd' }
-              : { background: 'rgba(192,57,43,0.15)', border: '1px solid rgba(192,57,43,0.35)', color: '#e8a090' }
-            }
-          >
-            {isContinuing ? (
-              <span className="flex items-center justify-center gap-1.5">
-                <span className="w-2.5 h-2.5 border border-current rounded-full animate-spin" style={{ borderTopColor: 'transparent' }} />
-                Loading...
-              </span>
-            ) : 'Continue'}
+function LoadingShelf() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {FEATURED_IMAGES.slice(0, 3).map((image, index) => (
+        <div key={image} className="min-h-[300px] overflow-hidden border border-white/8 bg-black/44">
+          <img src={image} alt="" className="h-full min-h-[300px] w-full object-cover opacity-30" />
+          <div className="-mt-24 p-4">
+            <div className="h-4 w-24 animate-pulse bg-parchment-200/12" style={{ animationDelay: `${index * 120}ms` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function EmptyState({ onStart }: { onStart: () => void }) {
+  return (
+    <section className="relative min-h-[320px] overflow-hidden border border-cyan-200/14 bg-black/46 p-6 backdrop-blur-md">
+      <img src="/media/loading/everrealm-portal-party.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-[0.36]" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/88 via-black/68 to-black/42" />
+      <div className="relative z-10 max-w-lg">
+        <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/64">Blank canvas</p>
+        <h3 className="mt-4 font-fantasy text-4xl text-parchment-100">No campaign yet.</h3>
+        <p className="mt-4 font-serif text-base leading-relaxed text-parchment-200/72">
+          Start with a vibe, a party, and a first choice. The DM will build the rest into a world that can shift from strange, bright, heroic, eerie, or brutal as the story demands.
+        </p>
+        <button
+          type="button"
+          onClick={onStart}
+          className="mt-7 border border-amber-300/42 bg-amber-300/12 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.2em] text-amber-100 transition-all hover:border-amber-200"
+        >
+          Begin
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function DeleteModal({ deleting, onCancel, onDelete }: {
+  deleting: boolean
+  onCancel: () => void
+  onDelete: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/86 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md border border-red-300/34 bg-[#090b10] p-6 shadow-[0_30px_120px_rgba(0,0,0,0.72)]">
+        <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-red-200/62">Danger</p>
+        <h3 className="mt-2 font-fantasy text-3xl text-parchment-100">Delete this campaign?</h3>
+        <p className="mt-4 font-serif text-sm leading-relaxed text-parchment-200/70">
+          This removes the story, party state, characters, and world memory for this campaign.
+        </p>
+        <div className="mt-7 grid grid-cols-2 gap-3">
+          <button type="button" onClick={onCancel} className="border border-white/12 px-4 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-parchment-200/70">
+            Cancel
           </button>
           <button
-            onClick={e => { e.stopPropagation(); onDelete() }}
-            className="px-3 py-2 text-xs font-serif transition-all"
-            style={{
-              border: '1px solid rgba(255,255,255,0.07)',
-              color: 'rgba(180,160,120,0.35)',
-            }}
-            title="Delete campaign"
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="border border-red-300/42 bg-red-500/12 px-4 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-red-100 disabled:opacity-50"
           >
-            ✕
+            {deleting ? 'Deleting...' : 'Delete'}
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function TestWorldModal({ seeds, selectedSeed, setSelectedSeed, refreshSeeds, campaignName, setCampaignName, useCustomPremise, setUseCustomPremise, customPremise, setCustomPremise, canCreate, campaignError, onCancel, onCreate }: {
+  seeds: StorySeedOption[]
+  selectedSeed: StorySeedOption | null
+  setSelectedSeed: (seed: StorySeedOption | null) => void
+  refreshSeeds: () => void
+  campaignName: string
+  setCampaignName: (name: string) => void
+  useCustomPremise: boolean
+  setUseCustomPremise: (value: boolean) => void
+  customPremise: string
+  setCustomPremise: (value: string) => void
+  canCreate: boolean
+  campaignError: string
+  onCancel: () => void
+  onCreate: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/88 p-4 backdrop-blur-sm">
+      <section className="my-8 w-full max-w-3xl border border-violet-200/24 bg-[#080a10] shadow-[0_30px_130px_rgba(0,0,0,0.78)]">
+        <header className="flex items-start justify-between gap-4 border-b border-white/8 px-5 py-5">
+          <div>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-violet-200/62">Sandbox creator</p>
+            <h2 className="mt-2 font-fantasy text-3xl text-parchment-100">New Test World</h2>
+          </div>
+          <button type="button" onClick={onCancel} className="grid h-9 w-9 place-items-center border border-white/10 text-parchment-200/54">
+            x
+          </button>
+        </header>
+
+        <div className="space-y-5 p-5">
+          <label className="block">
+            <span className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-amber-200/58">World Name</span>
+            <input
+              type="text"
+              value={campaignName}
+              onChange={event => setCampaignName(event.target.value)}
+              className="mt-2 w-full border border-amber-200/22 bg-amber-200/[0.04] px-3 py-3 font-serif text-parchment-100 outline-none focus:border-cyan-200/50"
+              placeholder="Name the sandbox..."
+            />
+          </label>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-parchment-200/54">
+              {useCustomPremise ? 'Custom premise' : 'Seed premise'}
+            </p>
+            <div className="flex gap-2">
+              {!useCustomPremise && (
+                <button type="button" onClick={refreshSeeds} className="border border-white/10 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.14em] text-parchment-200/64">
+                  More
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setUseCustomPremise(!useCustomPremise)
+                  setSelectedSeed(null)
+                }}
+                className="border border-violet-200/22 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.14em] text-violet-100/74"
+              >
+                {useCustomPremise ? 'Browse Seeds' : 'Write One'}
+              </button>
+            </div>
+          </div>
+
+          {useCustomPremise ? (
+            <textarea
+              value={customPremise}
+              onChange={event => setCustomPremise(event.target.value)}
+              className="min-h-[150px] w-full resize-none border border-violet-200/18 bg-violet-300/[0.04] px-3 py-3 font-serif text-sm leading-relaxed text-parchment-100 outline-none focus:border-cyan-200/42"
+              placeholder="Describe the experiment, the opening scene, or the system you want to stress test."
+            />
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {seeds.map(seed => (
+                <button
+                  key={seed.id}
+                  type="button"
+                  onClick={() => setSelectedSeed(seed)}
+                  className={`min-h-[168px] border p-4 text-left transition-all duration-200 ${
+                    selectedSeed?.id === seed.id
+                      ? 'border-cyan-200/55 bg-cyan-200/9'
+                      : 'border-white/9 bg-white/[0.025] hover:border-amber-200/32'
+                  }`}
+                >
+                  <p className="font-fantasy text-[10px] uppercase tracking-[0.18em] text-amber-200/58">{seed.tone}</p>
+                  <h3 className="mt-2 font-fantasy text-xl text-parchment-100">{seed.title}</h3>
+                  <p
+                    className="mt-3 font-serif text-sm leading-relaxed text-parchment-200/68"
+                    style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                  >
+                    {seed.premise}
+                  </p>
+                  <p className="mt-3 font-serif text-xs uppercase tracking-[0.14em] text-cyan-200/48">{seed.startingLocation}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {campaignError && (
+            <p className="border border-red-300/24 bg-red-500/8 px-3 py-2 font-serif text-sm text-red-200">{campaignError}</p>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button type="button" onClick={onCancel} className="border border-white/12 px-4 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-parchment-200/66">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onCreate}
+              disabled={!canCreate}
+              className="border border-violet-200/34 bg-violet-300/10 px-4 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-violet-100 transition-all disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Create Test World
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

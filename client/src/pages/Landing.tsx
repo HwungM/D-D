@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../lib/api'
 import { useAuthStore } from '../lib/store'
@@ -30,7 +30,12 @@ export default function Landing() {
   const [showTrailer, setShowTrailer] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
+  useEffect(() => {
+    audioManager.bindUiSounds()
+  }, [])
+
   function handleWatchTrailer() {
+    audioManager.playConfirm()
     setShowTrailer(true)
     setError('')
     window.setTimeout(() => {
@@ -45,6 +50,7 @@ export default function Landing() {
   }
 
   function handleCloseTrailer() {
+    audioManager.playUiClick()
     const video = videoRef.current
     if (video) {
       video.pause()
@@ -56,6 +62,7 @@ export default function Landing() {
   async function handleLogin(displayName: string) {
     setError('')
     setLoading(displayName)
+    audioManager.playDoorOpen()
     audioManager.startGameplay()
     audioManager.startAmbient()
 

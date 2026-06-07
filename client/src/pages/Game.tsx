@@ -123,6 +123,7 @@ export default function Game() {
   function setCoopWaiting(val: boolean) { coopWaitingRef.current = val; setCoopWaitingState(val) }
 
   useEffect(() => {
+    audioManager.bindUiSounds()
     audioManager.startAmbient()
     document.addEventListener('click', () => { audioManager.startAmbient(); audioManager.startGameplay() }, { once: true })
   }, [])
