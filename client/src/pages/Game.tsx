@@ -773,7 +773,7 @@ export default function Game() {
             onClick={() => navigate('/dashboard')}
             className="ml-0 border border-parchment-200/14 bg-black/22 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.18em] text-parchment-200/58 transition-all duration-200 hover:border-amber-200/45 hover:text-parchment-100 sm:ml-3"
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(220,200,160,0.8)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(180,160,120,0.4)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(232,212,168,0.58)' }}
           >
             Hall
           </button>
@@ -791,10 +791,10 @@ export default function Game() {
               <span className="font-fantasy text-sm truncate text-parchment-100">{currentCharacter.name}</span>
               <span className="font-serif text-xs shrink-0 text-amber-200/68">Lv {currentCharacter.level}</span>
               <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-                <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${hpPercent}%`, background: hpColor, boxShadow: `0 0 5px ${hpColor}70` }} />
+                <div className="h-1.5 w-20 overflow-hidden border border-white/10 bg-black/52">
+                  <div className="h-full transition-all duration-700" style={{ width: `${hpPercent}%`, background: hpColor, boxShadow: `0 0 5px ${hpColor}70` }} />
                 </div>
-                <span className="font-mono text-xs" style={{ color: 'rgba(160,140,110,0.45)', fontSize: '10px' }}>{currentCharacter.hp}/{currentCharacter.max_hp}</span>
+                <span className="font-serif text-[10px] text-parchment-200/52">{currentCharacter.hp}/{currentCharacter.max_hp}</span>
               </div>
             </div>
           )}
@@ -834,37 +834,30 @@ export default function Game() {
 
       {/* Combat banner */}
       {inCombat && (
-        <div className="shrink-0 flex items-center justify-between px-5 py-1.5" style={{
-          background: 'linear-gradient(90deg, rgba(127,10,10,0), rgba(200,20,20,0.18), rgba(127,10,10,0))',
-          borderBottom: '1px solid rgba(220,38,38,0.2)',
-        }}>
+        <div className="relative z-10 flex shrink-0 items-center justify-between border-b border-red-300/20 bg-red-950/16 px-5 py-2 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#f87171', boxShadow: '0 0 8px #f87171', animation: 'pulse 1s ease-in-out infinite' }} />
-            <span className="font-sans text-xs uppercase tracking-widest" style={{ color: '#f87171', letterSpacing: '0.2em' }}>
+            <div className="h-2 w-2 border border-red-200/40 bg-red-400 shadow-[0_0_14px_rgba(248,113,113,0.54)]" style={{ animation: 'pulse 1s ease-in-out infinite' }} />
+            <span className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-red-200">
               {worldState?.combatState?.isBossFight ? `Boss - Phase ${worldState.combatState.bossPhase || 1}` : 'Combat'}
             </span>
             {worldState?.combatState?.roundNumber && (
-              <span className="font-mono text-xs" style={{ color: 'rgba(220,100,100,0.4)', fontSize: 10 }}>
+              <span className="border border-red-200/14 bg-black/18 px-2 py-0.5 font-serif text-[10px] uppercase tracking-[0.16em] text-red-100/50">
                 Round {worldState.combatState.roundNumber}
               </span>
             )}
           </div>
-          <span className="font-serif text-xs italic" style={{ color: 'rgba(220,100,100,0.45)' }}>Fight, flee, or find another way</span>
+          <span className="font-serif text-xs italic text-red-100/56">Fight, flee, or find another way</span>
         </div>
       )}
 
       {/* Status effects strip */}
       {currentCharacter?.status_effects && currentCharacter.status_effects.length > 0 && (
-        <div className="shrink-0 flex items-center gap-2 px-4 py-1 overflow-x-auto" style={{
-          background: 'rgba(6,8,13,0.85)',
-          borderBottom: '1px solid rgba(255,255,255,0.04)',
-          scrollbarWidth: 'none',
-        }}>
+        <div className="relative z-10 flex shrink-0 items-center gap-2 overflow-x-auto border-b border-white/8 bg-black/54 px-4 py-2 backdrop-blur-md" style={{ scrollbarWidth: 'none' }}>
           {currentCharacter.status_effects.map((effect, i) => (
             <div
               key={i}
               title={effect.description}
-              className="flex items-center gap-1 shrink-0 px-2 py-0.5 rounded-full"
+              className="flex shrink-0 items-center gap-1 border px-2 py-1"
               style={{
                 background: effect.type === 'buff' ? 'rgba(34,197,94,0.08)' : effect.type === 'debuff' ? 'rgba(239,68,68,0.08)' : 'rgba(200,146,42,0.08)',
                 border: `1px solid ${effect.type === 'buff' ? 'rgba(34,197,94,0.25)' : effect.type === 'debuff' ? 'rgba(239,68,68,0.25)' : 'rgba(200,146,42,0.2)'}`,
@@ -1021,10 +1014,10 @@ export default function Game() {
             <div className="px-4 pt-2 pb-0 flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setPartyActionMode(p => !p)}
-                className="flex items-center gap-1.5 font-serif text-xs px-2.5 py-1.5 rounded-sm transition-all"
+                className="flex items-center gap-1.5 border px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all"
                 style={partyActionMode
                   ? { border: '1px solid rgba(34,211,238,0.42)', color: 'rgba(191,244,255,0.9)', background: 'rgba(34,211,238,0.08)' }
-                  : { border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.4)' }
+                  : { border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(232,212,168,0.56)', background: 'rgba(255,255,255,0.025)' }
                 }
               >
                 <span style={{ fontSize: 10 }}>+</span>
@@ -1032,24 +1025,21 @@ export default function Game() {
                 {partyActionMode && <span style={{ color: 'rgba(200,146,42,0.7)', fontSize: 10 }}>ON</span>}
               </button>
               {partyActionMode && (
-                <span className="font-serif text-xs" style={{ color: 'rgba(180,160,120,0.4)' }}>
+                <span className="font-serif text-xs text-parchment-200/54">
                   Locks this round until everyone present acts: {partyMembersHere.map(m => m.character?.name).filter(Boolean).join(', ')}
                 </span>
               )}
             </div>
           )}
           {coopWaiting && (
-            <div className="px-4 py-2 flex items-center gap-2 shrink-0" style={{
-              background: 'linear-gradient(90deg, rgba(200,146,42,0.07), rgba(34,211,238,0.04))',
-              borderTop: '1px solid rgba(200,146,42,0.15)',
-            }}>
-              <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#c8922a', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            <div className="flex shrink-0 items-center gap-2 border-t border-amber-200/18 bg-[linear-gradient(90deg,rgba(245,158,11,0.08),rgba(34,211,238,0.05))] px-4 py-2">
+              <div className="h-2 w-2 shrink-0 border border-amber-100/40 bg-amber-300" style={{ animation: 'pulse 1.5s ease-in-out infinite' }} />
               <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 min-w-0">
-                <span className="font-serif text-xs" style={{ color: 'rgba(200,146,42,0.78)' }}>
+                <span className="font-fantasy text-[10px] uppercase tracking-[0.18em] text-amber-100/76">
                   {coopPartnerName ? `Waiting for ${coopPartnerName}` : 'Waiting for your party'}
                 </span>
                 {(coopProgressLabel || stillChoosingNames.length > 0) && (
-                  <span className="font-serif text-xs" style={{ color: 'rgba(180,160,120,0.48)' }}>
+                  <span className="font-serif text-xs text-parchment-200/54">
                     {coopProgressLabel}{stillChoosingNames.length > 0 ? ` - still choosing: ${stillChoosingNames.join(', ')}` : ''}{coopExpiresAt ? ` - expires ${new Date(coopExpiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
                   </span>
                 )}
@@ -1109,12 +1099,14 @@ export default function Game() {
             border: '1px solid rgba(34,211,238,0.18)',
             boxShadow: '0 24px 80px rgba(0,0,0,0.45)',
           }}>
-            <div className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-              <h2 className="font-fantasy text-base" style={{ color: '#f2dfb6' }}>{sidebarLabels[sidebarTab]}</h2>
+            <div className="flex items-center justify-between gap-3 border-b border-white/8 px-4 py-3">
+              <div>
+                <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/58">Codex</p>
+                <h2 className="mt-1 font-fantasy text-2xl text-parchment-100">{sidebarLabels[sidebarTab]}</h2>
+              </div>
               <button
                 onClick={() => setShowSidebar(false)}
-                className="font-serif text-xs px-3 py-1.5 rounded-sm"
-                style={{ border: '1px solid rgba(255,255,255,0.09)', color: 'rgba(180,160,120,0.7)', background: 'rgba(255,255,255,0.04)' }}
+                className="border border-white/10 bg-white/[0.025] px-2.5 py-1 font-fantasy text-[10px] uppercase tracking-[0.14em] text-parchment-200/56 transition-all hover:border-amber-200/38 hover:text-parchment-100"
               >
                 Close
               </button>

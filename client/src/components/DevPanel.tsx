@@ -53,94 +53,79 @@ export default function DevPanel({ character, inCombat, onKill, onClearCombat, o
   }
 
   return (
-    <div className="shrink-0" style={{ borderBottom: '1px solid rgba(147,51,234,0.25)', background: 'rgba(88,28,135,0.08)' }}>
+    <div className="shrink-0 border-b border-violet-200/18 bg-violet-300/[0.045]">
       <button
         onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center justify-between px-4 py-1.5 font-mono text-xs transition-colors"
-        style={{ color: 'rgba(196,181,253,0.6)', letterSpacing: '0.1em' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(196,181,253,0.9)' }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(196,181,253,0.6)' }}
+        className="flex w-full items-center justify-between px-4 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.18em] text-violet-100/62 transition-colors hover:text-violet-100"
       >
-        <span>âš™ DEV PANEL â€” TESTING MODE</span>
-        <span>{expanded ? 'â–²' : 'â–¼'}</span>
+        <span>Dev Panel / Testing Mode</span>
+        <span>{expanded ? 'Hide' : 'Show'}</span>
       </button>
 
       {expanded && (
-        <div className="px-4 pb-3 flex flex-wrap gap-3 items-end">
-          {/* Kill */}
+        <div className="flex flex-wrap items-end gap-3 px-4 pb-3">
           <button
             onClick={onKill}
             disabled={!character.is_alive}
-            className="font-mono text-xs px-3 py-1.5 transition-all disabled:opacity-40"
-            style={{ border: '1px solid rgba(239,68,68,0.4)', color: 'rgba(239,68,68,0.8)', background: 'rgba(239,68,68,0.08)' }}
+            className="border border-red-300/40 bg-red-500/8 px-3 py-1.5 font-mono text-xs text-red-100/80 transition-all disabled:opacity-40"
           >
-            â˜  Kill Character
+            Kill Character
           </button>
 
-          {/* Clear combat */}
           <button
             onClick={onClearCombat}
             disabled={!inCombat}
-            className="font-mono text-xs px-3 py-1.5 transition-all disabled:opacity-40"
-            style={{ border: '1px solid rgba(96,165,250,0.4)', color: 'rgba(96,165,250,0.8)', background: 'rgba(96,165,250,0.08)' }}
+            className="border border-blue-300/40 bg-blue-500/8 px-3 py-1.5 font-mono text-xs text-blue-100/80 transition-all disabled:opacity-40"
           >
-            âš” Clear Combat
+            Clear Combat
           </button>
 
-          {/* Full heal */}
           <button
             onClick={fullHeal}
             disabled={busy === 'heal' || character.hp === character.max_hp}
-            className="font-mono text-xs px-3 py-1.5 transition-all disabled:opacity-40"
-            style={{ border: '1px solid rgba(34,197,94,0.4)', color: 'rgba(34,197,94,0.8)', background: 'rgba(34,197,94,0.08)' }}
+            className="border border-emerald-300/40 bg-emerald-500/8 px-3 py-1.5 font-mono text-xs text-emerald-100/80 transition-all disabled:opacity-40"
           >
-            {busy === 'heal' ? '...' : '+ Full Heal'}
+            {busy === 'heal' ? '...' : 'Full Heal'}
           </button>
 
-          {/* Set HP */}
           <div className="flex items-center gap-1">
             <input
               type="number"
               value={hpInput}
               onChange={e => setHpInput(e.target.value)}
               placeholder="HP"
-              className="font-mono text-xs py-1.5 px-2 outline-none w-16 bg-transparent"
-              style={{ border: '1px solid rgba(196,181,253,0.2)', color: 'rgba(196,181,253,0.8)' }}
+              className="w-16 border border-violet-200/20 bg-black/20 px-2 py-1.5 font-mono text-xs text-violet-100/80 outline-none"
               min={0}
               max={character.max_hp}
             />
             <button
               onClick={setHP}
               disabled={busy === 'hp' || !hpInput}
-              className="font-mono text-xs px-2 py-1.5 transition-all disabled:opacity-40"
-              style={{ border: '1px solid rgba(196,181,253,0.3)', color: 'rgba(196,181,253,0.7)', background: 'rgba(196,181,253,0.06)' }}
+              className="border border-violet-200/30 bg-violet-300/8 px-2 py-1.5 font-mono text-xs text-violet-100/70 transition-all disabled:opacity-40"
             >
               {busy === 'hp' ? '...' : 'Set HP'}
             </button>
           </div>
 
-          {/* Add/remove gold */}
           <div className="flex items-center gap-1">
             <input
               type="number"
               value={goldInput}
               onChange={e => setGoldInput(e.target.value)}
-              placeholder="Gold Â±"
-              className="font-mono text-xs py-1.5 px-2 outline-none w-20 bg-transparent"
-              style={{ border: '1px solid rgba(234,179,8,0.2)', color: 'rgba(234,179,8,0.8)' }}
+              placeholder="Gold +/-"
+              className="w-24 border border-amber-200/20 bg-black/20 px-2 py-1.5 font-mono text-xs text-amber-100/80 outline-none"
             />
             <button
               onClick={addGold}
               disabled={busy === 'gold' || !goldInput}
-              className="font-mono text-xs px-2 py-1.5 transition-all disabled:opacity-40"
-              style={{ border: '1px solid rgba(234,179,8,0.3)', color: 'rgba(234,179,8,0.7)', background: 'rgba(234,179,8,0.06)' }}
+              className="border border-amber-200/30 bg-amber-300/8 px-2 py-1.5 font-mono text-xs text-amber-100/70 transition-all disabled:opacity-40"
             >
               {busy === 'gold' ? '...' : 'Add Gold'}
             </button>
           </div>
 
-          <span className="font-mono text-xs ml-1" style={{ color: 'rgba(196,181,253,0.3)' }}>
-            HP: {character.hp}/{character.max_hp} Â· Gold: {character.gold}g
+          <span className="ml-1 font-mono text-xs text-violet-100/30">
+            HP: {character.hp}/{character.max_hp} / Gold: {character.gold}g
           </span>
         </div>
       )}

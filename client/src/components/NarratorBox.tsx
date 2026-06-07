@@ -67,32 +67,32 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
   if (isPlayerAction) {
     const isOtherPlayer = !!playerName
     return (
-      <div className="animate-fade-in flex items-start gap-3 px-1 sm:px-2 py-1">
+      <div className="animate-fade-in flex items-start gap-3 px-1 py-1 sm:px-2">
         <div
-          className="shrink-0 w-9 h-9 border overflow-hidden flex items-center justify-center text-xs font-fantasy"
+          className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden border text-xs font-fantasy"
           style={isOtherPlayer
-            ? { background: 'rgba(139,92,246,0.15)', borderColor: 'rgba(139,92,246,0.5)', color: '#a78bfa' }
-            : { background: 'rgba(34,211,238,0.1)', borderColor: 'rgba(34,211,238,0.34)', color: '#bff4ff' }
+            ? { background: 'rgba(139,92,246,0.12)', borderColor: 'rgba(196,181,253,0.38)', color: '#ddd6fe', boxShadow: '0 0 24px rgba(139,92,246,0.14)' }
+            : { background: 'rgba(34,211,238,0.085)', borderColor: 'rgba(103,232,249,0.34)', color: '#cffafe', boxShadow: '0 0 24px rgba(34,211,238,0.12)' }
           }
         >
           {playerPortrait ? (
-            <img src={playerPortrait} alt="" className="w-full h-full object-cover object-top" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          ) : '>'}
+            <img src={playerPortrait} alt="" className="h-full w-full object-cover object-top" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          ) : 'PC'}
         </div>
         <div
-          className="flex-1 border px-3 py-2"
+          className="relative flex-1 border px-3 py-2 shadow-[0_14px_48px_rgba(0,0,0,0.24)]"
           style={isOtherPlayer
-            ? { background: 'rgba(139,92,246,0.07)', borderColor: 'rgba(139,92,246,0.22)' }
-            : { background: 'rgba(255,255,255,0.035)', borderColor: 'rgba(255,255,255,0.09)' }
+            ? { background: 'linear-gradient(90deg, rgba(139,92,246,0.085), rgba(0,0,0,0.32))', borderColor: 'rgba(196,181,253,0.2)' }
+            : { background: 'linear-gradient(90deg, rgba(34,211,238,0.065), rgba(0,0,0,0.32))', borderColor: 'rgba(103,232,249,0.17)' }
           }
         >
           {isOtherPlayer && (
-            <p className="text-xs text-violet-400/70 font-sans uppercase tracking-widest mb-0.5">{playerName}</p>
+            <p className="mb-0.5 font-fantasy text-[10px] uppercase tracking-[0.2em] text-violet-200/68">{playerName}</p>
           )}
-          <p className="text-slate-300 font-serif text-sm italic">
+          <p className="font-serif text-sm italic leading-relaxed text-parchment-100/74">
             {displayed}
             {typing && (
-              <span className="inline-block w-0.5 h-3.5 bg-slate-500 ml-0.5 align-middle" style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />
+              <span className="ml-0.5 inline-block h-3.5 w-0.5 align-middle bg-cyan-200/56" style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />
             )}
           </p>
         </div>

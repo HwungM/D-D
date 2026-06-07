@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RollContext } from '../../../shared/types'
 
 interface DiceRollModalProps {
@@ -35,7 +35,6 @@ export default function DiceRollModal({ narration, rollContext, onRoll, onContin
     let elapsed = 0
     const tickFast = 60
     const tickSlow = 180
-
     let useSlow = false
     let authoritativeRoll: Awaited<ReturnType<typeof onRoll>>
 
@@ -48,19 +47,19 @@ export default function DiceRollModal({ narration, rollContext, onRoll, onContin
       return
     }
 
-    intervalRef.current = setInterval(() => {
+    intervalRef.current = window.setInterval(() => {
       elapsed += useSlow ? tickSlow : tickFast
       setDisplayNum(Math.floor(Math.random() * 20) + 1)
 
       if (!useSlow && elapsed >= fastPhase) {
         useSlow = true
         elapsed = 0
-        if (intervalRef.current) clearInterval(intervalRef.current)
-        intervalRef.current = setInterval(() => {
+        if (intervalRef.current) window.clearInterval(intervalRef.current)
+        intervalRef.current = window.setInterval(() => {
           elapsed += tickSlow
           setDisplayNum(Math.floor(Math.random() * 20) + 1)
           if (elapsed >= slowPhase) {
-            if (intervalRef.current) clearInterval(intervalRef.current)
+            if (intervalRef.current) window.clearInterval(intervalRef.current)
             setDisplayNum(authoritativeRoll.rollResult)
             setFinalResult(authoritativeRoll.rollResult)
             setServerResult(authoritativeRoll)
@@ -68,9 +67,9 @@ export default function DiceRollModal({ narration, rollContext, onRoll, onContin
             setRolling(false)
             if (isDramatic) {
               setShake(true)
-              setTimeout(() => setShake(false), 600)
+              window.setTimeout(() => setShake(false), 600)
             }
-            setTimeout(() => setShowContinue(true), 800)
+            window.setTimeout(() => setShowContinue(true), 800)
           }
         }, tickSlow)
       }
@@ -78,7 +77,7 @@ export default function DiceRollModal({ narration, rollContext, onRoll, onContin
   }
 
   useEffect(() => {
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+    return () => { if (intervalRef.current) window.clearInterval(intervalRef.current) }
   }, [])
 
   const displayModifier = serverResult ? serverResult.rollTotal - serverResult.rollResult : modifier
@@ -88,212 +87,125 @@ export default function DiceRollModal({ narration, rollContext, onRoll, onContin
   const isCritFail = serverResult?.isCritFail ?? finalResult === 1
 
   function getDieColor(): string {
-    if (!rolled) return 'rgba(200,146,42,0.9)'
-    if (isCritSuccess) return '#fbbf24'
-    if (isCritFail) return '#ef4444'
-    if (success) return '#4ade80'
-    return 'rgba(180,160,120,0.8)'
+    if (!rolled) return '#f8d27a'
+    if (isCritSuccess) return '#f8d27a'
+    if (isCritFail) return '#fca5a5'
+    if (success) return '#86efac'
+    return '#fca5a5'
   }
 
-  function getDieGlow(): string {
-    if (!rolled) return '0 0 30px rgba(200,146,42,0.4)'
-    if (isCritSuccess) return '0 0 50px rgba(251,191,36,0.7), 0 0 100px rgba(251,191,36,0.3)'
-    if (isCritFail) return '0 0 50px rgba(239,68,68,0.7), 0 0 100px rgba(239,68,68,0.3)'
-    if (success) return '0 0 40px rgba(74,222,128,0.5)'
-    return '0 0 20px rgba(180,160,120,0.2)'
+  function resultLabel(): string {
+    if (isCritSuccess) return 'Critical Success'
+    if (isCritFail) return 'Critical Failure'
+    return success ? 'Success' : 'Failure'
   }
 
   return (
-    <div
-      className="fixed inset-0 flex flex-col items-center justify-center z-50"
-      style={{
-        background: 'rgba(0,0,0,0.92)',
-        backdropFilter: 'blur(8px)',
-      }}
-    >
-      <div
-        className="w-full max-w-2xl flex flex-col items-center gap-8 px-6 py-10"
-        style={{ animation: shake ? 'shake 0.5s ease-in-out' : undefined }}
-      >
-        {/* Setup narration */}
-        <div className="max-w-lg text-center">
-          <p className="font-serif text-lg leading-relaxed" style={{ color: 'rgba(212,197,160,0.9)', textShadow: '0 0 20px rgba(200,146,42,0.15)' }}>
-            {narration}
-          </p>
-        </div>
-
-        {/* Roll context card */}
-        <div
-          className="w-full max-w-md p-5"
-          style={{
-            background: isDramatic ? 'rgba(80,20,20,0.6)' : 'rgba(20,20,30,0.7)',
-            border: isDramatic
-              ? '1px solid rgba(200,80,80,0.5)'
-              : '1px solid rgba(200,146,42,0.2)',
-            animation: isDramatic && !rolled ? 'pulse-border 1.5s ease-in-out infinite' : undefined,
-            boxShadow: isDramatic ? '0 0 30px rgba(200,50,50,0.15)' : 'none',
-          }}
-        >
-          {/* Stat + DC badges */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <span
-                className="font-mono text-xs font-bold px-2 py-1 uppercase tracking-widest"
-                style={{ background: 'rgba(200,146,42,0.15)', border: '1px solid rgba(200,146,42,0.35)', color: '#c89228' }}
-              >
-                {statLabel}
-              </span>
-              {displayModifier !== 0 && (
-                <span className="font-mono text-xs" style={{ color: displayModifier > 0 ? 'rgba(100,180,100,0.8)' : 'rgba(220,80,80,0.8)' }}>
-                  {displayModifier > 0 ? `+${displayModifier}` : displayModifier}
-                </span>
-              )}
-            </div>
-            <span
-              className="font-mono text-xs font-bold px-2 py-1"
-              style={{ background: 'rgba(180,60,60,0.15)', border: '1px solid rgba(180,60,60,0.35)', color: '#e87a7a' }}
-            >
-              DC {dc}
-            </span>
-          </div>
-
-          {/* Description */}
-          <p className="font-serif text-sm mb-4 leading-relaxed" style={{ color: 'rgba(200,180,140,0.8)' }}>
-            {rollContext.description}
-          </p>
-
-          {/* Success/Failure hints */}
-          <div className="grid grid-cols-2 gap-3">
-            <div
-              className="p-3"
-              style={{ background: 'rgba(40,100,60,0.2)', border: '1px solid rgba(74,222,128,0.2)' }}
-            >
-              <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'rgba(74,222,128,0.6)', letterSpacing: '0.15em' }}>Success</p>
-              <p className="font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(160,220,160,0.7)' }}>
-                {rollContext.successDescription}
-              </p>
-            </div>
-            <div
-              className="p-3"
-              style={{ background: 'rgba(100,30,30,0.2)', border: '1px solid rgba(239,68,68,0.2)' }}
-            >
-              <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'rgba(239,68,68,0.6)', letterSpacing: '0.15em' }}>Failure</p>
-              <p className="font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(220,140,140,0.7)' }}>
-                {rollContext.failDescription}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* The D20 */}
-        <div className="flex flex-col items-center gap-4">
-          <button
-            onClick={handleRollClick}
-            disabled={rolling || rolled}
-            className="relative flex items-center justify-center transition-all"
-            style={{
-              width: 120,
-              height: 120,
-              background: rolled
-                ? `radial-gradient(circle, ${getDieColor()}22, rgba(0,0,0,0.8))`
-                : rolling
-                  ? 'radial-gradient(circle, rgba(200,146,42,0.15), rgba(0,0,0,0.8))'
-                  : 'radial-gradient(circle, rgba(200,146,42,0.1), rgba(0,0,0,0.8))',
-              border: `2px solid ${getDieColor()}`,
-              borderRadius: 8,
-              boxShadow: getDieGlow(),
-              cursor: rolling || rolled ? 'default' : 'pointer',
-              clipPath: 'polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%)',
-              transform: rolling ? 'rotate(var(--spin, 0deg))' : 'none',
-              animation: rolling ? 'spin 0.3s linear infinite' : (!rolled ? 'pulse-glow 2s ease-in-out infinite' : undefined),
-            }}
-          >
-            <span
-              className="font-mono font-black select-none"
-              style={{
-                fontSize: displayNum !== null ? 40 : 36,
-                color: getDieColor(),
-                textShadow: `0 0 20px ${getDieColor()}`,
-              }}
-            >
-              {displayNum !== null ? displayNum : '?'}
-            </span>
-          </button>
-
-          {!rolled && !rolling && (
-            <p className="font-serif text-sm" style={{ color: 'rgba(200,146,42,0.5)', animation: 'pulse 2s ease-in-out infinite' }}>
-              Click to roll {rollContext.diceType}
-            </p>
-          )}
-
-          {rolling && (
-            <p className="font-serif text-sm italic" style={{ color: 'rgba(200,146,42,0.6)' }}>
-              {isDramatic ? 'The moment hangs...' : 'Rolling...'}
-            </p>
-          )}
-
-          {error && (
-            <p className="font-serif text-sm italic" style={{ color: 'rgba(239,68,68,0.75)' }}>
-              {error}
-            </p>
-          )}
-
-          {/* Result display */}
-          {rolled && total !== null && finalResult !== null && (
-            <div className="text-center">
-              <p className="font-mono text-sm" style={{ color: 'rgba(160,140,110,0.7)' }}>
-                Rolled {finalResult}
-                {displayModifier !== 0 && (
-                  <span style={{ color: displayModifier > 0 ? 'rgba(100,180,100,0.8)' : 'rgba(220,80,80,0.8)' }}>
-                    {' '}{displayModifier > 0 ? '+' : ''}{displayModifier} {statLabel}
-                  </span>
-                )}
-                {' '}= <span style={{ color: getDieColor(), fontWeight: 'bold' }}>{total}</span>
-                {' '}vs DC {dc} -{' '}
-                <span style={{
-                  color: isCritSuccess ? '#fbbf24' : isCritFail ? '#ef4444' : success ? '#4ade80' : 'rgba(220,80,80,0.8)',
-                  fontWeight: 'bold',
-                  textShadow: `0 0 10px ${getDieColor()}`,
-                }}>
-                  {isCritSuccess ? 'CRITICAL SUCCESS!' : isCritFail ? 'CRITICAL FAILURE!' : success ? 'SUCCESS' : 'FAILURE'}
-                </span>
-              </p>
-              {isCritSuccess && rollContext.critSuccessDescription && (
-                <p className="font-serif text-xs italic mt-1" style={{ color: 'rgba(251,191,36,0.7)' }}>{rollContext.critSuccessDescription}</p>
-              )}
-              {isCritFail && rollContext.critFailDescription && (
-                <p className="font-serif text-xs italic mt-1" style={{ color: 'rgba(239,68,68,0.7)' }}>{rollContext.critFailDescription}</p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Continue button - player must click to see outcome */}
-        {showContinue && finalResult !== null && (
-          <button
-            onClick={onContinue}
-            className="font-serif px-8 py-3 transition-all"
-            style={{
-              background: isCritSuccess ? 'rgba(251,191,36,0.12)' : isCritFail ? 'rgba(239,68,68,0.12)' : success ? 'rgba(74,222,128,0.1)' : 'rgba(200,80,80,0.1)',
-              border: `1px solid ${isCritSuccess ? 'rgba(251,191,36,0.5)' : isCritFail ? 'rgba(239,68,68,0.5)' : success ? 'rgba(74,222,128,0.4)' : 'rgba(239,68,68,0.4)'}`,
-              color: isCritSuccess ? '#fbbf24' : isCritFail ? '#ef4444' : success ? '#4ade80' : 'rgba(220,100,100,0.9)',
-              fontSize: 14,
-              letterSpacing: '0.1em',
-            }}
-          >
-            {isCritSuccess ? 'See What Happens >' : isCritFail ? 'Face the Consequences >' : success ? 'Claim Your Victory >' : 'Accept Your Fate >'}
-          </button>
-        )}
+    <div className="fixed inset-0 z-50 overflow-hidden bg-black/90 text-parchment-100 backdrop-blur-sm">
+      <div className="absolute inset-0">
+        <img src={isDramatic ? '/media/loading/everrealm-storm-party.png' : '/media/loading/everrealm-crystal-party.png'} alt="" className="h-full w-full object-cover opacity-[0.34]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.96)_0%,rgba(0,0,0,0.62)_50%,rgba(0,0,0,0.94)_100%)]" />
       </div>
 
+      <main className="relative z-10 flex min-h-screen items-center justify-center px-4 py-8">
+        <section
+          className="grid w-full max-w-5xl gap-5 border border-parchment-100/30 bg-black/74 p-5 shadow-[0_30px_130px_rgba(0,0,0,0.82)] backdrop-blur-md md:grid-cols-[minmax(0,1fr)_320px] sm:p-7"
+          style={{ animation: shake ? 'shake 0.5s ease-in-out' : undefined }}
+        >
+          <div>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.34em] text-cyan-200/62">Ability Check</p>
+            <p className="mt-4 font-serif text-lg leading-relaxed text-parchment-200/78">{narration}</p>
+
+            <div className={`mt-6 border p-4 ${isDramatic ? 'border-red-200/26 bg-red-500/[0.045]' : 'border-amber-200/22 bg-amber-300/[0.045]'}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="border border-amber-200/34 bg-amber-300/10 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.18em] text-amber-100">{statLabel}</span>
+                  {displayModifier !== 0 && (
+                    <span className="font-mono text-xs text-parchment-200/58">{displayModifier > 0 ? `+${displayModifier}` : displayModifier}</span>
+                  )}
+                </div>
+                <span className="border border-red-200/30 bg-red-500/10 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.18em] text-red-100">DC {dc}</span>
+              </div>
+
+              <p className="mt-4 font-serif text-sm leading-relaxed text-parchment-200/68">{rollContext.description}</p>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="border border-emerald-200/18 bg-emerald-300/[0.045] p-3">
+                  <p className="font-fantasy text-[10px] uppercase tracking-[0.2em] text-emerald-100/64">Success</p>
+                  <p className="mt-2 font-serif text-xs italic leading-relaxed text-emerald-100/58">{rollContext.successDescription}</p>
+                </div>
+                <div className="border border-red-200/18 bg-red-500/[0.045] p-3">
+                  <p className="font-fantasy text-[10px] uppercase tracking-[0.2em] text-red-100/64">Failure</p>
+                  <p className="mt-2 font-serif text-xs italic leading-relaxed text-red-100/58">{rollContext.failDescription}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside className="flex flex-col items-center justify-center border border-white/10 bg-white/[0.025] p-5 text-center">
+            <button
+              onClick={handleRollClick}
+              disabled={rolling || rolled}
+              className="relative flex items-center justify-center transition-all disabled:cursor-default"
+              style={{
+                width: 132,
+                height: 132,
+                background: 'radial-gradient(circle, rgba(245,158,11,0.12), rgba(0,0,0,0.82))',
+                border: `1px solid ${getDieColor()}`,
+                boxShadow: `0 0 44px ${getDieColor()}55`,
+                clipPath: 'polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%)',
+                animation: rolling ? 'spin 0.3s linear infinite' : (!rolled ? 'pulse-glow 2s ease-in-out infinite' : undefined),
+              }}
+            >
+              <span className="select-none font-fantasy text-5xl" style={{ color: getDieColor(), textShadow: `0 0 18px ${getDieColor()}99` }}>
+                {displayNum !== null ? displayNum : '?'}
+              </span>
+            </button>
+
+            {!rolled && !rolling && (
+              <p className="mt-5 font-serif text-sm italic text-amber-100/58">Click to roll {rollContext.diceType}</p>
+            )}
+            {rolling && (
+              <p className="mt-5 font-serif text-sm italic text-amber-100/64">{isDramatic ? 'The moment hangs...' : 'Rolling...'}</p>
+            )}
+            {error && <p className="mt-5 font-serif text-sm italic text-red-100/78">{error}</p>}
+
+            {rolled && total !== null && finalResult !== null && (
+              <div className="mt-5 w-full border border-white/10 bg-black/32 p-4">
+                <p className="font-fantasy text-[10px] uppercase tracking-[0.22em]" style={{ color: getDieColor() }}>{resultLabel()}</p>
+                <p className="mt-2 font-mono text-xs text-parchment-200/62">
+                  {finalResult}{displayModifier !== 0 ? ` ${displayModifier > 0 ? '+' : ''}${displayModifier}` : ''} = <span style={{ color: getDieColor() }}>{total}</span> vs DC {dc}
+                </p>
+                {isCritSuccess && rollContext.critSuccessDescription && (
+                  <p className="mt-2 font-serif text-xs italic text-amber-100/68">{rollContext.critSuccessDescription}</p>
+                )}
+                {isCritFail && rollContext.critFailDescription && (
+                  <p className="mt-2 font-serif text-xs italic text-red-100/68">{rollContext.critFailDescription}</p>
+                )}
+              </div>
+            )}
+
+            {showContinue && finalResult !== null && (
+              <button
+                onClick={onContinue}
+                className="mt-5 w-full border px-5 py-3 font-fantasy text-xs uppercase tracking-[0.2em] transition-all"
+                style={{
+                  background: isCritSuccess ? 'rgba(245,158,11,0.12)' : isCritFail ? 'rgba(239,68,68,0.12)' : success ? 'rgba(74,222,128,0.1)' : 'rgba(239,68,68,0.1)',
+                  borderColor: isCritSuccess ? 'rgba(245,158,11,0.48)' : isCritFail ? 'rgba(239,68,68,0.48)' : success ? 'rgba(74,222,128,0.38)' : 'rgba(239,68,68,0.38)',
+                  color: getDieColor(),
+                }}
+              >
+                {isCritSuccess ? 'See What Happens' : isCritFail ? 'Face the Consequences' : success ? 'Claim the Moment' : 'Accept the Cost'}
+              </button>
+            )}
+          </aside>
+        </section>
+      </main>
+
       <style>{`
-        @keyframes pulse-border {
-          0%, 100% { border-color: rgba(200,80,80,0.5); box-shadow: 0 0 30px rgba(200,50,50,0.15); }
-          50% { border-color: rgba(200,80,80,0.9); box-shadow: 0 0 50px rgba(200,50,50,0.3); }
-        }
         @keyframes pulse-glow {
-          0%, 100% { box-shadow: 0 0 30px rgba(200,146,42,0.4); }
-          50% { box-shadow: 0 0 60px rgba(200,146,42,0.7), 0 0 100px rgba(200,146,42,0.3); }
+          0%, 100% { box-shadow: 0 0 30px rgba(245,158,11,0.32); }
+          50% { box-shadow: 0 0 62px rgba(245,158,11,0.58), 0 0 100px rgba(34,211,238,0.16); }
         }
         @keyframes spin {
           from { transform: rotate(0deg); }

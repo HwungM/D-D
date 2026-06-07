@@ -104,7 +104,7 @@ export default function CampaignBrief() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a0d12' }}>
         <div className="text-center">
           <p className="font-serif text-sm mb-4" style={{ color: '#e87a7a' }}>{error || 'Campaign not found.'}</p>
-          <button onClick={() => navigate('/dashboard')} className="fantasy-btn text-xs">Return to Hall</button>
+          <button onClick={() => navigate('/dashboard')} className="border border-amber-300/46 bg-amber-300/12 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.2em] text-amber-100 transition-all hover:border-amber-200">Return to Hall</button>
         </div>
       </div>
     )

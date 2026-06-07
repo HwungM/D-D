@@ -960,7 +960,7 @@ export default function CharacterCreate() {
             </div>
 
             {error && (
-              <div className="mt-4 border border-ember-600 bg-ember-600/10 px-3 py-2 text-ember-400 text-sm">
+              <div className="mt-4 border border-red-300/30 bg-red-500/10 px-3 py-2 text-sm text-red-100/82">
                 {error}
               </div>
             )}
