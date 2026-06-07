@@ -614,7 +614,7 @@ export default function Game() {
           <h2 className="font-fantasy text-5xl text-parchment-200 mb-2" style={{ textShadow: '0 0 40px rgba(192,57,43,0.3)' }}>Your Adventure Awaits</h2>
           {currentCharacter && (
             <p className="font-serif text-sm uppercase tracking-widest mb-4" style={{ color: 'rgba(200,146,42,0.6)', letterSpacing: '0.15em' }}>
-              {currentCharacter.name} · {currentCharacter.race} {currentCharacter.class}
+              {currentCharacter.name} - {currentCharacter.race} {currentCharacter.class}
             </p>
           )}
           {campaignName && (
@@ -650,7 +650,7 @@ export default function Game() {
               boxShadow: '0 0 30px rgba(192,57,43,0.15)',
             }}
           >
-            {isLoading ? <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>The world stirs…</span> : 'Enter the Story'}
+            {isLoading ? <span style={{ animation: 'pulse 1s ease-in-out infinite' }}>The world stirs...</span> : 'Enter the Story'}
           </button>
         </div>
       </div>
@@ -679,6 +679,10 @@ export default function Game() {
       : ''
   const hpPercent = currentCharacter ? (currentCharacter.hp / currentCharacter.max_hp) * 100 : 100
   const hpColor = hpPercent > 60 ? '#22c55e' : hpPercent > 30 ? '#eab308' : '#ef4444'
+  const partyHereNames = [
+    currentCharacter?.name,
+    ...partyMembersHere.map(member => member.character?.name),
+  ].filter(Boolean) as string[]
 
   // -- Main game layout ------------------------------------------------------
   return (
@@ -700,7 +704,7 @@ export default function Game() {
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(220,200,160,0.8)' }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(180,160,120,0.4)' }}
           >
-            ← Hall
+            Back to Hall
           </button>
           <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.07)', flexShrink: 0 }} />
 
@@ -715,9 +719,9 @@ export default function Game() {
                 />
               </div>
               <span className="font-serif text-sm truncate" style={{ color: '#d4c5a0' }}>{currentCharacter.name}</span>
-              <span style={{ color: 'rgba(255,255,255,0.12)', flexShrink: 0 }}>·</span>
+              <span style={{ color: 'rgba(255,255,255,0.12)', flexShrink: 0 }}>-</span>
               <span className="font-serif text-xs shrink-0" style={{ color: 'rgba(200,146,42,0.8)' }}>Lv {currentCharacter.level}</span>
-              <span style={{ color: 'rgba(255,255,255,0.12)', flexShrink: 0 }}>·</span>
+              <span style={{ color: 'rgba(255,255,255,0.12)', flexShrink: 0 }}>-</span>
               <div className="hidden sm:flex items-center gap-1.5 shrink-0">
                 <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
                   <div className="h-full rounded-full transition-all duration-700" style={{ width: `${hpPercent}%`, background: hpColor, boxShadow: `0 0 5px ${hpColor}70` }} />
@@ -831,11 +835,17 @@ export default function Game() {
 
         {/* -- LEFT: Persistent scene panel -- */}
         <div className="flex flex-col shrink-0 overflow-hidden md:border-r" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-          <div className="w-full md:w-[420px]">
+          <div className="w-full h-[32vh] min-h-[220px] md:w-[420px] md:h-[48vh] md:min-h-[360px]">
             <SceneDisplay
               imageUrl={currentSceneImage}
               location={worldState?.currentLocation}
               timeOfDay={worldState?.timeOfDay}
+              weather={worldState?.weather}
+              scenePurpose={worldState?.sceneState?.purpose}
+              pacingMode={worldState?.sceneState?.pacingMode}
+              sceneSummary={worldState?.currentSceneSummary}
+              partyHereNames={partyHereNames}
+              inCombat={inCombat}
             />
           </div>
 
