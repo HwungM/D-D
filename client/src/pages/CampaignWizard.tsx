@@ -29,13 +29,13 @@ const EVERREALM_ART_STYLE =
   'Hand-painted western fantasy animation, anime-aware but not anime; sharp expressive faces, varied silhouettes, rugged adventuring gear, painterly cinematic lighting, and strong personality in every character.'
 
 const STEPS = [
-  { eyebrow: 'Party Shape', title: 'Choose the table' },
-  { eyebrow: 'Tone', title: 'Choose the mood' },
-  { eyebrow: 'Scope', title: 'Choose the length' },
-  { eyebrow: 'Pillars', title: 'Choose the focus' },
-  { eyebrow: 'Party Gate', title: 'Choose the roster' },
-  { eyebrow: 'World Spark', title: 'Choose the premise' },
-  { eyebrow: 'Legend Name', title: 'Name the campaign' },
+  { eyebrow: 'Party Shape', title: 'Set the table', detail: 'Decide whether this legend belongs to one player or a shared party.' },
+  { eyebrow: 'Tone', title: 'Tune the world', detail: 'Give the DM a north star without locking the realm into one mood forever.' },
+  { eyebrow: 'Scope', title: 'Set the arc', detail: 'Choose how much room the campaign should have to breathe, twist, and resolve.' },
+  { eyebrow: 'Pillars', title: 'Pick the pressure', detail: 'Tell the DM what kind of play should show up most often at the table.' },
+  { eyebrow: 'Party Gate', title: 'Plan the roster', detail: 'Choose whether to wait for characters, begin now, or leave room for companions later.' },
+  { eyebrow: 'World Spark', title: 'Light the first scene', detail: 'Pick a seed or write the trouble you want the DM to build around.' },
+  { eyebrow: 'Legend Name', title: 'Seal the campaign', detail: 'Name the timeline. After this, you will review the brief and create your character.' },
 ]
 
 const TONE_CARDS: { label: ToneChoice; description: string }[] = [
@@ -61,12 +61,21 @@ const PILLARS: Pillar[] = [
   'All of it equally',
 ]
 
+const PILLAR_DESCRIPTIONS: Record<Pillar, string> = {
+  'Combat & Tactics': 'Danger, positioning, monsters, clever plans, and meaningful risk.',
+  'Exploration & Discovery': 'Ruins, travel, hidden places, strange weather, and secrets in the world.',
+  'Roleplay & Social': 'NPCs, factions, rivalries, bargains, reputation, and emotional choices.',
+  'Puzzles & Mysteries': 'Clues, symbols, locked doors, conspiracies, and layered reveals.',
+  'All of it equally': 'A balanced campaign where the DM rotates the spotlight between pillars.',
+}
+
 function ChoiceCard({
   selected,
   disabled,
   title,
   description,
   meta,
+  actionLabel,
   onClick,
 }: {
   selected?: boolean
@@ -74,6 +83,7 @@ function ChoiceCard({
   title: string
   description: string
   meta?: string
+  actionLabel?: string
   onClick: () => void
 }) {
   return (
@@ -105,12 +115,18 @@ function ChoiceCard({
             color: selected ? 'rgba(254,243,199,0.92)' : 'rgba(180,160,120,0.42)',
           }}
         >
-          {disabled ? 'Soon' : selected ? 'Set' : 'Pick'}
+          {disabled ? 'Soon' : selected ? 'Set' : actionLabel || 'Choose'}
         </span>
       </div>
       <p className="mt-4 font-serif text-sm leading-relaxed text-parchment-200/66">{description}</p>
     </button>
   )
+}
+
+function suggestedCampaignName(state: WizardState) {
+  if (state.campaignName.trim()) return state.campaignName
+  if (state.selectedSeed) return state.selectedSeed.title
+  return ''
 }
 
 export default function CampaignWizard() {
@@ -147,7 +163,9 @@ export default function CampaignWizard() {
   ]
 
   const summary = useMemo(() => [
-    state.isCollaborative ? 'Collaborative party' : 'Solo campaign',
+    state.isCollaborative
+      ? state.waitForParty ? `Collaborative party / wait for ${state.targetPlayerCount}` : 'Collaborative party / start now'
+      : state.partyIntent === 'solo_ai_companions' ? 'Solo with companions' : 'Solo campaign',
     state.tone || 'Tone unset',
     LENGTH_CARDS.find(card => card.value === state.campaignLength)?.label || 'Medium Campaign',
     state.pillars.length ? state.pillars.join(', ') : 'Focus unset',
@@ -212,7 +230,8 @@ export default function CampaignWizard() {
         selected={!state.isCollaborative}
         title="Solo Adventure"
         meta="One player"
-        description="A campaign focused tightly on your character, your choices, and the consequences that follow."
+        description="A campaign focused tightly on your character. The next step after the brief is character creation."
+        actionLabel="Solo"
         onClick={() => setState(prev => ({
           ...prev,
           isCollaborative: false,
@@ -226,7 +245,8 @@ export default function CampaignWizard() {
         selected={state.isCollaborative}
         title="Collaborative Party"
         meta="Shared timeline"
-        description="Real players can join the same campaign, share scenes, and create party-aware moments."
+        description="Real players can join the same campaign, create characters, share scenes, and lock in party-aware turns."
+        actionLabel="Party"
         onClick={() => setState(prev => ({
           ...prev,
           isCollaborative: true,
@@ -246,6 +266,7 @@ export default function CampaignWizard() {
           title={card.label}
           meta="Story tone"
           description={card.description}
+          actionLabel="Tune"
           onClick={() => setState(prev => ({ ...prev, tone: card.label }))}
         />
       ))}
@@ -259,6 +280,7 @@ export default function CampaignWizard() {
           title={card.label}
           meta="Pacing"
           description={card.description}
+          actionLabel="Set Arc"
           onClick={() => setState(prev => ({ ...prev, campaignLength: card.value }))}
         />
       ))}
@@ -279,7 +301,8 @@ export default function CampaignWizard() {
             }}
           >
             <p className="font-fantasy text-base text-parchment-100">{pillar}</p>
-            <p className="mt-3 font-fantasy text-[10px] uppercase tracking-[0.18em]" style={{ color: selected ? 'rgba(191,244,255,0.86)' : 'rgba(180,160,120,0.4)' }}>
+            <p className="mt-2 font-serif text-xs leading-relaxed text-parchment-200/56">{PILLAR_DESCRIPTIONS[pillar]}</p>
+            <p className="mt-3 font-fantasy text-[10px] uppercase tracking-[0.18em]" style={{ color: selected ? 'rgba(191,244,255,0.86)' : 'rgba(180,160,120,0.56)' }}>
               {selected ? 'Threaded in' : 'Available'}
             </p>
           </button>
@@ -290,9 +313,9 @@ export default function CampaignWizard() {
     <div key="party" className="grid gap-4">
       {state.isCollaborative ? (
         [
-          { intent: 'collab_wait_for_party' as const, title: 'Wait for the party', meta: '2 players', description: 'Hold the campaign at the gate until both players have characters.', playerCount: 2 as const, targetPlayerCount: 2 as const, waitForParty: true },
-          { intent: 'collab_start_now' as const, title: 'Start now, invite later', meta: 'Host first', description: 'Begin as the host and keep invites ready for another player to join later.', playerCount: 1 as const, targetPlayerCount: 2 as const, waitForParty: false },
-          { intent: 'collab_wait_for_party' as const, title: 'Larger party', meta: '3 players', description: 'Plan around a bigger real-player party sharing spotlight and danger.', playerCount: 3 as const, targetPlayerCount: 3 as const, waitForParty: true },
+          { intent: 'collab_wait_for_party' as const, title: 'Wait for Sun Mi', meta: '2 players', description: 'Create the campaign brief, generate an invite, then hold at the party gate until both characters exist.', playerCount: 2 as const, targetPlayerCount: 2 as const, waitForParty: true },
+          { intent: 'collab_start_now' as const, title: 'Start now, invite later', meta: 'Host first', description: 'Create your character and begin. The invite stays ready so another player can join when they arrive.', playerCount: 1 as const, targetPlayerCount: 2 as const, waitForParty: false },
+          { intent: 'collab_wait_for_party' as const, title: 'Wait for a larger party', meta: '3 players', description: 'Plan around three real players sharing spotlight, danger, scenes, and turn resolution.', playerCount: 3 as const, targetPlayerCount: 3 as const, waitForParty: true },
         ].map(option => (
           <ChoiceCard
             key={`${option.title}-${option.targetPlayerCount}`}
@@ -300,6 +323,7 @@ export default function CampaignWizard() {
             title={option.title}
             meta={option.meta}
             description={option.description}
+            actionLabel="Roster"
             onClick={() => setState(prev => ({
               ...prev,
               partyIntent: option.intent,
@@ -316,6 +340,7 @@ export default function CampaignWizard() {
             title="Just me"
             meta="Focused solo"
             description="One human player, one lead character, and a world that reacts to your decisions."
+            actionLabel="Focus"
             onClick={() => setState(prev => ({ ...prev, partyIntent: 'solo_alone', playerCount: 1, targetPlayerCount: 1, waitForParty: false }))}
           />
           <ChoiceCard
@@ -365,7 +390,11 @@ export default function CampaignWizard() {
               <button
                 key={seed.id}
                 type="button"
-                onClick={() => setState(prev => ({ ...prev, selectedSeed: seed }))}
+                onClick={() => setState(prev => ({
+                  ...prev,
+                  selectedSeed: seed,
+                  campaignName: prev.campaignName.trim() ? prev.campaignName : seed.title,
+                }))}
                 className="border p-4 text-left transition-all"
                 style={{
                   borderColor: selected ? 'rgba(245,158,11,0.56)' : 'rgba(255,255,255,0.1)',
@@ -377,7 +406,7 @@ export default function CampaignWizard() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">
                       <h3 className="font-fantasy text-xl text-parchment-100">{seed.title}</h3>
-                      <span className="shrink-0 font-fantasy text-[10px] uppercase tracking-[0.16em] text-amber-100/70">{selected ? 'Set' : seed.tone}</span>
+                      <span className="shrink-0 font-fantasy text-[10px] uppercase tracking-[0.16em] text-amber-100/70">{selected ? 'Opening Set' : seed.tone}</span>
                     </div>
                     <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/68">{seed.premise}</p>
                     <p className="mt-3 font-fantasy text-[10px] uppercase tracking-[0.18em] text-cyan-200/50">{seed.startingLocation}</p>
@@ -394,13 +423,19 @@ export default function CampaignWizard() {
       <label className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-amber-200/64">Campaign Name</label>
       <input
         type="text"
-        value={state.campaignName}
+        value={suggestedCampaignName(state)}
         onChange={event => setState(prev => ({ ...prev, campaignName: event.target.value }))}
         onKeyDown={event => { if (event.key === 'Enter' && canProceed[6]) handleCreate() }}
         className="mt-3 w-full border border-amber-300/34 bg-black/44 px-4 py-4 font-fantasy text-2xl text-parchment-100 outline-none placeholder:text-parchment-200/28"
-        placeholder={state.selectedSeed ? `The ${state.selectedSeed.title}` : 'Name your legend'}
+        placeholder={state.selectedSeed ? state.selectedSeed.title : 'Name your legend'}
         autoFocus
       />
+      <div className="mt-4 border border-cyan-200/16 bg-cyan-300/[0.045] px-4 py-3">
+        <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-cyan-200/64">What Happens Next</p>
+        <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/68">
+          The DM creates a campaign brief first. Then you create your character. {state.isCollaborative ? state.waitForParty ? 'After you copy the invite, the campaign can wait until the party is ready.' : 'Your invite remains available for the other player while you begin.' : 'No character questions are needed here because character creation comes next.'}
+        </p>
+      </div>
       {error && <p className="mt-4 border border-red-300/30 bg-red-500/10 px-4 py-3 font-serif text-sm text-red-100/82">{error}</p>}
       <button
         type="button"
@@ -450,7 +485,7 @@ export default function CampaignWizard() {
           <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/62">New Legend</p>
           <h1 className="mt-2 font-fantasy text-4xl leading-none text-parchment-100">Campaign Forge</h1>
           <p className="mt-4 font-serif text-sm leading-relaxed text-parchment-200/66">
-            Build the table, tone, scope, and first spark. The DM will turn the choices into a living campaign brief.
+            Build the table, tone, scope, and first spark. The DM turns these choices into a brief before character creation begins.
           </p>
 
           <div className="mt-7 space-y-2">
@@ -491,6 +526,7 @@ export default function CampaignWizard() {
             <div>
               <p className="font-fantasy text-[10px] uppercase tracking-[0.3em] text-cyan-200/62">{STEPS[step].eyebrow}</p>
               <h2 className="mt-2 font-fantasy text-4xl text-parchment-100">{STEPS[step].title}</h2>
+              <p className="mt-3 max-w-2xl font-serif text-sm leading-relaxed text-parchment-200/62">{STEPS[step].detail}</p>
             </div>
             <div className="flex gap-1">
               {STEPS.map((_, index) => (
