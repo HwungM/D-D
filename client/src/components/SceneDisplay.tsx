@@ -127,9 +127,9 @@ export default function SceneDisplay({
 
       <div className="absolute inset-0 pointer-events-none" style={{
         background: `
-          radial-gradient(ellipse at center, rgba(6,8,13,0.04) 0%, rgba(6,8,13,0.38) 72%, rgba(6,8,13,0.86) 100%),
-          linear-gradient(to bottom, rgba(0,0,0,0.42) 0%, transparent 34%, transparent 58%, rgba(0,0,0,0.92) 100%),
-          linear-gradient(to right, rgba(0,0,0,0.58) 0%, transparent 34%, transparent 100%)
+          radial-gradient(ellipse at center, rgba(6,8,13,0.02) 0%, rgba(6,8,13,0.22) 72%, rgba(6,8,13,0.6) 100%),
+          linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, transparent 34%, transparent 58%, rgba(0,0,0,0.82) 100%),
+          linear-gradient(to right, rgba(0,0,0,0.4) 0%, transparent 34%, transparent 100%)
         `,
       }} />
 

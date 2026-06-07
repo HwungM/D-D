@@ -43,8 +43,8 @@ const DEFAULT_SCENES = [
 ]
 
 function visibleSceneArt(imageUrl: string | null) {
-  if (!imageUrl) return '/media/everrealm-hero-desktop.png'
-  if (imageUrl.startsWith('/assets/scenes/')) return '/media/everrealm-hero-desktop.png'
+  if (!imageUrl) return '/media/loading/everrealm-crystal-party.png'
+  if (imageUrl.startsWith('/assets/scenes/')) return '/media/loading/everrealm-crystal-party.png'
   return imageUrl
 }
 
