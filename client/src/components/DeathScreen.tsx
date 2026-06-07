@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 interface DeathScreenProps {
   characterName: string
@@ -13,114 +13,72 @@ export default function DeathScreen({ characterName, deathNote, onRiseAgain, onR
   const [showButtons, setShowButtons] = useState(false)
 
   useEffect(() => {
-    const t1 = setTimeout(() => setVisible(true), 100)
-    const t2 = setTimeout(() => setShowButtons(true), 2800)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
+    const t1 = window.setTimeout(() => setVisible(true), 100)
+    const t2 = window.setTimeout(() => setShowButtons(true), 2400)
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2) }
   }, [])
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+      className="fixed inset-0 z-50 overflow-hidden bg-[#050607] text-parchment-100"
       style={{
-        background: 'rgba(0,0,0,0.97)',
         opacity: visible ? 1 : 0,
-        transition: 'opacity 1.2s ease-in',
+        transition: 'opacity 1.1s ease-in',
       }}
     >
-      {/* Blood drip effect */}
-      <div className="absolute top-0 left-0 right-0 h-1" style={{
-        background: 'linear-gradient(90deg, transparent, rgba(180,20,20,0.6), transparent)',
-        boxShadow: '0 0 20px rgba(180,20,20,0.4)',
-      }} />
+      <div className="absolute inset-0">
+        <img src="/media/loading/everrealm-storm-party.png" alt="" className="h-full w-full object-cover opacity-[0.38]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.96)_0%,rgba(0,0,0,0.66)_50%,rgba(0,0,0,0.94)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(127,29,29,0.28)_0%,rgba(0,0,0,0)_56%)]" />
+      </div>
 
-      <div className="text-center max-w-lg px-8" style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(20px)',
-        transition: 'opacity 1.5s ease-out 0.5s, transform 1.5s ease-out 0.5s',
-      }}>
-        {/* Skull */}
-        <div className="text-6xl mb-6" style={{
-          filter: 'drop-shadow(0 0 20px rgba(180,20,20,0.5))',
-          animation: 'pulse 3s ease-in-out infinite',
-        }}>
-          💀
-        </div>
+      <div
+        className="relative z-10 flex min-h-screen items-center justify-center px-5 py-8"
+        style={{
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'translateY(0)' : 'translateY(20px)',
+          transition: 'opacity 1.4s ease-out 0.35s, transform 1.4s ease-out 0.35s',
+        }}
+      >
+        <section className="w-full max-w-2xl border border-red-200/24 bg-black/72 p-6 text-center shadow-[0_30px_130px_rgba(0,0,0,0.82)] backdrop-blur-md sm:p-8">
+          <p className="font-fantasy text-[10px] uppercase tracking-[0.34em] text-red-200/62">Final Breath</p>
+          <h1 className="mt-3 font-fantasy text-5xl uppercase tracking-[0.08em] text-red-100 sm:text-6xl">
+            You Have Fallen
+          </h1>
+          <p className="mt-4 font-fantasy text-xl text-parchment-100">{characterName}</p>
 
-        <h1
-          className="font-fantasy mb-3"
-          style={{
-            fontSize: '3.5rem',
-            color: '#c0392b',
-            textShadow: '0 0 40px rgba(192,57,43,0.6), 0 0 80px rgba(192,57,43,0.3)',
-            letterSpacing: '0.05em',
-          }}
-        >
-          You Have Fallen
-        </h1>
+          {deathNote && (
+            <div className="mx-auto mt-6 max-w-xl border border-white/10 bg-white/[0.025] p-4 text-left">
+              <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/48">Last Chronicle</p>
+              <p className="mt-2 font-serif text-sm italic leading-relaxed text-parchment-200/68">"{deathNote}"</p>
+            </div>
+          )}
 
-        <p className="font-serif text-lg mb-3" style={{ color: 'rgba(200,175,140,0.8)' }}>
-          {characterName}
-        </p>
+          <div className="mx-auto my-8 h-px w-32 bg-[linear-gradient(90deg,transparent,rgba(248,113,113,0.54),transparent)]" />
 
-        {deathNote && (
-          <p
-            className="font-serif italic text-sm leading-relaxed mb-10 px-4"
-            style={{ color: 'rgba(160,140,110,0.65)' }}
-          >
-            "{deathNote}"
+          <p className="font-serif text-sm italic text-parchment-200/48">
+            The realm does not mourn long, but it remembers.
           </p>
-        )}
 
-        <div
-          className="w-24 mx-auto mb-10"
-          style={{ height: '1px', background: 'linear-gradient(90deg, transparent, rgba(192,57,43,0.4), transparent)' }}
-        />
+          {showButtons && (
+            <div className="mx-auto mt-8 flex max-w-sm flex-col gap-3" style={{ animation: 'fadeIn 0.8s ease-out forwards' }}>
+              <button
+                onClick={onRiseAgain}
+                className="border border-red-300/42 bg-red-500/12 px-5 py-4 font-fantasy text-xs uppercase tracking-[0.22em] text-red-100 transition-all hover:border-red-200 hover:bg-red-500/18"
+              >
+                Rise Again
+                <span className="mt-1 block font-serif text-[10px] uppercase tracking-[0.18em] text-red-100/44">Create a new character</span>
+              </button>
 
-        <p className="font-serif text-xs uppercase tracking-widest mb-10" style={{
-          color: 'rgba(150,130,100,0.4)',
-          letterSpacing: '0.3em',
-        }}>
-          The realm does not mourn long
-        </p>
-
-        {showButtons && (
-          <div
-            className="flex flex-col gap-3 items-center"
-            style={{ animation: 'fadeIn 0.8s ease-out forwards' }}
-          >
-            <button
-              onClick={onRiseAgain}
-              className="w-64 py-3 font-serif text-sm transition-all"
-              style={{
-                background: 'linear-gradient(135deg, rgba(192,57,43,0.2), rgba(120,30,20,0.35))',
-                border: '1px solid rgba(192,57,43,0.45)',
-                color: '#e8b09a',
-                letterSpacing: '0.06em',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(192,57,43,0.35), rgba(140,40,25,0.5))' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(192,57,43,0.2), rgba(120,30,20,0.35))' }}
-            >
-              Rise Again
-              <span className="block text-xs mt-0.5" style={{ color: 'rgba(220,160,130,0.5)', letterSpacing: '0.15em' }}>
-                CREATE A NEW CHARACTER
-              </span>
-            </button>
-
-            <button
-              onClick={onReturnToHall}
-              className="w-64 py-3 font-serif text-sm transition-all"
-              style={{
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: 'rgba(180,160,120,0.5)',
-                letterSpacing: '0.06em',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(220,200,160,0.8)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(180,160,120,0.5)' }}
-            >
-              Return to the Hall
-            </button>
-          </div>
-        )}
+              <button
+                onClick={onReturnToHall}
+                className="border border-white/12 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-parchment-200/66 transition-all hover:border-white/24 hover:text-parchment-100"
+              >
+                Return to the Hall
+              </button>
+            </div>
+          )}
+        </section>
       </div>
 
       <style>{`
