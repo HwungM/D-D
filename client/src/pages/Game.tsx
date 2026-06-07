@@ -951,6 +951,10 @@ export default function Game() {
             suggestedActions={lastActionResult?.suggestedActions || []}
             onAction={handleAction}
             disabled={isLoading || isTyping || currentCharacter?.is_alive === false || coopWaiting}
+            location={worldState?.currentLocation}
+            pacingMode={worldState?.sceneState?.pacingMode}
+            inCombat={inCombat}
+            isCoop={partyMembersHere.length > 0}
           />
         </div>
       </div>

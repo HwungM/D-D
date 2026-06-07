@@ -9,14 +9,17 @@ interface SceneDisplayProps {
 }
 
 const TIME_TINTS: Record<TimeOfDay, string> = {
-  day:   'transparent',
+  day: 'transparent',
   night: 'rgba(10,20,60,0.50)',
-  dawn:  'rgba(200,100,40,0.28)',
-  dusk:  'rgba(120,50,15,0.38)',
+  dawn: 'rgba(200,100,40,0.28)',
+  dusk: 'rgba(120,50,15,0.38)',
 }
 
 const TIME_LABELS: Record<TimeOfDay, string> = {
-  day: '☀ Day', night: '🌙 Night', dawn: '🌅 Dawn', dusk: '🌇 Dusk',
+  day: 'Day',
+  night: 'Night',
+  dawn: 'Dawn',
+  dusk: 'Dusk',
 }
 
 export default function SceneDisplay({ imageUrl, location, timeOfDay = 'day' }: SceneDisplayProps) {
@@ -28,7 +31,10 @@ export default function SceneDisplay({ imageUrl, location, timeOfDay = 'day' }: 
 
   useEffect(() => {
     if (imageUrl === currentUrl) return
-    if (!imageUrl) { setCurrentUrl(null); return }
+    if (!imageUrl) {
+      setCurrentUrl(null)
+      return
+    }
     setNextUrl(imageUrl)
     setFading(true)
     const t = setTimeout(() => {
@@ -58,7 +64,7 @@ export default function SceneDisplay({ imageUrl, location, timeOfDay = 'day' }: 
     return (
       <div className="flex-1 flex items-center justify-center" style={{ background: '#06080d' }}>
         <div className="text-center" style={{ color: 'rgba(160,140,110,0.3)' }}>
-          <div className="text-5xl mb-3" style={{ animation: 'torchFlicker 2s ease-in-out infinite' }}>🕯</div>
+          <div className="text-5xl mb-3" style={{ animation: 'torchFlicker 2s ease-in-out infinite' }}>*</div>
           <p className="font-serif text-sm italic">The scene materializes in darkness...</p>
         </div>
       </div>
@@ -67,7 +73,6 @@ export default function SceneDisplay({ imageUrl, location, timeOfDay = 'day' }: 
 
   return (
     <div ref={containerRef} className="flex-1 relative overflow-hidden">
-      {/* Current image */}
       {currentUrl && (
         <div className="absolute inset-0" style={{ opacity: fading ? 0 : 1, transition: 'opacity 0.7s ease-in-out' }}>
           <img
@@ -82,7 +87,6 @@ export default function SceneDisplay({ imageUrl, location, timeOfDay = 'day' }: 
         </div>
       )}
 
-      {/* Next image crossfade */}
       {nextUrl && (
         <div className="absolute inset-0" style={{ opacity: fading ? 1 : 0, transition: 'opacity 0.7s ease-in-out' }}>
           <img
@@ -94,12 +98,10 @@ export default function SceneDisplay({ imageUrl, location, timeOfDay = 'day' }: 
         </div>
       )}
 
-      {/* Time-of-day tint */}
       {tint !== 'transparent' && (
         <div className="absolute inset-0 pointer-events-none" style={{ background: tint, transition: 'background 2s ease' }} />
       )}
 
-      {/* Vignette */}
       <div className="absolute inset-0 pointer-events-none" style={{
         background: `
           radial-gradient(ellipse at center, transparent 30%, rgba(6,8,13,0.7) 100%),
@@ -108,7 +110,6 @@ export default function SceneDisplay({ imageUrl, location, timeOfDay = 'day' }: 
         `,
       }} />
 
-      {/* Bottom info bar */}
       <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 pt-8 z-10" style={{
         background: 'linear-gradient(to top, rgba(6,8,13,0.95) 0%, transparent 100%)',
       }}>
