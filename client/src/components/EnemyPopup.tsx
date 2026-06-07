@@ -80,22 +80,17 @@ export default function EnemyPopup({ enemyName, onDismiss }: EnemyPopupProps) {
           transition: 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.16,1,0.3,1)',
         }}
       >
-        {/* Card */}
         <div
-          className="relative w-56 overflow-hidden"
+          className="relative w-64 overflow-hidden border border-red-200/34 bg-black/82 shadow-[0_30px_110px_rgba(0,0,0,0.76)] backdrop-blur-md"
           style={{
-            border: '2px solid rgba(220,38,38,0.7)',
-            boxShadow: '0 0 30px rgba(220,38,38,0.5), 0 0 60px rgba(220,38,38,0.2), inset 0 0 30px rgba(0,0,0,0.5)',
-            background: 'linear-gradient(180deg, #0f0505 0%, #0a0a0a 100%)',
+            boxShadow: '0 0 42px rgba(248,113,113,0.16), 0 30px 110px rgba(0,0,0,0.76)',
           }}
         >
-          {/* Red top bar */}
-          <div className="bg-red-700/80 px-3 py-1.5 flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-300 animate-pulse" />
-            <span className="text-xs uppercase tracking-widest text-red-200 font-sans">Combat</span>
+          <div className="flex items-center justify-between border-b border-red-200/14 bg-red-500/10 px-3 py-2">
+            <span className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-red-100/72">Combat</span>
+            <span className="h-1.5 w-1.5 animate-pulse bg-red-300" />
           </div>
 
-          {/* Enemy portrait */}
           <div className="relative h-48 overflow-hidden">
             <img
               src={imageUrl}
@@ -103,34 +98,25 @@ export default function EnemyPopup({ enemyName, onDismiss }: EnemyPopupProps) {
               className="w-full h-full object-cover object-top"
               style={{ filter: 'contrast(1.1) saturate(0.85)' }}
             />
-            {/* Dark vignette bottom */}
             <div className="absolute inset-0" style={{
-              background: 'linear-gradient(to bottom, transparent 40%, rgba(10,5,5,0.9) 100%)',
+              background: 'linear-gradient(to bottom, transparent 36%, rgba(0,0,0,0.94) 100%)',
             }} />
-            {/* Red glow overlay */}
             <div className="absolute inset-0 pointer-events-none" style={{
-              background: 'radial-gradient(ellipse at 50% 100%, rgba(220,38,38,0.2) 0%, transparent 70%)',
+              background: 'radial-gradient(ellipse at 50% 100%, rgba(248,113,113,0.22) 0%, transparent 70%)',
             }} />
           </div>
 
-          {/* Name */}
-          <div className="px-3 pb-3 pt-1 text-center">
+          <div className="px-4 pb-4 pt-3 text-center">
             <h3
-              className="font-fantasy text-lg text-red-400 leading-tight"
-              style={{ textShadow: '0 0 15px rgba(220,38,38,0.8)' }}
+              className="font-fantasy text-2xl leading-tight text-red-100"
+              style={{ textShadow: '0 0 24px rgba(248,113,113,0.36)' }}
             >
               {enemyName}
             </h3>
-            <p className="text-xs text-red-600/70 uppercase tracking-widest font-sans mt-0.5">
+            <p className="mt-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-red-100/48">
               Appears before you
             </p>
           </div>
-
-          {/* Corner ornaments */}
-          <div className="absolute top-8 left-1.5 w-3 h-3 border-t border-l border-red-500/40" />
-          <div className="absolute top-8 right-1.5 w-3 h-3 border-t border-r border-red-500/40" />
-          <div className="absolute bottom-1.5 left-1.5 w-3 h-3 border-b border-l border-red-500/40" />
-          <div className="absolute bottom-1.5 right-1.5 w-3 h-3 border-b border-r border-red-500/40" />
         </div>
       </div>
     </div>
