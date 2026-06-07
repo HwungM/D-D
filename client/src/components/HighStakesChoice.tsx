@@ -29,7 +29,7 @@ export default function HighStakesChoice({ narration, choices, onChoose, onCusto
           className="font-sans text-xs uppercase tracking-[0.3em] mb-4"
           style={{ color: 'rgba(200,146,42,0.7)' }}
         >
-          The Moment of Choice
+          Critical Decision
         </p>
         <div
           style={{

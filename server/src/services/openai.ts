@@ -154,14 +154,14 @@ When isHighStakes: true:
 
 FREQUENCY: High stakes moments should appear roughly every 6-10 actions in a normal session. If it has been more than 10 actions since the last high stakes moment, look for an opportunity to create one naturally.
 
-MOMENT OF CHOICE RULES:
-- For every response that is not awaiting a roll and is not a high-stakes choice, suggestedActions become the player's primary choice cards.
-- Return 3-4 concrete, meaningfully different next moves. Each should be a player-facing command, usually 3-10 words.
+OPTIONAL SUGGESTION RULES:
+- Normal play is freeform. The player is expected to type their own action, so suggestedActions are optional nudges, not the primary interface.
+- Return 3-4 concrete, meaningfully different ideas. Each should be a player-facing command, usually 3-10 words.
 - Avoid generic options like "continue", "look around", "ask about it", or "move forward" unless the action names a specific target, method, or risk.
 - Mix approaches when the scene supports it: direct, subtle, social, investigative, protective, reckless, magical, class-aware, or party-aware.
-- At least one option should push the scene forward. At least one option can invite curiosity or caution.
-- In co-op scenes, include at least one option that explicitly uses teamwork, covers an ally, follows up on an ally's move, or splits roles.
-- Suggested actions should feel like choices a human DM would offer when the table pauses: crisp, tempting, and consequential.
+- At least one suggestion should push the scene forward. At least one can invite curiosity or caution.
+- In co-op scenes, include at least one idea that explicitly uses teamwork, covers an ally, follows up on an ally's move, or splits roles.
+- Suggestions should help a stuck player think, but they should never make the scene feel like a visual novel.
 
 CHARACTER HISTORY RULES:
 - Set characterHistoryNote when the player makes a significant choice that should echo forward: sparing/killing someone important, making an oath, gaining a powerful enemy, doing something morally significant.
@@ -346,7 +346,7 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "diceDC": null,
   "diceDescription": null,
   "worldStateChanges": object | null,
-  "suggestedActions": ["3-4 concrete player-facing choice cards; use [] if awaitingRoll or isHighStakes"],
+  "suggestedActions": ["3-4 optional action ideas; use [] if awaitingRoll or isHighStakes"],
   "sceneImagePrompt": "brief scene description for image generation",
   "isLevelUp": boolean,
   "isDeath": boolean,
@@ -1164,7 +1164,7 @@ Respond with JSON:
 {
   "narration": "string - unified narration addressing both characters",
   "worldStateChanges": object | null,
-  "suggestedActions": ["3-4 concrete player-facing choice cards; use [] if awaitingRoll or isHighStakes"],
+  "suggestedActions": ["3-4 optional action ideas; use [] if awaitingRoll or isHighStakes"],
   "sceneImagePrompt": "string",
   "isLevelUp": false,
   "isDeath": false,
@@ -1282,7 +1282,7 @@ Respond with JSON:
   "worldStateChanges": object | null,
   "hpChange": number | null,
   "goldChange": number | null,
-  "suggestedActions": ["3-4 concrete player-facing choice cards after this roll outcome"],
+  "suggestedActions": ["3-4 optional action ideas after this roll outcome"],
   "sceneImagePrompt": "string",
   "isDeath": boolean,
   "isVictory": boolean,
@@ -1925,7 +1925,7 @@ export async function generateProactiveEvent(
     messages: [
       {
         role: 'system',
-        content: `You are a DM injecting a proactive world event. Something happened in the world without the player doing anything. Make it atmospheric, brief (2-3 sentences), and connected to the antagonist's agenda or world state. NOT a combat encounter. A rumor, an observation, something found, a messenger arriving, distant sounds. End with 3-4 concrete player-facing choice cards. Respond with valid JSON only.`,
+        content: `You are a DM injecting a proactive world event. Something happened in the world without the player doing anything. Make it atmospheric, brief (2-3 sentences), and connected to the antagonist's agenda or world state. NOT a combat encounter. A rumor, an observation, something found, a messenger arriving, distant sounds. End with 3-4 optional action ideas. Respond with valid JSON only.`,
       },
       {
         role: 'user',
