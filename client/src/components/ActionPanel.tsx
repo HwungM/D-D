@@ -4,6 +4,7 @@ interface ActionPanelProps {
   suggestedActions: string[]
   onAction: (action: string) => void
   disabled: boolean
+  disabledReason?: string
   location?: string
   pacingMode?: string
   inCombat?: boolean
@@ -14,6 +15,7 @@ export default function ActionPanel({
   suggestedActions,
   onAction,
   disabled,
+  disabledReason,
   location,
   pacingMode,
   inCombat,
@@ -53,7 +55,7 @@ export default function ActionPanel({
               {inCombat ? 'Combat' : isCoop ? 'Party Turn' : 'Your Turn'}
             </p>
             <p className="font-serif text-xs mt-0.5" style={{ color: 'rgba(180,160,120,0.52)' }}>
-              Say what you do. The DM will call for rolls when they matter.
+              {disabledReason || 'Say what you do. The DM will call for rolls when they matter.'}
             </p>
           </div>
           {(location || pacingMode) && (
@@ -81,7 +83,7 @@ export default function ActionPanel({
               disabled={disabled}
               rows={2}
               className="w-full resize-none font-serif text-sm outline-none transition-all duration-200"
-              placeholder={disabled ? 'Your character cannot act...' : 'What do you do? Enter to act, Shift+Enter for a new line.'}
+              placeholder={disabled ? (disabledReason || 'Your character cannot act...') : 'What do you do? Enter to act, Shift+Enter for a new line.'}
               style={{
                 background: 'rgba(255,255,255,0.03)',
                 border: '1px solid rgba(255,255,255,0.08)',

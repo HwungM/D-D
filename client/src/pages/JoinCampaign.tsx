@@ -88,7 +88,7 @@ export default function JoinCampaign() {
           }}
         >
           <div className="w-16 h-16 mx-auto mb-5 rounded-full border border-ember-500/40 flex items-center justify-center" style={{ boxShadow: '0 0 20px rgba(192,57,43,0.3)' }}>
-            <span className="font-fantasy text-2xl text-ember-400">⚔</span>
+            <span className="font-fantasy text-2xl text-ember-400">ER</span>
           </div>
 
           <h2 className="font-fantasy text-2xl text-parchment-200 mb-2">You've Been Called</h2>
@@ -103,7 +103,7 @@ export default function JoinCampaign() {
           {!user ? (
             <div>
               <p className="text-slate-500 text-xs font-serif mb-4">
-                You need to be logged in to join this campaign.
+                Log in first. After joining, you will create your character for this party.
               </p>
               <button onClick={() => navigate(`/?redirect=/join/${code}`)} className="fantasy-btn w-full">
                 Log In to Join
@@ -112,7 +112,7 @@ export default function JoinCampaign() {
           ) : (
             <div className="space-y-3">
               <button onClick={handleAccept} disabled={joining} className="fantasy-btn w-full disabled:opacity-50">
-                {joining ? <span className="animate-pulse">Joining the party...</span> : 'Accept the Call'}
+                {joining ? <span className="animate-pulse">Joining the party...</span> : 'Accept & Create Character'}
               </button>
               <button onClick={() => navigate('/dashboard')} className="fantasy-btn-secondary w-full text-xs">
                 Decline

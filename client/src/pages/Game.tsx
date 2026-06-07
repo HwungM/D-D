@@ -664,6 +664,19 @@ export default function Game() {
     const theirLocation = worldState?.characterLocations?.[m.character.id]
     return theirLocation && theirLocation === myLocation
   })
+  const pendingTurnActions = worldState?.pendingTurn?.actions || []
+  const pendingCharacterIds = new Set(pendingTurnActions.map(action => action.characterId))
+  const partyRosterHere = [
+    currentCharacter ? { name: currentCharacter.name, id: currentCharacter.id, isMe: true } : null,
+    ...partyMembersHere.map(member => member.character ? { name: member.character.name, id: member.character.id, isMe: false } : null),
+  ].filter(Boolean) as Array<{ name: string; id: string; isMe: boolean }>
+  const lockedInNames = partyRosterHere.filter(member => pendingCharacterIds.has(member.id)).map(member => member.isMe ? 'You' : member.name)
+  const stillChoosingNames = partyRosterHere.filter(member => !pendingCharacterIds.has(member.id)).map(member => member.isMe ? 'you' : member.name)
+  const coopProgressLabel = coopNeededCount > 0
+    ? `${coopSubmittedCount}/${coopNeededCount} locked in`
+    : lockedInNames.length > 0
+      ? `${lockedInNames.length}/${partyRosterHere.length || lockedInNames.length} locked in`
+      : ''
   const hpPercent = currentCharacter ? (currentCharacter.hp / currentCharacter.max_hp) * 100 : 100
   const hpColor = hpPercent > 60 ? '#22c55e' : hpPercent > 30 ? '#eab308' : '#ef4444'
 
@@ -911,12 +924,12 @@ export default function Game() {
                 }
               >
                 <span style={{ fontSize: 10 }}>⚔</span>
-                Party Action
+                Coordinate Action
                 {partyActionMode && <span style={{ color: 'rgba(200,146,42,0.7)', fontSize: 10 }}>ON</span>}
               </button>
               {partyActionMode && (
                 <span className="font-serif text-xs" style={{ color: 'rgba(180,160,120,0.4)' }}>
-                  Action affects all present: {partyMembersHere.map(m => m.character?.name).filter(Boolean).join(', ')}
+                  Locks this round until everyone present acts: {partyMembersHere.map(m => m.character?.name).filter(Boolean).join(', ')}
                 </span>
               )}
             </div>
@@ -931,9 +944,9 @@ export default function Game() {
                 <span className="font-serif text-xs" style={{ color: 'rgba(200,146,42,0.78)' }}>
                   {coopPartnerName ? `Waiting for ${coopPartnerName}` : 'Waiting for your party'}
                 </span>
-                {coopNeededCount > 0 && (
+                {(coopProgressLabel || stillChoosingNames.length > 0) && (
                   <span className="font-serif text-xs" style={{ color: 'rgba(180,160,120,0.48)' }}>
-                    {coopSubmittedCount}/{coopNeededCount} actions locked in{coopExpiresAt ? ` - expires ${new Date(coopExpiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
+                    {coopProgressLabel}{stillChoosingNames.length > 0 ? ` - still choosing: ${stillChoosingNames.join(', ')}` : ''}{coopExpiresAt ? ` - expires ${new Date(coopExpiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
                   </span>
                 )}
               </div>
@@ -951,6 +964,7 @@ export default function Game() {
             suggestedActions={lastActionResult?.suggestedActions || []}
             onAction={handleAction}
             disabled={isLoading || isTyping || currentCharacter?.is_alive === false || coopWaiting}
+            disabledReason={coopWaiting ? 'Your action is locked in. Waiting for the party to submit.' : undefined}
             location={worldState?.currentLocation}
             pacingMode={worldState?.sceneState?.pacingMode}
             inCombat={inCombat}
