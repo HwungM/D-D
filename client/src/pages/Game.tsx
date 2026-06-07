@@ -946,14 +946,20 @@ export default function Game() {
               })()}
 
               {isLoading && (
-                <div className="flex items-center gap-3 px-5 py-3">
-                  <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border" style={{ borderColor: 'rgba(192,57,43,0.3)' }}>
-                    <img src="/assets/dm/dm-neutral.png" alt="DM" className="w-full h-full object-cover opacity-50" />
+                <div className="mx-1 border border-amber-200/24 bg-black/48 px-4 py-3 shadow-[0_18px_60px_rgba(0,0,0,0.42)]">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-fantasy text-[10px] uppercase tracking-[0.26em] text-cyan-200/62">Resolving Action</p>
+                      <p className="mt-1 font-serif text-sm italic text-parchment-200/72">
+                        The Dungeon Master is weighing the scene.
+                      </p>
+                    </div>
+                    <span className="hidden border border-amber-200/24 bg-amber-300/8 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] text-amber-100/80 sm:block">
+                      Weaving
+                    </span>
                   </div>
-                  <div className="flex gap-1.5 items-center">
-                    {[0, 1, 2].map(j => (
-                      <div key={j} className="w-2 h-2 rounded-full" style={{ background: 'rgba(192,57,43,0.5)', animation: `bounce 1.2s ease-in-out ${j * 0.2}s infinite` }} />
-                    ))}
+                  <div className="mt-3 h-px overflow-hidden bg-white/10">
+                    <div className="h-full w-1/3 animate-pulse bg-[linear-gradient(90deg,rgba(34,211,238,0.2),rgba(245,158,11,0.85),rgba(34,211,238,0.2))]" />
                   </div>
                 </div>
               )}

@@ -1,20 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import EmberParticles from './EmberParticles'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 const CAMPAIGN_TIPS = [
-  { title: 'Every Choice Matters', body: 'The Game Master remembers everything. An offhand remark to a tavern keeper may become crucial three acts later.' },
-  { title: 'Death is Permanent', body: 'This world has no respawns. Fight wisely, negotiate when possible, and know when to run.' },
-  { title: 'The World Breathes', body: 'Factions rise and fall while you adventure. Return to a city you ignored, and find it changed.' },
-  { title: 'Party Up', body: 'Two adventurers can share a scene. Sometimes a problem needs two minds, and two swords.' },
-  { title: 'Explore Everything', body: 'The most valuable secrets are never announced. Ask about the cracks in the wall. Inspect the old painting.' },
-  { title: 'Your Reputation Precedes You', body: 'NPCs talk. Word of your deeds, heroic or terrible, will spread to places you have never been.' },
-  { title: 'The Dice are Honest', body: 'A failed roll is not the end. It is a different story. The DM will weave failure into something interesting.' },
-  { title: 'Campaign Scope Matters', body: 'One-shots move fast. Long sagas let mysteries breathe. The world now paces itself around the legend you chose.' },
-  { title: 'Loot Has History', body: 'A rusted dagger from a defeated captain. A ring found in a ruin. These items carry stories. Ask about them.' },
-  { title: 'Rest When You Can', body: 'Exhausted adventurers make fatal mistakes. Push too far and you will roll with disadvantage when it counts most.' },
+  { title: 'Every Choice Matters', body: 'The DM remembers small choices. A quick kindness, insult, bargain, or lie can echo three sessions later.' },
+  { title: 'The World Breathes', body: 'Factions move while you adventure. Ignore a city long enough and it may become a different problem when you return.' },
+  { title: 'Ask About Details', body: 'Secrets are rarely announced. Inspect murals, gossip with rivals, question strange weather, and test what looks ordinary.' },
+  { title: 'Failure Still Moves', body: 'A failed roll is not a wall. It is a consequence, a cost, a complication, or a door opening in the wrong direction.' },
+  { title: 'Reputation Travels', body: 'NPCs talk. Mercy, cruelty, fame, debt, and spectacle can reach places before your party does.' },
+  { title: 'Loot Has History', body: 'A charm, map, blade, or ring may be more than equipment. Ask where it came from before you sell it.' },
 ]
 
 const SLIDESHOW_IMAGES = [
+  '/media/everrealm-hero-desktop.png',
   '/media/loading/everrealm-crystal-party.png',
   '/media/loading/everrealm-portal-party.png',
   '/media/loading/everrealm-moonlit-party.png',
@@ -23,8 +19,54 @@ const SLIDESHOW_IMAGES = [
   '/media/loading/everrealm-snow-ascent.png',
 ]
 
+type LoadingMode = 'campaign' | 'opening' | 'action' | 'roll' | 'party' | 'generic'
+
+const MODE_COPY: Record<LoadingMode, {
+  eyebrow: string
+  title: string
+  fallback: string
+  phases: string[]
+}> = {
+  campaign: {
+    eyebrow: 'Campaign Forge',
+    title: 'Forging Your World',
+    fallback: 'The Dungeon Master is building your first horizon.',
+    phases: ['Sketching the first horizon', 'Placing factions and secrets', 'Threading choices into the opening scene', 'Lighting the first door'],
+  },
+  opening: {
+    eyebrow: 'Opening Scene',
+    title: 'The First Door Opens',
+    fallback: 'The realm is arranging your first step.',
+    phases: ['Reading the campaign brief', 'Setting the first camera', 'Waking the world around you', 'Calling the party forward'],
+  },
+  action: {
+    eyebrow: 'Resolving Action',
+    title: 'The DM Weaves the Consequence',
+    fallback: 'Your choice is moving through the world.',
+    phases: ['Weighing intent', 'Checking the scene', 'Turning consequences', 'Writing the next beat'],
+  },
+  roll: {
+    eyebrow: 'Dice in Motion',
+    title: 'The Dice Decide',
+    fallback: 'Fate is finding its number.',
+    phases: ['Gathering modifiers', 'Listening to the dice', 'Reading the result', 'Making the result matter'],
+  },
+  party: {
+    eyebrow: 'Party Gate',
+    title: 'Waiting for the Party',
+    fallback: 'The shared timeline is holding at the threshold.',
+    phases: ['Watching the party gate', 'Syncing character threads', 'Holding the scene open', 'Keeping the fire warm'],
+  },
+  generic: {
+    eyebrow: 'The Everrealm',
+    title: 'The Realm Turns',
+    fallback: 'Loading the living campaign.',
+    phases: ['Opening the codex', 'Waking the map', 'Gathering the scene', 'Almost ready'],
+  },
+}
+
 interface LoadingScreenProps {
-  mode?: 'campaign' | 'generic'
+  mode?: LoadingMode
   message?: string
 }
 
@@ -35,143 +77,152 @@ export default function LoadingScreen({ mode = 'generic', message }: LoadingScre
   const [slideIndex, setSlideIndex] = useState(() => Math.floor(Math.random() * SLIDESHOW_IMAGES.length))
   const [slideVisible, setSlideVisible] = useState(true)
   const progressRef = useRef(0)
-  const isCampaign = mode === 'campaign'
+  const copy = MODE_COPY[mode]
   const tip = CAMPAIGN_TIPS[tipIndex]
 
+  const currentPhase = useMemo(() => {
+    const phaseIndex = Math.min(copy.phases.length - 1, Math.floor((progress / 100) * copy.phases.length))
+    return copy.phases[phaseIndex]
+  }, [copy.phases, progress])
+
   useEffect(() => {
-    const targets = [15, 30, 48, 62, 74, 83, 89, 94, 97]
-    let targetIdx = 0
-    const tick = setInterval(() => {
-      if (targetIdx >= targets.length) return
-      const target = targets[targetIdx]
+    const targets = [12, 26, 41, 56, 69, 80, 88, 94, 97]
+    let targetIndex = 0
+    const tick = window.setInterval(() => {
+      if (targetIndex >= targets.length) return
+      const target = targets[targetIndex]
       if (progressRef.current < target) {
-        progressRef.current = Math.min(target, progressRef.current + Math.random() * 2 + 0.5)
+        progressRef.current = Math.min(target, progressRef.current + Math.random() * 1.7 + 0.45)
         setProgress(Math.floor(progressRef.current))
       } else {
-        targetIdx++
+        targetIndex += 1
       }
-    }, 200)
-    return () => clearInterval(tick)
+    }, 190)
+    return () => window.clearInterval(tick)
   }, [])
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const interval = window.setInterval(() => {
       setTipVisible(false)
-      setTimeout(() => {
+      window.setTimeout(() => {
         setTipIndex(i => (i + 1) % CAMPAIGN_TIPS.length)
         setTipVisible(true)
-      }, 500)
-    }, 5000)
-    return () => clearInterval(interval)
+      }, 420)
+    }, 5200)
+    return () => window.clearInterval(interval)
   }, [])
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const interval = window.setInterval(() => {
       setSlideVisible(false)
-      setTimeout(() => {
+      window.setTimeout(() => {
         setSlideIndex(i => (i + 1) % SLIDESHOW_IMAGES.length)
         setSlideVisible(true)
-      }, 600)
-    }, 4200)
-    return () => clearInterval(interval)
+      }, 520)
+    }, 4600)
+    return () => window.clearInterval(interval)
   }, [])
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden">
-      <EmberParticles />
-
+    <div className="fixed inset-0 z-50 overflow-hidden bg-[#050607] text-parchment-100">
       <div className="absolute inset-0">
         <img
           key={slideIndex}
           src={SLIDESHOW_IMAGES[slideIndex]}
           alt=""
-          className="w-full h-full object-cover"
+          className="h-full w-full object-cover transition-opacity duration-700"
           style={{
-            opacity: slideVisible ? (isCampaign ? 0.5 : 0.32) : 0,
-            transition: 'opacity 0.6s ease',
-            filter: 'saturate(0.95) contrast(1.05)',
+            opacity: slideVisible ? 0.62 : 0,
+            filter: 'saturate(1.04) contrast(1.08)',
+            transform: 'scale(1.025)',
           }}
-          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+          onError={e => { (e.currentTarget as HTMLImageElement).src = '/media/everrealm-hero-desktop.png' }}
         />
-        <div className="absolute inset-0" style={{
-          background: 'linear-gradient(90deg, rgba(2,6,12,0.92) 0%, rgba(2,6,12,0.58) 48%, rgba(2,6,12,0.88) 100%), linear-gradient(to bottom, rgba(2,6,12,0.5) 0%, rgba(2,6,12,0.18) 45%, rgba(2,6,12,0.93) 100%)',
-        }} />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.94)_0%,rgba(0,0,0,0.56)_48%,rgba(0,0,0,0.9)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.1)_42%,rgba(0,0,0,0.94)_100%)]" />
       </div>
 
-      <div className="relative z-10 flex flex-col items-center justify-center flex-1 px-6 sm:px-8">
-        <div className="mb-8" style={{ animation: 'torchFlicker 2s ease-in-out infinite' }}>
-          <div
-            className="w-24 h-24 rounded-full border-2 border-ember-400/40 flex items-center justify-center bg-slate-950/35"
-            style={{ boxShadow: '0 0 40px rgba(200,146,42,0.25), 0 0 80px rgba(192,57,43,0.12)' }}
-          >
-            <span className="font-fantasy text-4xl text-ember-400/80">E</span>
+      <main className="relative z-10 flex min-h-screen flex-col px-5 py-5 sm:px-8">
+        <header className="flex items-center justify-between border-b border-parchment-100/20 pb-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center border border-parchment-100/70 bg-black/28">
+              <span className="font-fantasy text-xl text-amber-200">E</span>
+            </div>
+            <div>
+              <p className="font-fantasy text-lg uppercase tracking-[0.12em] text-parchment-100 sm:text-xl">The Everrealm</p>
+              <p className="font-serif text-[10px] uppercase tracking-[0.24em] text-amber-200/62 sm:text-xs">Living campaign</p>
+            </div>
           </div>
-        </div>
-
-        <h1 className="font-fantasy text-3xl md:text-4xl text-parchment-100 mb-2 text-center" style={{
-          textShadow: '0 0 40px rgba(192,57,43,0.45)',
-        }}>
-          {isCampaign ? 'Forging Your World' : 'The Everrealm'}
-        </h1>
-        <p className="text-slate-300/70 font-serif italic text-sm mb-10 text-center">
-          {message || (isCampaign ? 'The Game Master is breathing life into your realm...' : 'Loading...')}
-        </p>
-
-        <div
-          className="max-w-lg w-full border border-amber-600/20 bg-slate-950/70 p-5 mb-10"
-          style={{
-            opacity: tipVisible ? 1 : 0,
-            transform: tipVisible ? 'translateY(0)' : 'translateY(6px)',
-            transition: 'opacity 0.5s ease, transform 0.5s ease',
-            boxShadow: '0 0 28px rgba(0,0,0,0.45)',
-          }}
-        >
-          <p className="text-xs uppercase tracking-widest text-amber-300/65 mb-1 font-sans">
-            Game Master's Tip
+          <p className="hidden font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/66 sm:block">
+            {copy.eyebrow}
           </p>
-          <h3 className="font-fantasy text-parchment-200 text-lg mb-1">{tip.title}</h3>
-          <p className="text-slate-300/75 font-serif text-sm leading-relaxed">{tip.body}</p>
-        </div>
+        </header>
 
-        <div className="flex gap-2 mb-8">
-          {SLIDESHOW_IMAGES.map((_, i) => (
+        <section className="grid flex-1 items-center gap-6 py-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:py-0">
+          <div className="max-w-4xl">
+            <p className="font-fantasy text-[11px] uppercase tracking-[0.34em] text-amber-200/78">
+              {copy.eyebrow}
+            </p>
+            <h1 className="mt-4 font-fantasy text-5xl uppercase leading-[0.95] tracking-[0.08em] text-parchment-100 sm:text-6xl lg:text-7xl">
+              {copy.title}
+            </h1>
+            <p className="mt-5 max-w-2xl font-serif text-lg italic leading-relaxed text-parchment-200/78">
+              {message || copy.fallback}
+            </p>
+          </div>
+
+          <aside className="border border-parchment-100/34 bg-black/56 p-5 shadow-[0_28px_120px_rgba(0,0,0,0.66)] backdrop-blur-md">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/62">Dungeon Master</p>
+                <h2 className="mt-1 font-fantasy text-3xl text-parchment-100">Preparing</h2>
+              </div>
+              <span className="border border-amber-200/28 bg-amber-300/8 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.18em] text-amber-100">
+                {progress}%
+              </span>
+            </div>
+
+            <div className="mb-5 border border-white/10 bg-white/[0.025] p-4">
+              <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-amber-200/62">Current Thread</p>
+              <p className="mt-2 font-serif text-base text-parchment-100">{currentPhase}</p>
+              <div className="mt-4 h-1 bg-white/8">
+                <div
+                  className="h-full transition-all duration-300"
+                  style={{
+                    width: `${progress}%`,
+                    background: 'linear-gradient(90deg, rgba(34,211,238,0.8), rgba(245,158,11,0.95))',
+                    boxShadow: '0 0 18px rgba(34,211,238,0.22)',
+                  }}
+                />
+              </div>
+            </div>
+
             <div
-              key={i}
-              className="rounded-full transition-all duration-300"
+              className="min-h-[132px] border border-amber-200/20 bg-amber-300/[0.035] p-4 transition-all duration-500"
               style={{
-                width: i === slideIndex ? '20px' : '6px',
-                height: '6px',
-                background: i === slideIndex ? '#c8922a' : 'rgba(255,255,255,0.15)',
+                opacity: tipVisible ? 1 : 0,
+                transform: tipVisible ? 'translateY(0)' : 'translateY(5px)',
               }}
-            />
-          ))}
-        </div>
-      </div>
+            >
+              <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-amber-200/62">DM Note</p>
+              <h3 className="mt-2 font-fantasy text-xl text-parchment-100">{tip.title}</h3>
+              <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/70">{tip.body}</p>
+            </div>
 
-      <div className="relative z-10 px-0 pb-0">
-        <div className="px-6 pb-2 flex items-center justify-between">
-          <p className="text-slate-400/70 text-xs font-serif italic animate-pulse">
-            {isCampaign
-              ? progress < 40 ? 'Sketching the first horizon...'
-              : progress < 65 ? 'Placing factions and secrets...'
-              : progress < 85 ? 'Threading choices into the opening scene...'
-              : 'Almost ready...'
-              : 'Loading...'}
-          </p>
-          <p className="text-slate-400/70 text-xs font-mono">{progress}%</p>
-        </div>
-
-        <div className="w-full h-1 bg-slate-900">
-          <div
-            className="h-full transition-all duration-200"
-            style={{
-              width: `${progress}%`,
-              background: 'linear-gradient(90deg, #7f1d1d, #c8922a, #f97316)',
-              boxShadow: '0 0 8px rgba(200,146,42,0.6)',
-            }}
-          />
-        </div>
-      </div>
+            <div className="mt-5 flex gap-2">
+              {SLIDESHOW_IMAGES.map((_, index) => (
+                <span
+                  key={index}
+                  className="h-1 flex-1 border border-white/10 transition-all duration-300"
+                  style={{
+                    background: index === slideIndex ? 'rgba(245,158,11,0.75)' : 'rgba(255,255,255,0.08)',
+                  }}
+                />
+              ))}
+            </div>
+          </aside>
+        </section>
+      </main>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import LoadingScreen from '../components/LoadingScreen'
 import { campaignApi } from '../lib/api'
 import type { Campaign } from '../../../shared/types'
 
@@ -95,14 +96,7 @@ export default function CampaignBrief() {
   // Loading / Error
   // -------------------------------------------------------------------------
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a0d12' }}>
-        <div className="w-10 h-10 border-2 rounded-full animate-spin" style={{
-          borderColor: 'rgba(200,146,42,0.25)',
-          borderTopColor: '#c8922a',
-        }} />
-      </div>
-    )
+    return <LoadingScreen mode="opening" message="Reading the campaign brief." />
   }
 
   if (error || !campaign) {
@@ -123,21 +117,21 @@ export default function CampaignBrief() {
   // Main render
   // -------------------------------------------------------------------------
   return (
-    <div className="min-h-screen relative overflow-hidden text-parchment-100" style={{ background: '#0a0d12' }}>
+    <div className="min-h-screen relative overflow-hidden text-parchment-100" style={{ background: '#050607' }}>
 
       {/* Animated background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `url('/assets/scenes/castle-gate.png')`,
+            backgroundImage: `url('/media/everrealm-hero-desktop.png')`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             animation: 'subtlePulse 8s ease-in-out infinite',
           }}
         />
         <div className="absolute inset-0" style={{
-          background: 'linear-gradient(to bottom, rgba(10,13,18,0.6) 0%, rgba(10,13,18,0.85) 60%, #0a0d12 100%)',
+          background: 'linear-gradient(90deg, rgba(0,0,0,0.93) 0%, rgba(0,0,0,0.58) 52%, rgba(0,0,0,0.9) 100%), linear-gradient(to bottom, rgba(0,0,0,0.36) 0%, rgba(0,0,0,0.62) 60%, #050607 100%)',
         }} />
         <div className="absolute inset-0" style={{
           background: 'radial-gradient(ellipse at 50% 30%, rgba(120,50,20,0.2) 0%, transparent 65%)',
@@ -147,19 +141,41 @@ export default function CampaignBrief() {
       {/* Keyframes injected via style tag */}
       <style>{`
         @keyframes subtlePulse {
-          0%, 100% { opacity: 0.12; }
-          50% { opacity: 0.18; }
+          0%, 100% { opacity: 0.36; }
+          50% { opacity: 0.44; }
         }
       `}</style>
 
+      <header className="relative z-10 border-b border-parchment-100/22 bg-black/36 px-5 py-4 backdrop-blur-md">
+        <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center border border-parchment-100/70 bg-black/28">
+              <span className="font-fantasy text-xl text-amber-200">E</span>
+            </div>
+            <div>
+              <p className="font-fantasy text-xl uppercase tracking-[0.1em] text-parchment-100">The Everrealm</p>
+              <p className="font-serif text-xs uppercase tracking-[0.22em] text-amber-200/54">Campaign brief</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard')}
+            className="border border-parchment-200/14 bg-black/22 px-4 py-2 font-fantasy text-[10px] uppercase tracking-[0.2em] text-parchment-200/66 transition-all hover:border-amber-200/45 hover:text-parchment-100"
+          >
+            Hall
+          </button>
+        </div>
+      </header>
+
       {/* Content */}
       <div
-        className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-16 transition-all duration-700"
+        className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 transition-all duration-700"
         style={{
           opacity: revealed ? 1 : 0,
           transform: revealed ? 'translateY(0)' : 'translateY(20px)',
         }}
       >
+        <section className="border border-parchment-100/34 bg-black/62 p-5 shadow-[0_30px_130px_rgba(0,0,0,0.72)] backdrop-blur-md sm:p-8">
         {/* Campaign name */}
         <div className="text-center mb-4">
           <p className="text-xs uppercase tracking-[0.25em] font-serif mb-3" style={{ color: 'rgba(200,146,42,0.5)' }}>
@@ -256,14 +272,14 @@ export default function CampaignBrief() {
           <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(200,146,42,0.25))' }} />
         </div>
 
-        {/* Invite Party section — shown for collaborative campaigns */}
+        {/* Invite Party section - shown for collaborative campaigns */}
         {isCollaborative && (
           <div className="mb-8 p-5" style={{
             border: '1px solid rgba(200,146,42,0.2)',
             background: 'rgba(200,146,42,0.04)',
           }}>
             <div className="flex items-start gap-3 mb-4">
-              <span className="text-lg mt-0.5" style={{ color: 'rgba(200,146,42,0.7)' }}>⚔</span>
+              <span className="text-lg mt-0.5" style={{ color: 'rgba(200,146,42,0.7)' }}>+</span>
               <div>
                 <h3 className="font-fantasy text-lg text-parchment-200 mb-1">{waitForParty ? 'Gather Your Party' : 'Invite Your Party'}</h3>
                 <p className="font-serif text-sm" style={{ color: 'rgba(180,160,120,0.6)' }}>
@@ -356,7 +372,7 @@ export default function CampaignBrief() {
                       className="font-serif text-xs px-3 py-1 transition-all"
                       style={{ color: 'rgba(180,160,120,0.5)', border: '1px solid rgba(255,255,255,0.08)' }}
                     >
-                      Start Solo for now →
+                      Start Solo for now
                     </button>
                   </div>
                 )}
@@ -394,6 +410,7 @@ export default function CampaignBrief() {
             {copied ? 'Link copied!' : 'Share & Invite'}
           </button>
         </div>
+        </section>
       </div>
     </div>
   )
