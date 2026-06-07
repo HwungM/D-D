@@ -7,7 +7,7 @@ import type { StorySeedOption } from '../../../shared/types'
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type ToneChoice = 'Dark & Gritty' | 'Heroic & Epic' | 'Mystery & Intrigue' | 'Anything Goes'
+type ToneChoice = 'Perilous & Grounded' | 'Heroic & Epic' | 'Mystery & Intrigue' | 'Anything Goes'
 type Pillar = 'Combat & Tactics' | 'Exploration & Discovery' | 'Roleplay & Social' | 'Puzzles & Mysteries' | 'All of it equally'
 type PartyIntent = 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now'
 
@@ -26,11 +26,14 @@ interface WizardState {
 }
 
 const TONE_CARDS: { label: ToneChoice; description: string }[] = [
-  { label: 'Dark & Gritty', description: 'Betrayal, moral grey areas, victories that cost something. No heroes, only survivors.' },
+  { label: 'Perilous & Grounded', description: 'Danger, hard choices, and consequences without locking the whole world into darkness.' },
   { label: 'Heroic & Epic', description: 'Rising heroes against impossible odds. Clear purpose, legendary deeds, the world needs saving.' },
   { label: 'Mystery & Intrigue', description: 'Nothing is what it seems. Secrets, conspiracies, the truth buried in layers.' },
   { label: 'Anything Goes', description: 'Surprise me. The DM decides what fits the moment.' },
 ]
+
+const EVERREALM_ART_STYLE =
+  'Hand-painted western fantasy animation, anime-aware but not anime; sharp expressive faces, varied silhouettes, rugged adventuring gear, painterly cinematic lighting, and strong personality in every character.'
 
 const PILLARS: Pillar[] = [
   'Combat & Tactics',
@@ -136,6 +139,7 @@ export default function CampaignWizard() {
         playMode: state.isCollaborative ? 'collaborative' as const : 'solo' as const,
         partyIntent: state.partyIntent,
         tone: state.tone || 'Anything Goes',
+        artStyle: EVERREALM_ART_STYLE,
         favoritePillars: state.pillars,
         playerCount: state.playerCount,
         targetPlayerCount: state.targetPlayerCount,

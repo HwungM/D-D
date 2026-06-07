@@ -198,6 +198,7 @@ export interface WorldBible {
   geography: GeographyEntry[];
   pantheon: God[];
   toneRules: string[];
+  artBible?: ArtBible;
   forbiddenLoreHooks: string[];
   factions: Faction[];
   era: string;
@@ -240,12 +241,24 @@ export interface WorldBible {
     playMode?: 'solo' | 'collaborative';
     partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now';
     tone: string;
+    artStyle?: string;
     favoritePillars: string[];
     playerCount: number;
     targetPlayerCount?: number;
     waitForParty?: boolean;
     characterConcepts: string[];
   };
+}
+
+export interface ArtBible {
+  styleName: string;
+  masterPrompt: string;
+  characterStyle: string[];
+  environmentStyle: string[];
+  lighting: string[];
+  toneRules: string[];
+  avoid: string[];
+  scenePromptRules: string[];
 }
 
 export interface GeographyEntry {

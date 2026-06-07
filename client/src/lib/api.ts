@@ -44,6 +44,7 @@ export const campaignApi = {
     playMode?: 'solo' | 'collaborative'
     partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now'
     tone: string
+    artStyle?: string
     favoritePillars: string[]
     playerCount: number
     targetPlayerCount?: number
