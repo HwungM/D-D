@@ -120,18 +120,13 @@
 }
 
 .everrealm-game-shell {
-  background:
-    radial-gradient(circle at 16% 0%, rgba(34,211,238,0.08), transparent 32%),
-    radial-gradient(circle at 94% 18%, rgba(200,146,42,0.08), transparent 30%),
-    linear-gradient(135deg, #06080d 0%, #0d121c 48%, #06080d 100%);
-  background-size: 120% 120%, 120% 120%, 100% 100%;
-  animation: everrealmDrift 22s ease-in-out infinite;
+  background: #050607;
 }
 
 .everrealm-story-feed {
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.018), transparent 28%),
-    radial-gradient(circle at 50% 0%, rgba(200,146,42,0.045), transparent 34%);
+    radial-gradient(circle at 50% 0%, rgba(245,158,11,0.055), transparent 38%),
+    linear-gradient(180deg, rgba(255,255,255,0.018), transparent 28%);
 }
 
 @media (min-width: 1024px) {

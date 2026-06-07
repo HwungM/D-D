@@ -20,10 +20,7 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
   if (others.length === 0) return null
 
   return (
-    <div className="shrink-0 px-4 py-3" style={{
-      background: 'linear-gradient(180deg, rgba(13,18,28,0.94), rgba(6,8,13,0.98))',
-      borderBottom: '1px solid rgba(255,255,255,0.06)',
-    }}>
+    <div className="shrink-0 border-t border-white/8 bg-black/54 px-4 py-3 backdrop-blur-md">
       <div className="flex items-center justify-between gap-3 mb-2">
         <span className="text-xs uppercase tracking-widest shrink-0" style={{ color: 'rgba(34,211,238,0.52)' }}>Party</span>
         <span className="text-xs font-serif" style={{ color: 'rgba(180,160,120,0.42)' }}>{others.length} companion{others.length === 1 ? '' : 's'}</span>
@@ -33,7 +30,7 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
           const char = member.character
           if (!char) {
             return (
-              <div key={member.userId} className="flex items-center gap-2 px-2 py-1.5 rounded-md" style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div key={member.userId} className="flex items-center gap-2 border border-white/8 bg-white/[0.025] px-2 py-1.5">
                 <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700" />
                 <div>
                   <p className="text-xs text-slate-400 font-serif">{member.username}</p>
@@ -50,15 +47,12 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
           const lastLocation = worldState?.characterLocations?.[char.id]
 
           return (
-            <div key={member.userId} className="flex items-center gap-2 min-w-[180px] px-2 py-1.5 rounded-md" style={{
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(34,211,238,0.025))',
-              border: '1px solid rgba(255,255,255,0.07)',
-            }}>
+            <div key={member.userId} className="flex items-center gap-2 min-w-[180px] border border-white/8 bg-white/[0.025] px-2 py-1.5">
               <div className="relative shrink-0">
                 <img
                   src={char.portrait_url || racePortraitUrl(char.race)}
                   alt={char.name}
-                  className="w-8 h-8 rounded-full object-cover object-top border border-slate-600"
+                  className="w-8 h-8 object-cover object-top border border-amber-200/20"
                   onError={e => { (e.target as HTMLImageElement).src = racePortraitUrl(char.race) }}
                 />
                 {!char.is_alive && (
@@ -67,7 +61,7 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
                   </div>
                 )}
                 <div
-                  className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-slate-950"
+                  className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 border border-slate-950"
                   style={{ background: online ? '#22c55e' : '#6b7280' }}
                   title={online ? 'Online' : lastSeen ? `Last seen ${new Date(lastSeen).toLocaleTimeString()}` : 'Offline'}
                 />

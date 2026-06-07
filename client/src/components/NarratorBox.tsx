@@ -69,7 +69,7 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
     return (
       <div className="animate-fade-in flex items-start gap-3 px-1 sm:px-2 py-1">
         <div
-          className="shrink-0 w-8 h-8 rounded-full border overflow-hidden flex items-center justify-center text-xs font-fantasy"
+          className="shrink-0 w-9 h-9 border overflow-hidden flex items-center justify-center text-xs font-fantasy"
           style={isOtherPlayer
             ? { background: 'rgba(139,92,246,0.15)', borderColor: 'rgba(139,92,246,0.5)', color: '#a78bfa' }
             : { background: 'rgba(34,211,238,0.1)', borderColor: 'rgba(34,211,238,0.34)', color: '#bff4ff' }
@@ -80,10 +80,10 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
           ) : '>'}
         </div>
         <div
-          className="flex-1 border rounded-md px-3 py-2"
+          className="flex-1 border px-3 py-2"
           style={isOtherPlayer
-            ? { background: 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(34,211,238,0.035))', borderColor: 'rgba(139,92,246,0.25)' }
-            : { background: 'linear-gradient(135deg, rgba(30,41,59,0.68), rgba(13,18,28,0.78))', borderColor: 'rgba(148,163,184,0.16)' }
+            ? { background: 'rgba(139,92,246,0.07)', borderColor: 'rgba(139,92,246,0.22)' }
+            : { background: 'rgba(255,255,255,0.035)', borderColor: 'rgba(255,255,255,0.09)' }
           }
         >
           {isOtherPlayer && (
@@ -106,42 +106,39 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
   return (
     <div className="animate-fade-in narrator-box relative px-1 sm:px-2">
       <div
-        className="relative p-4 sm:p-5 rounded-md overflow-hidden"
+        className="relative overflow-hidden border bg-black/42 p-4 sm:p-5 backdrop-blur-sm"
         style={{
-          background: 'linear-gradient(135deg, rgba(245,230,200,0.96) 0%, rgba(237,224,184,0.94) 52%, rgba(240,219,168,0.92) 100%)',
-          border: `1px solid ${borderColor}`,
-          boxShadow: `0 14px 36px rgba(0,0,0,0.28), 0 0 16px ${borderColor}, inset 0 0 30px rgba(0,0,0,0.08)`,
-          animation: 'flickerBorder 4s ease-in-out infinite',
+          borderColor,
+          boxShadow: '0 18px 70px rgba(0,0,0,0.34)',
         }}
       >
         <div
-          className="absolute inset-0 opacity-[0.06] pointer-events-none"
+          className="absolute inset-x-0 top-0 h-1 pointer-events-none"
           style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.2'/%3E%3C/svg%3E")`,
+            background: 'linear-gradient(90deg, rgba(245,158,11,0), rgba(245,158,11,0.7), rgba(34,211,238,0.55), rgba(34,211,238,0))',
           }}
         />
         <div className="flex gap-3 sm:gap-4 relative z-10">
           <div className="shrink-0">
             <div
-              className="w-12 h-12 sm:w-[60px] sm:h-[60px] rounded-full overflow-hidden border-2 relative"
+              className="w-12 h-12 sm:w-[60px] sm:h-[60px] overflow-hidden border relative bg-black/60"
               style={{
-                borderColor: 'rgba(139,90,43,0.5)',
-                boxShadow: `0 0 12px ${borderColor}, inset 0 0 8px rgba(0,0,0,0.3)`,
-                animation: 'torchFlicker 2s ease-in-out infinite',
+                borderColor: 'rgba(255,255,255,0.13)',
+                boxShadow: `0 0 26px ${borderColor}`,
               }}
             >
               <img src={portraitUrl} alt="Dungeon Master" className="w-full h-full object-cover" />
             </div>
             {typing && (
-              <div className="mt-1 text-center text-amber-700/70 text-xs select-none" style={{ animation: 'candleFlame 0.8s ease-in-out infinite' }}>
+              <div className="mt-1 text-center font-fantasy text-[9px] uppercase tracking-[0.16em] text-amber-200/54 select-none" style={{ animation: 'candleFlame 0.8s ease-in-out infinite' }}>
                 writing
               </div>
             )}
           </div>
-          <p className="font-serif text-sm sm:text-[15px] leading-relaxed text-gray-800 whitespace-pre-wrap flex-1 pt-0.5">
+          <p className="font-serif text-sm sm:text-base leading-relaxed text-parchment-100/82 whitespace-pre-wrap flex-1 pt-0.5">
             {displayed}
             {typing && (
-              <span className="inline-block w-0.5 h-4 bg-gray-600 ml-0.5 align-middle" style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />
+              <span className="inline-block w-0.5 h-4 bg-amber-200/60 ml-0.5 align-middle" style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />
             )}
           </p>
         </div>

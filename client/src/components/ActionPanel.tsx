@@ -55,15 +55,11 @@ export default function ActionPanel({
   }
 
   return (
-    <div className="shrink-0" style={{
-      background: 'linear-gradient(180deg, rgba(13,18,28,0.98), rgba(6,8,13,0.99))',
-      borderTop: '1px solid rgba(200,146,42,0.14)',
-      boxShadow: '0 -16px 48px rgba(0,0,0,0.28)',
-    }}>
+    <div className="shrink-0 border-t border-white/8 bg-black/54 backdrop-blur-md">
       <div className="px-3 sm:px-4 py-3 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="min-w-0">
-            <p className="font-serif text-[11px] uppercase" style={{ color: 'rgba(200,146,42,0.88)', letterSpacing: '0.08em' }}>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-amber-200/72">
               {inCombat ? 'Combat' : isCoop ? 'Party Turn' : 'Your Turn'}
             </p>
             <p className="font-serif text-xs mt-0.5" style={{ color: 'rgba(180,160,120,0.52)' }}>
@@ -95,16 +91,10 @@ export default function ActionPanel({
               onKeyDown={handleKeyDown}
               disabled={disabled}
               rows={2}
-              className="w-full resize-none font-serif text-sm outline-none transition-all duration-200 rounded-md"
+              className="w-full resize-none border border-white/10 bg-white/[0.035] px-3 py-3 font-serif text-sm text-parchment-100 outline-none transition-all duration-200 focus:border-cyan-200/45"
               placeholder={disabled ? (disabledReason || 'Your character cannot act...') : 'Describe what you try, say, inspect, cast, risk, or ask. Enter to act.'}
               style={{
-                background: 'rgba(255,255,255,0.045)',
-                border: '1px solid rgba(255,255,255,0.09)',
-                borderColor: input.trim() ? 'rgba(34,211,238,0.34)' : 'rgba(255,255,255,0.09)',
-                color: '#d4c5a0',
-                padding: '11px 13px',
                 caretColor: '#67e8f9',
-                boxShadow: input.trim() ? '0 0 0 1px rgba(34,211,238,0.08), 0 0 22px rgba(34,211,238,0.08)' : 'inset 0 0 24px rgba(0,0,0,0.18)',
               }}
             />
             <style>{`textarea::placeholder { color: rgba(160,140,110,0.35); font-style: italic; }`}</style>
@@ -112,17 +102,15 @@ export default function ActionPanel({
           <button
             type="submit"
             disabled={disabled || !input.trim()}
-            className="font-serif text-sm px-5 sm:px-6 rounded-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed self-stretch"
+            className="font-fantasy text-xs uppercase tracking-[0.18em] px-5 sm:px-6 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed self-stretch"
             style={{
               background: input.trim() && !disabled
-                ? 'linear-gradient(135deg, rgba(192,57,43,0.36), rgba(34,211,238,0.16))'
+                ? 'rgba(245,158,11,0.12)'
                 : 'rgba(255,255,255,0.04)',
               border: '1px solid',
-              borderColor: input.trim() && !disabled ? 'rgba(200,146,42,0.46)' : 'rgba(255,255,255,0.08)',
+              borderColor: input.trim() && !disabled ? 'rgba(251,191,36,0.46)' : 'rgba(255,255,255,0.08)',
               color: input.trim() && !disabled ? '#f2dfb6' : 'rgba(160,140,110,0.35)',
-              letterSpacing: '0.05em',
               minWidth: '72px',
-              boxShadow: input.trim() && !disabled ? '0 10px 30px rgba(0,0,0,0.24), 0 0 20px rgba(200,146,42,0.1)' : undefined,
             }}
           >
             Act
@@ -134,12 +122,11 @@ export default function ActionPanel({
             type="button"
             onClick={() => setShowSuggestions(open => !open)}
             disabled={!hasSuggestions || disabled}
-            className="font-serif text-xs px-3 py-2 rounded-sm transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="border px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
             style={{
-              background: showSuggestions ? 'rgba(34,211,238,0.1)' : 'rgba(255,255,255,0.03)',
+              background: showSuggestions ? 'rgba(34,211,238,0.09)' : 'rgba(255,255,255,0.03)',
               border: showSuggestions ? '1px solid rgba(34,211,238,0.36)' : '1px solid rgba(255,255,255,0.08)',
               color: showSuggestions ? '#bff4ff' : 'rgba(180,160,120,0.58)',
-              letterSpacing: '0.04em',
             }}
           >
             {showSuggestions ? 'Hide Ideas' : 'Ideas'}
@@ -157,9 +144,9 @@ export default function ActionPanel({
                 type="button"
                 onClick={() => draftSuggestion(action)}
                 disabled={disabled}
-                className="text-left min-h-[54px] px-3 py-2 rounded-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="min-h-[54px] border px-3 py-2 text-left transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(34,211,238,0.025))',
+                  background: 'rgba(255,255,255,0.03)',
                   border: '1px solid rgba(200,146,42,0.18)',
                   color: '#d9c79a',
                 }}

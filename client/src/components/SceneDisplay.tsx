@@ -93,7 +93,7 @@ export default function SceneDisplay({
   }
 
   return (
-    <div ref={containerRef} className="flex-1 relative overflow-hidden">
+    <div ref={containerRef} className="flex-1 relative overflow-hidden bg-black/60">
       {currentUrl && (
         <div className="absolute inset-0" style={{ opacity: fading ? 0 : 1, transition: 'opacity 0.7s ease-in-out' }}>
           <img
@@ -125,9 +125,9 @@ export default function SceneDisplay({
 
       <div className="absolute inset-0 pointer-events-none" style={{
         background: `
-          radial-gradient(ellipse at center, transparent 30%, rgba(6,8,13,0.7) 100%),
-          linear-gradient(to bottom, rgba(6,8,13,0.4) 0%, transparent 30%, transparent 60%, rgba(6,8,13,0.9) 100%),
-          linear-gradient(to right, rgba(6,8,13,0.3) 0%, transparent 15%, transparent 100%)
+          radial-gradient(ellipse at center, rgba(6,8,13,0.04) 0%, rgba(6,8,13,0.38) 72%, rgba(6,8,13,0.86) 100%),
+          linear-gradient(to bottom, rgba(0,0,0,0.42) 0%, transparent 34%, transparent 58%, rgba(0,0,0,0.92) 100%),
+          linear-gradient(to right, rgba(0,0,0,0.58) 0%, transparent 34%, transparent 100%)
         `,
       }} />
 
@@ -146,8 +146,8 @@ export default function SceneDisplay({
           {scenePurpose && (
             <span className="font-serif text-[10px] uppercase px-2 py-1" style={{
               color: 'rgba(232,212,168,0.82)',
-              background: 'rgba(6,8,13,0.62)',
-              border: '1px solid rgba(200,146,42,0.22)',
+              background: 'rgba(0,0,0,0.42)',
+              border: '1px solid rgba(255,255,255,0.12)',
               letterSpacing: '0.08em',
             }}>
               {formatLabel(scenePurpose)}
@@ -156,7 +156,7 @@ export default function SceneDisplay({
           {pacingMode && (
             <span className="font-serif text-[10px] uppercase px-2 py-1" style={{
               color: 'rgba(180,160,120,0.7)',
-              background: 'rgba(6,8,13,0.58)',
+              background: 'rgba(0,0,0,0.42)',
               border: '1px solid rgba(255,255,255,0.08)',
               letterSpacing: '0.08em',
             }}>
@@ -172,7 +172,7 @@ export default function SceneDisplay({
         {location && (
           <div className="flex items-center gap-2 mb-1">
             <div className="w-1 h-4 shrink-0" style={{ background: 'rgba(192,57,43,0.7)', boxShadow: '0 0 6px rgba(192,57,43,0.5)' }} />
-            <p className="font-fantasy text-sm" style={{ color: '#e8d4a8', textShadow: '0 1px 8px rgba(0,0,0,0.9)' }}>
+            <p className="font-fantasy text-3xl uppercase tracking-[0.06em]" style={{ color: '#f4ead2', textShadow: '0 1px 14px rgba(0,0,0,0.95)' }}>
               {location}
             </p>
           </div>
