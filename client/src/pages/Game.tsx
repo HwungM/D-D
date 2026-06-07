@@ -167,6 +167,21 @@ export default function Game() {
           if (submitted && !justResolved) {
             setCoopWaiting(true)
             setLoading(false)
+          } else if (!submitted && coopWaitingRef.current) {
+            // Our prior submission expired/was dropped (partner timed out a stale round) —
+            // a fresh round is underway and the server is now waiting on us again.
+            coopResolvedAtRef.current = 0
+            setCoopWaiting(false)
+            setLoading(false)
+            addEvent({
+              id: `coop-expired-${Date.now()}`,
+              campaign_id: campaignId,
+              character_id: characterId,
+              event_type: 'narration',
+              content: 'The table pauses: your move took too long to sync with the party and was reset. Send your action again.',
+              metadata: { error: true },
+              created_at: new Date().toISOString(),
+            })
           }
         } else {
           coopResolvedAtRef.current = 0
@@ -177,7 +192,7 @@ export default function Game() {
         }
       }
     }).catch(() => {})
-  }, [campaignId, characterId, partyMembers.length, setCharacter, setLoading, setWorldState])
+  }, [campaignId, characterId, partyMembers.length, setCharacter, setLoading, setWorldState, addEvent])
 
   useEffect(() => {
     if (!campaignId || !characterId) return

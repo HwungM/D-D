@@ -235,7 +235,18 @@ export default function Dashboard() {
     audioManager.playMagic()
     try {
       const { data } = await campaignApi.acceptInvite(code)
-      navigate(`/campaign/${data.campaign.id}/create-character`)
+      const campaignId = data.campaign.id
+      try {
+        const { data: characterData } = await characterApi.listByCampaign(campaignId)
+        const existingCharacter = (characterData.characters || []).find((character: { is_alive?: boolean }) => character.is_alive !== false)
+        if (existingCharacter?.id) {
+          navigate(`/campaign/${campaignId}/play/${existingCharacter.id}`)
+          return
+        }
+      } catch {
+        // If character lookup fails, send them to character creation.
+      }
+      navigate(`/campaign/${campaignId}/create-character`)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
       setJoinError(msg || 'Invalid or expired invite code.')
