@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type TimeOfDay = 'day' | 'night' | 'dawn' | 'dusk'
 
@@ -33,6 +33,8 @@ function formatLabel(value?: string) {
   return value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
+const FALLBACK_SCENE_URL = '/media/loading/everrealm-crystal-party.png'
+
 export default function SceneDisplay({
   imageUrl,
   location,
@@ -44,81 +46,44 @@ export default function SceneDisplay({
   partyHereNames = [],
   inCombat,
 }: SceneDisplayProps) {
-  const [currentUrl, setCurrentUrl] = useState(imageUrl)
-  const [nextUrl, setNextUrl] = useState<string | null>(null)
-  const [fading, setFading] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [parallax, setParallax] = useState({ x: 0, y: 0 })
+  const resolvedUrl = imageUrl || FALLBACK_SCENE_URL
+  const [displayUrl, setDisplayUrl] = useState(resolvedUrl)
+  const [incomingUrl, setIncomingUrl] = useState<string | null>(null)
+  const [incomingVisible, setIncomingVisible] = useState(false)
 
   useEffect(() => {
-    if (imageUrl === currentUrl) return
-    if (!imageUrl) {
-      setCurrentUrl(null)
-      return
+    if (resolvedUrl === displayUrl || resolvedUrl === incomingUrl) return
+    setIncomingUrl(resolvedUrl)
+    setIncomingVisible(false)
+    const showTimer = window.setTimeout(() => setIncomingVisible(true), 30)
+    const swapTimer = window.setTimeout(() => {
+      setDisplayUrl(resolvedUrl)
+      setIncomingUrl(null)
+      setIncomingVisible(false)
+    }, 750)
+    return () => {
+      window.clearTimeout(showTimer)
+      window.clearTimeout(swapTimer)
     }
-    setNextUrl(imageUrl)
-    setFading(true)
-    const t = setTimeout(() => {
-      setCurrentUrl(imageUrl)
-      setNextUrl(null)
-      setFading(false)
-    }, 700)
-    return () => clearTimeout(t)
-  }, [imageUrl, currentUrl])
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    function onMove(e: MouseEvent) {
-      const rect = el!.getBoundingClientRect()
-      const cx = (e.clientX - rect.left) / rect.width - 0.5
-      const cy = (e.clientY - rect.top) / rect.height - 0.5
-      setParallax({ x: cx * 14, y: cy * 8 })
-    }
-    el.addEventListener('mousemove', onMove)
-    return () => el.removeEventListener('mousemove', onMove)
-  }, [])
+  }, [resolvedUrl, displayUrl, incomingUrl])
 
   const tint = TIME_TINTS[timeOfDay]
 
-  if (!currentUrl && !nextUrl) {
-    return (
-      <div className="flex-1 flex items-center justify-center" style={{ background: '#06080d' }}>
-        <div className="text-center" style={{ color: 'rgba(160,140,110,0.3)' }}>
-          <div className="text-5xl mb-3" style={{ animation: 'torchFlicker 2s ease-in-out infinite' }}>*</div>
-          <p className="font-serif text-sm italic">The scene materializes in darkness...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div ref={containerRef} className="flex-1 relative overflow-hidden bg-black/60">
-      {currentUrl && (
-        <div className="absolute inset-0" style={{ opacity: fading ? 0 : 1, transition: 'opacity 0.7s ease-in-out' }}>
-          <img
-            src={currentUrl}
-            alt="Scene"
-            className="w-full h-full object-cover"
-            onError={e => { (e.currentTarget as HTMLImageElement).src = '/media/everrealm-hero-desktop.png' }}
-            style={{
-              transform: `translate(${parallax.x}px, ${parallax.y}px) scale(1.1)`,
-              transition: 'transform 0.12s ease-out',
-            }}
-          />
-        </div>
-      )}
-
-      {nextUrl && (
-        <div className="absolute inset-0" style={{ opacity: fading ? 1 : 0, transition: 'opacity 0.7s ease-in-out' }}>
-          <img
-            src={nextUrl}
-            alt="Scene"
-            className="w-full h-full object-cover"
-            onError={e => { (e.currentTarget as HTMLImageElement).src = '/media/everrealm-hero-desktop.png' }}
-            style={{ transform: `translate(${parallax.x}px, ${parallax.y}px) scale(1.1)` }}
-          />
-        </div>
+    <div className="flex-1 relative overflow-hidden bg-black/60">
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url("${displayUrl}")` }}
+      />
+      {incomingUrl && (
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: `url("${incomingUrl}")`,
+            opacity: incomingVisible ? 1 : 0,
+            transition: 'opacity 0.7s ease-in-out',
+          }}
+        />
       )}
 
       {tint !== 'transparent' && (
@@ -127,9 +92,8 @@ export default function SceneDisplay({
 
       <div className="absolute inset-0 pointer-events-none" style={{
         background: `
-          radial-gradient(ellipse at center, rgba(6,8,13,0.02) 0%, rgba(6,8,13,0.22) 72%, rgba(6,8,13,0.6) 100%),
-          linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, transparent 34%, transparent 58%, rgba(0,0,0,0.82) 100%),
-          linear-gradient(to right, rgba(0,0,0,0.4) 0%, transparent 34%, transparent 100%)
+          linear-gradient(to bottom, rgba(0,0,0,0.18) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.78) 100%),
+          linear-gradient(to right, rgba(0,0,0,0.3) 0%, transparent 30%)
         `,
       }} />
 
