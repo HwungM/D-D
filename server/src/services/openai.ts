@@ -1438,8 +1438,12 @@ export async function generateImage(description: string, cacheKey: string): Prom
     quality: 'standard',
   });
 
-  const url = response.data?.[0]?.url;
-  if (!url) throw new Error('No image URL returned from DALL-E');
+  const dalleUrl = response.data?.[0]?.url;
+  if (!dalleUrl) throw new Error('No image URL returned from DALL-E');
+
+  // DALL-E URLs are short-lived signed Azure Blob links (expire ~1-2 hours).
+  // Download the bytes and re-host in Supabase Storage so the cached URL stays valid.
+  const url = await rehostImage(dalleUrl, cacheKey) || dalleUrl;
 
   // Cache the result
   await supabaseAdmin.from('asset_cache').insert({
@@ -1449,6 +1453,30 @@ export async function generateImage(description: string, cacheKey: string): Prom
   });
 
   return url;
+}
+
+async function rehostImage(sourceUrl: string, cacheKey: string): Promise<string | null> {
+  try {
+    const imageResponse = await fetch(sourceUrl);
+    if (!imageResponse.ok) return null;
+    const buffer = Buffer.from(await imageResponse.arrayBuffer());
+    const path = `${cacheKey}.png`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('generated-art')
+      .upload(path, buffer, { contentType: 'image/png', upsert: true });
+
+    if (uploadError) {
+      console.error('Failed to rehost generated image:', uploadError.message);
+      return null;
+    }
+
+    const { data: publicUrlData } = supabaseAdmin.storage.from('generated-art').getPublicUrl(path);
+    return publicUrlData?.publicUrl || null;
+  } catch (err) {
+    console.error('Failed to rehost generated image:', err);
+    return null;
+  }
 }
 
 export async function generateCharacterPortrait(
