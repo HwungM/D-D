@@ -50,6 +50,47 @@ const EVERREALM_ART_BIBLE = {
 };
 
 const ART_STYLE_PREFIX = `${EVERREALM_ART_BIBLE.masterPrompt} `;
+
+type CampaignLength = 'one_shot' | 'short' | 'medium' | 'long' | 'open_ended';
+
+const CAMPAIGN_LENGTH_GUIDANCE: Record<CampaignLength, string> = {
+  one_shot: 'One-shot: compress the whole adventure into one focused arc with an immediate hook, a visible antagonist or threat, 3-6 major scenes, fast clues, and a satisfying ending. Avoid slow-burn mysteries unless they are sequel hooks.',
+  short: 'Short adventure: aim for a compact 2-3 act story over a few sessions. Reveal information quickly, keep travel purposeful, and make every faction/NPC serve the main arc.',
+  medium: 'Medium campaign: pace as a full campaign arc with room for travel, twists, downtime, character growth, and recurring NPCs. Use this as the balanced default.',
+  long: 'Long campaign: build for 30-60+ sessions with slow-burn mysteries, recurring rivals, faction turns, evolving locations, downtime, personal arcs, and delayed payoffs that still move forward each session.',
+  open_ended: 'Open-ended saga: create a living world with modular arcs and no forced final ending. Resolve local arcs cleanly, then open new fronts until the players choose to pursue an endgame.',
+};
+
+const CAMPAIGN_LENGTH_LABELS: Record<CampaignLength, string> = {
+  one_shot: 'One-Shot',
+  short: 'Short Adventure',
+  medium: 'Medium Campaign',
+  long: 'Long Campaign',
+  open_ended: 'Open-Ended Saga',
+};
+
+function getCampaignLength(value?: string): CampaignLength {
+  if (value === 'one_shot' || value === 'short' || value === 'medium' || value === 'long' || value === 'open_ended') {
+    return value;
+  }
+  return 'medium';
+}
+
+function getCampaignPacingThresholds(length: CampaignLength): { mature: number; overdue: number; critical: number } {
+  switch (length) {
+    case 'one_shot':
+      return { mature: 2, overdue: 4, critical: 6 };
+    case 'short':
+      return { mature: 5, overdue: 8, critical: 12 };
+    case 'long':
+      return { mature: 24, overdue: 40, critical: 60 };
+    case 'open_ended':
+      return { mature: 30, overdue: 55, critical: 80 };
+    case 'medium':
+    default:
+      return { mature: 12, overdue: 20, critical: 30 };
+  }
+}
 const DM_SYSTEM_PROMPT = `You are both Dungeon Master and Game Master for a dynamic, genre-fluid fantasy sandbox RPG.
 Your job is not only to narrate; you run the table. You adjudicate intent, maintain continuity, pace scenes, surface choices, protect player agency, and make the world react honestly.
 The world is a blank canvas where any fantasy mode can exist: bleak dungeon horror, whimsical city adventure, high-heroic kingdom drama, cozy wonder, mythic wilderness, political intrigue, surreal mystery, or strange dreamlike magic.
@@ -701,6 +742,9 @@ ${campaignContext?.roadmap ? (() => {
   const goals = actNum === 1 ? campaignContext.roadmap.act1Goals : actNum === 2 ? campaignContext.roadmap.act2Goals : campaignContext.roadmap.act3ConvergenceThreads;
   const climaxEvent = actNum === 1 ? campaignContext.roadmap.act1ClimaxEvent : actNum === 2 ? campaignContext.roadmap.act2ClimaxEvent : campaignContext.roadmap.act3ClimaxEvent;
   const actionsInAct = campaignContext.actionsInCurrentAct || 0;
+  const campaignLength = getCampaignLength(worldBible.playerPreferences?.campaignLength);
+  const pacing = getCampaignPacingThresholds(campaignLength);
+  const lengthGuidance = CAMPAIGN_LENGTH_GUIDANCE[campaignLength];
 
   // Must-introduce status for act 1
   const mustIntro = actNum === 1 && campaignContext.roadmap.act1MustIntroduce?.length
@@ -712,15 +756,22 @@ ${campaignContext?.roadmap ? (() => {
 
   // Escalating urgency based on actions in current act
   let urgency = '';
-  if (actionsInAct >= 30) {
-    urgency = `\nÃ°Å¸â€Â´ CRITICAL ACT OVERRUN: Act ${actNum} has run ${actionsInAct} actions - FAR too long. The act climax must happen THIS turn or the next. Do not delay. Execute: "${climaxEvent}" NOW.`;
-  } else if (actionsInAct >= 20) {
-    urgency = `\nÃ¢Å¡Â  ACT OVERDUE: ${actionsInAct} actions in Act ${actNum} - the climax is overdue. Begin converging all threads toward: "${climaxEvent}" within the next 3 actions.`;
-  } else if (actionsInAct >= 12) {
-    urgency = `\nÃ°Å¸â€œÂ Act ${actNum} is mature (${actionsInAct} actions). Start steering toward the climax: "${climaxEvent}". Unresolved goals and hooks must begin paying off.`;
+  if (actionsInAct >= pacing.critical) {
+    urgency = `\nCRITICAL ACT OVERRUN: Act ${actNum} has run ${actionsInAct} actions for a ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. The act climax must happen THIS turn or the next. Do not delay. Execute: "${climaxEvent}" NOW.`;
+  } else if (actionsInAct >= pacing.overdue) {
+    urgency = `\nACT OVERDUE: ${actionsInAct} actions in Act ${actNum} for a ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. Begin converging all threads toward: "${climaxEvent}" within the next 3 actions.`;
+  } else if (actionsInAct >= pacing.mature) {
+    urgency = `\nACT MATURING: Act ${actNum} has run ${actionsInAct} actions. Start steering toward the climax: "${climaxEvent}". Unresolved goals and hooks should begin paying off.`;
   }
+  const endgameRule = campaignLength === 'open_ended'
+    ? '\nOpen-ended pacing: do not force finality. Resolve the current local arc cleanly, then open new fronts unless endgamePhase calls for a final confrontation.'
+    : campaignLength === 'one_shot'
+      ? '\nOne-shot pacing: compress scenes, pay off hooks fast, and avoid dangling mysteries except a deliberate sequel hook.'
+      : '';
 
   return `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â DM ROADMAP Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
+Campaign length: ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. ${lengthGuidance}
+Act pacing thresholds: mature at ${pacing.mature} actions, overdue at ${pacing.overdue}, critical at ${pacing.critical}.${endgameRule}
 Act ${actNum} goals (steer the story toward these):
 ${goals.map(g => `  ${(campaignContext.actGoalsAchieved || []).includes(g) ? '[Ã¢Å“â€œ DONE]' : '[ ]'} ${g}`).join('\n')}
 ${mustIntro}Act ${actNum} climax (this MUST happen before act ends): ${climaxEvent}${actNum === 2 && campaignContext.roadmap.act2VillainEscalation ? `\nAct 2 villain escalation (make this real): ${campaignContext.roadmap.act2VillainEscalation}` : ''}${urgency}
@@ -1535,6 +1586,7 @@ export async function generateWorldBible(
   playerPreferences?: {
     playMode?: 'solo' | 'collaborative';
     partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now';
+    campaignLength?: CampaignLength;
     tone?: string;
     artStyle?: string;
     favoritePillars?: string[];
@@ -1544,10 +1596,16 @@ export async function generateWorldBible(
     characterConcepts?: string[];
   }
 ): Promise<WorldBible> {
+  const campaignLength = getCampaignLength(playerPreferences?.campaignLength);
+  const campaignLengthLine = playerPreferences?.campaignLength
+    ? `- Campaign length: ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. ${CAMPAIGN_LENGTH_GUIDANCE[campaignLength]}`
+    : '';
+
   const prefContext = playerPreferences ? `
 PLAYER PREFERENCES (use these to tailor the campaign):
 ${playerPreferences.playMode ? `- Human play mode: ${playerPreferences.playMode}. Solo means one human player; collaborative means real human party members may join.` : ''}
 ${playerPreferences.partyIntent ? `- Party setup intent: ${playerPreferences.partyIntent}. If collaborative, prepare shared spotlight moments and invite-friendly hooks. If solo_ai_companions, leave room for AI companions but do not assume they already exist.` : ''}
+${campaignLengthLine}
 ${playerPreferences.tone ? `- Desired tone: ${playerPreferences.tone} - let this calibrate the toneRules and overall feel.` : ''}
 ${playerPreferences.artStyle ? `- Visual art style: ${playerPreferences.artStyle}. Keep this as the campaign's art bible foundation.` : ''}
 ${playerPreferences.favoritePillars?.length ? `- What they love most: ${playerPreferences.favoritePillars.join(', ')} - weight spotlightDesign.encounterCurve and suggested encounters toward these.` : ''}
@@ -1750,6 +1808,7 @@ Return JSON matching this exact schema. Every field must be substantive and spec
 }
 
 Requirements:
+- The dmRoadmap MUST match the requested campaign length. One-shot = immediate threat and compressed payoffs. Short = compact 2-3 act arc. Medium = balanced full campaign. Long = slow-burn saga with recurring payoffs and durable factions. Open-ended = modular arcs with no forced final ending until players pursue one.
 - 5-7 geography entries (varied: city, dungeon, wilderness, landmark, region)
 - 5-6 gods in pantheon with genuine theological conflicts
 - Exactly 4 tone rules - specific to THIS premise, not boilerplate fantasy
@@ -1800,6 +1859,15 @@ Requirements:
   if (!parsed.geography || parsed.geography.length === 0) parsed.geography = [{ name: 'The Starting Town', description: 'A small settlement at the edge of the wilderness.', type: 'city' }];
   if (!parsed.factions || parsed.factions.length === 0) parsed.factions = [];
   if (!parsed.pantheon || parsed.pantheon.length === 0) parsed.pantheon = [];
+  parsed.playerPreferences = {
+    ...(parsed.playerPreferences || {}),
+    ...(playerPreferences || {}),
+    campaignLength,
+    tone: playerPreferences?.tone || parsed.playerPreferences?.tone || 'Anything Goes',
+    favoritePillars: playerPreferences?.favoritePillars || parsed.playerPreferences?.favoritePillars || ['All of it equally'],
+    playerCount: playerPreferences?.playerCount || parsed.playerPreferences?.playerCount || 1,
+    characterConcepts: playerPreferences?.characterConcepts || parsed.playerPreferences?.characterConcepts || [],
+  };
 
   return parsed;
 }

@@ -43,6 +43,7 @@ export const campaignApi = {
   create: (name: string, storySeed: string, campaignType?: 'adventure' | 'testing', playerPreferences?: {
     playMode?: 'solo' | 'collaborative'
     partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now'
+    campaignLength?: 'one_shot' | 'short' | 'medium' | 'long' | 'open_ended'
     tone: string
     artStyle?: string
     favoritePillars: string[]

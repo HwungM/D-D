@@ -10,10 +10,12 @@ import type { StorySeedOption } from '../../../shared/types'
 type ToneChoice = 'Perilous & Grounded' | 'Heroic & Epic' | 'Mystery & Intrigue' | 'Anything Goes'
 type Pillar = 'Combat & Tactics' | 'Exploration & Discovery' | 'Roleplay & Social' | 'Puzzles & Mysteries' | 'All of it equally'
 type PartyIntent = 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now'
+type CampaignLength = 'one_shot' | 'short' | 'medium' | 'long' | 'open_ended'
 
 interface WizardState {
   isCollaborative: boolean
   partyIntent: PartyIntent
+  campaignLength: CampaignLength
   tone: ToneChoice | null
   pillars: Pillar[]
   playerCount: 1 | 2 | 3
@@ -30,6 +32,14 @@ const TONE_CARDS: { label: ToneChoice; description: string }[] = [
   { label: 'Heroic & Epic', description: 'Rising heroes against impossible odds. Clear purpose, legendary deeds, the world needs saving.' },
   { label: 'Mystery & Intrigue', description: 'Nothing is what it seems. Secrets, conspiracies, the truth buried in layers.' },
   { label: 'Anything Goes', description: 'Surprise me. The DM decides what fits the moment.' },
+]
+
+const LENGTH_CARDS: { value: CampaignLength; label: string; description: string }[] = [
+  { value: 'one_shot', label: 'One-Shot', description: 'A focused adventure with a clear ending in one big session.' },
+  { value: 'short', label: 'Short Adventure', description: 'A few sessions, fast reveals, and a compact villain arc.' },
+  { value: 'medium', label: 'Medium Campaign', description: 'A full arc with room for twists, travel, and character growth.' },
+  { value: 'long', label: 'Long Campaign', description: 'A year-worthy saga with slow-burn mysteries, factions, and deep payoffs.' },
+  { value: 'open_ended', label: 'Open-Ended Saga', description: 'A living world with no fixed finish until the story earns one.' },
 ]
 
 const EVERREALM_ART_STYLE =
@@ -85,6 +95,7 @@ export default function CampaignWizard() {
   const [state, setState] = useState<WizardState>({
     isCollaborative: false,
     partyIntent: 'solo_alone',
+    campaignLength: 'medium',
     tone: null,
     pillars: [],
     playerCount: 1,
@@ -96,7 +107,7 @@ export default function CampaignWizard() {
     campaignName: '',
   })
 
-  const totalSteps = 6
+  const totalSteps = 7
 
   function animateTo(nextStep: number) {
     setVisible(false)
@@ -138,6 +149,7 @@ export default function CampaignWizard() {
       const playerPreferences = {
         playMode: state.isCollaborative ? 'collaborative' as const : 'solo' as const,
         partyIntent: state.partyIntent,
+        campaignLength: state.campaignLength,
         tone: state.tone || 'Anything Goes',
         artStyle: EVERREALM_ART_STYLE,
         favoritePillars: state.pillars,
@@ -158,10 +170,11 @@ export default function CampaignWizard() {
   const canProceed: boolean[] = [
     true,                                  // step 0: collaborative choice (always has default)
     !!state.tone,                          // step 1: tone
-    state.pillars.length > 0,             // step 2: pillars
-    true,                                  // step 3: party (always has default)
-    !!(state.selectedSeed || (state.useCustomPremise && state.customPremise.trim().length > 20)),  // step 4: premise
-    state.campaignName.trim().length > 0, // step 5: name
+    true,                                  // step 2: length (always has default)
+    state.pillars.length > 0,             // step 3: pillars
+    true,                                  // step 4: party (always has default)
+    !!(state.selectedSeed || (state.useCustomPremise && state.customPremise.trim().length > 20)),  // step 5: premise
+    state.campaignName.trim().length > 0, // step 6: name
   ]
 
   // -------------------------------------------------------------------------
@@ -258,7 +271,35 @@ export default function CampaignWizard() {
       </div>
     </div>,
 
-    // Step 1 - Tone
+    // Step 2 - Campaign length
+    <div key="length">
+      <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">How long should this legend run?</h2>
+      <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>The DM will pace reveals, arcs, and endings around this</p>
+      <div className="grid gap-3 max-w-xl mx-auto">
+        {LENGTH_CARDS.map(card => {
+          const selected = state.campaignLength === card.value
+          return (
+            <button
+              key={card.value}
+              onClick={() => setState(prev => ({ ...prev, campaignLength: card.value }))}
+              className="text-left p-4 transition-all duration-200"
+              style={selected
+                ? { background: 'rgba(200,146,42,0.1)', border: '1px solid rgba(200,146,42,0.5)', boxShadow: '0 0 20px rgba(200,146,42,0.1)' }
+                : { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)' }
+              }
+            >
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <h3 className="font-fantasy text-lg" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{card.label}</h3>
+                {selected && <span style={{ color: '#c8922a' }}>Selected</span>}
+              </div>
+              <p className="font-serif text-sm leading-relaxed" style={{ color: 'rgba(180,160,120,0.7)' }}>{card.description}</p>
+            </button>
+          )
+        })}
+      </div>
+    </div>,
+
+    // Step 3 - Pillars
     <div key="pillars">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">What do you love most at the table?</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>Select all that apply - minimum one</p>
@@ -285,7 +326,7 @@ export default function CampaignWizard() {
       </div>
     </div>,
 
-    // Step 2 - Party setup
+    // Step 4 - Party setup
     <div key="party">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Who's adventuring?</h2>
       <p className="font-serif text-sm text-center mb-8" style={{ color: 'rgba(180,160,120,0.6)' }}>
@@ -398,7 +439,7 @@ export default function CampaignWizard() {
         </div>
       )}
     </div>,
-    // Step 4 - Premise
+    // Step 5 - Premise
     <div key="premise">
       <h2 className="font-fantasy text-2xl md:text-3xl text-parchment-200 mb-2 text-center">Choose your world</h2>
       <p className="font-serif text-sm text-center mb-6" style={{ color: 'rgba(180,160,120,0.6)' }}>
@@ -456,7 +497,7 @@ export default function CampaignWizard() {
                 }
               >
                 <div className="flex items-start gap-3">
-                  <span className="text-lg mt-0.5 shrink-0">{TONE_ICONS[seed.tone] || 'Scroll'}</span>
+                  <span className="text-lg mt-0.5 shrink-0">{TONE_ICONS[seed.tone] || '?'}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <h4 className="font-fantasy text-base" style={{ color: selected ? '#e8c87a' : '#d4c5a0' }}>{seed.title}</h4>
@@ -491,7 +532,7 @@ export default function CampaignWizard() {
           type="text"
           value={state.campaignName}
           onChange={e => setState(prev => ({ ...prev, campaignName: e.target.value }))}
-          onKeyDown={e => { if (e.key === 'Enter' && canProceed[5]) handleCreate() }}
+          onKeyDown={e => { if (e.key === 'Enter' && canProceed[6]) handleCreate() }}
           className="w-full bg-transparent outline-none py-3 px-4 font-serif text-lg text-parchment-200 mb-6"
           style={{
             border: '1px solid rgba(200,146,42,0.3)',
@@ -507,10 +548,10 @@ export default function CampaignWizard() {
         )}
         <button
           onClick={handleCreate}
-          disabled={!canProceed[5]}
+          disabled={!canProceed[6]}
           className="w-full py-3.5 font-fantasy text-lg transition-all disabled:opacity-40"
           style={{
-            background: canProceed[5] ? 'linear-gradient(135deg, rgba(200,146,42,0.25), rgba(160,100,30,0.35))' : 'transparent',
+            background: canProceed[6] ? 'linear-gradient(135deg, rgba(200,146,42,0.25), rgba(160,100,30,0.35))' : 'transparent',
             border: '1px solid rgba(200,146,42,0.4)',
             color: '#e8c87a',
             letterSpacing: '0.05em',
