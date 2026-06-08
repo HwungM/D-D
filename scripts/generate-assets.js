@@ -217,7 +217,7 @@ async function generateAsset(asset, index, total) {
       prompt: asset.prompt,
       n: 1,
       size: '1024x1024',
-      quality: 'high',
+      quality: 'low',
     });
 
     const image = response.data[0];
