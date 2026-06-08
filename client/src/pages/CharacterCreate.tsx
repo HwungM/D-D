@@ -171,26 +171,14 @@ const CLASS_STATS: Record<CharacterClass, string> = {
   Warlock: 'CHA / INT',
 }
 
-// Returns all portrait options for a given race+gender combo
+// Returns the portrait option(s) for a given race+gender combo. Each race's
+// portrait is illustrated with its own distinct look (skin tone, features,
+// styling baked into the art itself), so the roster reads as a diverse cast
+// without needing separate "light/dark" variant cards to choose between.
 function getPortraits(race: Race, gender: Gender): { url: string; label: string }[] {
   const key = race.toLowerCase().replace(/['\s]/g, '-').replace('--', '-')
-  const portraits: { url: string; label: string }[] = []
-
-  if (gender === 'male') {
-    // Default (usually male)
-    portraits.push({ url: `/assets/races/${key}.png`, label: 'Classic' })
-    // Black variant
-    if (['human', 'elf', 'dwarf', 'halfling', 'gnome'].includes(key)) {
-      portraits.push({ url: `/assets/races/${key}-m-black.png`, label: 'Dark' })
-    }
-  } else {
-    portraits.push({ url: `/assets/races/${key}-f.png`, label: 'Classic' })
-    if (['human', 'elf', 'dwarf', 'halfling', 'gnome'].includes(key)) {
-      portraits.push({ url: `/assets/races/${key}-f-black.png`, label: 'Dark' })
-    }
-  }
-
-  return portraits
+  const url = gender === 'female' ? `/assets/races/${key}-f.png` : `/assets/races/${key}.png`
+  return [{ url, label: 'Portrait' }]
 }
 
 function classImageUrl(cls: CharacterClass): string {

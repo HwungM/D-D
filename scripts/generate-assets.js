@@ -12,7 +12,7 @@ const client = new OpenAI({
 // instead of clashing with a different, older "dark fantasy" look. Modeled
 // directly on "The Legend of Vox Machina" adult-animation aesthetic: bold
 // graphic-novel character design over painterly realism.
-const STYLE = 'Adult animated-fantasy character illustration in the vein of "The Legend of Vox Machina" — bold graphic-novel linework over painterly digital brushwork, exaggerated expressive faces with large emotive eyes and oversized readable expressions, strong stylized (not realistic) proportions, vivid saturated and theatrical skin/fur/scale colors that give every species its own striking color identity, thick confident outlines, dynamic personality-driven poses, richly textured hand-illustrated clothing and gear with visible wear, dramatic warm firelight contrasted with cool magical-blue accents. Not photorealistic, not video-game box-art realism, not soft painterly portraiture, not flat simple cartoon, not anime — character design should look like a frame pulled from a high-end adult animated fantasy series, full of life and personality.';
+const STYLE = 'Adult animated-fantasy character illustration in the vein of "The Legend of Vox Machina" — bold graphic-novel linework over painterly digital brushwork, exaggerated expressive faces with large emotive eyes and oversized readable expressions, strong stylized (not realistic) proportions, vivid saturated and theatrical skin/fur/scale colors that give every species its own striking color identity, thick confident outlines, dynamic personality-driven poses, richly textured hand-illustrated clothing and gear with visible wear, dramatic warm firelight contrasted with cool magical-blue accents. Not photorealistic, not video-game box-art realism, not soft painterly portraiture, not flat simple cartoon, not anime, not 3D-rendered, not CGI, not a video-game character model — strictly 2D hand-drawn/illustrated, like a single frame pulled from a high-end adult animated fantasy series, full of life and personality, with every character drawn in the exact same consistent illustration technique.';
 
 // A character-select screen needs ONE subject per portrait, facing forward,
 // calm/neutral expression, on a plain backdrop — not a narrative scene with
@@ -31,11 +31,13 @@ const ASSETS = [
   { file: 'dm/dm-pleased.png', prompt: `${STYLE} A hooded dungeon master figure, a rare warm smile in candlelight, satisfied expression. Dark robes, arcane symbols. Portrait composition, waist up.` },
 
   // Race Portraits — same shared scene/lighting (RACE_BACKGROUND) so the whole roster reads as one cast.
-  { file: 'races/human.png', prompt: `${STYLE} A noble human warrior with a strong jaw, weathered face, determined brown eyes, short dark hair with grey streaks, battered but well-kept leather armor, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` },
-  { file: 'races/elf.png', prompt: `${STYLE} An elven figure with sharp angular features, long silver hair, striking violet eyes, pointed ears, elegant bone structure, fine forest-green garb, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` },
-  { file: 'races/dwarf.png', prompt: `${STYLE} A dwarven warrior with a thick braided red beard full of iron rings, a broad face, deep-set grey eyes, hammered steel pauldrons, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` },
-  { file: 'races/halfling.png', prompt: `${STYLE} A halfling with large curly auburn hair, bright green curious eyes, rosy cheeks, a small frame, a patched traveling cloak, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` },
-  { file: 'races/gnome.png', prompt: `${STYLE} A gnome inventor with wild white hair sticking out at odd angles, enormous amber goggles pushed up on the forehead, bright inquisitive eyes, mechanical trinkets on the collar, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` },
+  // Skin tones are deliberately varied across the cast so the roster reads as
+  // diverse on its own, without needing separate "light/dark" variant cards.
+  { file: 'races/human.png', prompt: `${STYLE} A noble human warrior with deep brown skin, a strong jaw, weathered face, determined dark eyes, short black hair with grey at the temples, battered but well-kept leather armor, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` },
+  { file: 'races/elf.png', prompt: `${STYLE} An elven figure with warm olive-tan skin, sharp angular features, long silver hair, striking violet eyes, pointed ears, elegant bone structure, fine forest-green garb, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` },
+  { file: 'races/dwarf.png', prompt: `${STYLE} A dwarven warrior with ruddy tan skin, a thick braided red beard full of iron rings, a broad face, deep-set grey eyes, hammered steel pauldrons, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing, flat 2D illustrated linework — not a 3D render, not CGI, not a video-game character model.` },
+  { file: 'races/halfling.png', prompt: `${STYLE} A halfling man with warm brown skin, short curly black hair, bright green curious eyes, a round friendly face, a small frame, a patched traveling cloak, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` },
+  { file: 'races/gnome.png', prompt: `${STYLE} A gnome inventor with light olive skin, wild white hair sticking out at odd angles, enormous amber goggles pushed up on the forehead, bright inquisitive eyes, mechanical trinkets on the collar, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` },
   { file: 'races/half-orc.png', prompt: `${STYLE} A half-orc with vivid grey-green skin, small upward tusks, a powerful jaw, glowing amber eyes, a shaved head with ritual scars, iron-plated armor, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` },
   { file: 'races/tiefling.png', prompt: `${STYLE} A tiefling with vivid deep crimson skin, small curved black horns, glowing solid-gold eyes with no pupils, elegant sharp features, dark arcane robes, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` },
   { file: 'races/dragonborn.png', prompt: `${STYLE} A dragonborn with vivid scaled bronze-and-gold skin, glowing reptilian amber eyes, a regal angular face, subtle horns sweeping back, ornate scaled armor, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` },
@@ -100,12 +102,14 @@ const ASSETS = [
 // which the original script knew how to (re)generate. Rather than hand-write
 // ~150 more bespoke prompts, these are templated from their filenames so the
 // whole asset set can be regenerated in one consistent pass in the new style.
+// Skin tones are baked in here too (matching the spirit of the base portraits)
+// so the female variants read as part of the same diverse cast.
 const RACE_FLAVOR = {
-  human: 'a strong jaw, weathered face, determined eyes, short hair, battered but well-kept leather armor',
-  elf: 'sharp angular features, long flowing hair, piercing eyes, pointed ears, elegant bone structure, fine forest-green garb',
-  dwarf: 'a thick braided beard with iron rings, a broad face, deep-set eyes, hammered steel pauldrons',
-  halfling: 'large curly hair, bright curious eyes, rosy cheeks, a small frame, a patched traveling cloak',
-  gnome: 'wild hair sticking out at angles, enormous goggles pushed up on the forehead, bright inquisitive eyes, mechanical trinkets on the collar',
+  human: 'deep brown skin, a strong jaw, weathered face, determined eyes, dark hair, battered but well-kept leather armor',
+  elf: 'warm olive-tan skin, sharp angular features, long flowing hair, piercing eyes, pointed ears, elegant bone structure, fine forest-green garb',
+  dwarf: 'ruddy tan skin, a thick braided beard with iron rings, a broad face, deep-set eyes, hammered steel pauldrons',
+  halfling: 'warm brown skin, curly hair, bright curious eyes, rosy cheeks, a small frame, a patched traveling cloak',
+  gnome: 'light olive skin, wild hair sticking out at angles, enormous goggles pushed up on the forehead, bright inquisitive eyes, mechanical trinkets on the collar',
   'half-orc': 'grey-green skin, small upward tusks, a powerful jaw, amber eyes, ritual scars, iron-plated armor',
   tiefling: 'deep crimson skin, small curved black horns, glowing gold eyes with no pupils, elegant features, dark arcane robes',
   dragonborn: 'scaled skin, reptilian amber eyes, a regal angular face, subtle horns sweeping back, ornate scaled armor',
@@ -122,13 +126,17 @@ function raceVariantAsset(file) {
   return { file, prompt: `${STYLE} ${genderDesc.charAt(0).toUpperCase()}${genderDesc.slice(1)} of the ${race} people, with ${flavor}${toneDesc}, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` };
 }
 
+// Just the female portrait per race now — the "light/dark" variant cards are
+// gone (see getPortraits in CharacterCreate.tsx); diversity is baked directly
+// into each race's illustrated look instead.
 const RACE_VARIANT_FILES = [
-  'races/dragonborn-f.png', 'races/dwarf-f-black.png', 'races/dwarf-f.png', 'races/dwarf-m-black.png',
-  'races/elf-f-black.png', 'races/elf-f.png', 'races/elf-m-black.png',
-  'races/gnome-f-black.png', 'races/gnome-f.png', 'races/gnome-m-black.png',
+  'races/dragonborn-f.png',
+  'races/dwarf-f.png',
+  'races/elf-f.png',
+  'races/gnome-f.png',
   'races/half-orc-f.png',
-  'races/halfling-f-black.png', 'races/halfling-f.png', 'races/halfling-m-black.png',
-  'races/human-f-black.png', 'races/human-f.png', 'races/human-m-black.png',
+  'races/halfling-f.png',
+  'races/human-f.png',
   'races/tiefling-f.png',
 ];
 
