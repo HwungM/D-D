@@ -14,6 +14,13 @@ const client = new OpenAI({
 // graphic-novel character design over painterly realism.
 const STYLE = 'Adult animated-fantasy character illustration in the vein of "The Legend of Vox Machina" — bold graphic-novel linework over painterly digital brushwork, exaggerated expressive faces with large emotive eyes and oversized readable expressions, strong stylized (not realistic) proportions, vivid saturated and theatrical skin/fur/scale colors that give every species its own striking color identity, thick confident outlines, dynamic personality-driven poses, richly textured hand-illustrated clothing and gear with visible wear, dramatic warm firelight contrasted with cool magical-blue accents. Not photorealistic, not video-game box-art realism, not soft painterly portraiture, not flat simple cartoon, not anime, not 3D-rendered, not CGI, not a video-game character model — strictly 2D hand-drawn/illustrated, like a single frame pulled from a high-end adult animated fantasy series, full of life and personality, with every character drawn in the exact same consistent illustration technique.';
 
+// Scene backgrounds are reused as generic location backdrops across every
+// campaign and party — they must NOT depict specific characters or story
+// moments (that would look like someone else's adventure intruding on yours).
+// Same painterly-animated visual language as STYLE (lighting, palette,
+// linework), but the location/atmosphere itself is the subject, not people.
+const SCENE_STYLE = 'Empty environment establishing-shot illustration in the same painterly adult-animated-fantasy visual language as "The Legend of Vox Machina" — bold graphic-novel linework over painterly digital brushwork, vivid theatrical color palette, dramatic warm firelight contrasted with cool magical-blue or moonlit accents, rich atmospheric depth and mood. NO PEOPLE — completely free of characters, figures, silhouettes, adventurers, monsters, or any living subjects; the location and atmosphere are the entire subject. Not photorealistic, not 3D-rendered, not CGI — strictly 2D hand-illustrated environment art, wide cinematic landscape framing.';
+
 // A character-select screen needs ONE subject per portrait, facing forward,
 // calm/neutral expression, on a plain backdrop — not a narrative scene with
 // other people in it. Every race portrait shares this exact framing/backdrop
@@ -56,22 +63,22 @@ const ASSETS = [
   { file: 'classes/sorcerer.png', prompt: `${STYLE} Icon illustration of a hand with crackling purple lightning arcing from the fingertips, veins glowing beneath the skin. Square icon format, centered on dark stone texture.` },
   { file: 'classes/warlock.png', prompt: `${STYLE} Icon illustration of an eldritch eye floating above an open palm, pupil-less, with tentacle-like tendrils below it, ominous purple glow. Square icon format, centered on dark stone texture.` },
 
-  // Scene Backgrounds
-  { file: 'scenes/tavern.png', prompt: `${STYLE} Interior of a medieval fantasy tavern at night. Low ceiling with hanging lanterns, rough wooden tables, a roaring fireplace, shadows in the corners, patrons silhouetted. Wide landscape format, atmospheric.` },
-  { file: 'scenes/dungeon-corridor.png', prompt: `${STYLE} A stone dungeon corridor stretching into darkness, torch sconces on the walls casting orange pools of light, damp stone floor, ancient carved reliefs on the walls. Wide landscape format.` },
-  { file: 'scenes/dungeon-chamber.png', prompt: `${STYLE} A large underground dungeon chamber, cracked stone pillars, a glowing runic floor, bones and old equipment in corners, vaulted ceiling lost in shadow. Wide landscape format.` },
-  { file: 'scenes/forest-road.png', prompt: `${STYLE} A dark forest road through ancient twisted trees, moonlight breaking through the canopy in shafts, mist at ground level, eerie quiet. Wide landscape format.` },
-  { file: 'scenes/forest-clearing.png', prompt: `${STYLE} A moonlit forest clearing, ancient stone ruins partially reclaimed by moss and vines, fireflies, a still dark pond reflecting stars. Wide landscape format.` },
-  { file: 'scenes/castle-gate.png', prompt: `${STYLE} The imposing gates of a dark stone castle at dusk, drawbridge lowered over a moat, torches lit on the battlements, ravens circling the towers. Wide landscape format.` },
-  { file: 'scenes/throne-room.png', prompt: `${STYLE} A grand but oppressive throne room, high vaulted ceilings, banners hanging in shadow, a massive stone throne on a raised dais, cold blue light from narrow windows. Wide landscape format.` },
-  { file: 'scenes/marketplace.png', prompt: `${STYLE} A bustling medieval fantasy marketplace at dawn, merchant stalls, cobblestone streets, half-timbered buildings, a fountain in the center, morning fog. Wide landscape format.` },
-  { file: 'scenes/cave-entrance.png', prompt: `${STYLE} The mouth of a dark cave in a rocky hillside, ancient carvings around the entrance, bones of previous adventurers, torch light from within, ominous. Wide landscape format.` },
-  { file: 'scenes/ancient-ruins.png', prompt: `${STYLE} Ancient crumbling stone ruins of a once-great civilization, massive fallen columns, jungle reclaiming the stonework, a central altar still standing, moonlight. Wide landscape format.` },
-  { file: 'scenes/mountain-pass.png', prompt: `${STYLE} A treacherous mountain pass at dusk, narrow stone path along a sheer cliff, stormy sky, distant peaks. Wide landscape format.` },
-  { file: 'scenes/harbor.png', prompt: `${STYLE} A dark fantasy harbor at night, fishing boats and a warship at weathered docks, lantern reflections in oily water, fog rolling in from the sea, a lighthouse in the distance. Wide landscape format.` },
-  { file: 'scenes/crypt.png', prompt: `${STYLE} An ancient underground crypt, stone sarcophagi in alcoves, cobwebs, a single burning brazier, carved skull reliefs on the walls. Wide landscape format.` },
-  { file: 'scenes/wizard-tower.png', prompt: `${STYLE} Interior of a wizard tower laboratory, shelves of glowing vials and ancient tomes, a celestial orrery turning slowly, arcane diagrams on the floor, night sky through a circular window. Wide landscape format.` },
-  { file: 'scenes/battlefield.png', prompt: `${STYLE} The aftermath of a great battle on an open plain, broken weapons in muddy earth, ravens, smoke from distant fires, storm clouds rolling in, a single surviving banner. Wide landscape format.` },
+  // Scene Backgrounds — empty environment shots (SCENE_STYLE), no characters, wide 1536x1024 landscape framing.
+  { file: 'scenes/tavern.png', size: '1536x1024', prompt: `${SCENE_STYLE} Interior of a medieval fantasy tavern at night, completely empty of people: low ceiling with hanging lanterns, rough wooden tables and benches, a roaring fireplace, shadows pooling in the corners, mugs and candles left on tables.` },
+  { file: 'scenes/dungeon-corridor.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty stone dungeon corridor stretching into darkness, torch sconces on the walls casting orange pools of light, a damp stone floor, ancient carved reliefs on the walls, no one in sight.` },
+  { file: 'scenes/dungeon-chamber.png', size: '1536x1024', prompt: `${SCENE_STYLE} A large, empty underground dungeon chamber, cracked stone pillars, a glowing runic floor, scattered bones and old equipment in the corners, a vaulted ceiling lost in shadow, no creatures present.` },
+  { file: 'scenes/forest-road.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty dark forest road through ancient twisted trees, moonlight breaking through the canopy in shafts, mist pooling at ground level, eerie quiet, not a soul on the path.` },
+  { file: 'scenes/forest-clearing.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty moonlit forest clearing, ancient stone ruins partially reclaimed by moss and vines, fireflies drifting, a still dark pond reflecting the stars, no one present.` },
+  { file: 'scenes/castle-gate.png', size: '1536x1024', prompt: `${SCENE_STYLE} The imposing gates of a dark stone castle at dusk, empty of any figures: drawbridge lowered over a moat, torches lit on the battlements, ravens circling the towers, no guards or travelers in view.` },
+  { file: 'scenes/throne-room.png', size: '1536x1024', prompt: `${SCENE_STYLE} A grand but oppressive throne room, completely empty: high vaulted ceilings, banners hanging in shadow, a massive stone throne standing vacant on a raised dais, cold blue light slanting through narrow windows.` },
+  { file: 'scenes/marketplace.png', size: '1536x1024', prompt: `${SCENE_STYLE} A medieval fantasy marketplace at dawn before anyone has arrived: empty merchant stalls, cobblestone streets, half-timbered buildings, a quiet fountain at the center, morning fog, not a single person in sight.` },
+  { file: 'scenes/cave-entrance.png', size: '1536x1024', prompt: `${SCENE_STYLE} The empty mouth of a dark cave in a rocky hillside, ancient carvings around the entrance, old bones scattered at the threshold, torchlight glowing faintly from within, ominous and still, no creatures visible.` },
+  { file: 'scenes/ancient-ruins.png', size: '1536x1024', prompt: `${SCENE_STYLE} Empty ancient crumbling stone ruins of a once-great civilization, massive fallen columns, jungle reclaiming the stonework, a central altar standing alone, moonlight, no explorers or creatures present.` },
+  { file: 'scenes/mountain-pass.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty treacherous mountain pass at dusk, a narrow stone path along a sheer cliff, a stormy sky, distant snow-capped peaks, no travelers on the trail.` },
+  { file: 'scenes/harbor.png', size: '1536x1024', prompt: `${SCENE_STYLE} A dark fantasy harbor at night, deserted: fishing boats and a warship moored at weathered docks, lantern reflections rippling in oily water, fog rolling in from the sea, a distant lighthouse, not a soul on the docks.` },
+  { file: 'scenes/crypt.png', size: '1536x1024', prompt: `${SCENE_STYLE} An ancient underground crypt, empty and silent: stone sarcophagi resting in alcoves, cobwebs draped over carvings, a single burning brazier, skull reliefs carved into the walls, no figures present.` },
+  { file: 'scenes/wizard-tower.png', size: '1536x1024', prompt: `${SCENE_STYLE} The interior of a wizard's tower laboratory, unoccupied: shelves lined with glowing vials and ancient tomes, a celestial orrery turning slowly on its own, arcane diagrams etched into the floor, a night sky visible through a circular window.` },
+  { file: 'scenes/battlefield.png', size: '1536x1024', prompt: `${SCENE_STYLE} The aftermath of a great battle on an open plain, now empty of the living: broken weapons half-buried in muddy earth, ravens picking at the wreckage from a distance, smoke rising from far-off fires, storm clouds rolling in, a single tattered banner standing in the mud.` },
 
   // Item Icons
   { file: 'items/sword-common.png', prompt: `${STYLE} Item icon: a plain iron longsword, simple crossguard, worn leather grip, slightly pitted blade. Square icon, dark background.` },
@@ -233,7 +240,7 @@ async function generateAsset(asset, index, total) {
       model: 'gpt-image-2',
       prompt: asset.prompt,
       n: 1,
-      size: '1024x1024',
+      size: asset.size || '1024x1024',
       quality: 'low',
     });
 
