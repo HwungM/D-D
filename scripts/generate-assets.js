@@ -85,6 +85,110 @@ const ASSETS = [
   { file: 'items/cloak.png', prompt: `${STYLE} Item icon: a deep forest-green hooded cloak, silver leaf clasp, edges slightly frayed, stained with travel. Square icon, dark background.` },
 ];
 
+// The arrays above only cover the "base" assets the game shipped with first.
+// Character creation and gameplay also reference gendered/skin-tone race
+// variants, a much larger item-icon set, and a full enemy roster — none of
+// which the original script knew how to (re)generate. Rather than hand-write
+// ~150 more bespoke prompts, these are templated from their filenames so the
+// whole asset set can be regenerated in one consistent pass in the new style.
+const RACE_FLAVOR = {
+  human: 'a strong jaw, weathered face, determined eyes, short hair, battered but well-kept leather armor',
+  elf: 'sharp angular features, long flowing hair, piercing eyes, pointed ears, elegant bone structure, fine forest-green garb',
+  dwarf: 'a thick braided beard with iron rings, a broad face, deep-set eyes, hammered steel pauldrons',
+  halfling: 'large curly hair, bright curious eyes, rosy cheeks, a small frame, a patched traveling cloak',
+  gnome: 'wild hair sticking out at angles, enormous goggles pushed up on the forehead, bright inquisitive eyes, mechanical trinkets on the collar',
+  'half-orc': 'grey-green skin, small upward tusks, a powerful jaw, amber eyes, ritual scars, iron-plated armor',
+  tiefling: 'deep crimson skin, small curved black horns, glowing gold eyes with no pupils, elegant features, dark arcane robes',
+  dragonborn: 'scaled skin, reptilian amber eyes, a regal angular face, subtle horns sweeping back, ornate scaled armor',
+};
+
+function raceVariantAsset(file) {
+  const base = file.replace('races/', '').replace('.png', '');
+  const tokens = base.split('-');
+  const race = tokens[0] === 'half' ? 'half-orc' : tokens[0];
+  const rest = tokens[0] === 'half' ? tokens.slice(2) : tokens.slice(1);
+  const genderDesc = rest.includes('f') ? 'a woman' : rest.includes('m') ? 'a man' : 'a figure';
+  const toneDesc = rest.includes('black') ? ', with a deep dark complexion' : '';
+  const flavor = RACE_FLAVOR[race] || 'striking, memorable fantasy features';
+  return { file, prompt: `${STYLE} Portrait of ${genderDesc} of the ${race} people, ${flavor}${toneDesc}. Dramatic lighting, strong sense of personality. Shoulder-up portrait.` };
+}
+
+const RACE_VARIANT_FILES = [
+  'races/dragonborn-f.png', 'races/dwarf-f-black.png', 'races/dwarf-f.png', 'races/dwarf-m-black.png',
+  'races/elf-f-black.png', 'races/elf-f.png', 'races/elf-m-black.png',
+  'races/gnome-f-black.png', 'races/gnome-f.png', 'races/gnome-m-black.png',
+  'races/half-orc-f.png',
+  'races/halfling-f-black.png', 'races/halfling-f.png', 'races/halfling-m-black.png',
+  'races/human-f-black.png', 'races/human-f.png', 'races/human-m-black.png',
+  'races/tiefling-f.png',
+];
+
+function humanizeSlug(base) {
+  return base.split('-').join(' ');
+}
+
+function itemIconAsset(file) {
+  const base = file.replace('items/', '').replace('.png', '');
+  return { file, prompt: `${STYLE} Item icon: a richly detailed fantasy ${humanizeSlug(base)}, believable wear, materials, and craftsmanship, telling a small story at a glance. Square icon, dark background, dramatic rim lighting.` };
+}
+
+const ITEM_VARIANT_FILES = [
+  'items/amulet-bone.png', 'items/amulet-enchanted.png', 'items/amulet-silver.png',
+  'items/armor-breastplate.png', 'items/armor-chain.png', 'items/armor-dark-plate.png', 'items/armor-studded.png',
+  'items/arrows-magic.png', 'items/arrows.png',
+  'items/axe-battle.png', 'items/axe-great.png', 'items/axe-hand.png',
+  'items/bolts.png',
+  'items/boots-enchanted.png', 'items/boots-leather.png',
+  'items/bow-enchanted.png', 'items/bow-long.png', 'items/bow-short.png',
+  'items/cloak-common.png', 'items/cloak-elvish.png', 'items/cloak-shadow.png',
+  'items/dagger-common.png', 'items/dagger-enchanted.png', 'items/dagger-poison.png',
+  'items/drink-ale.png', 'items/drink-wine.png',
+  'items/food-bread.png', 'items/food-meat.png',
+  'items/gauntlets-iron.png', 'items/gem-currency.png', 'items/gloves-leather.png', 'items/gold-coin.png',
+  'items/halberd.png',
+  'items/helmet-horned.png', 'items/helmet-iron.png',
+  'items/journal.png', 'items/mace.png',
+  'items/potion-health-large.png', 'items/potion-health-medium.png', 'items/potion-health-small.png',
+  'items/potion-invisibility.png', 'items/potion-mana-large.png', 'items/potion-mana-medium.png',
+  'items/potion-mana-small.png', 'items/potion-poison.png', 'items/potion-speed.png', 'items/potion-strength.png',
+  'items/quest-gem.png', 'items/quest-key.png', 'items/quest-letter.png', 'items/quest-orb.png', 'items/quest-rune.png',
+  'items/ring-enchanted.png', 'items/ring-gold.png', 'items/ring-iron.png',
+  'items/scroll-ancient.png', 'items/scroll-map.png', 'items/scroll-spell.png',
+  'items/shield-enchanted.png', 'items/shield-iron.png', 'items/shield-wooden.png',
+  'items/silver-coin.png', 'items/spear.png',
+  'items/staff-elemental.png', 'items/staff-wooden.png',
+  'items/sword-cursed.png', 'items/sword-enchanted.png', 'items/sword-iron.png', 'items/sword-silver.png', 'items/sword-steel.png',
+  'items/tome-ancient.png',
+  'items/tool-grapple.png', 'items/tool-lockpick.png', 'items/tool-rope.png', 'items/tool-torch.png',
+  'items/treasure-chest.png',
+  'items/wand-basic.png', 'items/wand-enchanted.png',
+  'items/warhammer.png',
+];
+
+function enemyPortraitAsset(file) {
+  const base = file.replace('enemies/', '').replace('.png', '');
+  return { file, prompt: `${STYLE} Portrait of a menacing ${humanizeSlug(base)}, dynamic pose, dramatic lighting, strong readable silhouette, full of threat and personality, fitting a painterly animated-fantasy bestiary. Waist-up composition, dark atmospheric background.` };
+}
+
+const ENEMY_FILES = [
+  'enemies/assassin.png', 'enemies/bandit-leader.png', 'enemies/bandit.png', 'enemies/cultist.png',
+  'enemies/dark-knight.png', 'enemies/dark-wizard.png', 'enemies/demon.png',
+  'enemies/dragon-ancient.png', 'enemies/dragon-young.png',
+  'enemies/fallen-paladin.png', 'enemies/ghost.png', 'enemies/giant-rat.png', 'enemies/giant-spider.png',
+  'enemies/goblin-shaman.png', 'enemies/goblin.png', 'enemies/harpy.png', 'enemies/imp.png',
+  'enemies/lich.png', 'enemies/mind-flayer.png', 'enemies/necromancer.png', 'enemies/ogre.png',
+  'enemies/orc-warchief.png', 'enemies/orc-warrior.png', 'enemies/sea-monster.png', 'enemies/shadow-demon.png',
+  'enemies/skeleton-archer.png', 'enemies/skeleton.png', 'enemies/succubus.png', 'enemies/troll.png',
+  'enemies/vampire.png', 'enemies/warlord.png', 'enemies/wight.png', 'enemies/wolf.png', 'enemies/wyvern.png',
+  'enemies/zombie.png',
+];
+
+ASSETS.push(
+  ...RACE_VARIANT_FILES.map(raceVariantAsset),
+  ...ITEM_VARIANT_FILES.map(itemIconAsset),
+  ...ENEMY_FILES.map(enemyPortraitAsset),
+);
+
 function downloadImage(url, filepath) {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(filepath);
