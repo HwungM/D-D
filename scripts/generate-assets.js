@@ -7,7 +7,10 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const STYLE = 'Dark fantasy illustration. Muted earth tones, deep browns, slate grays, forest greens, ember reds. High contrast single dramatic light source. Painterly texture like classic 1980s fantasy book cover art. No cel shading, no anime, no bright colors. Atmospheric, gritty, highly detailed.';
+// Matches EVERREALM_ART_BIBLE in server/src/services/openai.ts so these static
+// fallback assets read as the same world as the AI-generated scenes/portraits
+// instead of clashing with a different, older "dark fantasy" look.
+const STYLE = 'Hand-painted western fantasy animation style, anime-aware but not anime, sharp expressive faces, angular facial structure, varied body types and silhouettes, exaggerated fantasy species features, rugged adventuring clothing and armor, painterly linework, cinematic warm-and-cool lighting, dramatic expressions, strong personality in every face, animated-film detail, rich fantasy atmosphere, storybook adventure energy. Not photorealistic, not generic dark-fantasy concept art, not flat cartoon, not full anime, no muddy unreadable darkness — keep silhouettes and expressions readable even in tense scenes.';
 
 const ASSETS = [
   // DM Portraits
