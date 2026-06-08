@@ -220,7 +220,8 @@ export default function Game() {
         setWorldState(data.worldState)
         if (data.worldState.currentLocation) audioManager.setLocation(data.worldState.currentLocation)
         const localScene = matchSceneImage(
-          [data.worldState.currentLocation, data.worldState.weather].filter(Boolean).join(' ')
+          [data.worldState.currentLocation, data.worldState.weather].filter(Boolean).join(' '),
+          data.worldState.timeOfDay
         )
         setSceneImage(localScene || DEFAULT_SCENES[Math.floor(Math.random() * DEFAULT_SCENES.length)])
       } else if (!currentSceneImage) {
@@ -374,7 +375,7 @@ export default function Game() {
       if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
 
       if (result.sceneImagePrompt) {
-        const local = matchSceneImage(result.sceneImagePrompt)
+        const local = matchSceneImage(result.sceneImagePrompt, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay)
         if (local) setSceneImage(local)
         assetApi.generate(result.sceneImagePrompt, sceneCacheKey(campaignId, result.sceneImagePrompt)).then(({ data: img }) => setSceneImage(img.url)).catch(() => {})
       }
@@ -420,7 +421,7 @@ export default function Game() {
       }
       if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
       if (result.sceneImagePrompt) {
-        const local = matchSceneImage(result.sceneImagePrompt)
+        const local = matchSceneImage(result.sceneImagePrompt, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay)
         if (local) setSceneImage(local)
         assetApi.generate(result.sceneImagePrompt, `scene-${campaignId}-start`).then(({ data: img }) => setSceneImage(img.url)).catch(() => {})
       }
@@ -443,7 +444,7 @@ export default function Game() {
       : action
 
     // Only switch scene immediately based on location - not action text (avoids wrong images)
-    const immediateScene = matchSceneImage(worldState?.currentLocation || '')
+    const immediateScene = matchSceneImage(worldState?.currentLocation || '', worldState?.timeOfDay)
     if (immediateScene) setSceneImage(immediateScene)
 
     const clientRequestId = `action-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -554,11 +555,11 @@ export default function Game() {
 
       // Scene: try AI prompt match first, then async AI generation
       if (result.sceneImagePrompt) {
-        const local = matchSceneImage(result.sceneImagePrompt)
+        const local = matchSceneImage(result.sceneImagePrompt, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay)
         if (local) setSceneImage(local)
         assetApi.generate(result.sceneImagePrompt, sceneCacheKey(campaignId, result.sceneImagePrompt)).then(({ data: img }) => setSceneImage(img.url)).catch(() => {})
       } else if (result.worldStateChanges?.currentLocation) {
-        const local = matchSceneImage(result.worldStateChanges.currentLocation)
+        const local = matchSceneImage(result.worldStateChanges.currentLocation, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay)
         if (local) setSceneImage(local)
       }
 
