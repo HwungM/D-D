@@ -281,7 +281,7 @@ ABILITY SYSTEM RULES:
 - Use available abilities proactively when it makes narrative sense - don't wait for the player to ask.
 - When you use an ability, set "abilityUsed" to the exact ability name so the cooldown is tracked.
 - NEVER use an ability marked [ON COOLDOWN]. It is not available.
-- Apply the mechanic description exactly - set the appropriate hpChange, statusEffectChanges, etc.
+- Apply the mechanic description exactly - set the appropriate hpChange, statusEffectChanges, etc. If the ability lists an "ENGINE ROLL FOR THIS TURN", you MUST use those exact pre-rolled numbers when computing hpChange - do not estimate, average, or invent your own dice results.
 - When the character rests (sleeps, takes a short rest, camps), set "isRest": true to reset cooldowns.
 
 ENDGAME RULES:
@@ -468,6 +468,29 @@ export async function generateSceneSummary(
   return response.choices[0].message.content?.trim() || '';
 }
 
+// Finds dice notation (e.g. "1d6", "2d8") inside an ability's mechanic text and
+// rolls it with the engine's RNG, so the AI applies an exact, fairly-rolled
+// number instead of guessing an "average" damage/healing value each time.
+function preRollAbilityDice(mechanic: string): string | null {
+  const diceRegex = /(\d*)d(\d+)/gi;
+  const matches = [...mechanic.matchAll(diceRegex)];
+  if (matches.length === 0) return null;
+  const seen = new Set<string>();
+  const rolls: string[] = [];
+  for (const match of matches) {
+    const notation = match[0].toLowerCase();
+    if (seen.has(notation)) continue;
+    seen.add(notation);
+    const count = Math.min(match[1] ? parseInt(match[1], 10) : 1, 20);
+    const sides = Math.min(parseInt(match[2], 10), 100);
+    if (!Number.isFinite(count) || !Number.isFinite(sides) || count < 1 || sides < 2) continue;
+    const individual = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
+    const total = individual.reduce((a, b) => a + b, 0);
+    rolls.push(`${notation} = ${individual.length > 1 ? `${individual.join('+')} = ` : ''}${total}`);
+  }
+  return rolls.length > 0 ? rolls.join(', ') : null;
+}
+
 function timeAgo(isoTimestamp: string): string {
   const diffMs = Date.now() - new Date(isoTimestamp).getTime();
   const diffMin = Math.floor(diffMs / 60000);
@@ -569,16 +592,23 @@ function buildNarrationMessages(
     ? `\nÃ¢Å¡Â  UNUSUAL COMBO: ${character.race} ${character.class} - the DM may acknowledge this in-world with subtle reactions from NPCs.`
     : '';
 
-  // Build abilities block - include mechanic so AI enforces actual numbers
+  // Build abilities block - include mechanic so AI enforces actual numbers.
+  // Dice notation in the mechanic (e.g. "1d6", "2d8") is pre-rolled by the engine
+  // here rather than left for the AI to estimate, so damage/healing numbers are
+  // deterministic and fair instead of "AI vibes" each time an ability is used.
   const knownAbilities = character.abilities || [];
   let abilitiesBlock = '';
   if (knownAbilities.length > 0) {
     const available = knownAbilities.filter(a => !a.currentCooldown || a.currentCooldown <= 0);
     const onCooldown = knownAbilities.filter(a => a.currentCooldown && a.currentCooldown > 0);
+    const renderAbility = (a: typeof available[number]) => {
+      const rolled = a.mechanic ? preRollAbilityDice(a.mechanic) : null;
+      return `- ${a.name}: ${a.description}${a.mechanic ? `\n  MECHANIC: ${a.mechanic}` : ''}${rolled ? `\n  ENGINE ROLL FOR THIS TURN (use these exact numbers, do not invent your own): ${rolled}` : ''}`;
+    };
     abilitiesBlock = `
 Ã¢â€ÂÃ¢â€ÂÃ¢â€Â CHARACTER ABILITIES Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
 AVAILABLE (apply mechanic exactly when used):
-${available.length > 0 ? available.map(a => `- ${a.name}: ${a.description}${a.mechanic ? `\n  MECHANIC: ${a.mechanic}` : ''}`).join('\n') : '(none available)'}
+${available.length > 0 ? available.map(renderAbility).join('\n') : '(none available)'}
 ON COOLDOWN (cannot use):
 ${onCooldown.length > 0 ? onCooldown.map(a => `- ${a.name} [ON COOLDOWN]`).join('\n') : '(none on cooldown)'}
 Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
