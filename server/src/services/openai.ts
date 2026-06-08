@@ -672,7 +672,7 @@ ${worldState.currentSceneSummary}` : '';
 
   const locationGraph = worldState.locationGraph;
   const currentMapNode = locationGraph?.nodes?.find(node => node.name === (locationGraph.currentLocation || worldState.currentLocation));
-  const knownLocationCount = locationGraph?.nodes?.length || 0;
+  const knownLocationCount = worldState.discoveredLocations?.length || locationGraph?.nodes?.length || 0;
   const worldSizeGuidance = knownLocationCount >= 70
     ? `The world map is now large (${knownLocationCount} known places). Stop inventing new locations unless the story truly demands it — instead deepen, revisit, and complicate the places that already exist (new NPCs, quests, or twists at known locations).`
     : knownLocationCount >= 35

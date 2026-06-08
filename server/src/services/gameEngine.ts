@@ -104,6 +104,7 @@ function buildLocationGraphSnapshot(worldState: WorldState, worldBible: WorldBib
     const geo = geography.find(entry => entry.name.toLowerCase() === name.toLowerCase());
     const region = inferRegionForLocation(name, worldBible);
     const isCurrent = currentLocation.toLowerCase() === name.toLowerCase();
+    const wasCurrent = (previous?.tags || []).includes('current');
     const existingConnections = previous?.connectedTo || [];
     const connectedTo = Array.from(new Set([
       ...existingConnections,
@@ -117,13 +118,13 @@ function buildLocationGraphSnapshot(worldState: WorldState, worldBible: WorldBib
       type: geo?.type || previous?.type || 'unknown',
       discoveredAt: previous?.discoveredAt || now,
       lastVisitedAt: isCurrent ? now : previous?.lastVisitedAt,
-      visits: (previous?.visits || 0) + (isCurrent ? 1 : 0),
+      visits: (previous?.visits || 0) + (isCurrent && !wasCurrent ? 1 : 0),
       connectedTo,
       npcsPresent: npcsByLocation.get(name) || [],
       questHooks: questHooksByLocation.get(name) || [],
       partyHere: partyByLocation.get(name) || (isCurrent ? ['current'] : []),
       tags: Array.from(new Set([
-        ...(previous?.tags || []),
+        ...(previous?.tags || []).filter(tag => tag !== 'current'),
         ...(geo?.type ? [geo.type] : []),
         ...(isCurrent ? ['current'] : []),
         ...((questHooksByLocation.get(name) || []).length ? ['quest'] : []),
