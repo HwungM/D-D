@@ -239,6 +239,7 @@ export default function CharacterCreate() {
   const [gender, setGender] = useState<Gender | null>(null)
   const [selectedRace, setSelectedRace] = useState<Race | null>(null)
   const [selectedPortrait, setSelectedPortrait] = useState<string | null>(null)
+  const [generateAiPortrait, setGenerateAiPortrait] = useState(false)
   const [selectedClass, setSelectedClass] = useState<CharacterClass | null>(null)
   const [name, setName] = useState('')
   const [backstory, setBackstory] = useState('')
@@ -311,7 +312,8 @@ export default function CharacterCreate() {
         race: selectedRace,
         class: selectedClass,
         backstory,
-        portraitUrl: selectedPortrait || undefined,
+        portraitUrl: generateAiPortrait ? undefined : (selectedPortrait || undefined),
+        generatePortrait: generateAiPortrait,
         stats: finalStats,
       })
       const characterId = data.character.id
@@ -622,9 +624,9 @@ export default function CharacterCreate() {
               {portraits.map((p) => (
                 <button
                   key={p.url}
-                  onClick={() => setSelectedPortrait(p.url)}
+                  onClick={() => { setSelectedPortrait(p.url); setGenerateAiPortrait(false) }}
                   className="group relative border overflow-hidden transition-all duration-300"
-                  style={selectedPortrait === p.url
+                  style={selectedPortrait === p.url && !generateAiPortrait
                     ? { borderColor: 'rgba(245,158,11,0.58)', boxShadow: '0 0 28px rgba(245,158,11,0.14)' }
                     : { borderColor: 'rgba(255,255,255,0.12)' }
                   }
@@ -636,7 +638,7 @@ export default function CharacterCreate() {
                       className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110"
                       onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = 'none' }}
                     />
-                    {selectedPortrait === p.url && (
+                    {selectedPortrait === p.url && !generateAiPortrait && (
                       <div className="absolute inset-0 border-2 border-amber-200/70" style={{ background: 'rgba(245,158,11,0.12)' }}>
                         <div className="absolute top-2 right-2 h-5 w-5 border border-amber-100 bg-amber-300" title="Selected" />
                       </div>
@@ -647,8 +649,29 @@ export default function CharacterCreate() {
                   </div>
                 </button>
               ))}
+              <button
+                onClick={() => { setGenerateAiPortrait(true); setSelectedPortrait(null) }}
+                className="group relative border overflow-hidden transition-all duration-300 flex flex-col items-center justify-center aspect-square"
+                style={generateAiPortrait
+                  ? { borderColor: 'rgba(34,211,238,0.58)', boxShadow: '0 0 28px rgba(34,211,238,0.16)', background: 'rgba(34,211,238,0.06)' }
+                  : { borderColor: 'rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.02)' }
+                }
+              >
+                <span className="font-fantasy text-2xl text-cyan-200/70 transition-transform duration-300 group-hover:scale-110">✦</span>
+                <p className="mt-2 px-3 text-center text-xs font-serif text-parchment-200/62">Generate a custom AI portrait</p>
+                {generateAiPortrait && (
+                  <div className="absolute inset-0 border-2 border-cyan-200/60">
+                    <div className="absolute top-2 right-2 h-5 w-5 border border-cyan-100 bg-cyan-300/80" title="Selected" />
+                  </div>
+                )}
+              </button>
             </div>
-            {!selectedPortrait && (
+            {generateAiPortrait && (
+              <p className="mt-4 text-xs font-serif text-center" style={{ color: 'rgba(125,211,252,0.6)' }}>
+                The DM will paint a one-of-a-kind portrait of your character once you finish creation, based on their name, race, class, and backstory.
+              </p>
+            )}
+            {!selectedPortrait && !generateAiPortrait && (
               <p className="mt-4 text-xs font-serif text-center" style={{ color: 'rgba(180,160,120,0.45)' }}>
                 Choose a portrait above to continue
               </p>
@@ -657,7 +680,7 @@ export default function CharacterCreate() {
               <button onClick={() => setStep(1)} className="border border-white/12 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-parchment-200/66 transition-all hover:border-white/24 hover:text-parchment-100">Back</button>
               <button
                 onClick={() => setStep(3)}
-                disabled={!selectedPortrait}
+                disabled={!selectedPortrait && !generateAiPortrait}
                 className="border border-amber-300/46 bg-amber-300/12 px-6 py-3 font-fantasy text-xs uppercase tracking-[0.2em] text-amber-100 transition-all hover:border-amber-200 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 Choose Your Class
@@ -928,13 +951,23 @@ export default function CharacterCreate() {
               <div>
                 <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-cyan-200/58 mb-3">Preview</p>
                 <div className="border border-white/12 bg-black/48 overflow-hidden">
-                  {selectedPortrait && (
+                  {selectedPortrait && !generateAiPortrait && (
                     <div className="relative h-48 overflow-hidden">
                       <img src={selectedPortrait} alt="portrait" className="w-full h-full object-cover object-top" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
                       <div className="absolute bottom-3 left-4 right-4">
                         <p className="font-fantasy text-xl text-parchment-100">{name || '-'}</p>
                         <p className="text-parchment-200/58 text-xs font-serif">{selectedRace} {selectedClass}</p>
+                      </div>
+                    </div>
+                  )}
+                  {generateAiPortrait && (
+                    <div className="relative h-48 overflow-hidden flex items-center justify-center" style={{ background: 'rgba(34,211,238,0.05)' }}>
+                      <div className="text-center px-4">
+                        <span className="font-fantasy text-2xl text-cyan-200/50">✦</span>
+                        <p className="mt-2 font-fantasy text-xl text-parchment-100">{name || '-'}</p>
+                        <p className="text-parchment-200/58 text-xs font-serif">{selectedRace} {selectedClass}</p>
+                        <p className="mt-2 text-cyan-200/50 text-[11px] font-serif italic">A custom portrait will be painted on arrival</p>
                       </div>
                     </div>
                   )}
