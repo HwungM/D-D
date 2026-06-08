@@ -9,8 +9,14 @@ const client = new OpenAI({
 
 // Matches EVERREALM_ART_BIBLE in server/src/services/openai.ts so these static
 // fallback assets read as the same world as the AI-generated scenes/portraits
-// instead of clashing with a different, older "dark fantasy" look.
-const STYLE = 'Hand-painted western fantasy animation style, anime-aware but not anime, sharp expressive faces, angular facial structure, varied body types and silhouettes, exaggerated fantasy species features, rugged adventuring clothing and armor, painterly linework, cinematic warm-and-cool lighting, dramatic expressions, strong personality in every face, animated-film detail, rich fantasy atmosphere, storybook adventure energy. Not photorealistic, not generic dark-fantasy concept art, not flat cartoon, not full anime, no muddy unreadable darkness — keep silhouettes and expressions readable even in tense scenes.';
+// instead of clashing with a different, older "dark fantasy" look. Modeled
+// directly on "The Legend of Vox Machina" adult-animation aesthetic: bold
+// graphic-novel character design over painterly realism.
+const STYLE = 'Adult animated-fantasy character illustration in the vein of "The Legend of Vox Machina" — bold graphic-novel linework over painterly digital brushwork, exaggerated expressive faces with large emotive eyes and oversized readable expressions, strong stylized (not realistic) proportions, vivid saturated and theatrical skin/fur/scale colors that give every species its own striking color identity, thick confident outlines, dynamic personality-driven poses, richly textured hand-illustrated clothing and gear with visible wear, dramatic warm firelight contrasted with cool magical-blue accents. Not photorealistic, not video-game box-art realism, not soft painterly portraiture, not flat simple cartoon, not anime — character design should look like a frame pulled from a high-end adult animated fantasy series, full of life and personality.';
+
+// Every race portrait shares this setting so the whole roster reads as one
+// consistent cast/lineup rather than a grab-bag of differently lit renders.
+const RACE_BACKGROUND = 'Background: gathered around a candlelit tavern table strewn with mugs and a glowing blue magical map, warm amber firelight from below mixing with cool blue magical glow, rough wooden tavern walls in soft shadow behind them — the same shared scene and lighting as the rest of the cast.';
 
 const ASSETS = [
   // DM Portraits
@@ -21,15 +27,15 @@ const ASSETS = [
   { file: 'dm/dm-surprised.png', prompt: `${STYLE} A hooded dungeon master figure, eyebrows raised in genuine surprise, leaning forward into candlelight. Dark robes, arcane symbols. Portrait composition, waist up.` },
   { file: 'dm/dm-pleased.png', prompt: `${STYLE} A hooded dungeon master figure, a rare warm smile in candlelight, satisfied expression. Dark robes, arcane symbols. Portrait composition, waist up.` },
 
-  // Race Portraits
-  { file: 'races/human.png', prompt: `${STYLE} Portrait of a noble human warrior, strong jaw, weathered face, determined brown eyes, short dark hair with grey streaks, wearing battered but well-kept leather armor. Dramatic side lighting. Shoulder-up portrait.` },
-  { file: 'races/elf.png', prompt: `${STYLE} Portrait of an elven figure, sharp angular features, long silver hair, piercing violet eyes, pointed ears, elegant bone structure, wearing fine forest-green garb. Soft ethereal light. Shoulder-up portrait.` },
-  { file: 'races/dwarf.png', prompt: `${STYLE} Portrait of a dwarven warrior, thick braided red beard with iron rings, broad face, deep-set grey eyes, wearing hammered steel pauldrons. Forge-lit from below. Shoulder-up portrait.` },
-  { file: 'races/halfling.png', prompt: `${STYLE} Portrait of a halfling, large curly auburn hair, bright green curious eyes, rosy cheeks, small frame, wearing a patched traveling cloak. Warm tavern light. Shoulder-up portrait.` },
-  { file: 'races/gnome.png', prompt: `${STYLE} Portrait of a gnome inventor, wild white hair sticking out at angles, enormous amber goggles pushed up on forehead, bright inquisitive eyes, mechanical components on collar. Workshop lighting. Shoulder-up portrait.` },
-  { file: 'races/half-orc.png', prompt: `${STYLE} Portrait of a half-orc, grey-green skin, small upward tusks, powerful jaw, amber eyes, shaved head with ritual scars, wearing iron-plated armor. Harsh torchlight. Shoulder-up portrait.` },
-  { file: 'races/tiefling.png', prompt: `${STYLE} Portrait of a tiefling, deep crimson skin, small curved black horns, glowing gold eyes with no pupils, elegant features, wearing dark arcane robes. Mysterious purple light. Shoulder-up portrait.` },
-  { file: 'races/dragonborn.png', prompt: `${STYLE} Portrait of a dragonborn, scaled dark bronze skin, reptilian amber eyes, regal angular face, subtle horns sweeping back, wearing ornate scaled armor. Dramatic torchlight. Shoulder-up portrait.` },
+  // Race Portraits — same shared scene/lighting (RACE_BACKGROUND) so the whole roster reads as one cast.
+  { file: 'races/human.png', prompt: `${STYLE} A noble human warrior with a strong jaw, weathered face, determined brown eyes, short dark hair with grey streaks, battered but well-kept leather armor, caught mid-reaction with bold readable expression. ${RACE_BACKGROUND} Shoulder-up, dynamic personality-driven pose.` },
+  { file: 'races/elf.png', prompt: `${STYLE} An elven figure with sharp angular features, long silver hair, striking violet eyes, pointed ears, elegant bone structure, fine forest-green garb, an aloof and appraising expression. ${RACE_BACKGROUND} Shoulder-up, dynamic personality-driven pose.` },
+  { file: 'races/dwarf.png', prompt: `${STYLE} A dwarven warrior with a thick braided red beard full of iron rings, a broad face, deep-set grey eyes, hammered steel pauldrons, a hearty boisterous grin. ${RACE_BACKGROUND} Shoulder-up, dynamic personality-driven pose.` },
+  { file: 'races/halfling.png', prompt: `${STYLE} A halfling with large curly auburn hair, bright green curious eyes, rosy cheeks, a small frame, a patched traveling cloak, an impish delighted grin. ${RACE_BACKGROUND} Shoulder-up, dynamic personality-driven pose.` },
+  { file: 'races/gnome.png', prompt: `${STYLE} A gnome inventor with wild white hair sticking out at odd angles, enormous amber goggles pushed up on the forehead, bright inquisitive eyes, mechanical trinkets on the collar, an excitable wide-eyed expression. ${RACE_BACKGROUND} Shoulder-up, dynamic personality-driven pose.` },
+  { file: 'races/half-orc.png', prompt: `${STYLE} A half-orc with vivid grey-green skin, small upward tusks, a powerful jaw, glowing amber eyes, a shaved head with ritual scars, iron-plated armor, a fierce gap-toothed grin. ${RACE_BACKGROUND} Shoulder-up, dynamic personality-driven pose.` },
+  { file: 'races/tiefling.png', prompt: `${STYLE} A tiefling with vivid deep crimson skin, small curved black horns, glowing solid-gold eyes with no pupils, elegant sharp features, dark arcane robes, a sly knowing smirk. ${RACE_BACKGROUND} Shoulder-up, dynamic personality-driven pose.` },
+  { file: 'races/dragonborn.png', prompt: `${STYLE} A dragonborn with vivid scaled bronze-and-gold skin, glowing reptilian amber eyes, a regal angular face, subtle horns sweeping back, ornate scaled armor, a proud commanding presence. ${RACE_BACKGROUND} Shoulder-up, dynamic personality-driven pose.` },
 
   // Class Icons
   { file: 'classes/fighter.png', prompt: `${STYLE} Icon illustration of a battle-worn sword and kite shield crossed, etched with campaign scars, steel with gold trim on worn leather backing. Square icon format, centered on dark stone texture.` },
@@ -110,7 +116,7 @@ function raceVariantAsset(file) {
   const genderDesc = rest.includes('f') ? 'a woman' : rest.includes('m') ? 'a man' : 'a figure';
   const toneDesc = rest.includes('black') ? ', with a deep dark complexion' : '';
   const flavor = RACE_FLAVOR[race] || 'striking, memorable fantasy features';
-  return { file, prompt: `${STYLE} Portrait of ${genderDesc} of the ${race} people, ${flavor}${toneDesc}. Dramatic lighting, strong sense of personality. Shoulder-up portrait.` };
+  return { file, prompt: `${STYLE} ${genderDesc.charAt(0).toUpperCase()}${genderDesc.slice(1)} of the ${race} people, with ${flavor}${toneDesc}, caught mid-reaction with a bold readable expression full of personality. ${RACE_BACKGROUND} Shoulder-up, dynamic personality-driven pose.` };
 }
 
 const RACE_VARIANT_FILES = [
