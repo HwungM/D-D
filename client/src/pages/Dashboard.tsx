@@ -95,6 +95,13 @@ function pickRandom4(exclude: string[] = []): StorySeedOption[] {
   return [...pool].sort(() => Math.random() - 0.5).slice(0, 4)
 }
 
+function campaignPlayMode(campaign: Campaign): 'solo' | 'collaborative' {
+  const declared = campaign.world_bible?.playerPreferences?.playMode
+  if (declared) return declared
+  const playerCount = campaign.world_bible?.playerPreferences?.playerCount
+  return playerCount && playerCount > 1 ? 'collaborative' : 'solo'
+}
+
 function campaignDate(campaign: Campaign) {
   const date = campaign.updated_at || campaign.created_at
   return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -136,6 +143,15 @@ export default function Dashboard() {
     () => campaigns.filter(campaign => campaign.campaign_type === 'testing'),
     [campaigns]
   )
+  const soloCampaigns = useMemo(
+    () => adventureCampaigns.filter(campaign => campaignPlayMode(campaign) === 'solo'),
+    [adventureCampaigns]
+  )
+  const coopCampaigns = useMemo(
+    () => adventureCampaigns.filter(campaign => campaignPlayMode(campaign) === 'collaborative'),
+    [adventureCampaigns]
+  )
+  const splitCampaignView = soloCampaigns.length > 0 && coopCampaigns.length > 0
   const featuredCampaign = adventureCampaigns[0]
   const heroImage = featuredCampaign ? getCampaignImage(featuredCampaign) : '/media/everrealm-hero-desktop.png'
   const canCreate = Boolean(campaignName.trim() && (useCustomPremise ? customPremise.trim().length > 20 : selectedSeed))
@@ -367,6 +383,27 @@ export default function Dashboard() {
               <LoadingShelf />
             ) : adventureCampaigns.length === 0 ? (
               <EmptyState onStart={() => navigate('/create-campaign')} />
+            ) : splitCampaignView ? (
+              <div className="space-y-8">
+                <CampaignGroup
+                  label="Solo Adventures"
+                  hint="Just you and the DM"
+                  accent="#22d3ee"
+                  campaigns={soloCampaigns}
+                  onContinue={handleContinue}
+                  onDelete={setConfirmDeleteId}
+                  continuingId={continuingId}
+                />
+                <CampaignGroup
+                  label="Party Campaigns"
+                  hint="Co-op with your table"
+                  accent="#f59e0b"
+                  campaigns={coopCampaigns}
+                  onContinue={handleContinue}
+                  onDelete={setConfirmDeleteId}
+                  continuingId={continuingId}
+                />
+              </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {adventureCampaigns.map(campaign => (
@@ -533,6 +570,38 @@ function SectionHeader({ label, title, actionLabel, onAction }: {
   )
 }
 
+function CampaignGroup({ label, hint, accent, campaigns, onContinue, onDelete, continuingId }: {
+  label: string
+  hint: string
+  accent: string
+  campaigns: Campaign[]
+  onContinue: (campaign: Campaign) => void
+  onDelete: (id: string) => void
+  continuingId: string | null
+}) {
+  if (campaigns.length === 0) return null
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2.5">
+        <span className="h-2 w-2" style={{ background: accent, boxShadow: `0 0 14px ${accent}` }} />
+        <h3 className="font-fantasy text-sm uppercase tracking-[0.16em] text-parchment-100">{label}</h3>
+        <span className="font-serif text-xs text-parchment-200/46">— {hint}</span>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {campaigns.map(campaign => (
+          <CampaignCard
+            key={campaign.id}
+            campaign={campaign}
+            onContinue={() => onContinue(campaign)}
+            onDelete={() => onDelete(campaign.id)}
+            isContinuing={continuingId === campaign.id}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function CampaignCard({ campaign, onContinue, onDelete, isContinuing = false, isTesting = false }: {
   campaign: Campaign
   onContinue: () => void
@@ -541,6 +610,7 @@ function CampaignCard({ campaign, onContinue, onDelete, isContinuing = false, is
   isTesting?: boolean
 }) {
   const image = getCampaignImage(campaign)
+  const playMode = campaignPlayMode(campaign)
   const currentLocation = campaign.world_state?.currentLocation || 'Unknown road'
   const scenePurpose = (campaign.world_state as { scenePurpose?: string } | undefined)?.scenePurpose || 'The DM is holding the next beat.'
 
@@ -552,9 +622,23 @@ function CampaignCard({ campaign, onContinue, onDelete, isContinuing = false, is
 
       <div className="relative z-10 flex min-h-[360px] flex-col p-4">
         <div className="flex items-center justify-between gap-3">
-          <span className="border border-white/12 bg-black/42 px-3 py-1 font-fantasy text-[10px] uppercase tracking-[0.18em] text-parchment-200/76">
-            {isTesting ? 'Test World' : `Act ${campaign.act || 1}`}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="border border-white/12 bg-black/42 px-3 py-1 font-fantasy text-[10px] uppercase tracking-[0.18em] text-parchment-200/76">
+              {isTesting ? 'Test World' : `Act ${campaign.act || 1}`}
+            </span>
+            {!isTesting && (
+              <span
+                className="border px-2.5 py-1 font-fantasy text-[10px] uppercase tracking-[0.16em]"
+                style={
+                  playMode === 'collaborative'
+                    ? { color: '#fde7b8', background: 'rgba(245,158,11,0.14)', borderColor: 'rgba(245,158,11,0.32)' }
+                    : { color: '#bff4ff', background: 'rgba(34,211,238,0.1)', borderColor: 'rgba(34,211,238,0.28)' }
+                }
+              >
+                {playMode === 'collaborative' ? 'Party' : 'Solo'}
+              </span>
+            )}
+          </div>
           <button
             type="button"
             onClick={event => {
