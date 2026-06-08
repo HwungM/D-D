@@ -208,9 +208,20 @@ function humanizeSlug(base) {
   return base.split('-').join(' ');
 }
 
+// Overrides for items whose generic templated description would otherwise converge with a
+// "fancier" sibling item (e.g. "staff wooden" defaulted toward the same glowing-crystal look
+// as "staff elemental" / "staff arcane" — a plain mundane staff needs to explicitly NOT have one).
+const ITEM_FLAVOR = {
+  'staff-wooden': 'a plain gnarled wooden traveler\'s walking staff, worn smooth by years of use, no gemstone, no magical glow, no crystal — entirely mundane, just simple carved wood and a leather wrist-strap',
+  'staff-arcane': 'an ornate wizard\'s staff carved with glowing arcane sigils, topped with a crackling orb of magical energy held in a metal claw-mount — unmistakably enchanted',
+  'staff-elemental': 'a twisted elemental staff with a raw glowing crystal fused directly into its crown, wisps of elemental energy (fire, frost, or lightning) curling from the stone — unmistakably magical',
+};
+
 function itemIconAsset(file) {
   const base = file.replace('items/', '').replace('.png', '');
-  return { file, prompt: `${STYLE} Item icon: a richly detailed fantasy ${humanizeSlug(base)}, believable wear, materials, and craftsmanship, telling a small story at a glance. Square icon, dark background, dramatic rim lighting.` };
+  const flavor = ITEM_FLAVOR[base];
+  const subject = flavor ? flavor : `a richly detailed fantasy ${humanizeSlug(base)}, believable wear, materials, and craftsmanship`;
+  return { file, prompt: `${STYLE} Item icon: ${subject}, telling a small story at a glance. Square icon, dark background, dramatic rim lighting.` };
 }
 
 const ITEM_VARIANT_FILES = [
