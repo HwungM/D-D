@@ -213,15 +213,21 @@ async function generateAsset(asset, index, total) {
   try {
     console.log(`[${index}/${total}] Generating: ${asset.file}`);
     const response = await client.images.generate({
-      model: 'dall-e-3',
+      model: 'gpt-image-1',
       prompt: asset.prompt,
       n: 1,
       size: '1024x1024',
-      quality: 'standard',
+      quality: 'high',
     });
 
-    const imageUrl = response.data[0].url;
-    await downloadImage(imageUrl, outputPath);
+    const image = response.data[0];
+    if (image.b64_json) {
+      fs.writeFileSync(outputPath, Buffer.from(image.b64_json, 'base64'));
+    } else if (image.url) {
+      await downloadImage(image.url, outputPath);
+    } else {
+      throw new Error('Response contained neither b64_json nor url');
+    }
     console.log(`[${index}/${total}] ✓ ${asset.file}`);
     await new Promise(r => setTimeout(r, 800));
   } catch (err) {

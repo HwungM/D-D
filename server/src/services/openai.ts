@@ -1470,19 +1470,27 @@ export async function generateImage(description: string, cacheKey: string): Prom
   const fullPrompt = ART_STYLE_PREFIX + description;
 
   const response = await openai.images.generate({
-    model: 'dall-e-3',
+    model: 'gpt-image-1',
     prompt: fullPrompt,
     n: 1,
     size: '1024x1024',
-    quality: 'standard',
+    quality: 'high',
   });
 
-  const dalleUrl = response.data?.[0]?.url;
-  if (!dalleUrl) throw new Error('No image URL returned from DALL-E');
+  const image = response.data?.[0];
+  let imageBuffer: Buffer;
+  if (image?.b64_json) {
+    imageBuffer = Buffer.from(image.b64_json, 'base64');
+  } else if (image?.url) {
+    const fetched = await fetch(image.url);
+    if (!fetched.ok) throw new Error('Failed to download generated image');
+    imageBuffer = Buffer.from(await fetched.arrayBuffer());
+  } else {
+    throw new Error('No image data returned from image generation');
+  }
 
-  // DALL-E URLs are short-lived signed Azure Blob links (expire ~1-2 hours).
-  // Download the bytes and re-host in Supabase Storage so the cached URL stays valid.
-  const url = await rehostImage(dalleUrl, cacheKey) || dalleUrl;
+  // Re-host in Supabase Storage so we have a stable, permanent public URL.
+  const url = await rehostImageBuffer(imageBuffer, cacheKey) || `data:image/png;base64,${imageBuffer.toString('base64')}`;
 
   // Cache the result
   await supabaseAdmin.from('asset_cache').insert({
@@ -1494,11 +1502,8 @@ export async function generateImage(description: string, cacheKey: string): Prom
   return url;
 }
 
-async function rehostImage(sourceUrl: string, cacheKey: string): Promise<string | null> {
+async function rehostImageBuffer(buffer: Buffer, cacheKey: string): Promise<string | null> {
   try {
-    const imageResponse = await fetch(sourceUrl);
-    if (!imageResponse.ok) return null;
-    const buffer = Buffer.from(await imageResponse.arrayBuffer());
     const path = `${cacheKey}.png`;
 
     const { error: uploadError } = await supabaseAdmin.storage
