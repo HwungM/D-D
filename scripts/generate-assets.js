@@ -213,7 +213,7 @@ async function generateAsset(asset, index, total) {
   try {
     console.log(`[${index}/${total}] Generating: ${asset.file}`);
     const response = await client.images.generate({
-      model: 'gpt-image-1',
+      model: 'gpt-image-2',
       prompt: asset.prompt,
       n: 1,
       size: '1024x1024',

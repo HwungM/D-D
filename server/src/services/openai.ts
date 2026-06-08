@@ -1470,7 +1470,7 @@ export async function generateImage(description: string, cacheKey: string): Prom
   const fullPrompt = ART_STYLE_PREFIX + description;
 
   const response = await openai.images.generate({
-    model: 'gpt-image-1',
+    model: 'gpt-image-2',
     prompt: fullPrompt,
     n: 1,
     size: '1024x1024',
