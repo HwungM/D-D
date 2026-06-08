@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { gameApi, assetApi, campaignApi, characterApi } from '../lib/api'
 import { useGameStore, useAuthStore } from '../lib/store'
@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import SceneDisplay from '../components/SceneDisplay'
 import ActionPanel from '../components/ActionPanel'
 import CharacterSheet from '../components/CharacterSheet'
-import NarratorBox from '../components/NarratorBox'
+import NarratorBox, { pickNarratorPortrait } from '../components/NarratorBox'
 import DiceRoll from '../components/DiceRoll'
 import AudioControls from '../components/AudioControls'
 import LevelUpScreen from '../components/LevelUpScreen'
@@ -86,6 +86,7 @@ function getErrorMessage(err: unknown): string {
 
 export default function Game() {
   const { campaignId, characterId } = useParams<{ campaignId: string; characterId: string }>()
+  const narratorPortrait = useMemo(() => pickNarratorPortrait(campaignId || 'default'), [campaignId])
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const {
@@ -1013,6 +1014,7 @@ export default function Game() {
                       instant={isInstant}
                       playerName={partyMember?.username}
                       playerPortrait={isMyAction ? currentCharacter?.portrait_url || undefined : partyMember?.character?.portrait_url || undefined}
+                      narratorPortrait={narratorPortrait}
                       onComplete={isLast && !isInstant ? () => {
                         setIsTyping(false)
                         historicalIds.current.add(event.id)

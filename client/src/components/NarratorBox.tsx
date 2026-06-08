@@ -10,16 +10,21 @@ interface NarratorBoxProps {
   isPlayerAction?: boolean
   playerName?: string
   playerPortrait?: string
+  narratorPortrait: string
   onComplete?: () => void
 }
 
-const MOOD_PORTRAIT: Record<Mood, string> = {
-  neutral: '/assets/dm/dm-neutral.png',
-  amused: '/assets/dm/dm-amused.png',
-  serious: '/assets/dm/dm-serious.png',
-  menacing: '/assets/dm/dm-menacing.png',
-  surprised: '/assets/dm/dm-surprised.png',
-  pleased: '/assets/dm/dm-pleased.png',
+const NARRATOR_COUNT = 10
+
+// Each campaign keeps the same narrator persona throughout — picking by mood made the
+// "same" DM look like a different person from one message to the next.
+export function pickNarratorPortrait(campaignId: string): string {
+  let hash = 0
+  for (let i = 0; i < campaignId.length; i++) {
+    hash = (hash * 31 + campaignId.charCodeAt(i)) | 0
+  }
+  const index = (Math.abs(hash) % NARRATOR_COUNT) + 1
+  return `/assets/dm/dm-${String(index).padStart(2, '0')}.png`
 }
 
 const MOOD_BORDER_COLOR: Record<Mood, string> = {
@@ -31,7 +36,7 @@ const MOOD_BORDER_COLOR: Record<Mood, string> = {
   pleased: 'rgba(150,180,100,0.4)',
 }
 
-export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = false, instant = false, playerName, playerPortrait, onComplete }: NarratorBoxProps) {
+export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = false, instant = false, playerName, playerPortrait, narratorPortrait, onComplete }: NarratorBoxProps) {
   const [displayed, setDisplayed] = useState('')
   const [typing, setTyping] = useState(false)
   const indexRef = useRef(0)
@@ -100,7 +105,7 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
     )
   }
 
-  const portraitUrl = MOOD_PORTRAIT[mood]
+  const portraitUrl = narratorPortrait
   const borderColor = MOOD_BORDER_COLOR[mood]
 
   return (
