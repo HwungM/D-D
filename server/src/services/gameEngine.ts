@@ -318,7 +318,12 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   if (changes.backstoryHooks) {
     const existing = new Map((current.backstoryHooks || []).map(h => [`${h.characterId}:${h.hook}`, h]));
     for (const hook of changes.backstoryHooks) existing.set(`${hook.characterId}:${hook.hook}`, { ...existing.get(`${hook.characterId}:${hook.hook}`), ...hook });
-    merged.backstoryHooks = Array.from(existing.values());
+    // Keep all dormant/active hooks (the story still owes them a payoff), but cap resolved
+    // ones so a long campaign doesn't accumulate an ever-growing list of closed-out threads.
+    const all = Array.from(existing.values());
+    const open = all.filter(h => h.status !== 'resolved');
+    const resolved = all.filter(h => h.status === 'resolved').slice(-15);
+    merged.backstoryHooks = [...open, ...resolved];
   }
 
   // actGoalsAchieved: union
@@ -925,6 +930,11 @@ export async function processAction(
     const hooks = ws.backstoryHooks || [];
     const dormant = hooks.find(h => h.characterId === aiResponse.backstoryHookActivated && h.status === 'dormant');
     if (dormant) hookChanges.push({ ...dormant, status: 'active', seededAt: new Date().toISOString() });
+  }
+  if (aiResponse.backstoryHookResolved) {
+    const hooks = ws.backstoryHooks || [];
+    const active = hooks.find(h => h.characterId === aiResponse.backstoryHookResolved && h.status === 'active');
+    if (active) hookChanges.push({ ...active, status: 'resolved' });
   }
 
   // Track act goal achievements

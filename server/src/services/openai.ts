@@ -417,6 +417,7 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "newForeshadowing": [{"id": "unique-id", "description": "what was planted", "type": "npc|rumor|object|event|place"}] | null,
   "paidOffForeshadowing": ["foreshadowing-id-being-resolved"] | null,
   "backstoryHookActivated": "characterId if seeding a dormant hook this turn" | null,
+  "backstoryHookResolved": "characterId if one of their ACTIVE backstory hooks reached its narrative payoff this turn" | null,
   "actGoalAchieved": "exact text of an act goal from the roadmap if one was fulfilled this turn" | null,
   "combatEnemies": [{"name": "string", "archetype": "beast|soldier|mage|boss|minion", "maxHp": number, "condition": "healthy|wounded|critical", "isDefeated": boolean, "specialAbility": "string|null"}] | null,
   "enemyDefeated": "enemy name if one died this round" | null,
@@ -537,6 +538,7 @@ export type NarrationResult = {
   newForeshadowing?: { id: string; description: string; type: string }[];
   paidOffForeshadowing?: string[];
   backstoryHookActivated?: string;
+  backstoryHookResolved?: string;
   actGoalAchieved?: string;
   abilityUsed?: string;
   isRest?: boolean;
@@ -848,7 +850,7 @@ ${campaignContext?.backstoryHooks && campaignContext.backstoryHooks.filter(h => 
     ? `\nÃ¢Å¡Â  DORMANT hooks are overdue - seed at least one of them into the story NOW.`
     : '';
   return `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â BACKSTORY HOOKS Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
-${active.length > 0 ? `ACTIVE (seeded - escalate toward payoff):\n${active.map(h => `  Ã¢â€“Â¶ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}${dormant.length > 0 ? `DORMANT (not yet introduced - seed these):\n${dormant.map(h => `  Ã¢-â€¹ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}Dormant = not yet seeded. Set backstoryHookActivated to characterId when seeding one.${activeUrgency}${dormantUrgency}
+${active.length > 0 ? `ACTIVE (seeded - escalate toward payoff):\n${active.map(h => `  Ã¢â€“Â¶ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}${dormant.length > 0 ? `DORMANT (not yet introduced - seed these):\n${dormant.map(h => `  Ã¢-â€¹ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}Dormant = not yet seeded. Set backstoryHookActivated to characterId when seeding one. When an ACTIVE hook reaches its narrative payoff (resolved, paid off, laid to rest), set backstoryHookResolved to that characterId so the thread can close.${activeUrgency}${dormantUrgency}
 Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
 })() : ''}
 
@@ -1115,6 +1117,7 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
     newForeshadowing: cleanForeshadowing(parsed.newForeshadowing),
     paidOffForeshadowing: cleanStringArray(parsed.paidOffForeshadowing, 5),
     backstoryHookActivated: asString(parsed.backstoryHookActivated),
+    backstoryHookResolved: asString(parsed.backstoryHookResolved),
     actGoalAchieved: asString(parsed.actGoalAchieved),
     abilityUsed: asString(parsed.abilityUsed),
     isRest: asBoolean(parsed.isRest),
