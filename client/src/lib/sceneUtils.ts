@@ -12,7 +12,7 @@ const SCENE_MAP: [string[], SceneEntry][] = [
   [['snow', 'blizzard', 'frozen', 'glacier', 'ice', 'tundra', 'winter'], { day: 'snowy-pass-day', night: 'snowy-pass-night' }],
   [['graveyard', 'cemetery'], { day: 'graveyard-day', night: 'graveyard-night' }],
   [['crypt', 'tomb', 'mausoleum', 'necropolis', 'burial', 'undead', 'bone'], 'crypt'],
-  [['camp', 'campsite', 'campfire', 'bedroll', 'rest stop'], 'campsite'],
+  [['camp', 'campsite', 'campfire', 'bedroll', 'rest stop'], { day: 'campsite-day', night: 'campsite-night' }],
   [['bridge', 'chasm', 'ravine', 'gorge', 'span'], { day: 'bridge-day', night: 'bridge-night' }],
   [['clearing', 'meadow', 'glade', 'open field', 'grass'], { day: 'forest-clearing-day', night: 'forest-clearing-night' }],
   [['forest', 'wood', 'tree', 'grove', 'thicket', 'path through', 'road'], { day: 'forest-road-day', night: 'forest-road-night' }],

@@ -118,7 +118,8 @@ const ASSETS = [
   { file: 'scenes/graveyard-day.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty old graveyard under open sky by day, rows of weathered tombstones and leaning iron-fenced plots, bare gnarled trees, overcast grey light, crows perched on headstones, no mourners or figures present. This is the daytime counterpart to a night version of the exact same graveyard and camera angle — keep the composition identical, changing only the light and sky.` },
   { file: 'scenes/graveyard-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same empty old graveyard under open sky at night, rows of weathered tombstones and leaning iron-fenced plots, bare gnarled trees silhouetted against a full moon, drifting fog pooling between the graves, no mourners or figures present. This is the nighttime counterpart to a daytime version of the exact same graveyard and camera angle — keep the composition identical, changing only the light and sky.` },
 
-  { file: 'scenes/campsite.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty wilderness campsite at dusk, abandoned mid-rest: a low campfire crackling down to embers, bedrolls laid out around it, packs and waterskins left leaning on a fallen log, tents pitched at the treeline, a forest backdrop fading into blue twilight, no one currently there.` },
+  { file: 'scenes/campsite-day.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty wilderness campsite by day, abandoned mid-rest: a low campfire smoldering to grey ash, bedrolls laid out around it, packs and waterskins left leaning on a fallen log, tents pitched at the treeline, bright midday sunlight filtering through the forest canopy, no one currently there. This is the daytime counterpart to a dusk version of the exact same campsite and camera angle — keep the composition identical, changing only the light and sky.` },
+  { file: 'scenes/campsite-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same empty wilderness campsite at dusk, abandoned mid-rest: a low campfire crackling down to embers, bedrolls laid out around it, packs and waterskins left leaning on a fallen log, tents pitched at the treeline, a forest backdrop fading into blue twilight, no one currently there. This is the dusk/night counterpart to a daytime version of the exact same campsite and camera angle — keep the composition identical, changing only the light and sky.` },
 
   { file: 'scenes/ship-deck-day.png', size: '1536x1024', prompt: `${SCENE_STYLE_LIVED_IN} The open deck of a fantasy sailing ship by day, lightly crewed: taut rigging and billowing sails against a bright sky, anonymous sailors at a middle distance coiling rope and working the rigging, sea spray catching the sun, the open ocean stretching to the horizon, no single figure singled out or facing the viewer. This is the daytime counterpart to a quieter night version of the exact same deck and camera angle — keep the composition and rigging identical, changing only the light, sky, and activity level.` },
   { file: 'scenes/ship-deck-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same open deck of a fantasy sailing ship at night, deserted at the helm: taut rigging and furled sails silhouetted against a star-strewn sky, a lantern swaying gently near the wheel, moonlight rippling on the dark ocean stretching to the horizon, not a soul on deck. This is the nighttime counterpart to a lightly-crewed daytime version of the exact same deck and camera angle — keep the composition and rigging identical, changing only the light, sky, and activity level.` },
@@ -170,6 +171,13 @@ const RACE_FLAVOR = {
   dragonborn: 'scaled skin, reptilian amber eyes, a regal angular face, subtle horns sweeping back, ornate scaled armor',
 };
 
+// Override hooks for races whose base RACE_FLAVOR reads as male-coded (e.g. a beard) —
+// without this, "a woman of the dwarf people, with a thick braided beard..." reads as a man.
+const RACE_FLAVOR_FEMALE = {
+  dwarf: 'ruddy tan skin, thick braided hair worked with iron rings, a strong handsome face, deep-set eyes, hammered steel pauldrons',
+};
+
+
 function raceVariantAsset(file) {
   const base = file.replace('races/', '').replace('.png', '');
   const tokens = base.split('-');
@@ -177,7 +185,8 @@ function raceVariantAsset(file) {
   const rest = tokens[0] === 'half' ? tokens.slice(2) : tokens.slice(1);
   const genderDesc = rest.includes('f') ? 'a woman' : rest.includes('m') ? 'a man' : 'a figure';
   const toneDesc = rest.includes('black') ? ', with a deep dark complexion' : '';
-  const flavor = RACE_FLAVOR[race] || 'striking, memorable fantasy features';
+  const isWoman = rest.includes('f');
+  const flavor = (isWoman && RACE_FLAVOR_FEMALE[race]) || RACE_FLAVOR[race] || 'striking, memorable fantasy features';
   return { file, prompt: `${STYLE} ${genderDesc.charAt(0).toUpperCase()}${genderDesc.slice(1)} of the ${race} people, with ${flavor}${toneDesc}, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` };
 }
 
@@ -237,9 +246,51 @@ const ITEM_VARIANT_FILES = [
   'items/warhammer.png',
 ];
 
+// Distinct pose/expression/gear per enemy — without this, every "menacing ___, dynamic pose"
+// portrait converges on the same raised-clawed-hand gesture and near-identical silhouettes
+// (the bandit and bandit-leader were nearly indistinguishable).
+const ENEMY_FLAVOR = {
+  assassin: 'crouched low and coiled to strike, twin curved daggers held low and reversed, a hooded face with only narrowed eyes visible, utterly still and watchful',
+  'bandit-leader': 'standing with arrogant confidence, a notched cutlass resting on one shoulder, a scarred smirking face, decorated with looted jewelry and a tattered fine-cloth cloak over patchwork leathers',
+  bandit: 'mid-lunge with a rusty short-sword raised overhead, a desperate snarling face, ragged mismatched leathers and a crude improvised shield',
+  cultist: 'kneeling in mid-chant with both arms spread wide in ritual offering, eyes rolled back in fervor, a branded forehead, dark ceremonial robes marked with crude sigils',
+  'dark-knight': 'standing in heavy battle-stance with a massive two-handed blade planted point-down before him, faceless horned helm, cracked black plate armor wreathed in cold mist',
+  'dark-wizard': 'mid-incantation with a gnarled staff thrust forward, swirling runes of dark energy spiraling around the staff-head, a gaunt sneering face lit from below by violet light',
+  demon: 'roaring with both clawed arms thrown wide, massive curling horns, leathery wings half-unfurled, cracked obsidian-like hide glowing with internal magma veins',
+  'dragon-ancient': 'rearing back with jaws wide and throat glowing before a breath attack, immense ridged horns and ancient battle-scarred scales, wings filling the frame',
+  'dragon-young': 'perched alert on broken stone with wings half-spread and head low, sleek smooth scales, sharp curious predatory eyes, smoke curling from its nostrils',
+  'fallen-paladin': 'standing solemn and upright with a corrupted holy blade reversed and driven into the ground before him, a cracked halo of sickly light over a grim weathered face, tarnished sacred armor',
+  ghost: 'drifting sideways through the air with one translucent hand reaching slowly toward the viewer, a sorrowful hollow-eyed face, tattered spectral robes dissolving into mist',
+  'giant-rat': 'hunched low on all fours mid-skitter, yellowed oversized incisors bared, mangy patchy fur, beady red eyes catching the light',
+  'giant-spider': 'rearing up on its hind legs with forelegs raised, rows of glinting eyes, dripping fangs, coarse bristled body looming large',
+  'goblin-shaman': 'hunched over a crude bone totem staff, one hand cupping a flickering ball of crackling green energy, warpaint-streaked face twisted in a cackling grin, festooned with charms and trophies',
+  goblin: 'darting forward low to the ground with a jagged little blade held in a reverse grip, a wide gap-toothed grin, scrappy mismatched scavenged armor',
+  harpy: 'banking sharply mid-flight with talons extended toward the viewer, wild matted hair, cruel piercing eyes, feathered wings catching firelight',
+  imp: 'perched casually on a ledge with a barbed tail flicking, a sly knowing smirk, small leathery wings folded, idly inspecting its claws',
+  lich: 'floating motionless with arms folded, an ornate crown atop a bare skull, a phylactery glowing at its chest, tattered regal robes hanging from a skeletal frame, utterly cold and composed',
+  'mind-flayer': 'standing perfectly still with four tentacles drifting slowly around an elongated head, glowing violet eyes, an ornate high-collared robe, an aura of unsettling calm intelligence',
+  necromancer: 'standing amid rising skeletal hands clawing up from the ground around him, a thin gaunt face lit by sickly green witch-light cupped in one palm, dark tattered funeral-style robes',
+  ogre: 'mid-swing with a massive crude club gripped in both hands, a dull brutish snarling face, lopsided tusks, patchwork hide armor straining over a hulking frame',
+  'orc-warchief': 'planting a massive battle-standard into the ground with one hand while the other rests on an axe at his belt, a heavily scarred commanding face, ornate trophy-laden armor',
+  'orc-warrior': 'charging forward with a notched battle-axe raised high in both hands, tusked snarling face, crude spiked plate armor',
+  'sea-monster': 'erupting from churning water with multiple barbed tentacles thrashing, a cavernous tooth-lined maw, bioluminescent markings glowing along its hide',
+  'shadow-demon': 'half-formed and rippling at the edges, reaching with a single elongating clawed arm, a featureless smoke-wreathed face with two burning pinpoint eyes, the rest of its form dissolving into living darkness',
+  'skeleton-archer': 'kneeling and drawing back a longbow with an arrow nocked and aimed at the viewer, hollow eye sockets fixed in concentration, weathered leather scraps over bare bone',
+  skeleton: 'shambling forward with a chipped short-sword dragging at its side, jaw hanging slack, bits of rusted armor rattling loosely on bare bone',
+  succubus: 'reclining with effortless poise against a throne of bone, one taloned hand idly trailing along the armrest, a knowing half-lidded smile, dramatic curling horns and folded wings',
+  troll: 'caught mid-stride dragging a massive uprooted tree trunk as a club, a slack drooling underbite, warty mottled green-grey hide, regenerating wounds visibly knitting shut',
+  vampire: 'standing with theatrical poise and a hand extended in mock invitation, an elegant cruel smile baring long fangs, an opulent high-collared cape, pale aristocratic features',
+  warlord: 'standing with one boot on a fallen banner, a heavy warhammer slung casually across the shoulders, a hard battle-worn face crossed with old scars, ornate war-trophy armor',
+  wight: 'standing rigid with both arms slowly raising in command, frost-pale dead eyes glowing faint blue, tattered burial shrouds over ancient corroded armor, a chill mist pooling at its feet',
+  wolf: 'low and stalking with hackles raised and teeth bared in a silent snarl, sharp intelligent eyes locked on the viewer, matted fur bristling',
+  wyvern: 'landing hard with wings flared wide for balance, a barbed tail curling high and ready to strike, a long sinuous neck and narrow predatory head',
+  zombie: 'lurching forward with both arms outstretched and slack, a vacant rotted face, exposed bone and tattered grave-clothes, moving with dead-eyed momentum',
+};
+
 function enemyPortraitAsset(file) {
   const base = file.replace('enemies/', '').replace('.png', '');
-  return { file, prompt: `${STYLE} Portrait of a menacing ${humanizeSlug(base)}, dynamic pose, dramatic lighting, strong readable silhouette, full of threat and personality, fitting a painterly animated-fantasy bestiary. Waist-up composition, dark atmospheric background.` };
+  const flavor = ENEMY_FLAVOR[base] || 'a unique dynamic pose and expression that sets it apart from other creatures in the bestiary';
+  return { file, prompt: `${STYLE} Portrait of a menacing ${humanizeSlug(base)}: ${flavor}. Dramatic lighting, strong readable silhouette, full of threat and personality, fitting a painterly animated-fantasy bestiary, every creature posed and gestured distinctly from the rest of the roster. Waist-up composition, dark atmospheric background.` };
 }
 
 const ENEMY_FILES = [
