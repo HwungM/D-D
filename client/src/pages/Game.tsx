@@ -28,6 +28,7 @@ import SidebarErrorBoundary from '../components/SidebarErrorBoundary'
 import DiceRollModal from '../components/DiceRollModal'
 import DevPanel from '../components/DevPanel'
 import NPCCodex from '../components/NPCCodex'
+import StatusEffectsBar from '../components/StatusEffectsBar'
 import { audioManager } from '../lib/audio'
 import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType, RollContext } from '../../../shared/types'
 
@@ -869,29 +870,7 @@ export default function Game() {
 
       {/* Status effects strip */}
       {currentCharacter?.status_effects && currentCharacter.status_effects.length > 0 && (
-        <div className="relative z-10 flex shrink-0 items-center gap-2 overflow-x-auto border-b border-white/8 bg-black/54 px-4 py-2 backdrop-blur-md" style={{ scrollbarWidth: 'none' }}>
-          {currentCharacter.status_effects.map((effect, i) => (
-            <div
-              key={i}
-              title={effect.description}
-              className="flex shrink-0 items-center gap-1 border px-2 py-1"
-              style={{
-                background: effect.type === 'buff' ? 'rgba(34,197,94,0.08)' : effect.type === 'debuff' ? 'rgba(239,68,68,0.08)' : 'rgba(200,146,42,0.08)',
-                border: `1px solid ${effect.type === 'buff' ? 'rgba(34,197,94,0.25)' : effect.type === 'debuff' ? 'rgba(239,68,68,0.25)' : 'rgba(200,146,42,0.2)'}`,
-              }}
-            >
-              <span style={{ fontSize: 8, color: effect.type === 'buff' ? '#22c55e' : effect.type === 'debuff' ? '#ef4444' : '#c8922a' }}>
-                {effect.type === 'buff' ? '+' : effect.type === 'debuff' ? '-' : '*'}
-              </span>
-              <span className="font-serif" style={{ fontSize: 10, color: effect.type === 'buff' ? 'rgba(34,197,94,0.8)' : effect.type === 'debuff' ? 'rgba(239,68,68,0.75)' : 'rgba(200,146,42,0.75)' }}>
-                {effect.name}
-              </span>
-              {effect.duration != null && (
-                <span style={{ fontSize: 9, color: 'rgba(160,140,100,0.4)' }}>{effect.duration}t</span>
-              )}
-            </div>
-          ))}
-        </div>
+        <StatusEffectsBar effects={currentCharacter.status_effects} />
       )}
 
       {/* -- Dev Panel (testing campaigns only) -- */}
