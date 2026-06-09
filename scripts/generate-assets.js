@@ -370,7 +370,7 @@ const ENEMY_FLAVOR = {
   // ── EXPANDED BESTIARY ──────────────────────────────────────────────────────
   basilisk: 'low-slung and heavy, eight powerful legs planted wide, a ridge of dorsal spines raised in threat display, two pairs of eyes glowing a sickly pale yellow, stone-grey scales, mouth slightly open to reveal blunt crushing teeth',
   beholder: 'floating at eye level with its massive central eye wide open and staring directly at the viewer, ten smaller eyestalks splayed outward like a crown, each glowing with a different color of magical energy, its maw bristling with teeth',
-  bugbear: 'hunched and massive, nearly seven feet of matted shaggy dark fur, beady cunning orange eyes, a crude morningstar swung lazily over one shoulder, a predator's relaxed posture before a strike',
+  bugbear: 'hunched and massive, nearly seven feet of matted shaggy dark fur, beady cunning orange eyes, a crude morningstar swung lazily over one shoulder, a predator\'s relaxed posture before a strike',
   chimera: 'rearing back with all three heads — lion, goat, and dragon — roaring simultaneously, lion claws raking the air, goat horns lowered to gore, the dragon head exhaling a tongue of flame, leathery wings snapping open for balance',
   cyclops: 'looming huge with its single enormous bloodshot eye narrowed in rage, a club the size of a tree trunk raised in both fists, crude hide armor straining over a massively muscled frame, tusks jutting from a thick lower jaw',
   'death-knight': 'standing absolutely still in full black plate, a two-handed blade ignited in cold black flame held vertically before him, a visor that frames two burning crimson eyes, the air around him visibly freezing',
