@@ -8,31 +8,57 @@ interface NPCCodexProps {
   campaignId: string
 }
 
-// Stock archetype portraits for common NPC roles — instant fallbacks
-const STOCK_MAP: [string[], string][] = [
-  [['merchant', 'trader', 'vendor', 'shopkeeper', 'peddler'], 'merchant'],
-  [['innkeeper', 'barkeep', 'barmaid', 'tavern keeper', 'landlord'], 'innkeeper'],
-  [['guard', 'soldier', 'sentry', 'watchman', 'city watch'], 'guard'],
-  [['noble', 'lord', 'lady', 'duke', 'duchess', 'count', 'baron', 'aristocrat'], 'noble'],
-  [['blacksmith', 'smith', 'weaponsmith', 'armorsmith', 'forger'], 'blacksmith'],
-  [['healer', 'herbalist', 'physician', 'cleric', 'medic', 'apothecary'], 'healer'],
-  [['scholar', 'sage', 'wizard', 'mage', 'arcanist', 'librarian', 'professor'], 'scholar'],
-  [['informant', 'spy', 'thief', 'rogue', 'fence', 'broker'], 'informant'],
-  [['elder', 'village elder', 'chief', 'headman', 'matriarch', 'patriarch'], 'elder'],
-  [['priest', 'acolyte', 'monk', 'friar', 'bishop', 'chaplain', 'holy'], 'priest'],
-  [['criminal', 'bandit', 'crime boss', 'gang leader', 'outlaw', 'brigand'], 'criminal'],
-  [['mysterious', 'stranger', 'unknown', 'cloaked', 'hooded', 'enigmatic'], 'mysterious-stranger'],
+// All 32 archetypes with keyword triggers and variant counts.
+// Variants are named npcs/{archetype}-01.png … npcs/{archetype}-{count}.png
+const ARCHETYPE_MAP: { keywords: string[]; archetype: string; count: number }[] = [
+  { keywords: ['merchant', 'trader', 'vendor', 'shopkeeper', 'peddler', 'seller', 'salesman'], archetype: 'merchant', count: 5 },
+  { keywords: ['innkeeper', 'barkeep', 'barmaid', 'tavern keeper', 'landlord', 'innkeep', 'host'], archetype: 'innkeeper', count: 5 },
+  { keywords: ['guard', 'watchman', 'sentry', 'city watch', 'gatekeeper', 'patrol'], archetype: 'guard', count: 5 },
+  { keywords: ['noble', 'lord', 'lady', 'duke', 'duchess', 'count', 'baron', 'baroness', 'aristocrat', 'highborn', 'heir'], archetype: 'noble', count: 5 },
+  { keywords: ['scholar', 'sage', 'wizard', 'mage', 'arcanist', 'librarian', 'professor', 'academic', 'magister', 'sorcerer', 'arcane'], archetype: 'scholar', count: 5 },
+  { keywords: ['healer', 'herbalist', 'physician', 'medic', 'apothecary', 'nurse', 'chirurgeon', 'cleric'], archetype: 'healer', count: 5 },
+  { keywords: ['priest', 'acolyte', 'friar', 'bishop', 'chaplain', 'holy man', 'holy woman', 'paladin', 'templar', 'preacher'], archetype: 'priest', count: 5 },
+  { keywords: ['blacksmith', 'smith', 'weaponsmith', 'armorsmith', 'forger', 'craftsman', 'artisan', 'carpenter', 'tinkerer'], archetype: 'blacksmith', count: 5 },
+  { keywords: ['informant', 'spy', 'fence', 'broker', 'operative', 'agent', 'contact', 'snitch'], archetype: 'informant', count: 5 },
+  { keywords: ['elder', 'village elder', 'chief', 'headman', 'matriarch', 'patriarch', 'mayor', 'elder woman', 'elder man'], archetype: 'elder', count: 5 },
+  { keywords: ['criminal', 'crime boss', 'gang leader', 'outlaw', 'brigand', 'crime lord', 'thug', 'mob boss', 'warlord'], archetype: 'criminal', count: 5 },
+  { keywords: ['mysterious', 'cloaked', 'hooded', 'enigmatic', 'stranger', 'unknown figure'], archetype: 'mysterious-stranger', count: 4 },
+  { keywords: ['bard', 'performer', 'musician', 'entertainer', 'acrobat', 'storyteller', 'singer', 'jester', 'troubadour'], archetype: 'bard', count: 5 },
+  { keywords: ['ranger', 'scout', 'tracker', 'hunter', 'monster hunter', 'woodsman', 'pathfinder', 'trapper'], archetype: 'ranger', count: 5 },
+  { keywords: ['mercenary', 'sell-sword', 'sellsword', 'hired sword', 'soldier for hire', 'soldier of fortune', 'freebooter'], archetype: 'mercenary', count: 5 },
+  { keywords: ['sailor', 'pirate', 'corsair', 'captain', 'mariner', 'navigator', 'deckhand', 'smuggler', 'seafarer'], archetype: 'sailor', count: 5 },
+  { keywords: ['alchemist', 'artificer', 'inventor', 'potion maker', 'potion seller', 'chemist', 'tinker'], archetype: 'alchemist', count: 4 },
+  { keywords: ['bounty hunter', 'manhunter', 'tracker', 'headhunter', 'mark taker'], archetype: 'bounty-hunter', count: 4 },
+  { keywords: ['oracle', 'seer', 'fortune teller', 'prophet', 'diviner', 'mystic', 'soothsayer', 'psychic'], archetype: 'oracle', count: 4 },
+  { keywords: ['cultist', 'fanatic', 'zealot', 'cult', 'dark priest', 'heretic', 'devout follower'], archetype: 'cultist', count: 4 },
+  { keywords: ['gladiator', 'arena fighter', 'pit fighter', 'champion', 'arena champion', 'duellist'], archetype: 'gladiator', count: 4 },
+  { keywords: ['retired', 'former adventurer', 'ex-adventurer', 'veteran adventurer', 'old adventurer'], archetype: 'retired-adventurer', count: 5 },
+  { keywords: ['witch', 'hedge mage', 'hedge witch', 'wise woman', 'warlock', 'crone', 'hexer'], archetype: 'witch', count: 4 },
+  { keywords: ['plague doctor', 'doctor', 'surgeon', 'field surgeon', 'plague'], archetype: 'plague-doctor', count: 4 },
+  { keywords: ['diplomat', 'ambassador', 'envoy', 'emissary', 'delegate', 'attaché', 'liaison'], archetype: 'diplomat', count: 4 },
+  { keywords: ['beggar', 'urchin', 'refugee', 'homeless', 'street person', 'destitute', 'vagrant', 'pauper'], archetype: 'beggar', count: 4 },
+  { keywords: ['ferryman', 'boatman', 'guide', 'porter', 'mountaineer', 'desert guide', 'river guide'], archetype: 'ferryman', count: 4 },
+  { keywords: ['farmer', 'shepherd', 'peasant', 'farmhand', 'miller', 'fisherman', 'herder', 'grower'], archetype: 'farmer', count: 4 },
+  { keywords: ['monk', 'ascetic', 'friar', 'temple monk', 'mystic monk', 'monastic'], archetype: 'monk', count: 4 },
+  { keywords: ['inquisitor', 'witch hunter', 'templar inquisitor', 'interrogator', 'church enforcer'], archetype: 'inquisitor', count: 4 },
+  { keywords: ['explorer', 'archaeologist', 'cartographer', 'ruins delver', 'adventurer', 'treasure hunter'], archetype: 'explorer', count: 4 },
 ]
 
+// Hash an NPC name to a stable 0-based index within [0, count)
+function nameHash(name: string, count: number): number {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0
+  return Math.abs(h) % count
+}
+
+// Returns /assets/npcs/{archetype}-{01..count}.png, chosen by name so the
+// same NPC always gets the same portrait but different NPCs vary.
 function stockPortrait(npc: NpcMemory): string | null {
   const text = `${npc.name} ${npc.role || ''} ${npc.notes}`.toLowerCase()
-  for (const [keywords, file] of STOCK_MAP) {
+  for (const { keywords, archetype, count } of ARCHETYPE_MAP) {
     if (keywords.some(k => text.includes(k))) {
-      // If notes hint female, prefer -f variant when available (merchant, innkeeper, guard, noble)
-      const femaleHints = ['she ', 'her ', 'woman', 'female', 'girl', 'lady', 'madam', 'wife', 'mother']
-      const isFemale = femaleHints.some(h => text.includes(h))
-      const hasF = ['merchant', 'innkeeper', 'guard', 'noble'].includes(file)
-      return `/assets/npcs/${file}${isFemale && hasF ? '-f' : ''}.png`
+      const idx = nameHash(npc.name, count) + 1
+      return `/assets/npcs/${archetype}-${String(idx).padStart(2, '0')}.png`
     }
   }
   return null

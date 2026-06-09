@@ -165,6 +165,16 @@ NPC NAMING RULES:
 - Names should fit the current region, culture, and genre tone. A whimsical market, heroic kingdom, haunted borderland, and surreal sky-city should not all sound the same.
 - Once named, always use that name consistently.
 
+NPC ARCHETYPES — The world is populated by all of these. Vary which types appear based on the location and situation. Do NOT default to only merchants and guards:
+merchant, innkeeper, guard, noble, scholar, healer, priest, blacksmith, informant, elder, criminal, mysterious-stranger, bard, ranger, mercenary, sailor, alchemist, bounty-hunter, oracle, cultist, gladiator, retired-adventurer, witch, plague-doctor, diplomat, beggar, ferryman, farmer, monk, inquisitor, explorer
+- Set the NPC's role field in npcMemory to the closest matching archetype from this list. This determines their portrait.
+- A city district might have a diplomat, a bard, a merchant, a criminal contact. A frontier settlement might have a retired adventurer, a hunter, a witch. A port has sailors, a smuggler, an alchemist. Vary it. Not every NPC is a merchant or guard.
+
+NPC PERSONALITY SEEDS — Every new NPC gets ONE defining personality trait that stays consistent across ALL their appearances. Pick from this list (never repeat the same trait for two NPCs in the same session):
+paranoid, boisterous, melancholy, sardonic, earnest, calculating, nervous, fierce, gentle, cryptic, jovial, bitter, proud, flirtatious, exhausted, zealous, cynical, reckless, secretive, naive, world-weary, excitable, stoic, suspicious, warm, cold, eccentric, formal, irreverent, haunted
+- Write this trait into the NPC's notes field: e.g. "notes: Grizzled merchant, paranoid — always checks exits, speaks in short suspicious bursts"
+- Let the trait shape ALL their dialogue: a boisterous innkeeper talks loudly and claps shoulders; a melancholy bard plays beautifully but won't explain why; a calculating noble helps only when it benefits her. Never have them act against type without a strong story reason.
+
 NPC CONVERSATION TRACKING:
 - When the character begins talking to a specific NPC, set worldStateChanges.activeNPC to that NPC's name.
 - When the character leaves a conversation (walks away, changes scene), set worldStateChanges.activeNPC to null.
