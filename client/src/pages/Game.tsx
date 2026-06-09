@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { gameApi, assetApi, campaignApi, characterApi } from '../lib/api'
+import { gameApi, campaignApi, characterApi } from '../lib/api'
 import { useGameStore, useAuthStore } from '../lib/store'
 import { matchSceneImage, inferMood } from '../lib/sceneUtils'
 import { createClient } from '@supabase/supabase-js'
@@ -29,6 +29,10 @@ import DiceRollModal from '../components/DiceRollModal'
 import DevPanel from '../components/DevPanel'
 import NPCCodex from '../components/NPCCodex'
 import StatusEffectsBar from '../components/StatusEffectsBar'
+import TurnIndicator from '../components/TurnIndicator'
+import BossPhaseTransition from '../components/BossPhaseTransition'
+import RestModal from '../components/RestModal'
+import JournalPanel from '../components/JournalPanel'
 import { audioManager } from '../lib/audio'
 import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType, RollContext } from '../../../shared/types'
 
@@ -87,7 +91,7 @@ export default function Game() {
   const [started, setStarted] = useState(false)
   const [showDice, setShowDice] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
-  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'map' | 'world' | 'people'>('character')
+  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'map' | 'world' | 'people' | 'journal'>('character')
   const narratorRef = useRef<HTMLDivElement>(null)
   const historicalIds = useRef<Set<string>>(new Set())
   const coopWaitingRef = useRef(false)
@@ -117,6 +121,10 @@ export default function Game() {
   const [highStakesData, setHighStakesData] = useState<{ narration: string; choices: HighStakesChoiceType[] } | null>(null)
   const [showEpilogue, setShowEpilogue] = useState(false)
   const [epilogueData, setEpilogueData] = useState<{ text: string; victory: boolean } | null>(null)
+  const [showBossPhase, setShowBossPhase] = useState(false)
+  const [bossPhaseInfo, setBossPhaseInfo] = useState<{ phase: number; name: string } | null>(null)
+  const [showRest, setShowRest] = useState(false)
+  const [lastError, setLastError] = useState<{ message: string; action: string } | null>(null)
 
   const [showDiceModal, setShowDiceModal] = useState(false)
   const [diceModalData, setDiceModalData] = useState<{ narration: string; rollContext: RollContext } | null>(null)
@@ -420,6 +428,7 @@ export default function Game() {
     setLoading(true)
     setShowDice(false)
     setShowHighStakes(false)
+    setLastError(null)
     // Clear stale suggested actions immediately so old choices don't persist
     setLastActionResult(null)
     setHighStakesData(null)
@@ -570,6 +579,14 @@ export default function Game() {
         }, 3000)
       }
 
+      // Boss phase transition
+      if (result.bossPhaseAdvance && worldState?.combatState) {
+        const newPhase = (worldState.combatState.bossPhase ?? 1) + 1
+        const bossName = result.enemyName || worldState.combatState.enemyName || 'The Boss'
+        setBossPhaseInfo({ phase: newPhase, name: bossName })
+        setShowBossPhase(true)
+      }
+
       // High stakes choice overlay
       if (result.isHighStakes && result.choiceCards && result.choiceCards.length > 0) {
         setHighStakesData({ narration: result.narration, choices: result.choiceCards as HighStakesChoiceType[] })
@@ -584,15 +601,7 @@ export default function Game() {
       setEvents(currentEvents.filter(event => event.id !== optimisticActionId))
       setCoopWaiting(false)
       setIsTyping(false)
-      addEvent({
-        id: `action-error-${clientRequestId}`,
-        campaign_id: campaignId,
-        character_id: characterId,
-        event_type: 'narration',
-        content: `The table pauses: ${message}`,
-        metadata: { error: true, clientRequestId },
-        created_at: new Date().toISOString(),
-      })
+      setLastError({ message, action: finalAction })
     }
     finally { setLoading(false) }
   }
@@ -705,16 +714,32 @@ export default function Game() {
               </div>
             </div>
 
-            {recentNarrations.length > 0 && !isNewCharacter && (
-              <div className="mt-5 border border-white/10 bg-white/[0.025] p-4">
-                <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-amber-200/62">Story So Far</p>
-                <div className="mt-3 space-y-3">
-                  {recentNarrations.slice(-2).map((n, i) => (
-                    <p key={i} className="line-clamp-3 font-serif text-sm leading-relaxed text-parchment-200/64">
-                      {n.slice(0, 220)}{n.length > 220 ? '...' : ''}
-                    </p>
-                  ))}
-                </div>
+            {!isNewCharacter && (worldState?.campaignSpine?.lastRecap || recentNarrations.length > 0) && (
+              <div className="mt-5 border border-amber-200/18 bg-black/38 p-4" style={{ borderLeft: '2px solid rgba(200,146,42,0.35)' }}>
+                <p className="font-fantasy text-[10px] uppercase tracking-[0.28em]" style={{ color: 'rgba(200,146,42,0.65)' }}>
+                  Previously in The Everrealm
+                </p>
+                {worldState?.campaignSpine?.lastRecap ? (
+                  <blockquote className="mt-3 font-serif text-sm leading-relaxed italic" style={{ color: 'rgba(220,195,155,0.78)' }}>
+                    {worldState.campaignSpine.lastRecap}
+                  </blockquote>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    {recentNarrations.slice(-2).map((n, i) => (
+                      <p key={i} className="line-clamp-3 font-serif text-sm leading-relaxed text-parchment-200/64">
+                        {n.slice(0, 220)}{n.length > 220 ? '...' : ''}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {worldState?.campaignSpine?.openThreads && worldState.campaignSpine.openThreads.length > 0 && (
+                  <div className="mt-4 border-t border-white/8 pt-3">
+                    <p className="font-fantasy text-[9px] uppercase tracking-[0.22em] mb-2" style={{ color: 'rgba(200,146,42,0.45)' }}>Open Threads</p>
+                    {worldState.campaignSpine.openThreads.slice(0, 3).map((t, i) => (
+                      <p key={i} className="font-serif text-xs" style={{ color: 'rgba(200,175,130,0.52)' }}>◆ {t}</p>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -757,7 +782,7 @@ export default function Game() {
     currentCharacter?.name,
     ...partyMembersHere.map(member => member.character?.name),
   ].filter(Boolean) as string[]
-  const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', map: 'Realm Map', world: 'World', people: 'People & Relations' } as const
+  const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', map: 'Realm Map', world: 'World', people: 'People & Relations', journal: 'Journal' } as const
   const sceneArtUrl = visibleSceneArt(currentSceneImage)
 
   // -- Main game layout ------------------------------------------------------
@@ -829,8 +854,8 @@ export default function Game() {
               Invite
             </button>
           )}
-          {(['character', 'quests', 'people', 'map', 'world'] as const).map(tab => {
-            const labels = { character: 'Sheet', quests: 'Quests', map: 'Map', world: 'World', people: 'People' }
+          {(['character', 'quests', 'people', 'map', 'world', 'journal'] as const).map(tab => {
+            const labels = { character: 'Sheet', quests: 'Quests', map: 'Map', world: 'World', people: 'People', journal: 'Log' }
             const isActive = showSidebar && sidebarTab === tab
             return (
               <button
@@ -1008,6 +1033,43 @@ export default function Game() {
               )}
           </div>
 
+          {/* Turn indicator - co-op only */}
+          {partyRosterHere.length > 1 && worldState?.pendingTurn && (
+            <TurnIndicator
+              roster={partyRosterHere}
+              submittedIds={pendingCharacterIds}
+              expiresAt={coopExpiresAt}
+            />
+          )}
+
+          {/* Error recovery banner */}
+          {lastError && (
+            <div
+              className="mx-3 my-1 flex items-start gap-3 px-4 py-3"
+              style={{ border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', borderTopColor: 'rgba(239,68,68,0.55)' }}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="font-fantasy text-[10px] uppercase tracking-[0.22em]" style={{ color: 'rgba(248,113,113,0.9)' }}>The table pauses</p>
+                <p className="mt-1 font-serif text-sm italic" style={{ color: 'rgba(220,180,160,0.68)' }}>{lastError.message}</p>
+              </div>
+              <button
+                onClick={() => { setLastError(null); handleAction(lastError.action) }}
+                disabled={isLoading}
+                className="shrink-0 px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all disabled:opacity-40"
+                style={{ border: '1px solid rgba(239,68,68,0.4)', color: 'rgba(248,113,113,0.85)', background: 'rgba(239,68,68,0.08)' }}
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => setLastError(null)}
+                className="shrink-0 px-2 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.14em] opacity-45 hover:opacity-75 transition-opacity"
+                style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(220,200,160,0.7)' }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {/* Party Action toggle - only shown when co-op members share same location */}
           {partyMembersHere.length > 0 && (
             <div className="px-4 pt-2 pb-0 flex flex-wrap items-center gap-2">
@@ -1058,6 +1120,17 @@ export default function Game() {
               disabled={isLoading || isTyping || coopWaiting}
             />
           )}
+          {!inCombat && !coopWaiting && currentCharacter?.is_alive !== false && (
+            <div className="flex items-center justify-end px-4 pb-1">
+              <button
+                onClick={() => setShowRest(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all opacity-50 hover:opacity-90"
+                style={{ border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(200,180,140,0.7)', background: 'rgba(255,255,255,0.02)' }}
+              >
+                <span style={{ fontSize: 11 }}>⛺</span> Rest
+              </button>
+            </div>
+          )}
           <ActionPanel
             suggestedActions={lastActionResult?.suggestedActions || []}
             onAction={handleAction}
@@ -1093,14 +1166,12 @@ export default function Game() {
                   <CharacterSheet
                     character={currentCharacter}
                     onEquipToggle={(itemId, equipped) => {
-                      setCharacter(prev => {
-                        if (!prev) return prev
-                        return {
-                          ...prev,
-                          inventory: prev.inventory.map(item =>
-                            (item.id || item.name) === itemId ? { ...item, equipped } : item
-                          ),
-                        }
+                      if (!currentCharacter) return
+                      setCharacter({
+                        ...currentCharacter,
+                        inventory: currentCharacter.inventory.map(it =>
+                          (it.id || it.name) === itemId ? { ...it, equipped } : it
+                        ),
                       })
                     }}
                   />
@@ -1109,6 +1180,7 @@ export default function Game() {
                 {sidebarTab === 'people' && <NPCCodex npcMemory={worldState?.npcMemory || []} keyNPCs={worldState?.keyNPCs} campaignId={campaignId!} />}
                 {sidebarTab === 'map' && <MapPanel worldState={worldState} />}
                 {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
+                {sidebarTab === 'journal' && <JournalPanel worldState={worldState} />}
               </SidebarErrorBoundary>
             </div>
           </aside>
@@ -1138,14 +1210,12 @@ export default function Game() {
                   <CharacterSheet
                     character={currentCharacter}
                     onEquipToggle={(itemId, equipped) => {
-                      setCharacter(prev => {
-                        if (!prev) return prev
-                        return {
-                          ...prev,
-                          inventory: prev.inventory.map(item =>
-                            (item.id || item.name) === itemId ? { ...item, equipped } : item
-                          ),
-                        }
+                      if (!currentCharacter) return
+                      setCharacter({
+                        ...currentCharacter,
+                        inventory: currentCharacter.inventory.map(it =>
+                          (it.id || it.name) === itemId ? { ...it, equipped } : it
+                        ),
                       })
                     }}
                   />
@@ -1154,6 +1224,7 @@ export default function Game() {
                 {sidebarTab === 'people' && <NPCCodex npcMemory={worldState?.npcMemory || []} keyNPCs={worldState?.keyNPCs} campaignId={campaignId!} />}
                 {sidebarTab === 'map' && <MapPanel worldState={worldState} />}
                 {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
+                {sidebarTab === 'journal' && <JournalPanel worldState={worldState} />}
               </SidebarErrorBoundary>
             </div>
           </div>
@@ -1236,6 +1307,23 @@ export default function Game() {
             setShowHighStakes(false)
             setHighStakesData(null)
           }}
+        />
+      )}
+      {showBossPhase && bossPhaseInfo && (
+        <BossPhaseTransition
+          phase={bossPhaseInfo.phase}
+          bossName={bossPhaseInfo.name}
+          onComplete={() => { setShowBossPhase(false); setBossPhaseInfo(null) }}
+        />
+      )}
+      {showRest && currentCharacter && (
+        <RestModal
+          locationHint={worldState?.currentLocation || ''}
+          playerGold={currentCharacter.gold}
+          hpPercent={(currentCharacter.hp / currentCharacter.max_hp) * 100}
+          inCombat={inCombat}
+          onRest={(action) => handleAction(action)}
+          onClose={() => setShowRest(false)}
         />
       )}
       {showEpilogue && epilogueData && currentCharacter && (

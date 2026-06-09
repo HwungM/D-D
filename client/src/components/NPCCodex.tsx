@@ -123,8 +123,6 @@ function npcPrompt(npc: NpcMemory): string {
 
 function RelationshipBar({ score }: { score: number }) {
   const clamped = Math.max(-100, Math.min(100, score))
-  const pct = ((clamped + 100) / 200) * 100
-
   let color = '#6b7280' // neutral gray
   if (clamped >= 60) color = '#22c55e'
   else if (clamped >= 20) color = '#86efac'
