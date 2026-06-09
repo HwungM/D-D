@@ -129,8 +129,9 @@ WORLD MEMORY RULES:
 - KEY NPCs: When an NPC is plot-critical (antagonist agent, love interest, mentor, betrayer, major ally), set isKeyNPC: true in their npcMemory entry. This pins them permanently so they are never forgotten between sessions.
 
 NPC RELATIONSHIP TRACKING:
-- Every NpcMemory entry may include: relationshipScore (integer -100 to 100, 0 = neutral), relationshipLabel (short phrase), role (their occupation/function).
+- Every NpcMemory entry may include: relationshipScore (integer -100 to 100, 0 = neutral), relationshipLabel (short phrase), role (their occupation/function), gender ("male" | "female" | "nonbinary").
 - Set role on first introduction: e.g. "merchant", "guard captain", "innkeeper", "quest giver", "rival", "love interest".
+- Set gender on first introduction: "male", "female", or "nonbinary". This controls which portrait variant is shown — always set it.
 - Update relationshipScore whenever the character's actions meaningfully affect this NPC's feelings:
   - Small positive moments (friendly chat, helped with a task): +5 to +15
   - Big positive moments (saved their life, fulfilled a promise, showed great loyalty): +20 to +40
@@ -936,7 +937,7 @@ CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATIO
 ACTION: ${action}
 Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â
 
-IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older context. If any named NPC appears, speaks, is referenced as a contact, gives information, changes disposition, or becomes the active conversation partner, update worldStateChanges.npcMemory with that NPC's name, disposition, notes, lastMet, metCharacters, interactionCount, role, relationshipScore, and relationshipLabel. Adjust relationshipScore based on the interaction (+/- 5 to 50 depending on impact). Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.
+IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older context. If any named NPC appears, speaks, is referenced as a contact, gives information, changes disposition, or becomes the active conversation partner, update worldStateChanges.npcMemory with that NPC's name, disposition, notes, lastMet, metCharacters, interactionCount, role, gender, relationshipScore, and relationshipLabel. Adjust relationshipScore based on the interaction (+/- 5 to 50 depending on impact). Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.
 
 QUALITY BAR BEFORE YOU ANSWER:
 - Does the narration change the situation in a concrete way?

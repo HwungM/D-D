@@ -44,22 +44,68 @@ const ARCHETYPE_MAP: { keywords: string[]; archetype: string; count: number }[] 
   { keywords: ['explorer', 'archaeologist', 'cartographer', 'ruins delver', 'adventurer', 'treasure hunter'], archetype: 'explorer', count: 4 },
 ]
 
-// Hash an NPC name to a stable 0-based index within [0, count)
+// Gender of each pre-generated portrait variant, keyed as "archetype-NN".
+// m = male, f = female, n = nonbinary/ambiguous.
+// Used to filter candidates before hashing so the portrait matches the NPC's gender.
+const PORTRAIT_GENDER: Record<string, 'm' | 'f' | 'n'> = {
+  'merchant-01': 'm', 'merchant-02': 'f', 'merchant-03': 'm', 'merchant-04': 'm', 'merchant-05': 'm',
+  'innkeeper-01': 'm', 'innkeeper-02': 'f', 'innkeeper-03': 'm', 'innkeeper-04': 'f', 'innkeeper-05': 'm',
+  'guard-01': 'm', 'guard-02': 'f', 'guard-03': 'm', 'guard-04': 'f', 'guard-05': 'f',
+  'noble-01': 'm', 'noble-02': 'f', 'noble-03': 'm', 'noble-04': 'f', 'noble-05': 'm',
+  'scholar-01': 'm', 'scholar-02': 'f', 'scholar-03': 'm', 'scholar-04': 'm', 'scholar-05': 'f',
+  'healer-01': 'f', 'healer-02': 'm', 'healer-03': 'f', 'healer-04': 'm', 'healer-05': 'f',
+  'priest-01': 'm', 'priest-02': 'f', 'priest-03': 'f', 'priest-04': 'm', 'priest-05': 'f',
+  'blacksmith-01': 'm', 'blacksmith-02': 'f', 'blacksmith-03': 'm', 'blacksmith-04': 'f', 'blacksmith-05': 'm',
+  'informant-01': 'm', 'informant-02': 'f', 'informant-03': 'm', 'informant-04': 'f', 'informant-05': 'm',
+  'elder-01': 'f', 'elder-02': 'm', 'elder-03': 'f', 'elder-04': 'm', 'elder-05': 'f',
+  'criminal-01': 'f', 'criminal-02': 'm', 'criminal-03': 'f', 'criminal-04': 'f', 'criminal-05': 'm',
+  'mysterious-stranger-01': 'n', 'mysterious-stranger-02': 'f', 'mysterious-stranger-03': 'm', 'mysterious-stranger-04': 'n',
+  'bard-01': 'm', 'bard-02': 'f', 'bard-03': 'm', 'bard-04': 'f', 'bard-05': 'm',
+  'ranger-01': 'f', 'ranger-02': 'm', 'ranger-03': 'f', 'ranger-04': 'm', 'ranger-05': 'f',
+  'mercenary-01': 'm', 'mercenary-02': 'f', 'mercenary-03': 'm', 'mercenary-04': 'f', 'mercenary-05': 'm',
+  'sailor-01': 'm', 'sailor-02': 'f', 'sailor-03': 'm', 'sailor-04': 'f', 'sailor-05': 'm',
+  'alchemist-01': 'f', 'alchemist-02': 'm', 'alchemist-03': 'f', 'alchemist-04': 'm',
+  'bounty-hunter-01': 'm', 'bounty-hunter-02': 'f', 'bounty-hunter-03': 'm', 'bounty-hunter-04': 'f',
+  'oracle-01': 'f', 'oracle-02': 'm', 'oracle-03': 'f', 'oracle-04': 'f',
+  'cultist-01': 'm', 'cultist-02': 'f', 'cultist-03': 'f', 'cultist-04': 'm',
+  'gladiator-01': 'm', 'gladiator-02': 'f', 'gladiator-03': 'm', 'gladiator-04': 'f',
+  'retired-adventurer-01': 'm', 'retired-adventurer-02': 'f', 'retired-adventurer-03': 'm', 'retired-adventurer-04': 'f', 'retired-adventurer-05': 'm',
+  'witch-01': 'f', 'witch-02': 'f', 'witch-03': 'm', 'witch-04': 'f',
+  'plague-doctor-01': 'm', 'plague-doctor-02': 'f', 'plague-doctor-03': 'm', 'plague-doctor-04': 'f',
+  'diplomat-01': 'm', 'diplomat-02': 'f', 'diplomat-03': 'm', 'diplomat-04': 'f',
+  'beggar-01': 'm', 'beggar-02': 'f', 'beggar-03': 'f', 'beggar-04': 'f',
+  'ferryman-01': 'm', 'ferryman-02': 'f', 'ferryman-03': 'm', 'ferryman-04': 'n',
+  'farmer-01': 'f', 'farmer-02': 'm', 'farmer-03': 'm', 'farmer-04': 'f',
+  'monk-01': 'm', 'monk-02': 'f', 'monk-03': 'm', 'monk-04': 'm',
+  'inquisitor-01': 'f', 'inquisitor-02': 'm', 'inquisitor-03': 'f', 'inquisitor-04': 'm',
+  'explorer-01': 'f', 'explorer-02': 'm', 'explorer-03': 'm', 'explorer-04': 'f',
+}
+
+// Hash an NPC name to a stable 0-based index within a filtered candidate list
 function nameHash(name: string, count: number): number {
   let h = 0
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0
   return Math.abs(h) % count
 }
 
-// Returns /assets/npcs/{archetype}-{01..count}.png, chosen by name so the
-// same NPC always gets the same portrait but different NPCs vary.
+// Returns /assets/npcs/{archetype}-{01..count}.png
+// Filters variants by gender first (if known), then picks deterministically by name.
 function stockPortrait(npc: NpcMemory): string | null {
   const text = `${npc.name} ${npc.role || ''} ${npc.notes}`.toLowerCase()
   for (const { keywords, archetype, count } of ARCHETYPE_MAP) {
-    if (keywords.some(k => text.includes(k))) {
-      const idx = nameHash(npc.name, count) + 1
-      return `/assets/npcs/${archetype}-${String(idx).padStart(2, '0')}.png`
-    }
+    if (!keywords.some(k => text.includes(k))) continue
+
+    const genderCode = npc.gender === 'male' ? 'm' : npc.gender === 'female' ? 'f' : npc.gender === 'nonbinary' ? 'n' : null
+
+    // Build candidate list filtered by gender (fall back to all if no gender or no matches)
+    const all = Array.from({ length: count }, (_, i) => i + 1)
+    const filtered = genderCode
+      ? all.filter(i => PORTRAIT_GENDER[`${archetype}-${String(i).padStart(2, '0')}`] === genderCode)
+      : []
+    const candidates = filtered.length > 0 ? filtered : all
+
+    const idx = candidates[nameHash(npc.name, candidates.length)]
+    return `/assets/npcs/${archetype}-${String(idx).padStart(2, '0')}.png`
   }
   return null
 }

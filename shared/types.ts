@@ -113,6 +113,7 @@ export interface NpcMemory {
   relationshipLabel?: string;  // e.g. "trusted ally", "bitter rival", "romantic interest", "wary stranger"
   role?: string;               // e.g. "merchant", "guard captain", "innkeeper", "quest giver"
   portrait_url?: string;       // cached AI-generated or stock portrait URL
+  gender?: 'male' | 'female' | 'nonbinary'; // set on introduction, used for portrait matching
 }
 
 export interface CampaignSpineSnapshot {
