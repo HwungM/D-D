@@ -487,7 +487,12 @@ export interface HighStakesChoice {
   consequenceHint: string;
 }
 
-export type Race = 'Human' | 'Elf' | 'Dwarf' | 'Halfling' | 'Gnome' | 'Half-Orc' | 'Tiefling' | 'Dragonborn';
+export type Race =
+  'Human' | 'Elf' | 'Dwarf' | 'Halfling' | 'Gnome' | 'Half-Orc' | 'Tiefling' | 'Dragonborn' |
+  'Aasimar' | 'Fire Genasi' | 'Water Genasi' | 'Earth Genasi' | 'Air Genasi' |
+  'Warforged' | 'Tabaxi' | 'Goliath' | 'Firbolg' | 'Changeling' | 'Kenku' | 'Dhampir' | 'Owlin' |
+  'Lizardfolk' | 'Satyr' | 'Harengon' | 'Yuan-Ti' | 'Triton' | 'Leonin' |
+  'Minotaur' | 'Bugbear' | 'Hobgoblin' | 'Goblin' | 'Tortle';
 export type CharacterClass = 'Fighter' | 'Wizard' | 'Rogue' | 'Cleric' | 'Ranger' | 'Paladin' | 'Barbarian' | 'Bard' | 'Druid' | 'Monk' | 'Sorcerer' | 'Warlock';
 
 export const RACE_STAT_BONUSES: Record<Race, Partial<CharacterStats>> = {
@@ -499,6 +504,31 @@ export const RACE_STAT_BONUSES: Record<Race, Partial<CharacterStats>> = {
   'Half-Orc': { str: 2, con: 1 },
   Tiefling: { cha: 2, int: 1 },
   Dragonborn: { str: 2, cha: 1 },
+  // Expanded races
+  Aasimar: { cha: 2, wis: 1 },
+  'Fire Genasi': { con: 2, int: 1 },
+  'Water Genasi': { con: 2, wis: 1 },
+  'Earth Genasi': { con: 2, str: 1 },
+  'Air Genasi': { dex: 2, int: 1 },
+  Warforged: { con: 2, str: 1 },
+  Tabaxi: { dex: 2, cha: 1 },
+  Goliath: { str: 2, con: 1 },
+  Firbolg: { wis: 2, str: 1 },
+  Changeling: { cha: 2, dex: 1 },
+  Kenku: { dex: 2, wis: 1 },
+  Dhampir: { dex: 2, cha: 1 },
+  Owlin: { wis: 2, dex: 1 },
+  Lizardfolk: { con: 2, str: 1 },
+  Satyr: { cha: 2, dex: 1 },
+  Harengon: { dex: 2, wis: 1 },
+  'Yuan-Ti': { cha: 2, int: 1 },
+  Triton: { str: 1, con: 1, cha: 1 },
+  Leonin: { con: 2, str: 1 },
+  Minotaur: { str: 2, con: 1 },
+  Bugbear: { str: 2, dex: 1 },
+  Hobgoblin: { con: 2, int: 1 },
+  Goblin: { dex: 2, con: 1 },
+  Tortle: { con: 2, wis: 1 },
 };
 
 export const CLASS_BASE_HP: Record<CharacterClass, number> = {

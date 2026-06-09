@@ -42,6 +42,17 @@ const ARCHETYPE_MAP: { keywords: string[]; archetype: string; count: number }[] 
   { keywords: ['monk', 'ascetic', 'friar', 'temple monk', 'mystic monk', 'monastic'], archetype: 'monk', count: 4 },
   { keywords: ['inquisitor', 'witch hunter', 'templar inquisitor', 'interrogator', 'church enforcer'], archetype: 'inquisitor', count: 4 },
   { keywords: ['explorer', 'archaeologist', 'cartographer', 'ruins delver', 'adventurer', 'treasure hunter'], archetype: 'explorer', count: 4 },
+  // Expanded archetypes
+  { keywords: ['knight', 'paladin', 'templar', 'crusader', 'cavalier', 'chevalier', 'sworn knight'], archetype: 'knight', count: 4 },
+  { keywords: ['court mage', 'royal mage', 'court wizard', 'archmage', 'court enchanter', 'court diviner', 'royal advisor', 'mage advisor'], archetype: 'court-mage', count: 4 },
+  { keywords: ['pirate captain', 'corsair captain', 'buccaneer', 'sea captain', 'privateer', 'ship captain'], archetype: 'pirate-captain', count: 4 },
+  { keywords: ['herbalist', 'druid', 'hedge druid', 'nature healer', 'shaman', 'nature witch', 'wild healer'], archetype: 'herbalist', count: 4 },
+  { keywords: ['shadow agent', 'guild assassin', 'hitman', 'infiltrator', 'double agent', 'shadow guild', 'assassin guild', 'spymaster', 'spy master'], archetype: 'shadow-agent', count: 4 },
+  { keywords: ['fortune teller', 'tarot reader', 'palm reader', 'astrologer', 'carnival mystic', 'street seer', 'diviner', 'wandering seer'], archetype: 'fortune-teller', count: 4 },
+  { keywords: ['arena master', 'fight promoter', 'pit master', 'arena owner', 'combat organizer', 'pit boss'], archetype: 'arena-master', count: 4 },
+  { keywords: ['war veteran', 'battle veteran', 'campaign veteran', 'old soldier', 'retired soldier', 'shell shocked', 'war survivor'], archetype: 'war-veteran', count: 4 },
+  { keywords: ['town crier', 'herald', 'royal messenger', 'messenger', 'town herald', 'city herald'], archetype: 'town-crier', count: 4 },
+  { keywords: ['undertaker', 'mortician', 'gravedigger', 'death rite', 'burial', 'embalmer', 'death keeper', 'mourner'], archetype: 'undertaker', count: 4 },
 ]
 
 // Gender of each pre-generated portrait variant, keyed as "archetype-NN".
@@ -79,6 +90,17 @@ const PORTRAIT_GENDER: Record<string, 'm' | 'f' | 'n'> = {
   'monk-01': 'm', 'monk-02': 'f', 'monk-03': 'm', 'monk-04': 'm',
   'inquisitor-01': 'f', 'inquisitor-02': 'm', 'inquisitor-03': 'f', 'inquisitor-04': 'm',
   'explorer-01': 'f', 'explorer-02': 'm', 'explorer-03': 'm', 'explorer-04': 'f',
+  // Expanded archetypes
+  'knight-01': 'm', 'knight-02': 'f', 'knight-03': 'm', 'knight-04': 'f',
+  'court-mage-01': 'm', 'court-mage-02': 'f', 'court-mage-03': 'm', 'court-mage-04': 'f',
+  'pirate-captain-01': 'm', 'pirate-captain-02': 'f', 'pirate-captain-03': 'm', 'pirate-captain-04': 'f',
+  'herbalist-01': 'f', 'herbalist-02': 'm', 'herbalist-03': 'f', 'herbalist-04': 'm',
+  'shadow-agent-01': 'm', 'shadow-agent-02': 'f', 'shadow-agent-03': 'n', 'shadow-agent-04': 'f',
+  'fortune-teller-01': 'f', 'fortune-teller-02': 'm', 'fortune-teller-03': 'f', 'fortune-teller-04': 'f',
+  'arena-master-01': 'm', 'arena-master-02': 'f', 'arena-master-03': 'm', 'arena-master-04': 'f',
+  'war-veteran-01': 'm', 'war-veteran-02': 'f', 'war-veteran-03': 'm', 'war-veteran-04': 'f',
+  'town-crier-01': 'm', 'town-crier-02': 'f', 'town-crier-03': 'm', 'town-crier-04': 'f',
+  'undertaker-01': 'm', 'undertaker-02': 'f', 'undertaker-03': 'm', 'undertaker-04': 'f',
 }
 
 // Hash an NPC name to a stable 0-based index within a filtered candidate list

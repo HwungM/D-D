@@ -18,9 +18,39 @@ const RACE_STAT_BONUSES: Record<Race, Partial<Record<string, number>>> = {
   'Half-Orc': { str: 2, con: 1 },
   Tiefling: { cha: 2, int: 1 },
   Dragonborn: { str: 2, cha: 1 },
+  Aasimar: { cha: 2, wis: 1 },
+  'Fire Genasi': { con: 2, int: 1 },
+  'Water Genasi': { con: 2, wis: 1 },
+  'Earth Genasi': { con: 2, str: 1 },
+  'Air Genasi': { dex: 2, int: 1 },
+  Warforged: { con: 2, str: 1 },
+  Tabaxi: { dex: 2, cha: 1 },
+  Goliath: { str: 2, con: 1 },
+  Firbolg: { wis: 2, str: 1 },
+  Changeling: { cha: 2, dex: 1 },
+  Kenku: { dex: 2, wis: 1 },
+  Dhampir: { dex: 2, cha: 1 },
+  Owlin: { wis: 2, dex: 1 },
+  Lizardfolk: { con: 2, str: 1 },
+  Satyr: { cha: 2, dex: 1 },
+  Harengon: { dex: 2, wis: 1 },
+  'Yuan-Ti': { cha: 2, int: 1 },
+  Triton: { str: 1, con: 1, cha: 1 },
+  Leonin: { con: 2, str: 1 },
+  Minotaur: { str: 2, con: 1 },
+  Bugbear: { str: 2, dex: 1 },
+  Hobgoblin: { con: 2, int: 1 },
+  Goblin: { dex: 2, con: 1 },
+  Tortle: { con: 2, wis: 1 },
 }
 
-const RACES: Race[] = ['Human', 'Elf', 'Dwarf', 'Halfling', 'Gnome', 'Half-Orc', 'Tiefling', 'Dragonborn']
+const RACES: Race[] = [
+  'Human', 'Elf', 'Dwarf', 'Halfling', 'Gnome', 'Half-Orc', 'Tiefling', 'Dragonborn',
+  'Aasimar', 'Fire Genasi', 'Water Genasi', 'Earth Genasi', 'Air Genasi',
+  'Warforged', 'Tabaxi', 'Goliath', 'Firbolg', 'Changeling', 'Kenku', 'Dhampir', 'Owlin',
+  'Lizardfolk', 'Satyr', 'Harengon', 'Yuan-Ti', 'Triton', 'Leonin',
+  'Minotaur', 'Bugbear', 'Hobgoblin', 'Goblin', 'Tortle',
+]
 const CLASSES: CharacterClass[] = ['Fighter', 'Wizard', 'Rogue', 'Cleric', 'Ranger', 'Paladin', 'Barbarian', 'Bard', 'Druid', 'Monk', 'Sorcerer', 'Warlock']
 
 type RaceInfo = {
@@ -76,6 +106,126 @@ const RACE_INFO: Record<Race, RaceInfo> = {
     description: 'Dragonborn are proud warriors of draconic heritage - scales like armor, breath like a weapon, and a culture built entirely on honor and legacy. They do not start fights. They finish them.',
     tendency: 'The DM acknowledges your lineage. Dragon-cults take notice. Enemies who survive speak of you. Your ancestry opens doors in ancient places - and attracts predators who want to claim what you carry.',
     playstyle: 'Best for players who want a dignified, honor-driven character who leaves a mark everywhere they go and never needs to raise their voice.',
+  },
+  Aasimar: {
+    description: 'Born with a touch of the divine, Aasimars carry celestial light within them — a blessing or a burden depending on the day. They are called to greatness, and the world can feel it.',
+    tendency: 'Clergy treat you with reverence or dangerous obsession. Undead and fiends recoil. Your inner light surfaces at moments of genuine virtue. Some treat you as an omen. Your divine mandate creates impossible choices.',
+    playstyle: 'Best for players who want a character wrestling with destiny, gravitating toward redemption arcs, and experiencing the weight of being seen as sacred.',
+  },
+  'Fire Genasi': {
+    description: 'The blood of the Elemental Plane of Fire runs through your veins — you carry warmth that never leaves, a temper that ignites, and an inner fire that literally shows on your skin.',
+    tendency: 'Flames lean toward you. Fire-wielding enemies hesitate. Sages want to study your elemental blood. Fire temples treat you as kin. Your emotions register as temperature changes around you.',
+    playstyle: 'Best for players who want a visually striking elemental character with fiery passion and a connection to the primal forces of creation.',
+  },
+  'Water Genasi': {
+    description: 'Touched by the endless ocean, Water Genasi move through the world with the calm patience of deep water — and the sudden terrifying force of a wave when moved to action.',
+    tendency: 'Water parts around you subtly. Sailors and sea-folk recognize something in you. Sea creatures treat you with deference. Your emotions shift the weather near coasts when strong enough.',
+    playstyle: 'Best for players who want fluid adaptability, an affinity for secrets that run deep, and a serene surface hiding enormous depths.',
+  },
+  'Earth Genasi': {
+    description: 'Solid as stone, patient as mountains. Earth Genasi carry the stillness of bedrock and the inevitability of avalanches. They endure what destroys others and remember everything.',
+    tendency: 'The ground responds to you. Miners and stoneworkers trust you instinctively. Burrowing creatures defer. Your patience in negotiations unnerves those used to quick answers.',
+    playstyle: 'Best for players who want an unmovable anchor — the character who is still standing when everything else has fallen.',
+  },
+  'Air Genasi': {
+    description: 'Light as a breeze and twice as difficult to catch. Air Genasi carry the restlessness of the wind — always moving, always arriving somewhere new, carrying whispers from a hundred places.',
+    tendency: 'Wind moves with you. Messages travel fast in your vicinity. Storm magic resonates. Your laughter can start a wind. Those who deal in secrets find you unnerving — you always seem to already know.',
+    playstyle: 'Best for players who want swiftness, freedom of movement, and a character that nobody can quite pin down.',
+  },
+  Warforged: {
+    description: 'Built for war, choosing peace. Warforged are living constructs of metal and magic who survived the conflicts that made them and now must figure out what they are in a world that no longer needs soldiers.',
+    tendency: 'Some refuse to see you as a person. Others are fascinated. You do not sleep or eat — creating social friction. Who built you, and why, is always a story hook. Veterans recognize your type and have feelings about it.',
+    playstyle: 'Best for players who want to explore questions of identity, consciousness, and purpose — the soldier who must define themselves outside of war.',
+  },
+  Tabaxi: {
+    description: 'Cat-folk driven by insatiable curiosity, Tabaxi wander the world collecting experiences, stories, and occasionally things that do not belong to them. Everything is interesting. Everything.',
+    tendency: 'NPCs find you charming until the curiosity becomes unsettling. Your speed catches enemies completely off-guard. You have likely already been everywhere and remember everything you saw. Shiny things are a problem.',
+    playstyle: 'Best for players who love information-gathering, unexpected speed, and playing someone who treats the world as an endlessly fascinating museum.',
+  },
+  Goliath: {
+    description: 'Raised in mountain tribes where performance is everything and weakness is not tolerated, Goliaths carry a meritocracy in their bones. They compete with everything. They cannot not compete.',
+    tendency: 'Lowland civilization feels soft and dishonest. Physical challenges are invitations. Your sheer size changes room dynamics. You keep track of every test passed and failed — and so does your tribe.',
+    playstyle: 'Best for players who want to be the physically unstoppable force and roleplay a character who sees every obstacle as something to be beaten.',
+  },
+  Firbolg: {
+    description: 'Gentle giant-kin who carry deep fey connections and a preference for peace — but whose capacity for violence when pushed is genuinely staggering. They speak to plants. They remember the old forest.',
+    tendency: 'Animals and nature behave differently around you. Druids treat you as kin. Your cultural distaste for names and ownership creates odd social moments. When you finally lose your patience, enemies realize they misread you entirely.',
+    playstyle: 'Best for players who want the "gentle giant with a secret" arc — peaceful by choice, formidable by nature, wise beyond the trappings of civilization.',
+  },
+  Changeling: {
+    description: 'Natural shapeshifters who live in the gap between identity and performance. Every face they wear is real. Which one is theirs? That question follows them everywhere.',
+    tendency: 'People are unsettled when they realize what they are talking to. Even well-intentioned changelings trigger distrust. Their nature is transgressive to fixed identity. NPCs who learn what you are react with specific, personal fear.',
+    playstyle: 'Best for players who enjoy deception, social infiltration, and exploring the philosophical question of what makes a self.',
+  },
+  Kenku: {
+    description: 'Crow-folk cursed to never speak with their own voice — only sounds they have heard before. Their communication is uncanny patchwork. Their loss is real. Their cleverness in spite of it is extraordinary.',
+    tendency: 'People underestimate how much you understand because of how you speak. Thieves guilds have always found Kenku useful. Your mimicry is perfect — which occasionally creates problems. Your curse has a history that the world sometimes remembers.',
+    playstyle: 'Best for players who want a unique roleplaying challenge, a character defined by constraint and creativity, and the melancholy of something taken away.',
+  },
+  Dhampir: {
+    description: 'Half-vampire. The hunger is always there. You are beautiful in a way that unsettles. You are strong in a way that frightens. You are choosing, every day, what you will not become.',
+    tendency: 'Religious figures are suspicious. Vampires see you as tool or abomination. Mortals who learn your nature have a specific fear response. Your charm attracts the wrong attention. The tension between what you are and what you choose defines your arc.',
+    playstyle: 'Best for players who want a dark seductive edge, the temptation arc done right, and a character whose restraint is as compelling as their power.',
+  },
+  Owlin: {
+    description: 'Owl-folk of silent wings and eerie perception. They are nocturnal, wise, and unreadable to most humanoids — and they prefer it that way. The dark holds no fear for them. Very little does.',
+    tendency: 'Your silent movement unnerves people. Daylight is genuinely uncomfortable for you. Scholars and mages want access to your legendary wisdom. Your emotional expression is alien in ways that create interesting misunderstandings.',
+    playstyle: 'Best for players who want a mysterious observer archetype — the one who already knows the answer before anyone else thinks to ask the question.',
+  },
+  Lizardfolk: {
+    description: 'Lizardfolk experience the world through survival pragmatism rather than social emotion. They find humanoid sentimentality baffling and fascinating in equal measure. They adapt, mimic, and observe with terrifying precision.',
+    tendency: 'Other races project emotions onto you and are wrong. The DM uses this dissonance deliberately. Your cultural practices around food and death disturb NPCs. When you finally understand something about humanoid culture, you ask the question that makes everyone uncomfortable.',
+    playstyle: 'Best for players who enjoy playing something genuinely alien — an outsider\'s perspective on what everybody else takes for granted.',
+  },
+  Satyr: {
+    description: 'Fey hedonists who exist at the intersection of joy and danger. Satyrs are excellent at parties and terrible for any plan requiring restraint. The Feywild echoes in them — they age differently, dream strangely, occasionally slip into fey logic.',
+    tendency: 'Music and nature magic call to you. Fey creatures treat you as kin. The rules of civilization sit lightly on you. Your joy is genuine and contagious — but your priorities can seem incomprehensible to those who live only in the material world.',
+    playstyle: 'Best for players who want to embody charisma and freedom, lean into the morally complex fey worldview, and have the most fun at any given table.',
+  },
+  Harengon: {
+    description: 'Rabbit-folk who escaped the Feywild carrying its restlessness. Lightning-fast and always watchful — a prey animal\'s hypervigilance wrapped in the body of a person who refuses to be prey.',
+    tendency: 'Your reflexes are beyond normal limits. Your perception catches things others miss. Your instinct to flee reads as cowardice to those who do not understand it is a survival strategy, not a character flaw. You notice exits first.',
+    playstyle: 'Best for players who want breathtaking speed, a nervous-energy character who is more dangerous than they look, and the arc of choosing when to stop running.',
+  },
+  'Yuan-Ti': {
+    description: 'Serpentine bloodline — cold, calculating, long-memoried. Yuan-Ti feel alien to other races in a way that is hard to name. Something instinctual says "wrong" when you look too long. They are very used to this.',
+    tendency: 'Serpent cults recognize you and have opinions. Your emotional detachment reads as wisdom or cruelty. Ancient enemies of serpentine peoples carry old grudges that surface. Diplomacy works differently for you — your calm is more unsettling than raised voices.',
+    playstyle: 'Best for players who want to play the composed, calculating mastermind — serene on the surface, lethal underneath, with ancient stakes at every turn.',
+  },
+  Triton: {
+    description: 'Sea-dwellers who moved to the surface carrying the politics of the deep with them. Tritons have a subtle condescension about land-folk they are actively trying to suppress — and not always succeeding.',
+    tendency: 'The ocean calls to you. Sailors are fascinated. Sea monsters react to your presence with aggression or deference. The underwater kingdoms have interests in the surface world and you are their representative whether you asked to be or not.',
+    playstyle: 'Best for players who enjoy playing a fish-out-of-water (literally), navigating cultural misunderstandings, and having a secret political weight behind ordinary encounters.',
+  },
+  Leonin: {
+    description: 'Lion-warrior people from ancient sun-baked plains. Their pride is total, their memory for honor is long, and their roar is a weapon. They do not forget what they are owed — or what they owe.',
+    tendency: 'Your roar changes the dynamics of combat. Ancient warrior orders see you as kin. Slights are remembered with leonin patience — which is to say, forever. The honored dead are a presence in your life that others find intense and moving.',
+    playstyle: 'Best for players who want to embody noble ferocity, carry their culture into every room, and play someone whose pride is both a strength and a perfect pressure point.',
+  },
+  Minotaur: {
+    description: 'Labyrinth-born and carrying its weight. Some see a monster. What they miss is the person inside who has been fighting that label since birth — and is very tired of it.',
+    tendency: 'Your sense of direction is supernatural — you cannot get lost. People who only see your exterior make dangerous assumptions. When you choose to protect someone, it is absolute. The history of minotaurs as weapons has left wounds the world does not always remember it inflicted.',
+    playstyle: 'Best for players who want to subvert the monster archetype, play someone whose gentleness is more powerful than their strength, and make NPCs reconsider their assumptions.',
+  },
+  Bugbear: {
+    description: 'Large, sneaky, terrifying in the dark. Bugbears are the thing that moves silently through shadows at a size that should make that impossible. And they know the effect they have.',
+    tendency: 'Common folk are afraid. Your stealth at your size genuinely unsettles people. Goblinoid communities have complex politics with you. You are more loyal than anyone expects once trust is earned — and earning it is the whole story.',
+    playstyle: 'Best for players who want a powerfully built stealth character, enjoy subverting expectations, and like the arc of being trusted despite what the world says you are.',
+  },
+  Hobgoblin: {
+    description: 'Disciplined, martial, driven by a rigid honor code that is entirely real and entirely theirs. Hobgoblins bring military structure to everything and are inexplicably reliable in a way that surprises people who only know their reputation.',
+    tendency: 'Factions with armies want to recruit or conscript you. Breaking your honor system has genuine consequences. You are a devastatingly organized opponent — and an unexpectedly steadfast ally. Military veterans recognize your bearing and treat you differently.',
+    playstyle: 'Best for players who want a character defined by discipline and earned trust — the one who keeps their word even when everyone expected them not to.',
+  },
+  Goblin: {
+    description: 'Small, scrappy, underestimated at every turn and exhausted of it. Goblins have had to be twice as clever to get half as far, and they have the creativity to show for it.',
+    tendency: 'The world dismisses you first. You weaponize that. Other goblinoids have strong opinions. Your resourcefulness finds solutions nobody else thought of because nobody else had to think that way. The small victories matter most.',
+    playstyle: 'Best for players who love the underdog arc, playing the smartest person in the room who nobody believes is the smartest person in the room, and proving everyone wrong.',
+  },
+  Tortle: {
+    description: 'Ancient patient shell-bearers who carry their home on their back. Tortles have likely already lived a full life before setting out — they adventure as a final chapter, not a first one.',
+    tendency: 'Your patience is genuine — you have seen generations come and go. Religious figures and philosophers are drawn to you. Your shell is both armor and identity — touching it without permission is deeply transgressive. You have seen how this ends before. You are curious if it ends differently this time.',
+    playstyle: 'Best for players who want to roleplay earned wisdom, patient strength, and the specific perspective of someone who is here by choice, not necessity.',
   },
 }
 

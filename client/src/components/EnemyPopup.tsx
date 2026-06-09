@@ -90,6 +90,27 @@ const ENEMY_IMAGES: [string, string][] = [
   ['wraith', 'wraith'],
   ['yuan-ti', 'yuan-ti'],
   ['yuan ti', 'yuan-ti'],
+  // Vol. 2
+  ['orc berserker', 'orc-berserker'], ['skeleton mage', 'skeleton-mage'], ['bone mage', 'skeleton-mage'],
+  ['zombie giant', 'zombie-giant'], ['vampire thrall', 'vampire-thrall'], ['vampire spawn', 'vampire-thrall'],
+  ['dire wolf', 'dire-wolf'],
+  ['drow warrior', 'drow'], ['dark elf warrior', 'drow'], ['drow', 'drow'],
+  ['drow priestess', 'drow-priestess'], ['dark elf priestess', 'drow-priestess'],
+  ['drider', 'drider'], ['rakshasa', 'rakshasa'],
+  ['night hag', 'night-hag'], ['sea hag', 'sea-hag'], ['hag', 'night-hag'],
+  ['displacer beast', 'displacer-beast'], ['bulette', 'bulette'], ['land shark', 'bulette'],
+  ['purple worm', 'purple-worm'], ['remorhaz', 'remorhaz'], ['frost worm', 'remorhaz'],
+  ['carrion crawler', 'carrion-crawler'], ['gibbering mouther', 'gibbering-mouther'],
+  ['flesh golem', 'flesh-golem'], ['clay golem', 'clay-golem'], ['naga', 'naga'],
+  ['marilith', 'marilith'], ['balor', 'balor'],
+  ['chain devil', 'chain-devil'], ['bone devil', 'bone-devil'],
+  ['aboleth', 'aboleth'], ['chuul', 'chuul'], ['roper', 'roper'],
+  ['intellect devourer', 'intellect-devourer'], ['phase spider', 'phase-spider'],
+  ['ettercap', 'ettercap'], ['ankheg', 'ankheg'], ['umber hulk', 'umber-hulk'],
+  ['rust monster', 'rust-monster'], ['gnoll berserker', 'gnoll-berserker'],
+  ['kobold trapper', 'kobold-trapper'], ['vampire bride', 'vampire-bride'],
+  ['fallen angel', 'fallen-angel'], ['dragon turtle', 'dragon-turtle'],
+  ['storm giant', 'storm-giant'], ['fire giant', 'fire-giant'],
 ]
 
 const STYLE = 'Adult animated-fantasy character illustration in the vein of "The Legend of Vox Machina" — bold graphic-novel linework over painterly digital brushwork, exaggerated expressive faces, strong stylized proportions, vivid saturated colors, thick confident outlines, dynamic personality-driven pose, richly textured clothing and gear. Not photorealistic, not 3D-rendered — strictly 2D hand-illustrated, like a single frame from a high-end adult animated fantasy series.'

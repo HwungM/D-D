@@ -232,6 +232,7 @@ const ASSETS = [
 // Skin tones are baked in here too (matching the spirit of the base portraits)
 // so the female variants read as part of the same diverse cast.
 const RACE_FLAVOR = {
+  // Core PHB
   human: 'deep brown skin, a strong jaw, weathered face, determined eyes, dark hair, battered but well-kept leather armor',
   elf: 'warm olive-tan skin, sharp angular features, long flowing hair, piercing eyes, pointed ears, elegant bone structure, fine forest-green garb',
   dwarf: 'ruddy tan skin, a thick braided beard with iron rings, a broad face, deep-set eyes, hammered steel pauldrons',
@@ -239,13 +240,42 @@ const RACE_FLAVOR = {
   gnome: 'light olive skin, wild hair sticking out at angles, enormous goggles pushed up on the forehead, bright inquisitive eyes, mechanical trinkets on the collar',
   'half-orc': 'grey-green skin, small upward tusks, a powerful jaw, amber eyes, ritual scars, iron-plated armor',
   tiefling: 'deep crimson skin, small curved black horns, glowing gold eyes with no pupils, elegant features, dark arcane robes',
-  dragonborn: 'scaled skin, reptilian amber eyes, a regal angular face, subtle horns sweeping back, ornate scaled armor',
+  dragonborn: 'scaled bronze-and-gold skin, reptilian amber eyes, a regal angular face, subtle horns sweeping back, ornate scaled armor',
+  // Expanded races
+  aasimar: 'warm golden-hued skin with a faint inner divine glow, silver-white hair, luminous calm eyes, simple elegant clothing with subtle celestial motifs',
+  warforged: 'a living construct of polished dark metal and carved pale wood, glowing arcane runes along the plating, articulated joints, two bright gem-set eyes of steady warm amber light',
+  tabaxi: 'sleek spotted cat-folk features, large expressive feline gold eyes, graceful high cheekbones, short velvet fur, a tail tip just visible, lithe attentive posture',
+  'fire-genasi': 'warm ember-red skin with faint glowing cracks beneath the surface, a crown of living flickering flame instead of hair, intense smoldering orange eyes',
+  'water-genasi': 'smooth pale blue-green skin with a subtle aqueous sheen, flowing sea-blue hair that moves as if in a current, deep turquoise calm eyes',
+  'earth-genasi': 'skin the color of dense brown stone with hairline fissures of darker rock texture, deep amber eyes, hair like dark clay, the stillness of deep bedrock',
+  'air-genasi': 'near-white skin with a translucent ethereal quality, silver-white hair that moves in a subtle persistent breeze, pale silver-blue eyes, an air of constant subtle motion',
+  goliath: 'enormous frame of grey-blue stone-patterned skin, bold tribal markings across the face and arms, a broad powerful face, stoic bearing, compact features on a very large head',
+  firbolg: 'large gentle frame, soft grey-lavender skin, a broad kind face with a slightly bovine cast, large rounded ears, plain earth-toned robes woven with dried herbs and flowers',
+  changeling: 'pale smooth skin of uncertain ethnicity, large unsettlingly calm pale silver eyes, fine forgettable features that somehow resist being fully remembered, simple unobtrusive clothes',
+  kenku: 'a crow-headed humanoid with glossy black feathers, a sharp curved beak, bright obsidian eyes, sleek neck feathers, clever attentive posture, salvaged patchwork clothing',
+  dhampir: 'eerily pale skin, sharp elegant features with a subtle hollowness, vivid dark eyes with a faint red reflection, dark hair, aristocratic bearing with an unsettling undertone',
+  owlin: 'an owl-headed humanoid with dense tawny feathers, enormous forward-facing golden eyes, a small hooked beak, broad shoulders, a feathered cloak that doubles as wings',
+  lizardfolk: 'reptilian emerald-green scales, a broad flat head with a short blunt snout, amber slit-pupil eyes, a steady primordial patience, minimal clothing with bone and carved wood adornments',
+  satyr: 'a half-human half-goat humanoid, curved rams horns, a wide easy grin, mischievous dark eyes, curly hair, goat legs just visible at the frame base, natural magnetic charm',
+  harengon: 'a tall rabbit-folk humanoid, long upright ears, a small expressive nose, large warm brown eyes, soft tawny fur, a compact alert posture like someone always listening',
+  'yuan-ti': 'a humanoid with subtly serpentine features, smooth pale skin with faint scale patterns at the temples and neck, slit-pupil golden eyes, an unnervingly still aristocratic poise',
+  triton: 'silver-blue skin with delicate fin-like structures at the temples, deep oceanic eyes, an aristocratic marine bearing, scaled shoulder armor, hair like deep-sea kelp',
+  leonin: 'a lion-headed humanoid with a full proud golden mane, warm tawny fur, a broad powerful jaw, deep amber eyes, the bearing of ancient warrior royalty',
+  minotaur: 'a powerful humanoid with a full bull head, broad dark horns, a broad snout, deep dark bovine eyes, a heavy muscled neck, worn practical warrior gear',
+  bugbear: 'a massive shaggy humanoid, dark matted fur, small deep-set yellow eyes, a broad flat nose, a low sloped brow, barely contained powerful frame, rough salvaged clothing',
+  hobgoblin: 'a martial humanoid with orange-reddish skin, sharp features, military bearing, disciplined hard eyes, functional armor with unit insignia, controlled professional posture',
+  goblin: 'a small compact humanoid with mottled green-grey skin, enormous round yellow eyes, wide ears, a gap-toothed grin, scrappy but practical adventuring gear worn with surprising confidence',
+  tortle: 'a turtle-folk humanoid, a large domed shell on the back, olive-green weathered skin, a broad blunt face with patient kind eyes, simple practical wrappings',
 };
 
-// Override hooks for races whose base RACE_FLAVOR reads as male-coded (e.g. a beard) —
-// without this, "a woman of the dwarf people, with a thick braided beard..." reads as a man.
+// Override hooks for races whose base RACE_FLAVOR reads as male-coded (e.g. a beard).
 const RACE_FLAVOR_FEMALE = {
   dwarf: 'ruddy tan skin, thick braided hair worked with iron rings, a strong handsome face, deep-set eyes, hammered steel pauldrons',
+  goliath: 'enormous frame of grey-blue stone-patterned skin, bold tribal markings, a broad strong face, stoic bearing, powerful shoulders, compact features on a large head',
+  bugbear: 'a massive shaggy humanoid, dark matted fur, small deep-set yellow eyes, large upright ears, barely contained powerful frame, rough salvaged clothing',
+  hobgoblin: 'a martial humanoid with orange-reddish skin, sharp features, military bearing, disciplined eyes, functional armor with unit markings, controlled professional posture',
+  minotaur: 'a powerful humanoid with a full cow-head, curved dark horns, broad snout, deep dark bovine eyes, a strong neck, worn practical warrior gear',
+  leonin: 'a lioness-headed humanoid with short tawny fur and powerful features, noble bearing, deep amber eyes, simple but dignified warrior clothing',
 };
 
 
@@ -261,10 +291,9 @@ function raceVariantAsset(file) {
   return { file, prompt: `${STYLE} ${genderDesc.charAt(0).toUpperCase()}${genderDesc.slice(1)} of the ${race} people, with ${flavor}${toneDesc}, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` };
 }
 
-// Just the female portrait per race now — the "light/dark" variant cards are
-// gone (see getPortraits in CharacterCreate.tsx); diversity is baked directly
-// into each race's illustrated look instead.
+// Female variants per race so character creation always has both options.
 const RACE_VARIANT_FILES = [
+  // Core PHB
   'races/dragonborn-f.png',
   'races/dwarf-f.png',
   'races/elf-f.png',
@@ -273,6 +302,31 @@ const RACE_VARIANT_FILES = [
   'races/halfling-f.png',
   'races/human-f.png',
   'races/tiefling-f.png',
+  // Expanded races — male (base) + female variants
+  'races/aasimar.png',           'races/aasimar-f.png',
+  'races/warforged.png',         'races/warforged-f.png',
+  'races/tabaxi.png',            'races/tabaxi-f.png',
+  'races/fire-genasi.png',       'races/fire-genasi-f.png',
+  'races/water-genasi.png',      'races/water-genasi-f.png',
+  'races/earth-genasi.png',      'races/earth-genasi-f.png',
+  'races/air-genasi.png',        'races/air-genasi-f.png',
+  'races/goliath.png',           'races/goliath-f.png',
+  'races/firbolg.png',           'races/firbolg-f.png',
+  'races/changeling.png',        'races/changeling-f.png',
+  'races/kenku.png',             'races/kenku-f.png',
+  'races/dhampir.png',           'races/dhampir-f.png',
+  'races/owlin.png',             'races/owlin-f.png',
+  'races/lizardfolk.png',        'races/lizardfolk-f.png',
+  'races/satyr.png',             'races/satyr-f.png',
+  'races/harengon.png',          'races/harengon-f.png',
+  'races/yuan-ti.png',           'races/yuan-ti-f.png',
+  'races/triton.png',            'races/triton-f.png',
+  'races/leonin.png',            'races/leonin-f.png',
+  'races/minotaur.png',          'races/minotaur-f.png',
+  'races/bugbear.png',           'races/bugbear-f.png',
+  'races/hobgoblin.png',         'races/hobgoblin-f.png',
+  'races/goblin.png',            'races/goblin-f.png',
+  'races/tortle.png',            'races/tortle-f.png',
 ];
 
 function humanizeSlug(base) {
@@ -404,6 +458,47 @@ const ENEMY_FLAVOR = {
   'will-o-wisp': 'a small floating ball of cold blue-white light with a thin veil of ghost-fire around it, drifting just above the ground in a misty marsh, casting no warmth, its tiny glow the only light in a dark wet place — beautiful and lethal',
   wraith: 'flowing out of a wall, entirely shadow except for two dim red eyes, a vaguely human shape of dark negative space, one hand outstretched, draining the light and warmth from the air around it',
   'yuan-ti': 'half-coiled, a scaled serpentine lower body below a sinuous human upper body, smooth cobra-hood flaring behind its head, a forked tongue tasting the air, faintly glowing slit-pupil eyes, holding a venom-soaked blade',
+  // ── EXPANDED BESTIARY VOL. 2 ──────────────────────────────────────────────
+  'orc-berserker': 'mid-charge with eyes completely rolled back in battle-frenzy, a massive two-handed axe swung recklessly wide, foaming at the tusked jaw, every muscle corded and beyond reason, absolute terrifying momentum',
+  'skeleton-mage': 'floating several feet off the ground in tattered arcane robes, a skeletal hand aiming a crackling bolt of necrotic green energy, empty eye sockets blazing with cold green fire, long bony fingers trailing smoke',
+  'zombie-giant': 'an enormous bloated animated corpse, hunched and dripping, arms hanging to the ground, a vast slack-jawed face with clouded eyes, leaving a trail of decay, slow but absolutely unstoppable',
+  'vampire-thrall': 'pale and hollow-eyed, a lesser vampire servant in tattered finery, baring modest fangs in a hiss, beholden to a master but dangerous in a pack, moving with unnatural stillness between bursts of violent speed',
+  'dire-wolf': 'a wolf the size of a horse, hackles raised like a ridge of spears, yellow eyes locked on the viewer, black-grey fur bristling, low powerful stance before a lunge — not a beast but a natural weapon',
+  drow: 'a dark elf warrior, obsidian-dark skin, white hair cut brutally short, vivid red-violet eyes, light black chainmail, two hand crossbows held low and ready, utterly cold competence',
+  'drow-priestess': 'a dark elf high priestess, white flowing hair, midnight-purple robes bearing a spider goddess symbol, arms raised invoking divine power that crackles black and violet, commanding and terrifying',
+  drider: 'half dark-elf torso erupting from a monstrous spider body, multiple eyes blinking in the human face, crossbow in hand and forelegs raised, a scuttling horror of two natures merged wrong',
+  rakshasa: 'a demon of noble bearing, a tiger head with backward-pointing hands, silk robes of impossible richness, a smiling expression of absolute predatory confidence, holding a jewelled blade as if it were a wine glass',
+  'night-hag': 'ancient and dreadful, a crone with iron-grey skin, long iron teeth, long iron claws, clutching a heartstone that pulses, one eye a burning ember, walking through half-real dreamscape shadow',
+  'sea-hag': 'a waterlogged horror with kelp-matted grey hair, barnacled pale skin, claws like fishhooks, eyes that can kill with a look, half-emerged from black water, surrounded by the smell of death and brine',
+  'displacer-beast': 'a great black panther with two long tentacles erupting from its shoulders, one lashing forward in attack, existing slightly out-of-sync with the space it occupies, difficult to look at directly',
+  bulette: 'bursting through the earth from below, a massive armored land-shark with a turreted head, slick blue-grey plate-like scales, a cavernous jaw full of crushing teeth, enormous clawed forelimbs pushing stone aside like paper',
+  'purple-worm': 'a cross-section of something impossibly vast — a great ringed purple-black maw wide enough to swallow a cart, tooth rings within tooth rings, tunneling toward the viewer out of solid rock',
+  remorhaz: 'a vast centipede-like arctic horror, blue-white chitinous plates, superheated spine-segments glowing orange-red, antennae wide, a heat-shimmer around it despite the snowfield it stands in',
+  'carrion-crawler': 'a massive pale centipede-thing, a ring of paralysing tendrils surrounding a circular sucking maw, multifaceted black eyes, pale grub-white body, the slow confident advance of something that knows its victims can\'t move',
+  'gibbering-mouther': 'a pulsing mass of translucent pale flesh covered in blinking mismatched eyes and snapping human-like mouths, all speaking and chewing simultaneously, pseudopods extending, sanity-destroying to perceive',
+  'flesh-golem': 'a hulking horror stitched from mismatched parts, scars running everywhere, dead eyes that hold a spark of trapped pain, enormous hands, moving with jerky unstoppable violence, lightning-rod bolts at the neck crackling',
+  'clay-golem': 'a massive humanoid form of thick grey-green clay, surface still wet and unfinished-looking, carved runes half-visible across its chest, moving with grinding slow unstoppable weight, leaving deep footprints',
+  naga: 'a great serpent with a human face of cold beauty, a cobra hood flaring wide, luminous slit-pupil eyes, scales of deep jewel green and gold, floating in a temple chamber surrounded by coiling loops of vast body',
+  marilith: 'a six-armed chaos demon with a massive snake body below a humanoid torso, all six arms holding different blades in different stances simultaneously, six weapons in constant motion, laughing with genuine delight at the chaos',
+  balor: 'a towering winged demon of pure infernal fire, twenty feet of hatred and power, a whip of lightning in one hand and a flaming sword in the other, the air burning around it, the floor cracking under its weight',
+  'chain-devil': 'a humanoid form wrapped and composed of dozens of animated chains that extend outward in all directions like a living web, a face of stretched screaming iron, the chains rattling with imprisoned souls',
+  'bone-devil': 'tall and skeletal insectoid, a scorpion tail arching overhead with its stinger dripping, a face of pure malice on a skull-like head, great chitinous wings half-spread, emanating ice-cold cruelty',
+  aboleth: 'an ancient mind from before gods, three glowing eyes on a vast fish-like body trailing tentacles, a slick surface that reeks of ancient sea, projecting psychic wrongness that fills the air with false memories',
+  chuul: 'a vast crustacean nightmare, lobster-claws wide enough to bisect a man, a writhing mass of paralytic tentacles around its maw, stalked compound eyes scanning, barnacled purple-black shell, half-submerged',
+  roper: 'what appears to be a stalagmite — until the eye at the top opens and six long adhesive strands shoot out toward the viewer, the base revealing a vertical fanged maw of concentric teeth pulling everything toward it',
+  'intellect-devourer': 'a small horrid thing, a brain on four clawed legs, pulsing lobes, tiny but exuding an oppressive psychic miasma that makes the air feel thick and wrong, its claws digging into a surface with horrible patience',
+  'phase-spider': 'a large spider caught mid-phase between planes, its body flickering between solid and translucent, appearing and vanishing in the same instant, leaving a faint afterimage wherever it was a moment ago',
+  ettercap: 'a hunched spider-keeper humanoid, long pincer-like fingers, a cephalothorax fused into its back, web-shooting spinnerets, deep-set black eyes, surrounded by elaborate web-traps and silk-wrapped bundles',
+  ankheg: 'bursting up through soil, a great insectoid horror with acid-spitting mandibles, segmented amber chitinous plate, six legs, clutching the earth with gripping foreclaws, acid burning everything it touches',
+  'umber-hulk': 'a massive four-eyed burrowing beast, broad as it is tall, enormous mandibles, four eyes of different sizes producing a confusing impossible stare, huge clawed arms that tear through stone like soil',
+  'rust-monster': 'a strange antennae-waving creature of rust-orange chitin, almost comedic in shape but utterly terrifying in context — its feathery antennae reaching toward metal armor and weapons with devastating corrosive contact',
+  'gnoll-berserker': 'a gnoll in full blood-frenzy, spotted fur matted with the blood of enemies, a massive flail spinning in both hands, hyena-cackle expression stretched beyond all sanity, lost entirely to slaughter-joy',
+  'kobold-trapper': 'a small kobold engineer surrounded by the hovering trigger-strings of its own elaborate trap network, blueprints clutched in its claws, proud and terrified in equal measure, the traps are genuinely clever',
+  'vampire-bride': 'an elegant undead noblewoman, pale and beautiful and utterly wrong, in the dress she was buried in, dark eyes holding no reflection, fangs bared in a smile, one hand extended in invitation, the other holding something that drips',
+  'fallen-angel': 'a once-celestial warrior with cracked golden armor, enormous broken wings shedding black feathers, a sword still blazing but with dark fire now, a face of grief and fury, stranded between what it was and what it has become',
+  'dragon-turtle': 'a vast ancient turtle with a dragon head on a long neck, smoking nostrils, a shell the size of an island emerging from churning sea, steam venting from the water around it, serene and apocalyptic',
+  'storm-giant': 'fifty feet of divine storm-bound warrior, steel-blue skin sparking with continuous lightning, hair a crackling cloud, wielding a greatsword that crackles with thunder, calm expression of weather-shaping power',
+  'fire-giant': 'a vast giant with volcanic black skin and braided flame-red hair, wielding a great hammer of black iron with a glowing forge-hot head, surrounded by the heat shimmer of a blacksmith at impossible scale',
 };
 
 function enemyPortraitAsset(file) {
@@ -437,6 +532,22 @@ const ENEMY_FILES = [
   'enemies/stone-giant.png', 'enemies/treant.png',
   'enemies/wendigo.png', 'enemies/werewolf.png',
   'enemies/will-o-wisp.png', 'enemies/wraith.png', 'enemies/yuan-ti.png',
+  // ── EXPANDED BESTIARY VOL. 2 ──────────────────────────────────────────────
+  'enemies/orc-berserker.png', 'enemies/skeleton-mage.png', 'enemies/zombie-giant.png',
+  'enemies/vampire-thrall.png', 'enemies/dire-wolf.png',
+  'enemies/drow.png', 'enemies/drow-priestess.png', 'enemies/drider.png',
+  'enemies/rakshasa.png', 'enemies/night-hag.png', 'enemies/sea-hag.png',
+  'enemies/displacer-beast.png', 'enemies/bulette.png', 'enemies/purple-worm.png',
+  'enemies/remorhaz.png', 'enemies/carrion-crawler.png', 'enemies/gibbering-mouther.png',
+  'enemies/flesh-golem.png', 'enemies/clay-golem.png', 'enemies/naga.png',
+  'enemies/marilith.png', 'enemies/balor.png',
+  'enemies/chain-devil.png', 'enemies/bone-devil.png',
+  'enemies/aboleth.png', 'enemies/chuul.png', 'enemies/roper.png',
+  'enemies/intellect-devourer.png', 'enemies/phase-spider.png', 'enemies/ettercap.png',
+  'enemies/ankheg.png', 'enemies/umber-hulk.png', 'enemies/rust-monster.png',
+  'enemies/gnoll-berserker.png', 'enemies/kobold-trapper.png',
+  'enemies/vampire-bride.png', 'enemies/fallen-angel.png',
+  'enemies/dragon-turtle.png', 'enemies/storm-giant.png', 'enemies/fire-giant.png',
 ];
 
 // Stock NPC portrait library — 32 archetypes × 4-5 variants each (~160 total).
@@ -648,6 +759,66 @@ const NPC_PORTRAITS = [
   { file: 'npcs/explorer-02.png', prompt: `${STYLE} Portrait of a methodical dwarf male archaeologist, thick spectacles, a notebook perpetually open, brushing dust off an artefact with fierce care, practical field clothes. Excavation site background.` },
   { file: 'npcs/explorer-03.png', prompt: `${STYLE} Portrait of a bold tabaxi male cartographer, spotted fur, an enormous map spread before him, marking new routes with ink-stained paw, gleeful pioneering expression. Uncharted wilderness background.` },
   { file: 'npcs/explorer-04.png', prompt: `${STYLE} Portrait of a scarred gnome female ruins delver, wild curly hair, climbing gear and grappling hooks, a self-satisfied grin from her latest discovery, a stolen idol tucked under her arm. Underground ruins background.` },
+
+  // ── KNIGHT ────────────────────────────────────────────────────────────────
+  { file: 'npcs/knight-01.png', prompt: `${STYLE} Portrait of a noble human male knight, full polished plate armor, a closed visor pushed up revealing a weathered honorable face, a white-and-gold tabard, a kite shield resting on one arm. Stone castle courtyard background.` },
+  { file: 'npcs/knight-02.png', prompt: `${STYLE} Portrait of a stoic dragonborn female knight, bronze scales, ceremonial full plate with draconic motifs, a longsword at her hip, an expression of absolute duty. Grand hall background.` },
+  { file: 'npcs/knight-03.png', prompt: `${STYLE} Portrait of a young idealistic human male squire-knight, shining armor with a few dents from his first real battle, a battered but proud crest, nervous hopeful eyes. Training yard background.` },
+  { file: 'npcs/knight-04.png', prompt: `${STYLE} Portrait of a battle-worn half-orc female knight, scarred plate armor, a missing pauldron replaced with salvaged chain, hard experienced eyes, a heavy broadsword across her back, the look of someone who has earned every rank the hard way. Castle gatehouse background.` },
+
+  // ── COURT-MAGE ────────────────────────────────────────────────────────────
+  { file: 'npcs/court-mage-01.png', prompt: `${STYLE} Portrait of a imperious tiefling male court archmage, deep purple skin, swept-back horns, rich dark robes embroidered with arcane glyphs, a staff topped with a prismatic crystal, an expression of total intellectual authority. Throne room background.` },
+  { file: 'npcs/court-mage-02.png', prompt: `${STYLE} Portrait of a sharp-eyed elderly human female royal mage-advisor, silver hair pinned precisely, spectacles pushed down her nose, fine robes with a noble house crest, a floating familiar beside her shoulder. Candlelit study background.` },
+  { file: 'npcs/court-mage-03.png', prompt: `${STYLE} Portrait of a young prodigy gnome male court enchanter, wild hair, enthusiastic expression at odds with his formal robes, arcane equations floating in the air around him, already several impressive titles despite his age. Grand library background.` },
+  { file: 'npcs/court-mage-04.png', prompt: `${STYLE} Portrait of a calculating high elf female court diviner, pale silver hair, cold precise eyes, a knowing half-smile, slim elegant robes, a scrying mirror on the table beside her. Palace observatory background.` },
+
+  // ── PIRATE-CAPTAIN ────────────────────────────────────────────────────────
+  { file: 'npcs/pirate-captain-01.png', prompt: `${STYLE} Portrait of a swaggering human male pirate captain, dark sea-worn skin, gold hoop earrings, a battered wide-brimmed hat, a long coat covered in trophies of past conquests, a rapier and a pistol at his belt, a wolfish grin. Sea cliffs background.` },
+  { file: 'npcs/pirate-captain-02.png', prompt: `${STYLE} Portrait of a fearsome half-orc female pirate captain, green-grey skin, heavy gold jewelry looted from a dozen ships, an eyepatch over one eye, a massive cutlass, a captain's coat, a look that says she has never lost a fight at sea. Ship deck background.` },
+  { file: 'npcs/pirate-captain-03.png', prompt: `${STYLE} Portrait of a charming tiefling male corsair captain, small curved horns, a sleek tailored coat, a charming dangerous smile, rings on every finger, a reputation for never breaking his word — at least not literally. Harbor tavern background.` },
+  { file: 'npcs/pirate-captain-04.png', prompt: `${STYLE} Portrait of a weathered female human buccaneer captain, wind-burned face, salt-and-pepper hair in long braids, a commanding presence, a sea chart in one hand and a sextant at her belt. Ship's quarterdeck background.` },
+
+  // ── HERBALIST ─────────────────────────────────────────────────────────────
+  { file: 'npcs/herbalist-01.png', prompt: `${STYLE} Portrait of a weathered elderly female wood-elf herbalist, bark-brown skin, white hair woven with dried flowers, gentle curious eyes, apron pockets stuffed with plant cuttings, a faint smell of earth and chamomile about her. Cottage doorway background.` },
+  { file: 'npcs/herbalist-02.png', prompt: `${STYLE} Portrait of a calm young halfling male hedge-druid, bare feet, a crown of woven wildflowers, simple green robes stained with sap and berry juice, a staff of fresh-cut hazel, an easy smile. Forest clearing background.` },
+  { file: 'npcs/herbalist-03.png', prompt: `${STYLE} Portrait of a practical firbolg female herbalist, tall and broad, grey-lavender skin, enormous gentle hands sorting through hanging bundles of herbs, an apothecary's careful expression. Herb-drying loft background.` },
+  { file: 'npcs/herbalist-04.png', prompt: `${STYLE} Portrait of a gruff human male wilderness healer, sun-dark skin, a short beard going grey, dried-herb bundles hanging from his belt, a worn leather satchel, the no-nonsense look of a man who sets bones and asks no philosophical questions. Village outskirts background.` },
+
+  // ── SHADOW-AGENT ──────────────────────────────────────────────────────────
+  { file: 'npcs/shadow-agent-01.png', prompt: `${STYLE} Portrait of a lean human male guild assassin, pale calculating eyes, dark close-cut hair, a plain face that forgets itself the moment you look away, slim dark leather with hidden blade sheaths, perfectly still. Dim alley background.` },
+  { file: 'npcs/shadow-agent-02.png', prompt: `${STYLE} Portrait of a razor-precise tiefling female spy, small curved horns, violet skin, cold professional eyes, elegant dark clothes that read as civilian but move like armor, a poisoner's ring on one finger. Shadowed doorway background.` },
+  { file: 'npcs/shadow-agent-03.png', prompt: `${STYLE} Portrait of a changeling male information broker, pale features, silver eyes that give nothing away, perfectly neutral expression, plain respectable clothes, a network of contacts behind those empty eyes. Candlelit back room background.` },
+  { file: 'npcs/shadow-agent-04.png', prompt: `${STYLE} Portrait of a middle-aged half-elf female spymaster, sharp tired eyes, greying hair pulled back practically, clothes that suggest a minor noble but carry no house insignia, the careful stillness of someone who listens more than they speak. Private study background.` },
+
+  // ── FORTUNE-TELLER ────────────────────────────────────────────────────────
+  { file: 'npcs/fortune-teller-01.png', prompt: `${STYLE} Portrait of an ancient human female fortune-teller, deeply lined face, bright knowing eyes that suggest she might actually see the future, wrapped in layers of patterned silk scarves, tarot cards fanned in one hand. Candlelit tent background with crystal ball.` },
+  { file: 'npcs/fortune-teller-02.png', prompt: `${STYLE} Portrait of a theatrical young gnome male carnival mystic, enormous false mustache, deliberately dramatic robes covered in stars and moons, probably a complete charlatan but genuinely uncanny in his specific predictions. Fairground tent background.` },
+  { file: 'npcs/fortune-teller-03.png', prompt: `${STYLE} Portrait of a genuine tiefling female seer, not theatrical at all — plain clothes, uncomfortable expression of someone who sees things they didn't ask to see, haunted eyes, a single candle burning on the table before her. Simple room background.` },
+  { file: 'npcs/fortune-teller-04.png', prompt: `${STYLE} Portrait of an otherworldly aasimar female oracle, golden skin, white hair, luminous wide eyes that focus on something a few inches beyond the physical world, speaking words that are clearly not meant for the listener alone. Stone temple background.` },
+
+  // ── ARENA-MASTER ──────────────────────────────────────────────────────────
+  { file: 'npcs/arena-master-01.png', prompt: `${STYLE} Portrait of a ruthless human male arena master, stocky, shaved head, gold teeth, rings on every finger, a silk tunic that costs more than most guards earn in a year, the relaxed authority of a man who controls the outcome. Arena box seats background.` },
+  { file: 'npcs/arena-master-02.png', prompt: `${STYLE} Portrait of a powerfully built half-orc female arena master, grey-green skin, a broken nose healed twice, elaborate braided hair pinned with trophies from past champions she outlasted, a ledger in one hand. Arena gate background.` },
+  { file: 'npcs/arena-master-03.png', prompt: `${STYLE} Portrait of a smooth-talking tiefling male fight promoter, elegant horns, a showman's grin, expensive but flashy clothes, a contract always visible in his breast pocket, the ability to make anything sound exciting. Coliseum archway background.` },
+  { file: 'npcs/arena-master-04.png', prompt: `${STYLE} Portrait of a scarred veteran dwarf female arena master, retired champion herself, old fighting scars she wears with pride, no-nonsense expression, iron-banded armor under a promoter's silk sash, respects courage and despises cowardice equally. Sand arena background.` },
+
+  // ── WAR-VETERAN ───────────────────────────────────────────────────────────
+  { file: 'npcs/war-veteran-01.png', prompt: `${STYLE} Portrait of a haunted human male war veteran, deep-lined face, a thousand-yard stare that occasionally returns to the present, a weathered regimental coat he still wears out of habit, one hand that has trouble keeping still. Tavern corner background.` },
+  { file: 'npcs/war-veteran-02.png', prompt: `${STYLE} Portrait of a composed half-orc female war veteran, old campaign scars worn with quiet dignity, a retired commander's bearing, simple practical clothes, a sword she hasn't put down since the war ended. Village square background.` },
+  { file: 'npcs/war-veteran-03.png', prompt: `${STYLE} Portrait of an ancient elven male war survivor, dark eyes that have seen civilizations rise and fall, quiet grief behind a controlled expression, still lean and dangerous despite his years, wearing old campaign medals only he still recognizes. Firelit inn background.` },
+  { file: 'npcs/war-veteran-04.png', prompt: `${STYLE} Portrait of a young dwarf female veteran who aged early, solid reliable face with deep-set practical eyes, short hair, an arm that healed slightly wrong, a regimental tattoo, and the specific efficiency of movement of someone trained to kill at very close range. Guard post background.` },
+
+  // ── TOWN-CRIER ────────────────────────────────────────────────────────────
+  { file: 'npcs/town-crier-01.png', prompt: `${STYLE} Portrait of an enthusiastic human male town crier, bright-eyed, mid-announcement, bell in one hand and a proclamation scroll in the other, city livery tabard, naturally loud projecting expression. Market square background.` },
+  { file: 'npcs/town-crier-02.png', prompt: `${STYLE} Portrait of a weary gnome female herald, far too many proclamation scrolls stuffed in her satchel, expression of someone who knows too much city news and finds none of it surprising anymore, official city livery. Gatehouse background.` },
+  { file: 'npcs/town-crier-03.png', prompt: `${STYLE} Portrait of a dignified elderly halfling male town scribe-herald, an air of importance, impeccably maintained official robes, parchment and quill always ready, a man who takes civic duty very seriously. Town hall steps background.` },
+  { file: 'npcs/town-crier-04.png', prompt: `${STYLE} Portrait of a sharp human female royal messenger, practical riding clothes, a sealed letter bearing a noble crest, dusty from hard travel, alert watchful eyes, clearly carrying something important. Inn stable background.` },
+
+  // ── UNDERTAKER ────────────────────────────────────────────────────────────
+  { file: 'npcs/undertaker-01.png', prompt: `${STYLE} Portrait of a pale gaunt human male mortician, black professional clothes, quiet composed expression, long careful fingers, the practiced patience of a man who deals in permanent conclusions, kind eyes despite the grim profession. Stone chapel background.` },
+  { file: 'npcs/undertaker-02.png', prompt: `${STYLE} Portrait of a matter-of-fact dwarf female undertaker, stout practical build, dark working apron over respectable clothes, direct manner, the brisk efficiency of someone who has normalized what most people fear. Cemetery background.` },
+  { file: 'npcs/undertaker-03.png', prompt: `${STYLE} Portrait of a thoughtful tiefling male grief counselor-mortician, soft expression that invites confession, dark but well-kept robes, a small holy symbol worn for the bereaved rather than for himself. Temple anteroom background.` },
+  { file: 'npcs/undertaker-04.png', prompt: `${STYLE} Portrait of a serene elderly elf female death rite keeper, ancient formal burial vestments, the ageless calm of someone who has performed thousands of final rites, a quiet authority that transcends the morbid. Stone catacomb background.` },
 ];
 
 // Archetype → how many variants exist (used by NPCCodex for hash-based selection)
@@ -659,6 +830,10 @@ const NPC_ARCHETYPE_COUNTS = {
   oracle: 4, cultist: 4, gladiator: 4, 'retired-adventurer': 5,
   witch: 4, 'plague-doctor': 4, diplomat: 4, beggar: 4,
   ferryman: 4, farmer: 4, monk: 4, inquisitor: 4, explorer: 4,
+  // Expanded archetypes
+  knight: 4, 'court-mage': 4, 'pirate-captain': 4, herbalist: 4,
+  'shadow-agent': 4, 'fortune-teller': 4, 'arena-master': 4,
+  'war-veteran': 4, 'town-crier': 4, undertaker: 4,
 };
 
 ASSETS.push(
