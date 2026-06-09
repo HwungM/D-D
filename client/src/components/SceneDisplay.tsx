@@ -82,7 +82,7 @@ export default function SceneDisplay({
   const tint = TIME_TINTS[timeOfDay]
 
   return (
-    <div className="flex-1 relative overflow-hidden bg-black/60">
+    <div className="h-full w-full relative overflow-hidden bg-black/60">
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url("${displayUrl}")` }}
