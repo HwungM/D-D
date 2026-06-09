@@ -112,4 +112,6 @@ export const ttsApi = {
 export const assetApi = {
   generate: (description: string, cacheKey: string, assetType = 'scene') =>
     api.post('/assets/generate', { description, cacheKey, assetType }),
+  cached: (cacheKey: string) =>
+    api.get(`/assets/cached/${encodeURIComponent(cacheKey)}`),
 }
