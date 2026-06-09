@@ -126,6 +126,9 @@ const VILLAIN_PORTRAITS = [
   'frost-witch', 'iron-tyrant', 'mad-alchemist', 'masked-villain', 'merchant-of-doom',
   'necromancer-queen', 'pirate-lord', 'plague-bearer-lord', 'serpent-queen', 'shadow-master',
   'storm-tyrant', 'undead-warlord', 'void-herald', 'war-tyrant', 'witch-queen',
+  'vampire-lord', 'dark-elf-queen', 'beast-lord', 'infernal-duke', 'dragon-herald',
+  'unseelie-queen', 'blood-mage', 'abyssal-champion', 'kraken-priest', 'dark-paladin',
+  'gnoll-warlord', 'time-ravager',
 ]
 
 function nameHash(name: string, count: number): number {
