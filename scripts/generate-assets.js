@@ -334,9 +334,9 @@ const NPC_PORTRAITS = [
 
   // ── MERCHANT ──────────────────────────────────────────────────────────────
   { file: 'npcs/merchant-01.png', prompt: `${STYLE} Portrait of a cheerful stout human male merchant, warm open smile, leaning forward eagerly, colourful layered travelling coat with many pockets, a bulging coin purse and well-worn ledger, rings on several fingers. Waist-up, warm candlelit market stall background.` },
-  { file: 'npcs/merchant-02.png', prompt: `${STYLE} Portrait of a sharp-eyed tiefling female merchant, violet skin, small curved horns adorned with tiny gold rings, arms folded with a calculating half-smile, rich embroidered travelling clothes, a hidden coin scale on her belt. Waist-up, busy market background with hanging lanterns.` },
+  { file: 'npcs/merchant-02.png', prompt: `${STYLE} Portrait of a sharp-eyed human female merchant, dark complexion, natural hair pinned up practically, arms folded with a calculating half-smile, rich embroidered travelling clothes, a hidden coin scale on her belt. Waist-up, busy market background with hanging lanterns.` },
   { file: 'npcs/merchant-03.png', prompt: `${STYLE} Portrait of a weathered elderly dwarf male merchant, deep-set suspicious eyes, thick grey beard with a bronze bead, leaning back with arms crossed, practical road-worn clothes, a locked strongbox tucked under one arm. Waist-up, dusty trade road background.` },
-  { file: 'npcs/merchant-04.png', prompt: `${STYLE} Portrait of a lithe tabaxi female merchant with amber spotted fur and bright curious eyes, head tilted with a sly grin, mismatched colourful scarves layered over travelling clothes, exotic trinkets hanging from a sash. Waist-up, vibrant bazaar background.` },
+  { file: 'npcs/merchant-04.png', prompt: `${STYLE} Portrait of a broad-shouldered middle-aged human male merchant, ruddy complexion, a thick blond beard going grey, confident no-nonsense expression, heavy fur-trimmed coat, a ledger under one arm and a money belt at his waist. Waist-up, busy northern market background.` },
   { file: 'npcs/merchant-05.png', prompt: `${STYLE} Portrait of a nervous young halfling male merchant, wide anxious eyes darting sideways, clutching a ledger tightly to his chest, a too-large hat perched on his head, modest practical clothes with ink stains. Waist-up, dim back-alley market background.` },
 
   // ── INNKEEPER ─────────────────────────────────────────────────────────────
@@ -344,14 +344,14 @@ const NPC_PORTRAITS = [
   { file: 'npcs/innkeeper-02.png', prompt: `${STYLE} Portrait of a tired but sharp half-orc female innkeeper, grey-green skin, strong jaw, a no-nonsense expression, wiping a tankard with a cloth, practical braid, a heavy key ring at her hip. Warm tavern background with hanging hops.` },
   { file: 'npcs/innkeeper-03.png', prompt: `${STYLE} Portrait of a cheerful gnome male innkeeper, wild curly red hair, enormously wide grin, standing on a stool behind his bar to reach counter height, colourful waistcoat and apron. Cosy candlelit tavern background.` },
   { file: 'npcs/innkeeper-04.png', prompt: `${STYLE} Portrait of a dignified elderly human female innkeeper, silver hair in a neat bun, watchful kind eyes, a subtle air of authority, fine but practical dress, holding a room key. Stone-walled respectable inn background.` },
-  { file: 'npcs/innkeeper-05.png', prompt: `${STYLE} Portrait of a jovial lizardfolk male innkeeper, green-bronze scales, wide toothy grin, a massive apron, gesturing welcomingly with a clawed hand, colourful tropical decor behind him. Waterfront inn background.` },
+  { file: 'npcs/innkeeper-05.png', prompt: `${STYLE} Portrait of a big warm human male innkeeper, broad-shouldered ex-soldier turned tavern owner, a friendly gap-toothed grin, thick arms, a stained apron, a one-ear-missing from an old fight he never explains, immediately likeable. Roaring fireplace tavern background.` },
 
   // ── GUARD ─────────────────────────────────────────────────────────────────
   { file: 'npcs/guard-01.png', prompt: `${STYLE} Portrait of a stoic human male city guard, dented iron helmet pushed back, chainmail, spear resting on his shoulder, watchful but not unkind expression. Stone gatehouse background.` },
   { file: 'npcs/guard-02.png', prompt: `${STYLE} Portrait of a disciplined dragonborn female guard, bronze scales, strong jaw, one hand resting on her sword hilt, formal tabard over chainmail, expression of cool authority. City wall background.` },
   { file: 'npcs/guard-03.png', prompt: `${STYLE} Portrait of a bored young elf male guard, long auburn hair under a half-worn helmet, leaning casually on his spear, clearly underestimated but sharper than he looks. Market square background.` },
   { file: 'npcs/guard-04.png', prompt: `${STYLE} Portrait of a grizzled half-orc female veteran guard, scarred face, heavy armour, a no-nonsense glare, crossed arms, clearly been in more fights than she can count. Barracks doorway background.` },
-  { file: 'npcs/guard-05.png', prompt: `${STYLE} Portrait of an earnest young kenku (raven-person) male guard, jet-black feathers, bright intelligent eyes, standing very straight and proper in his uniform, trying hard to look intimidating. Cobblestone street background.` },
+  { file: 'npcs/guard-05.png', prompt: `${STYLE} Portrait of a stocky middle-aged human female guard, short practical hair, a broken nose healed crooked, chainmail under a city tabard, hand on her hip, the expression of someone who has seen it all and is not impressed. Cobblestone gatehouse background.` },
 
   // ── NOBLE ─────────────────────────────────────────────────────────────────
   { file: 'npcs/noble-01.png', prompt: `${STYLE} Portrait of a haughty human male noble, fine embroidered doublet, swept-back dark hair, jewelled ring, expression politely disdainful and calculating. Richly draped manor interior background.` },
@@ -369,7 +369,7 @@ const NPC_PORTRAITS = [
 
   // ── HEALER ────────────────────────────────────────────────────────────────
   { file: 'npcs/healer-01.png', prompt: `${STYLE} Portrait of a gentle wood-elf female healer, soft features, warm green eyes, simple white-and-green robes, a herbal satchel at her side, hands folded, compassionate expression. Dappled forest light background.` },
-  { file: 'npcs/healer-02.png', prompt: `${STYLE} Portrait of a calm aasimar male healer, golden-brown skin, white hair, soft radiant glow around his hands, serene meditative expression, pristine white robes with a sun emblem. Temple interior background.` },
+  { file: 'npcs/healer-02.png', prompt: `${STYLE} Portrait of a calm human male healer, warm brown skin, close-cropped hair, gentle steady hands, serene meditative expression, pristine white robes with a sun emblem, a satchel of medicines. Temple interior background.` },
   { file: 'npcs/healer-03.png', prompt: `${STYLE} Portrait of a brisk no-nonsense dwarf female healer, rolled sleeves, apron covered in potion stains, efficient expression that says she's seen worse, a cluttered medicine kit. Infirmary background.` },
   { file: 'npcs/healer-04.png', prompt: `${STYLE} Portrait of a young halfling male field medic, bright hopeful eyes, slightly too-large healer's kit strapped to his back, bandages on his own hands, determined smile. Battlefield tent background.` },
   { file: 'npcs/healer-05.png', prompt: `${STYLE} Portrait of a stoic firbolg female healer, giant-kin height, soft grey-green skin, enormous gentle hands, braided white hair woven with herbs, earthy woven robes. Woodland clearing background.` },
@@ -426,20 +426,20 @@ const NPC_PORTRAITS = [
   { file: 'npcs/ranger-01.png', prompt: `${STYLE} Portrait of a lean weathered human female ranger, sun-darkened skin, practical woodsman clothes, a longbow across her back, calm alert eyes that miss nothing. Forest edge background.` },
   { file: 'npcs/ranger-02.png', prompt: `${STYLE} Portrait of a brooding half-elf male monster hunter, a collection of scars and trophies, worn practical armour with a beast-tooth necklace, crossbow on his back, quiet intensity. Dark forest background.` },
   { file: 'npcs/ranger-03.png', prompt: `${STYLE} Portrait of a wood-elf female wilderness scout, bark-patterned camouflage clothing, moss and leaves woven into her hair, crouching slightly, expression of absolute stillness. Ancient forest background.` },
-  { file: 'npcs/ranger-04.png', prompt: `${STYLE} Portrait of a goliath male tracker, enormous muscular frame, practical furs, a map and compass, studying tracks with intense focus. Snow-covered mountain background.` },
+  { file: 'npcs/ranger-04.png', prompt: `${STYLE} Portrait of a compact human male tracker, olive skin, dark hair tied back, quick observant eyes, practical worn leathers with a shortbow across his back, studying tracks with intense focus. Muddy forest trail background.` },
   { file: 'npcs/ranger-05.png', prompt: `${STYLE} Portrait of a cheerful gnome female beastmaster ranger, wild red hair, an alert hawk on her forearm, practical ranger kit, wide excited eyes. Open meadow background.` },
 
   // ── MERCENARY / SOLDIER ───────────────────────────────────────────────────
   { file: 'npcs/mercenary-01.png', prompt: `${STYLE} Portrait of a grizzled human male mercenary, battle-scarred face, mismatched armour repaired many times, a great sword strapped to his back, an expression of professional detachment. Dusty road background.` },
   { file: 'npcs/mercenary-02.png', prompt: `${STYLE} Portrait of a fierce half-orc female sell-sword, green skin, thick armour with company insignia, arms crossed with casual confidence, a smile that promises violence if the coin is right. Tavern background.` },
-  { file: 'npcs/mercenary-03.png', prompt: `${STYLE} Portrait of a young dragonborn male soldier-for-hire, silver scales, a soldier's bearing, decent but battered armour, an expression of someone who needs money more than glory. Camp background.` },
+  { file: 'npcs/mercenary-03.png', prompt: `${STYLE} Portrait of a young human male soldier-for-hire, light brown skin, a soldier's bearing, decent but battered armour, a fresh scar he's still getting used to, an expression of someone who needs money more than glory. Camp background.` },
   { file: 'npcs/mercenary-04.png', prompt: `${STYLE} Portrait of a compact tiefling female mercenary captain, red skin, commanding eyes, a leadership sash over practical armour, one hand on her sword hilt. Military camp background.` },
   { file: 'npcs/mercenary-05.png', prompt: `${STYLE} Portrait of an elderly dwarf male veteran soldier, retired from campaigns, a medal-heavy coat, deep lines, hands that still remember how to fight, expression of weary pragmatism. Stone fortress background.` },
 
   // ── SAILOR / PIRATE ───────────────────────────────────────────────────────
   { file: 'npcs/sailor-01.png', prompt: `${STYLE} Portrait of a sun-weathered human male sailor, salt-bleached hair, a captain's coat open at the chest, a telescope tucked in his belt, squinting against imaginary sea glare. Ship deck background.` },
   { file: 'npcs/sailor-02.png', prompt: `${STYLE} Portrait of a bold tabaxi female pirate captain, orange-and-black striped fur, a tricorn hat askew, a wide grin, a cutlass at her hip, confident arms-wide swagger. Sea background with sails.` },
-  { file: 'npcs/sailor-03.png', prompt: `${STYLE} Portrait of a lizardfolk male first mate, green-bronze scales, deeply practical, a navigator's chart rolled under one arm, calm unreadable expression. Harbour background.` },
+  { file: 'npcs/sailor-03.png', prompt: `${STYLE} Portrait of a lean experienced human male first mate, dark braided hair with a streak of grey, a navigator's chart rolled under one arm, a sextant at his belt, practical and confident. Harbour background.` },
   { file: 'npcs/sailor-04.png', prompt: `${STYLE} Portrait of a half-orc female smuggler captain, a scar across her chin, clever calculating eyes, a coat with many hidden pockets, an offer she's already planning. Moonlit dock background.` },
   { file: 'npcs/sailor-05.png', prompt: `${STYLE} Portrait of an elderly sea-elf male retired sailor, blue-green skin, barnacle-like skin textures, deeply nostalgic expression looking toward the sea, a carved driftwood pipe. Coastal cliff background at sunset.` },
 
@@ -501,20 +501,20 @@ const NPC_PORTRAITS = [
   // ── BEGGAR / STREET PERSON ────────────────────────────────────────────────
   { file: 'npcs/beggar-01.png', prompt: `${STYLE} Portrait of a gaunt human male street beggar, ragged layered clothes, a face that has seen better days, but sharp clever eyes that miss nothing, holding a battered cup. Cobblestone street background.` },
   { file: 'npcs/beggar-02.png', prompt: `${STYLE} Portrait of a young halfling female refugee, wide frightened eyes, dirty travel-worn clothes, a small bundle of everything she owns, brave expression despite everything. City gate background.` },
-  { file: 'npcs/beggar-03.png', prompt: `${STYLE} Portrait of an elderly tiefling male street philosopher, rags worn with eccentric dignity, a knowing smile, drawing arcane symbols in the dirt, clearly more than he appears. Alley background.` },
+  { file: 'npcs/beggar-03.png', prompt: `${STYLE} Portrait of an elderly human female beggar, deeply lined face, white hair under a tattered cloth, ragged layered clothes, but dignified posture and eyes that have lived a whole other life before this. Alley background.` },
   { file: 'npcs/beggar-04.png', prompt: `${STYLE} Portrait of a gnome female street urchin turned street-smart teen, gap-toothed grin, pockets full of acquired items, quick darting eyes. Marketplace background.` },
 
   // ── FERRYMAN / GUIDE ──────────────────────────────────────────────────────
   { file: 'npcs/ferryman-01.png', prompt: `${STYLE} Portrait of a lean weathered human male ferryman, river-grey hair, patient quiet expression, a long pole, simple practical river clothes, comfortable in silence. Misty river background.` },
-  { file: 'npcs/ferryman-02.png', prompt: `${STYLE} Portrait of a lizardfolk female river guide, green scales, a flat straw hat, utterly at ease in the water, holding a hand-carved paddle, expression of calm ancient wisdom. Jungle river background.` },
+  { file: 'npcs/ferryman-02.png', prompt: `${STYLE} Portrait of a sun-worn human female river guide, deep brown skin, grey-streaked hair in a loose braid, a flat straw hat, utterly at ease on the water, holding a hand-carved paddle, expression of calm ancient wisdom. River background.` },
   { file: 'npcs/ferryman-03.png', prompt: `${STYLE} Portrait of a stout dwarf male mountain guide, carrying an enormous pack with ease, a detailed hand-drawn map folded in his belt, an expression of absolute confidence in the terrain. Mountain pass background.` },
   { file: 'npcs/ferryman-04.png', prompt: `${STYLE} Portrait of a mysterious grey-cloaked figure of ambiguous age, a skeletal-motif ferry pole, pale hands, a coin-collecting gesture, an expression that belongs on the border between worlds. Foggy underworld river background.` },
 
   // ── FARMER / RURAL FOLK ───────────────────────────────────────────────────
   { file: 'npcs/farmer-01.png', prompt: `${STYLE} Portrait of a sun-browned human female farmer, strong practical arms, simple worn work clothes, a weathered straw hat pushed back, honest eyes, a hoe in hand. Golden wheat field background.` },
   { file: 'npcs/farmer-02.png', prompt: `${STYLE} Portrait of a stout halfling male shepherd, rosy cheeks, a crook in hand, a sheepdog peeking into frame, comfortable simple clothes, cheerful open expression. Rolling hills background.` },
-  { file: 'npcs/farmer-03.png', prompt: `${STYLE} Portrait of a huge goliath male farmer, enormous gentle hands, wearing simple rural clothes that look slightly ridiculous on his frame, a warm simple expression, carrying a cartload of produce. Farm background.` },
-  { file: 'npcs/farmer-04.png', prompt: `${STYLE} Portrait of an elderly gnome female herbalist-farmer, grey braids, fingers stained with soil and plant dye, apron hung with dried herbs, warm knowing eyes. Cottage garden background.` },
+  { file: 'npcs/farmer-03.png', prompt: `${STYLE} Portrait of a strong weathered human male farmer, dark sun-bronzed skin, calloused hands, a wide-brimmed hat, simple homespun work clothes, a direct honest expression, pitchfork resting on his shoulder. Farmstead background.` },
+  { file: 'npcs/farmer-04.png', prompt: `${STYLE} Portrait of a stout middle-aged human female farmer-wife, grey-streaked auburn hair tucked under a linen cap, flour on her apron, kind practical eyes, arms crossed with warm but firm energy. Country kitchen doorway background.` },
 
   // ── MONK / ASCETIC ────────────────────────────────────────────────────────
   { file: 'npcs/monk-01.png', prompt: `${STYLE} Portrait of a serene middle-aged human male temple monk, shaved head, simple grey robes, prayer beads, an expression of perfect calm that has been hard won. Temple courtyard background.` },
