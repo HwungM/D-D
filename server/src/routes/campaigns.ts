@@ -3,6 +3,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
 import { generateStorySeed, generateWorldBible } from '../services/openai';
 import { z } from 'zod';
+import type { LocationGraph, WorldBible, WorldState } from '../../../shared/types';
 
 const router = Router();
 
@@ -21,6 +22,41 @@ const createSchema = z.object({
   campaignType: z.enum(['adventure', 'testing']).optional().default('adventure'),
 });
 
+function initialLocationGraph(worldBible: WorldBible): LocationGraph {
+  const now = new Date().toISOString();
+  const currentLocation = worldBible.geography[0]?.name || 'Unknown';
+  const nodes = worldBible.geography.map((entry, index) => {
+    const current = entry.name === currentLocation;
+    const nearby = worldBible.geography
+      .filter((candidate, candidateIndex) => candidate.name !== entry.name && Math.abs(candidateIndex - index) <= 2)
+      .map(candidate => candidate.name)
+      .slice(0, 4);
+    return {
+      name: entry.name,
+      region: entry.type === 'region' ? entry.name : worldBible.geography.find(candidate => candidate.type === 'region')?.name || 'Known Realm',
+      description: entry.description,
+      type: entry.type,
+      discoveredAt: now,
+      lastVisitedAt: current ? now : undefined,
+      visits: current ? 1 : 0,
+      connectedTo: nearby,
+      npcsPresent: [],
+      questHooks: [],
+      partyHere: current ? ['current'] : [],
+      tags: current ? [entry.type, 'current'] : [entry.type],
+    };
+  });
+  const regionMap = new Map<string, string[]>();
+  for (const node of nodes) regionMap.set(node.region, [...(regionMap.get(node.region) || []), node.name]);
+  return {
+    currentLocation,
+    nodes,
+    regions: Array.from(regionMap.entries()).map(([name, locations]) => ({ name, locations })),
+    nearby: nodes.find(node => node.name === currentLocation)?.connectedTo || [],
+    updatedAt: now,
+  };
+}
+
 router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const parse = createSchema.safeParse(req.body);
   if (!parse.success) {
@@ -29,11 +65,35 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
   }
   const { name, storySeed, campaignType } = parse.data;
   const playerPreferences = req.body.playerPreferences as
-    | { tone?: string; favoritePillars?: string[]; playerCount?: number; characterConcepts?: string[] }
+    | {
+        playMode?: 'solo' | 'collaborative';
+        partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now';
+        campaignLength?: 'one_shot' | 'short' | 'medium' | 'long' | 'open_ended';
+        tone?: string;
+        artStyle?: string;
+        favoritePillars?: string[];
+        playerCount?: number;
+        targetPlayerCount?: number;
+        waitForParty?: boolean;
+        characterConcepts?: string[];
+      }
     | undefined;
 
   try {
     const worldBible = await generateWorldBible(storySeed, playerPreferences);
+    const openingLocation = worldBible.geography[0]?.name || 'Unknown';
+    const locationGraph = initialLocationGraph(worldBible);
+    const initialWorldState: WorldState = {
+      currentLocation: openingLocation,
+      timeOfDay: 'day',
+      weather: 'overcast',
+      activeQuests: [],
+      completedEvents: [],
+      factionStandings: {},
+      discoveredLocations: [openingLocation],
+      locationGraph,
+      globalFlags: {},
+    };
 
     const { data: campaign, error } = await supabaseAdmin
       .from('campaigns')
@@ -41,16 +101,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
         name,
         story_seed: storySeed,
         created_by: req.user!.id,
-        world_state: {
-          currentLocation: worldBible.geography[0]?.name || 'Unknown',
-          timeOfDay: 'day',
-          weather: 'overcast',
-          activeQuests: [],
-          completedEvents: [],
-          factionStandings: {},
-          discoveredLocations: [],
-          globalFlags: {},
-        },
+        world_state: initialWorldState,
         world_bible: worldBible,
         act: 1,
         campaign_type: campaignType,
@@ -172,6 +223,21 @@ router.post('/:id/invite', requireAuth, async (req: AuthRequest, res: Response):
     return;
   }
 
+  // Reuse an existing unexpired invite for this campaign instead of minting a new one each time
+  const { data: existingInvite } = await supabaseAdmin
+    .from('party_invites')
+    .select()
+    .eq('campaign_id', id)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingInvite) {
+    res.json({ invite: existingInvite });
+    return;
+  }
+
   // Generate unique invite code
   const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
 
@@ -259,6 +325,18 @@ router.get('/invite/:code', async (req, res: Response): Promise<void> => {
 router.get('/:id/party', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
 
+  const { data: membership } = await supabaseAdmin
+    .from('campaign_members')
+    .select('campaign_id')
+    .eq('campaign_id', id)
+    .eq('user_id', req.user!.id)
+    .single();
+
+  if (!membership) {
+    res.status(403).json({ error: 'Access denied' });
+    return;
+  }
+
   const { data: members } = await supabaseAdmin
     .from('campaign_members')
     .select('user_id, profiles(username)')
@@ -271,7 +349,7 @@ router.get('/:id/party', requireAuth, async (req: AuthRequest, res: Response): P
 
   // Get active character for each member
   const partyData = await Promise.all(
-    members.map(async (m: { user_id: string; profiles: { username: string } | null }) => {
+    members.map(async (m: { user_id: string; profiles: { username: string }[] | { username: string } | null }) => {
       const { data: chars } = await supabaseAdmin
         .from('characters')
         .select('*')
@@ -281,9 +359,10 @@ router.get('/:id/party', requireAuth, async (req: AuthRequest, res: Response): P
         .order('created_at', { ascending: false })
         .limit(1);
 
+      const profile = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
       return {
         userId: m.user_id,
-        username: (m.profiles as { username: string } | null)?.username || 'Unknown',
+        username: profile?.username || 'Unknown',
         character: chars?.[0] || null,
       };
     })
@@ -295,7 +374,7 @@ router.get('/:id/party', requireAuth, async (req: AuthRequest, res: Response): P
 router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
 
-  // Verify ownership — check created_by, fall back to membership for old campaigns
+  // Verify ownership â€” check created_by, fall back to membership for old campaigns
   const { data: campaign } = await supabaseAdmin
     .from('campaigns')
     .select('created_by')

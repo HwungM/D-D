@@ -13,144 +13,105 @@ export default function EpilogueScreen({ epilogue, characterName, victory, onClo
   const [buttonsVisible, setButtonsVisible] = useState(false)
 
   useEffect(() => {
-    setTimeout(() => setVisible(true), 50)
-    setTimeout(() => setTextVisible(true), 1200)
-    setTimeout(() => setButtonsVisible(true), epilogue.length * 18 + 3000)
+    const t1 = window.setTimeout(() => setVisible(true), 50)
+    const t2 = window.setTimeout(() => setTextVisible(true), 900)
+    const t3 = window.setTimeout(() => setButtonsVisible(true), epilogue.length * 14 + 2400)
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); window.clearTimeout(t3) }
   }, [epilogue.length])
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+      className="fixed inset-0 z-50 overflow-hidden bg-[#050607] text-parchment-100"
       style={{
-        background: victory
-          ? 'radial-gradient(ellipse at center, rgba(180,130,40,0.12) 0%, #040608 70%)'
-          : 'radial-gradient(ellipse at center, rgba(80,10,10,0.15) 0%, #020304 70%)',
         opacity: visible ? 1 : 0,
-        transition: 'opacity 1.5s ease',
+        transition: 'opacity 1.2s ease',
       }}
     >
-      {/* Particle-like stars for victory */}
-      {victory && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {Array.from({ length: 30 }).map((_, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full"
-              style={{
-                width: Math.random() * 2 + 1,
-                height: Math.random() * 2 + 1,
-                background: `rgba(200,146,42,${Math.random() * 0.4 + 0.1})`,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animation: `pulse ${Math.random() * 3 + 2}s ease-in-out ${Math.random() * 2}s infinite`,
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      <div className="relative z-10 max-w-2xl w-full px-8 text-center">
-        {/* Crown or skull */}
+      <div className="absolute inset-0">
+        <img
+          src={victory ? '/media/loading/everrealm-eclipse-citadel.png' : '/media/loading/everrealm-storm-party.png'}
+          alt=""
+          className="h-full w-full object-cover opacity-[0.48]"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.94)_0%,rgba(0,0,0,0.62)_52%,rgba(0,0,0,0.92)_100%)]" />
         <div
-          className="text-5xl mb-6"
+          className="absolute inset-0"
           style={{
-            opacity: textVisible ? 1 : 0,
-            transition: 'opacity 2s ease',
-            filter: victory ? 'drop-shadow(0 0 20px rgba(200,146,42,0.5))' : 'drop-shadow(0 0 20px rgba(180,30,30,0.5))',
-          }}
-        >
-          {victory ? '♛' : '✦'}
-        </div>
-
-        {/* Title */}
-        <h1
-          className="font-fantasy mb-2"
-          style={{
-            fontSize: '2.8rem',
-            color: victory ? '#d4a843' : '#c05030',
-            opacity: textVisible ? 1 : 0,
-            transition: 'opacity 2s ease 0.3s',
-            textShadow: victory
-              ? '0 0 60px rgba(200,146,42,0.4)'
-              : '0 0 60px rgba(180,30,30,0.4)',
-          }}
-        >
-          {victory ? 'The Age Turns' : 'The Darkness Prevails'}
-        </h1>
-
-        {/* Character name */}
-        <p
-          className="font-serif text-sm uppercase tracking-widest mb-10"
-          style={{
-            color: 'rgba(180,160,120,0.5)',
-            letterSpacing: '0.2em',
-            opacity: textVisible ? 1 : 0,
-            transition: 'opacity 2s ease 0.6s',
-          }}
-        >
-          {characterName}
-        </p>
-
-        {/* Divider */}
-        <div
-          className="mx-auto mb-10"
-          style={{
-            width: 80,
-            height: 1,
             background: victory
-              ? 'linear-gradient(90deg, transparent, rgba(200,146,42,0.4), transparent)'
-              : 'linear-gradient(90deg, transparent, rgba(180,30,30,0.4), transparent)',
-            opacity: textVisible ? 1 : 0,
-            transition: 'opacity 2s ease 0.8s',
+              ? 'radial-gradient(ellipse at center, rgba(245,158,11,0.16) 0%, transparent 60%)'
+              : 'radial-gradient(ellipse at center, rgba(127,29,29,0.22) 0%, transparent 60%)',
           }}
         />
+      </div>
 
-        {/* Epilogue text */}
-        <div
-          className="mb-12"
-          style={{
-            opacity: textVisible ? 1 : 0,
-            transition: 'opacity 3s ease 1s',
-          }}
-        >
-          {epilogue.split('\n\n').map((para, i) => (
-            <p
-              key={i}
-              className="font-serif leading-loose mb-5 text-left"
-              style={{ color: 'rgba(200,180,140,0.8)', fontSize: '0.95rem', lineHeight: '1.9' }}
-            >
-              {para}
-            </p>
-          ))}
-        </div>
-
-        {/* Buttons */}
-        <div
-          className="flex flex-col items-center gap-3"
-          style={{
-            opacity: buttonsVisible ? 1 : 0,
-            transition: 'opacity 1.5s ease',
-          }}
-        >
-          <button
-            onClick={onClose}
-            className="font-serif text-sm px-12 py-3 transition-all"
+      <main className="relative z-10 mx-auto flex min-h-screen max-w-4xl items-center px-5 py-8">
+        <section className="w-full border border-parchment-100/34 bg-black/72 p-5 shadow-[0_30px_130px_rgba(0,0,0,0.82)] backdrop-blur-md sm:p-8">
+          <div
+            className="text-center"
             style={{
-              background: victory
-                ? 'linear-gradient(135deg, rgba(200,146,42,0.15), rgba(140,90,20,0.3))'
-                : 'linear-gradient(135deg, rgba(180,30,30,0.15), rgba(100,10,10,0.3))',
-              border: `1px solid ${victory ? 'rgba(200,146,42,0.35)' : 'rgba(180,30,30,0.35)'}`,
-              color: victory ? '#d4a843' : '#c05030',
-              letterSpacing: '0.08em',
+              opacity: textVisible ? 1 : 0,
+              transition: 'opacity 1.4s ease',
             }}
           >
-            Return to the Hall
-          </button>
-          <p className="font-serif text-xs italic" style={{ color: 'rgba(160,140,100,0.3)' }}>
-            The story lives on.
-          </p>
-        </div>
-      </div>
+            <p className={`font-fantasy text-[10px] uppercase tracking-[0.34em] ${victory ? 'text-amber-200/68' : 'text-red-200/62'}`}>
+              {victory ? 'Campaign Epilogue' : 'Fallen Epilogue'}
+            </p>
+            <h1 className={`mt-3 font-fantasy text-5xl uppercase tracking-[0.08em] sm:text-6xl ${victory ? 'text-amber-100' : 'text-red-100'}`}>
+              {victory ? 'The Age Turns' : 'The Darkness Prevails'}
+            </h1>
+            <p className="mt-4 font-serif text-xs uppercase tracking-[0.24em] text-parchment-200/48">
+              {characterName}
+            </p>
+          </div>
+
+          <div
+            className={`mx-auto my-8 h-px w-40 ${victory ? 'bg-[linear-gradient(90deg,transparent,rgba(245,158,11,0.58),transparent)]' : 'bg-[linear-gradient(90deg,transparent,rgba(248,113,113,0.5),transparent)]'}`}
+            style={{
+              opacity: textVisible ? 1 : 0,
+              transition: 'opacity 1.4s ease 0.3s',
+            }}
+          />
+
+          <div
+            className="max-h-[48vh] overflow-y-auto border border-white/10 bg-white/[0.025] p-5"
+            style={{
+              opacity: textVisible ? 1 : 0,
+              transition: 'opacity 1.8s ease 0.45s',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(200,146,42,0.35) transparent',
+            }}
+          >
+            {epilogue.split('\n\n').map((para, i) => (
+              <p
+                key={i}
+                className="mb-5 text-left font-serif text-base leading-loose text-parchment-200/78 last:mb-0"
+              >
+                {para}
+              </p>
+            ))}
+          </div>
+
+          <div
+            className="mt-6 flex flex-col items-center gap-3"
+            style={{
+              opacity: buttonsVisible ? 1 : 0,
+              transition: 'opacity 1.2s ease',
+            }}
+          >
+            <button
+              onClick={onClose}
+              className={`border px-7 py-3 font-fantasy text-xs uppercase tracking-[0.22em] transition-all ${
+                victory
+                  ? 'border-amber-300/46 bg-amber-300/12 text-amber-100 hover:border-amber-200'
+                  : 'border-red-300/42 bg-red-500/12 text-red-100 hover:border-red-200'
+              }`}
+            >
+              Return to the Hall
+            </button>
+            <p className="font-serif text-xs italic text-parchment-200/34">The story lives on.</p>
+          </div>
+        </section>
+      </main>
     </div>
   )
 }

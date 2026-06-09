@@ -40,10 +40,11 @@ class AudioManager {
   private currentMusic: HTMLAudioElement | null = null
   private ambientTrack: HTMLAudioElement | null = null
   private gameplayTrack: HTMLAudioElement | null = null
+  private uiSoundsBound = false
   private currentAmbientType = 'default'
-  private musicEnabled = true
-  private sfxEnabled = true
-  private musicVolume = 0.4
+  private musicEnabled = localStorage.getItem('audio_music') !== 'false'
+  private sfxEnabled = localStorage.getItem('audio_sfx') !== 'false'
+  private musicVolume = parseFloat(localStorage.getItem('audio_music_vol') || '0.4')
   private ambientVolume = 0.25
   private sfxVolume = 0.7
   private combatIndex = 0
@@ -206,6 +207,22 @@ class AudioManager {
     audio.play().catch(() => {})
   }
 
+  playUiClick() {
+    if (!this.sfxEnabled) return
+    const audio = this.getOrCreate('ui-click', '/audio/page-turn.mp3', false)
+    audio.volume = this.sfxVolume * 0.22
+    audio.currentTime = 0
+    audio.play().catch(() => {})
+  }
+
+  playConfirm() {
+    if (!this.sfxEnabled) return
+    const audio = this.getOrCreate('ui-confirm', '/audio/item-pickup.mp3', false)
+    audio.volume = this.sfxVolume * 0.42
+    audio.currentTime = 0
+    audio.play().catch(() => {})
+  }
+
   playLevelUp() {
     if (!this.sfxEnabled) return
     const audio = this.getOrCreate('level-up', '/audio/level-up.mp3', false)
@@ -216,7 +233,7 @@ class AudioManager {
 
   playMagic() {
     if (!this.sfxEnabled) return
-    const audio = this.getOrCreate('magic', '/audio/magic.mp3', false)
+    const audio = this.getOrCreate('magic', '/assets/music/13a309fa-magic_spell_cast.mp3', false)
     audio.volume = this.sfxVolume * 0.7
     audio.currentTime = 0
     audio.play().catch(() => {})
@@ -224,7 +241,7 @@ class AudioManager {
 
   playGold() {
     if (!this.sfxEnabled) return
-    const audio = this.getOrCreate('gold', '/audio/gold.mp3', false)
+    const audio = this.getOrCreate('gold', '/assets/music/65b20f81-coin_sound.mp3', false)
     audio.volume = this.sfxVolume * 0.7
     audio.currentTime = 0
     audio.play().catch(() => {})
@@ -232,14 +249,29 @@ class AudioManager {
 
   playDoorOpen() {
     if (!this.sfxEnabled) return
-    const audio = this.getOrCreate('door', '/audio/door.mp3', false)
+    const audio = this.getOrCreate('door', '/assets/music/4c1400b0-door_open.mp3', false)
     audio.volume = this.sfxVolume * 0.6
     audio.currentTime = 0
     audio.play().catch(() => {})
   }
 
+  bindUiSounds() {
+    if (this.uiSoundsBound || typeof document === 'undefined') return
+    this.uiSoundsBound = true
+    document.addEventListener(
+      'pointerdown',
+      (event) => {
+        const target = event.target as HTMLElement | null
+        if (!target?.closest('button, [role="button"], a, input, textarea, select')) return
+        this.playUiClick()
+      },
+      { capture: true }
+    )
+  }
+
   toggleMusic() {
     this.musicEnabled = !this.musicEnabled
+    localStorage.setItem('audio_music', String(this.musicEnabled))
     if (!this.musicEnabled) {
       this.stopMusic()
       this.stopGameplay()
@@ -253,11 +285,13 @@ class AudioManager {
 
   toggleSfx() {
     this.sfxEnabled = !this.sfxEnabled
+    localStorage.setItem('audio_sfx', String(this.sfxEnabled))
     return this.sfxEnabled
   }
 
   setMusicVolume(vol: number) {
     this.musicVolume = vol
+    localStorage.setItem('audio_music_vol', String(vol))
     if (this.currentMusic) this.currentMusic.volume = vol
     if (this.gameplayTrack) this.gameplayTrack.volume = vol * 0.7
   }

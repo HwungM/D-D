@@ -4,107 +4,122 @@ interface QuestLogProps {
   worldState: WorldState | null
 }
 
-const STATUS_STYLE: Record<string, { label: string; color: string; dot: string }> = {
-  active:    { label: 'Active',     color: '#c89228', dot: '#f59e0b' },
-  completed: { label: 'Completed',  color: '#4ade80', dot: '#22c55e' },
-  failed:    { label: 'Failed',     color: '#f87171', dot: '#ef4444' },
+function formatLabel(value?: string) {
+  return value ? value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : ''
 }
 
-const TIME_ICONS: Record<string, string> = {
-  dawn: '🌅', day: '☀️', dusk: '🌇', night: '🌙',
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-2 px-1 font-fantasy text-[9px] uppercase tracking-[0.26em]"
+      style={{ color: 'rgba(200,146,42,0.65)' }}>
+      {children}
+    </p>
+  )
 }
 
 export default function QuestLog({ worldState }: QuestLogProps) {
-  const allQuests = Array.isArray(worldState?.activeQuests) ? worldState!.activeQuests! : []
-  const activeQuests = allQuests.filter(q => q?.status === 'active')
-  const doneQuests   = allQuests.filter(q => q?.status && q.status !== 'active')
-  const locations    = Array.isArray(worldState?.discoveredLocations) ? worldState!.discoveredLocations! : []
-
   if (!worldState) {
     return (
-      <div className="p-5 text-center" style={{ color: 'rgba(160,140,110,0.4)' }}>
-        <p className="font-serif text-sm italic">The adventure has not yet begun…</p>
+      <div className="p-5 text-center">
+        <p className="font-serif text-sm italic" style={{ color: 'rgba(200,180,140,0.45)' }}>
+          The adventure has not yet begun.
+        </p>
       </div>
     )
   }
 
+  const allQuests = Array.isArray(worldState.activeQuests) ? worldState.activeQuests : []
+  const activeQuests = allQuests.filter(q => q?.status === 'active')
+  const resolvedQuests = allQuests.filter(q => q?.status && q.status !== 'active')
+  const locations = Array.isArray(worldState.discoveredLocations) ? worldState.discoveredLocations : []
+
   return (
-    <div className="p-4 space-y-5 text-sm">
-      {/* World context strip */}
-      <div className="flex flex-wrap gap-2">
-        {worldState.currentLocation && (
-          <span className="font-serif text-xs px-2 py-0.5" style={{ background: 'rgba(200,146,42,0.08)', border: '1px solid rgba(200,146,42,0.2)', color: '#c89228' }}>
-            📍 {worldState.currentLocation}
-          </span>
-        )}
-        {worldState.timeOfDay && (
-          <span className="font-serif text-xs px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.6)' }}>
-            {TIME_ICONS[worldState.timeOfDay] ?? '🕐'} {worldState.timeOfDay.charAt(0).toUpperCase() + worldState.timeOfDay.slice(1)}
-          </span>
-        )}
-        {worldState.weather && (
-          <span className="font-serif text-xs px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(180,160,120,0.6)' }}>
-            🌤 {worldState.weather}
-          </span>
-        )}
-      </div>
+    <div className="space-y-5 p-4">
+
+      {/* World conditions */}
+      {(worldState.currentLocation || worldState.timeOfDay || worldState.weather) && (
+        <div className="grid grid-cols-2 gap-1.5">
+          {worldState.currentLocation && (
+            <div className="px-3 py-2.5"
+              style={{ border: '1px solid rgba(103,232,249,0.2)', background: 'rgba(34,211,238,0.07)' }}>
+              <p className="font-fantasy text-[9px] uppercase tracking-[0.2em]" style={{ color: 'rgba(103,232,249,0.7)' }}>Location</p>
+              <p className="mt-1 font-serif text-sm" style={{ color: '#e8d9b8' }}>{worldState.currentLocation}</p>
+            </div>
+          )}
+          {(worldState.timeOfDay || worldState.weather) && (
+            <div className="px-3 py-2.5"
+              style={{ border: '1px solid rgba(200,146,42,0.22)', background: 'rgba(200,146,42,0.07)' }}>
+              <p className="font-fantasy text-[9px] uppercase tracking-[0.2em]" style={{ color: 'rgba(200,146,42,0.72)' }}>Conditions</p>
+              <p className="mt-1 font-serif text-sm" style={{ color: '#e8d9b8' }}>
+                {[formatLabel(worldState.timeOfDay), formatLabel(worldState.weather)].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Active quests */}
-      <div>
-        <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.45)' }}>Active Quests</p>
+      <section>
+        <SectionLabel>Active Quests</SectionLabel>
         {activeQuests.length === 0 ? (
-          <p className="font-serif text-xs italic" style={{ color: 'rgba(160,140,110,0.3)' }}>No active quests</p>
+          <p className="px-3 py-4 font-serif text-sm italic"
+            style={{ color: 'rgba(200,180,140,0.55)', border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}>
+            No quests yet. Press the world for names, promises, and stakes.
+          </p>
         ) : (
-          <div className="space-y-2">
-            {activeQuests.map((q, i) => {
-              const st = STATUS_STYLE[q.status] ?? STATUS_STYLE.active
-              return (
-                <div key={i} className="px-3 py-2.5" style={{ background: 'rgba(200,146,42,0.05)', border: '1px solid rgba(200,146,42,0.15)' }}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: st.dot, boxShadow: `0 0 5px ${st.dot}80` }} />
-                    <span className="font-serif text-xs" style={{ color: '#d4c5a0' }}>{q.title}</span>
-                  </div>
-                  <p className="text-xs leading-relaxed" style={{ color: 'rgba(160,140,110,0.6)', paddingLeft: '14px' }}>{q.description}</p>
+          <div className="space-y-1.5">
+            {activeQuests.map((quest, i) => (
+              <article key={`${quest.title}-${i}`} className="px-3 py-3"
+                style={{ border: '1px solid rgba(200,146,42,0.28)', borderLeftColor: '#f59e0b', borderLeftWidth: 2, background: 'rgba(200,146,42,0.07)' }}>
+                <div className="flex items-center gap-2.5">
+                  <span className="h-2 w-2 shrink-0" style={{ background: '#f59e0b', boxShadow: '0 0 10px rgba(245,158,11,0.5)' }} />
+                  <h3 className="font-fantasy text-sm" style={{ color: '#f5dea0' }}>{quest.title}</h3>
+                  <span className="ml-auto font-fantasy text-[9px] uppercase tracking-[0.16em]" style={{ color: '#f59e0b' }}>Active</span>
                 </div>
-              )
-            })}
+                {quest.description && (
+                  <p className="mt-2 font-serif text-sm leading-relaxed" style={{ color: 'rgba(220,200,165,0.82)' }}>{quest.description}</p>
+                )}
+              </article>
+            ))}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Completed / failed quests */}
-      {doneQuests.length > 0 && (
-        <div>
-          <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.35)' }}>Resolved</p>
-          <div className="space-y-1.5">
-            {doneQuests.map((q, i) => {
-              const st = STATUS_STYLE[q.status] ?? STATUS_STYLE.completed
+      {/* Resolved quests */}
+      {resolvedQuests.length > 0 && (
+        <section>
+          <SectionLabel>Resolved</SectionLabel>
+          <div className="space-y-1">
+            {resolvedQuests.map((quest, i) => {
+              const color = quest.status === 'completed' ? '#86efac' : '#f87171'
               return (
-                <div key={i} className="px-3 py-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: st.dot, opacity: 0.5 }} />
-                    <span className="font-serif text-xs line-through" style={{ color: 'rgba(160,140,110,0.4)' }}>{q.title}</span>
-                    <span className="ml-auto text-xs" style={{ color: st.color, opacity: 0.6 }}>{st.label}</span>
-                  </div>
-                </div>
+                <article key={`${quest.title}-${i}`} className="flex items-center gap-2.5 px-3 py-2.5"
+                  style={{ border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(0,0,0,0.18)' }}>
+                  <span className="h-1.5 w-1.5 shrink-0 opacity-60" style={{ background: color }} />
+                  <h3 className="font-serif text-sm flex-1 truncate" style={{ color: 'rgba(200,180,140,0.65)' }}>{quest.title}</h3>
+                  <span className="font-fantasy text-[9px] uppercase tracking-[0.14em]" style={{ color, opacity: 0.7 }}>
+                    {quest.status === 'completed' ? 'Done' : 'Failed'}
+                  </span>
+                </article>
               )
             })}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Discovered locations */}
       {locations.length > 0 && (
-        <div>
-          <p className="text-xs uppercase tracking-widest mb-2" style={{ color: 'rgba(160,140,110,0.35)' }}>Discovered Places</p>
+        <section>
+          <SectionLabel>Discovered Places</SectionLabel>
           <div className="flex flex-wrap gap-1.5">
-            {locations.map((loc, i) => (
-              <span key={i} className="font-serif text-xs px-2 py-0.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(180,160,120,0.5)' }}>
+            {locations.map(loc => (
+              <span key={loc} className="px-2.5 py-1 font-serif text-xs"
+                style={{ border: '1px solid rgba(200,146,42,0.18)', background: 'rgba(200,146,42,0.06)', color: 'rgba(220,200,165,0.78)' }}>
                 {loc}
               </span>
             ))}
           </div>
-        </div>
+        </section>
       )}
     </div>
   )

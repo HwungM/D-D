@@ -1,221 +1,212 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../lib/api'
 import { useAuthStore } from '../lib/store'
-import EmberParticles from '../components/EmberParticles'
+import { audioManager } from '../lib/audio'
 
 const HARDCODED_PASSWORD = 'tavern2024'
 
 const CHARACTERS = [
-  { id: 'king', name: 'King', subtitle: 'The Warlord King', description: 'Conqueror of realms, keeper of an iron crown.' },
-  { id: 'sunmi', name: 'Sun Mi', subtitle: 'The Shadow Weaver', description: 'Her past is a riddle only the dead remember.' },
+  {
+    id: 'king',
+    name: 'King',
+    title: 'Realmwalker',
+    description: 'Gather your party and step through the first door.',
+  },
+  {
+    id: 'sunmi',
+    name: 'Sun Mi',
+    title: 'Fateweaver',
+    description: 'Every choice leaves a thread for the realm to remember.',
+  },
 ]
 
 export default function Landing() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { setSession, setUser } = useAuthStore()
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [showTrailer, setShowTrailer] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    audioManager.bindUiSounds()
+  }, [])
+
+  function handleWatchTrailer() {
+    audioManager.playConfirm()
+    setShowTrailer(true)
+    setError('')
+    window.setTimeout(() => {
+      const video = videoRef.current
+      if (!video) return
+      video.currentTime = 0
+      video.muted = false
+      void video.play().catch(() => {
+        setError('The trailer is ready, but your browser blocked playback. Press play on the video.')
+      })
+    }, 0)
+  }
+
+  function handleCloseTrailer() {
+    audioManager.playUiClick()
+    const video = videoRef.current
+    if (video) {
+      video.pause()
+      video.currentTime = 0
+    }
+    setShowTrailer(false)
+  }
 
   async function handleLogin(displayName: string) {
     setError('')
     setLoading(displayName)
-    // Sanitize: remove spaces, lowercase for API key
+    audioManager.playDoorOpen()
+    audioManager.startGameplay()
+    audioManager.startAmbient()
+
     const apiUsername = displayName.replace(/\s+/g, '').toLowerCase()
+    const redirect = searchParams.get('redirect')
+    const destination = redirect?.startsWith('/') ? redirect : '/dashboard'
+
     try {
-      // Always try login first
       try {
         const { data } = await authApi.login(apiUsername, HARDCODED_PASSWORD)
         setSession(data.session)
         setUser({ ...data.user, username: displayName })
-        navigate('/dashboard')
+        navigate(destination)
         return
       } catch {
-        // Login failed — try register
+        // Create the private account on first entry.
       }
-      // Try register
+
       try {
         const { data } = await authApi.register(apiUsername, HARDCODED_PASSWORD, apiUsername)
         setSession(data.session)
         setUser({ ...data.user, username: displayName })
-        navigate('/dashboard')
+        navigate(destination)
         return
       } catch {
-        // Register failed — account likely exists with old credentials, force recreate
+        setError('Having trouble signing in. Ask King to check the server.')
       }
-      setError('Having trouble signing in. Ask King to check the server.')
     } finally {
       setLoading(null)
     }
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center relative overflow-hidden">
-      {/* Deep atmospheric background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-[#0a0810] to-slate-950" />
-      <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(192,57,43,0.12) 0%, transparent 55%), radial-gradient(ellipse at 50% 100%, rgba(26,71,49,0.18) 0%, transparent 60%)',
-      }} />
-      {/* Subtle stone texture overlay */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
-      }} />
+    <div className="relative min-h-screen overflow-hidden bg-[#050607] text-parchment-100">
+      <picture className="absolute inset-0 block">
+        <source media="(max-width: 767px)" srcSet="/media/everrealm-hero-mobile.png" />
+        <img
+          src="/media/everrealm-hero-desktop.png"
+          alt=""
+          className="h-full w-full object-cover"
+        />
+      </picture>
 
-      {/* Floating ember particles */}
-      <EmberParticles />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(5,6,7,0.08)_0%,rgba(5,6,7,0.36)_58%,rgba(5,6,7,0.76)_100%)]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/72 md:from-black/58 md:via-black/8 md:to-black/68" />
+      <div className="absolute inset-x-0 top-0 h-[42vh] bg-gradient-to-b from-black/78 via-black/38 to-transparent" />
 
-      {/* Top vignette */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at center, transparent 40%, rgba(7,13,20,0.6) 100%)',
-      }} />
-
-      {/* Title */}
-      <div className="relative z-10 text-center mb-14 px-4">
-        <p className="font-fantasy text-ember-400 text-xs uppercase tracking-[0.3em] mb-3 opacity-70">
-          — Enter the Realm —
-        </p>
-        <h1 className="font-fantasy text-5xl md:text-6xl text-parchment-100 mb-1 tracking-wide" style={{
-          textShadow: '0 0 60px rgba(192,57,43,0.5), 0 2px 4px rgba(0,0,0,0.8)',
-        }}>
-          Chronicles of the
-        </h1>
-        <h1 className="font-fantasy text-5xl md:text-6xl text-ember-400 tracking-wide" style={{
-          textShadow: '0 0 40px rgba(192,57,43,0.8), 0 2px 4px rgba(0,0,0,0.8)',
-        }}>
-          Fallen Age
-        </h1>
-        <div className="mt-5 flex justify-center gap-3 items-center">
-          {Array.from({ length: 7 }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-full bg-ember-400 animate-flicker"
-              style={{
-                width: i === 3 ? '6px' : '3px',
-                height: i === 3 ? '6px' : '3px',
-                opacity: i === 3 ? 1 : 0.5,
-                animationDelay: `${i * 0.22}s`,
-              }}
-            />
-          ))}
-        </div>
-        <p className="mt-4 text-slate-400 font-serif italic text-base md:text-lg">
-          "Who dares enter these halls of shadow and flame?"
-        </p>
-      </div>
-
-      {/* Portrait cards */}
-      <div className="relative z-10 flex flex-col sm:flex-row gap-8 px-6 max-w-3xl w-full justify-center">
-        {CHARACTERS.map((char) => (
-          <button
-            key={char.id}
-            onClick={() => handleLogin(char.name)}
-            disabled={loading !== null}
-            className="group relative flex-1 max-w-xs mx-auto sm:mx-0 cursor-pointer border border-slate-700 hover:border-ember-400 transition-all duration-500 overflow-hidden"
-            style={{
-              background: 'linear-gradient(180deg, #0f1923 0%, #0a0e18 100%)',
-              boxShadow: '0 0 0 1px rgba(192,57,43,0.1)',
-            }}
+      <main className="relative z-10 flex min-h-screen flex-col items-center px-5 pb-8 pt-10 sm:px-8 md:pt-12">
+        <section className="w-full max-w-5xl text-center">
+          <p className="font-fantasy text-[11px] uppercase tracking-[0.34em] text-ember-300/80 md:text-xs">
+            Enter the realm
+          </p>
+          <h1
+            className="mt-3 font-fantasy text-5xl uppercase tracking-[0.08em] text-parchment-100 sm:text-6xl md:text-7xl"
+            style={{ textShadow: '0 4px 22px rgba(0,0,0,0.9), 0 0 44px rgba(24,196,173,0.18)' }}
           >
-            {/* Candle glow effect on hover */}
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{
-              background: 'radial-gradient(ellipse at 50% 100%, rgba(192,57,43,0.18) 0%, transparent 70%)',
-            }} />
+            The Everrealm
+          </h1>
+          <p className="mx-auto mt-3 max-w-xl font-serif text-base italic text-parchment-200/82 md:text-lg">
+            Gather your party. Let the world answer.
+          </p>
 
-            {/* Card title */}
-            <div className="relative px-6 pt-6 pb-3 border-b border-slate-800 group-hover:border-ember-400/30 transition-colors duration-500">
-              <p className="font-fantasy text-xs uppercase tracking-[0.25em] text-ember-400 opacity-70 mb-1">
-                Chronicles of the Fallen Age
-              </p>
-            </div>
-
-            {/* Portrait placeholder area */}
-            <div className="relative h-56 overflow-hidden flex items-center justify-center"
-              style={{ background: 'linear-gradient(180deg, #0a0e18 0%, #070d14 100%)' }}>
-              {/* Animated candle flame ornament */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                {/* Flame */}
-                <div
-                  className="candle-flame"
-                  style={{
-                    width: '10px',
-                    height: '20px',
-                    background: 'radial-gradient(ellipse at 50% 80%, #f97316 0%, #c0392b 60%, transparent 100%)',
-                    borderRadius: '50% 50% 30% 30%',
-                    filter: 'blur(1px)',
-                    boxShadow: '0 0 12px #f97316, 0 0 24px #c0392b66',
-                  }}
-                />
-                {/* Candle body */}
-                <div style={{
-                  width: '6px',
-                  height: '40px',
-                  background: 'linear-gradient(180deg, #e8d4aa 0%, #c4a870 100%)',
-                  borderRadius: '1px',
-                  boxShadow: '0 0 8px rgba(192,57,43,0.3)',
-                }} />
-              </div>
-
-              {/* Character silhouette / placeholder */}
-              <div className="relative z-10 flex flex-col items-center justify-center gap-2">
-                <div
-                  className="w-24 h-24 rounded-full border-2 border-slate-700 group-hover:border-ember-400/50 transition-colors duration-500 flex items-center justify-center"
-                  style={{
-                    background: 'radial-gradient(circle, #1a2332 0%, #070d14 100%)',
-                    boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5)',
-                    animation: 'torchFlicker 2s ease-in-out infinite',
-                  }}
-                >
-                  <span className="font-fantasy text-3xl text-parchment-200/40">
-                    {char.name.charAt(0)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Corner ornaments */}
-              <div className="absolute top-2 left-2 w-4 h-4 border-t border-l border-ember-400/30 group-hover:border-ember-400/60 transition-colors duration-500" />
-              <div className="absolute top-2 right-2 w-4 h-4 border-t border-r border-ember-400/30 group-hover:border-ember-400/60 transition-colors duration-500" />
-              <div className="absolute bottom-2 left-2 w-4 h-4 border-b border-l border-ember-400/30 group-hover:border-ember-400/60 transition-colors duration-500" />
-              <div className="absolute bottom-2 right-2 w-4 h-4 border-b border-r border-ember-400/30 group-hover:border-ember-400/60 transition-colors duration-500" />
-            </div>
-
-            {/* Name & description */}
-            <div className="relative px-6 py-5 text-center">
-              <h2 className="font-fantasy text-2xl text-parchment-100 mb-1 tracking-wide group-hover:text-ember-400 transition-colors duration-300" style={{
-                textShadow: '0 0 20px rgba(192,57,43,0)',
-              }}>
-                {char.name}
-              </h2>
-              <p className="text-ember-400/70 text-xs font-serif uppercase tracking-widest mb-2">
-                {char.subtitle}
-              </p>
-              <p className="text-slate-400 font-serif italic text-sm leading-relaxed">
-                {char.description}
-              </p>
-
-              {/* Enter button */}
-              <div className="mt-4 py-2 px-4 border border-slate-700 group-hover:border-ember-400 group-hover:bg-ember-600/10 transition-all duration-300">
-                <span className="font-fantasy text-xs uppercase tracking-[0.2em] text-slate-400 group-hover:text-parchment-100 transition-colors duration-300">
-                  {loading === char.name ? (
-                    <span className="animate-pulse">Entering realm...</span>
-                  ) : (
-                    'Enter as this soul'
-                  )}
-                </span>
-              </div>
-            </div>
+          <button
+            type="button"
+            onClick={handleWatchTrailer}
+            className="mt-7 border border-amber-300/45 bg-black/28 px-6 py-3 font-fantasy text-xs uppercase tracking-[0.24em] text-parchment-100 shadow-[0_0_32px_rgba(20,184,166,0.12)] backdrop-blur-sm transition-all duration-300 hover:border-amber-200 hover:bg-amber-300/12 hover:text-white"
+          >
+            Watch Trailer
           </button>
-        ))}
-      </div>
+        </section>
 
-      {error && (
-        <div className="relative z-10 mt-6 border border-ember-600 bg-ember-600/10 px-4 py-2 text-ember-400 text-sm font-serif max-w-md text-center">
-          {error}
+        <section className="mt-auto w-full max-w-3xl pt-6 sm:pt-8 md:pt-10">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {CHARACTERS.map((character) => (
+              <button
+                key={character.id}
+                type="button"
+                onClick={() => handleLogin(character.name)}
+                disabled={loading !== null}
+                className="group relative min-h-[154px] overflow-hidden border border-parchment-200/24 bg-black/42 px-5 py-5 text-left shadow-[0_20px_70px_rgba(0,0,0,0.45)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-200/70 hover:bg-black/54 disabled:cursor-wait disabled:opacity-70"
+              >
+                <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{
+                  background: 'radial-gradient(circle at 50% 0%, rgba(20,184,166,0.14), transparent 62%), radial-gradient(circle at 20% 100%, rgba(245,158,11,0.14), transparent 55%)',
+                }} />
+                <div className="relative flex h-full flex-col">
+                  <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-amber-200/70">
+                    Choose your soul
+                  </p>
+                  <div className="mt-5 flex items-center gap-4">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-cyan-200/28 bg-slate-950/78 shadow-[0_0_36px_rgba(20,184,166,0.22)]">
+                      <span className="font-fantasy text-2xl text-parchment-100/86">
+                        {character.name.charAt(0)}
+                      </span>
+                    </div>
+                    <div>
+                      <h2 className="font-fantasy text-3xl tracking-wide text-parchment-100">
+                        {character.name}
+                      </h2>
+                      <p className="mt-1 font-serif text-xs uppercase tracking-[0.2em] text-amber-200/70">
+                        {character.title}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-4 min-h-[40px] font-serif text-sm leading-relaxed text-parchment-200/74">
+                    {character.description}
+                  </p>
+                  <div className="mt-4 border border-parchment-200/18 bg-parchment-200/[0.03] px-4 py-2 text-center transition-colors duration-300 group-hover:border-amber-200/55 group-hover:bg-amber-300/10">
+                    <span className="font-fantasy text-[11px] uppercase tracking-[0.22em] text-parchment-200/76 group-hover:text-parchment-100">
+                      {loading === character.name ? 'Entering...' : 'Enter'}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {error && (
+            <div className="mx-auto mt-5 max-w-md border border-ember-500/70 bg-black/70 px-4 py-3 text-center font-serif text-sm text-ember-200 backdrop-blur">
+              {error}
+            </div>
+          )}
+        </section>
+      </main>
+
+      {showTrailer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black">
+          <video
+            ref={videoRef}
+            className="h-full w-full bg-black object-contain"
+            src="/media/dnd-game-intro.mp4"
+            playsInline
+            controls
+            onEnded={handleCloseTrailer}
+          />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/80 to-transparent" />
+          <button
+            type="button"
+            onClick={handleCloseTrailer}
+            className="absolute right-5 top-5 border border-parchment-100/55 bg-black/50 px-4 py-2 font-fantasy text-xs uppercase tracking-[0.2em] text-parchment-100 transition-all duration-200 hover:bg-white/10"
+          >
+            Skip
+          </button>
         </div>
       )}
-
-      <p className="relative z-10 mt-10 text-slate-700 text-xs font-serif italic">
-        "Choose wisely — for the realm remembers."
-      </p>
     </div>
   )
 }

@@ -96,6 +96,58 @@
   100% { transform: translateX(-50%) translateY(150%); }
 }
 
+@keyframes slideInRight {
+  0% { transform: translateX(24px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideUpPanel {
+  0% { transform: translateY(28px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes everrealmDrift {
+  0%, 100% { background-position: 0% 0%, 100% 50%; }
+  50% { background-position: 100% 15%, 0% 70%; }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 220ms ease-out both;
+}
+
+.animate-slide-up-panel {
+  animation: slideUpPanel 220ms ease-out both;
+}
+
+.everrealm-game-shell {
+  background: #060402;
+}
+
+/* Warm amber-lit narrative feed — feels like candlelit parchment, not a black void */
+.everrealm-story-feed {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(200,146,42,0.09), transparent 50%),
+    radial-gradient(ellipse at 50% 100%, rgba(180,100,30,0.05), transparent 40%);
+}
+
+@media (min-width: 1024px) {
+  .everrealm-scene-column {
+    height: 100%;
+  }
+}
+
+@media (max-width: 1023px) {
+  .everrealm-game-main {
+    padding: 0;
+  }
+
+  .everrealm-scene-column,
+  .everrealm-story-column {
+    border-left: 0 !important;
+    border-right: 0 !important;
+  }
+}
+
 @keyframes candleFlame {
   0%, 100% { transform: scaleX(1) scaleY(1); opacity: 0.9; }
   25% { transform: scaleX(0.92) scaleY(1.08); opacity: 1; }

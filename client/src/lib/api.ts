@@ -40,7 +40,18 @@ export const authApi = {
 // Campaigns
 export const campaignApi = {
   getSeeds: () => api.get('/campaigns/seeds'),
-  create: (name: string, storySeed: string, campaignType?: 'adventure' | 'testing', playerPreferences?: { tone: string; favoritePillars: string[]; playerCount: number; characterConcepts: string[] }) =>
+  create: (name: string, storySeed: string, campaignType?: 'adventure' | 'testing', playerPreferences?: {
+    playMode?: 'solo' | 'collaborative'
+    partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now'
+    campaignLength?: 'one_shot' | 'short' | 'medium' | 'long' | 'open_ended'
+    tone: string
+    artStyle?: string
+    favoritePillars: string[]
+    playerCount: number
+    targetPlayerCount?: number
+    waitForParty?: boolean
+    characterConcepts: string[]
+  }) =>
     api.post('/campaigns', { name, storySeed, campaignType, playerPreferences }),
   list: () => api.get('/campaigns'),
   get: (id: string) => api.get(`/campaigns/${id}`),
@@ -62,6 +73,7 @@ export const characterApi = {
     backstory?: string
     generatePortrait?: boolean
     portraitUrl?: string
+    stats?: { str: number; dex: number; con: number; int: number; wis: number; cha: number }
   }) => api.post('/characters', data),
   listByCampaign: (campaignId: string) => api.get(`/characters/campaign/${campaignId}`),
   get: (id: string) => api.get(`/characters/${id}`),
@@ -82,7 +94,7 @@ export const gameApi = {
     api.get(`/game/history/${campaignId}/${characterId}?limit=${limit || 50}${party ? '&party=true' : ''}`),
   getScene: (campaignId: string, characterId: string) =>
     api.get(`/game/scene/${campaignId}/${characterId}`),
-  resolveRoll: (data: { characterId: string; campaignId: string; rollResult: number; rollTotal: number; dc: number; success: boolean; isCritSuccess: boolean; isCritFail: boolean; rollContext: unknown }) =>
+  resolveRoll: (data: { characterId: string; campaignId: string; rollContext: unknown }) =>
     api.post('/game/resolve-roll', data),
   devKill: (characterId: string) => api.post(`/game/dev-kill/${characterId}`),
   devClearCombat: (campaignId: string) => api.post(`/game/dev-clear-combat/${campaignId}`),
@@ -100,4 +112,6 @@ export const ttsApi = {
 export const assetApi = {
   generate: (description: string, cacheKey: string, assetType = 'scene') =>
     api.post('/assets/generate', { description, cacheKey, assetType }),
+  cached: (cacheKey: string) =>
+    api.get(`/assets/cached/${encodeURIComponent(cacheKey)}`),
 }

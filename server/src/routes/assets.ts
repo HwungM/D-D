@@ -9,7 +9,7 @@ const router = Router();
 const generateSchema = z.object({
   description: z.string().min(1).max(500),
   cacheKey: z.string().min(1).max(200),
-  assetType: z.enum(['scene', 'portrait', 'item', 'npc']).default('scene'),
+  assetType: z.enum(['scene', 'portrait', 'item', 'npc', 'enemy']).default('scene'),
 });
 
 router.post('/generate', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {

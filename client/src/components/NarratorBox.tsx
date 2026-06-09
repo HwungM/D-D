@@ -10,35 +10,41 @@ interface NarratorBoxProps {
   isPlayerAction?: boolean
   playerName?: string
   playerPortrait?: string
+  narratorPortrait: string
   onComplete?: () => void
 }
 
-const MOOD_PORTRAIT: Record<Mood, string> = {
-  neutral: '/assets/dm/dm-neutral.png',
-  amused: '/assets/dm/dm-amused.png',
-  serious: '/assets/dm/dm-serious.png',
-  menacing: '/assets/dm/dm-menacing.png',
-  surprised: '/assets/dm/dm-surprised.png',
-  pleased: '/assets/dm/dm-pleased.png',
+const NARRATOR_COUNT = 10
+
+export function pickNarratorPortrait(campaignId: string): string {
+  let hash = 0
+  for (let i = 0; i < campaignId.length; i++) {
+    hash = (hash * 31 + campaignId.charCodeAt(i)) | 0
+  }
+  const index = (Math.abs(hash) % NARRATOR_COUNT) + 1
+  return `/assets/dm/dm-${String(index).padStart(2, '0')}.png`
 }
 
-const MOOD_BORDER_COLOR: Record<Mood, string> = {
-  neutral: 'rgba(192,57,43,0.3)',
-  amused: 'rgba(212,168,67,0.4)',
-  serious: 'rgba(100,30,22,0.5)',
-  menacing: 'rgba(139,28,28,0.6)',
-  surprised: 'rgba(192,100,43,0.4)',
-  pleased: 'rgba(150,180,100,0.4)',
+// Accent color per mood — used for the top border glow line only
+const MOOD_ACCENT: Record<Mood, string> = {
+  neutral:  'rgba(200,146,42,0.72)',
+  amused:   'rgba(212,168,67,0.85)',
+  serious:  'rgba(140,60,30,0.82)',
+  menacing: 'rgba(200,40,40,0.9)',
+  surprised:'rgba(200,120,40,0.82)',
+  pleased:  'rgba(120,190,80,0.75)',
 }
 
-export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = false, instant = false, playerName, playerPortrait, onComplete }: NarratorBoxProps) {
+export default function NarratorBox({
+  text, mood = 'neutral', isPlayerAction = false, instant = false,
+  playerName, playerPortrait, narratorPortrait, onComplete,
+}: NarratorBoxProps) {
   const [displayed, setDisplayed] = useState('')
   const [typing, setTyping] = useState(false)
   const indexRef = useRef(0)
 
   useEffect(() => {
     if (!text) return
-    // Historical events show instantly — no animation, no sound
     if (instant) {
       setDisplayed(text)
       setTyping(false)
@@ -47,7 +53,6 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
     indexRef.current = 0
     setDisplayed('')
     setTyping(true)
-
     if (!isPlayerAction) audioManager.playPageTurn()
 
     const interval = setInterval(() => {
@@ -64,35 +69,38 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text])
 
+  // ── Player action bubble ────────────────────────────────────────────────────
   if (isPlayerAction) {
     const isOtherPlayer = !!playerName
     return (
-      <div className="animate-fade-in flex items-start gap-3 px-2 py-1">
+      <div className="animate-fade-in flex items-start gap-3 px-1 py-0.5 sm:px-2">
         <div
-          className="shrink-0 w-8 h-8 rounded-full border overflow-hidden flex items-center justify-center text-xs font-fantasy"
+          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden border text-xs font-fantasy"
           style={isOtherPlayer
-            ? { background: 'rgba(139,92,246,0.15)', borderColor: 'rgba(139,92,246,0.5)', color: '#a78bfa' }
-            : { background: 'rgba(100,116,139,0.3)', borderColor: 'rgba(100,116,139,0.5)', color: '#cbd5e1' }
+            ? { background: 'rgba(139,92,246,0.18)', borderColor: 'rgba(196,181,253,0.48)', color: '#ddd6fe' }
+            : { background: 'rgba(34,211,238,0.14)', borderColor: 'rgba(103,232,249,0.48)', color: '#cffafe' }
           }
         >
           {playerPortrait ? (
-            <img src={playerPortrait} alt="" className="w-full h-full object-cover object-top" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          ) : '⚔'}
+            <img src={playerPortrait} alt="" className="h-full w-full object-cover object-top"
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          ) : 'PC'}
         </div>
         <div
-          className="flex-1 border px-3 py-2"
+          className="relative flex-1 border px-3 py-2.5"
           style={isOtherPlayer
-            ? { background: 'rgba(139,92,246,0.05)', borderColor: 'rgba(139,92,246,0.25)' }
-            : { background: 'rgba(30,41,59,0.6)', borderColor: 'rgba(51,65,85,0.8)' }
+            ? { background: 'rgba(139,92,246,0.10)', borderColor: 'rgba(196,181,253,0.28)', borderLeftColor: 'rgba(196,181,253,0.55)', borderLeftWidth: 2 }
+            : { background: 'rgba(34,211,238,0.08)', borderColor: 'rgba(103,232,249,0.22)', borderLeftColor: 'rgba(103,232,249,0.55)', borderLeftWidth: 2 }
           }
         >
           {isOtherPlayer && (
-            <p className="text-xs text-violet-400/70 font-sans uppercase tracking-widest mb-0.5">{playerName}</p>
+            <p className="mb-0.5 font-fantasy text-[10px] uppercase tracking-[0.2em] text-violet-200/80">{playerName}</p>
           )}
-          <p className="text-slate-300 font-serif text-sm italic">
+          <p className="font-serif text-sm italic leading-relaxed" style={{ color: 'rgba(240,228,200,0.88)' }}>
             {displayed}
             {typing && (
-              <span className="inline-block w-0.5 h-3.5 bg-slate-500 ml-0.5 align-middle" style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />
+              <span className="ml-0.5 inline-block h-3.5 w-0.5 align-middle bg-cyan-300/70"
+                style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />
             )}
           </p>
         </div>
@@ -100,55 +108,61 @@ export default function NarratorBox({ text, mood = 'neutral', isPlayerAction = f
     )
   }
 
-  const portraitUrl = MOOD_PORTRAIT[mood]
-  const borderColor = MOOD_BORDER_COLOR[mood]
+  // ── DM narration card ───────────────────────────────────────────────────────
+  const accent = MOOD_ACCENT[mood]
 
   return (
-    <div className="animate-fade-in narrator-box relative">
+    <div className="animate-fade-in narrator-box relative px-1 sm:px-2">
       <div
-        className="relative p-5 pt-6"
+        className="relative overflow-hidden border px-4 py-4 sm:px-5 sm:py-5"
         style={{
-          background: 'linear-gradient(135deg, #f5e6c8 0%, #ede0b8 30%, #f0dba8 60%, #e8d49a 100%)',
-          borderTop: `2px solid ${borderColor}`,
-          borderBottom: `2px solid ${borderColor}`,
-          boxShadow: `0 0 15px ${borderColor}, inset 0 0 30px rgba(0,0,0,0.08)`,
-          animation: 'flickerBorder 4s ease-in-out infinite',
+          background: 'linear-gradient(135deg, rgba(28,18,8,0.96) 0%, rgba(18,12,5,0.94) 100%)',
+          borderColor: 'rgba(200,146,42,0.22)',
+          borderTopColor: 'rgba(200,146,42,0.45)',
+          boxShadow: '0 4px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(200,146,42,0.12)',
         }}
       >
-        <div
-          className="absolute inset-0 opacity-[0.06] pointer-events-none"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.2'/%3E%3C/svg%3E")`,
-          }}
-        />
-        <div className="flex gap-4 relative z-10">
-          <div className="shrink-0">
+        {/* Glowing top accent line */}
+        <div className="absolute inset-x-0 top-0 h-[2px] pointer-events-none"
+          style={{ background: `linear-gradient(90deg, transparent 0%, ${accent} 30%, rgba(34,211,238,0.6) 70%, transparent 100%)` }} />
+
+        <div className="flex gap-3 sm:gap-4 relative z-10">
+          {/* DM portrait */}
+          <div className="shrink-0 flex flex-col items-center gap-1">
             <div
-              className="w-[60px] h-[60px] rounded-full overflow-hidden border-2 relative"
+              className="w-12 h-12 sm:w-14 sm:h-14 overflow-hidden border relative"
               style={{
-                borderColor: 'rgba(139,90,43,0.5)',
-                boxShadow: `0 0 12px ${borderColor}, inset 0 0 8px rgba(0,0,0,0.3)`,
-                animation: 'torchFlicker 2s ease-in-out infinite',
+                borderColor: 'rgba(200,146,42,0.35)',
+                boxShadow: `0 0 18px rgba(200,146,42,0.2), 0 0 40px rgba(0,0,0,0.6)`,
+                background: 'rgba(0,0,0,0.5)',
               }}
             >
-              <img src={portraitUrl} alt="Dungeon Master" className="w-full h-full object-cover" />
+              <img src={narratorPortrait} alt="Dungeon Master" className="w-full h-full object-cover" />
             </div>
             {typing && (
-              <div className="mt-1 text-center text-amber-700/70 text-base select-none" style={{ animation: 'candleFlame 0.8s ease-in-out infinite' }}>
-                ✍
-              </div>
+              <span className="font-fantasy text-[8px] uppercase tracking-[0.14em] select-none"
+                style={{ color: 'rgba(200,146,42,0.65)', animation: 'candleFlame 0.8s ease-in-out infinite' }}>
+                ▸▸▸
+              </span>
             )}
           </div>
-          <p className="font-serif text-sm leading-relaxed text-gray-800 whitespace-pre-wrap flex-1 pt-1">
-            {displayed}
-            {typing && (
-              <span className="inline-block w-0.5 h-4 bg-gray-600 ml-0.5 align-middle" style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />
-            )}
-          </p>
+
+          {/* Narration text */}
+          <div className="flex-1 min-w-0 pt-0.5">
+            <p className="font-serif text-sm sm:text-base leading-[1.75] whitespace-pre-wrap"
+              style={{ color: 'rgba(245,234,210,0.96)' }}>
+              {displayed}
+              {typing && (
+                <span className="inline-block w-0.5 h-[1.1em] bg-amber-300/70 ml-0.5 align-middle"
+                  style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />
+              )}
+            </p>
+          </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px" style={{
-          background: `linear-gradient(90deg, transparent, ${borderColor}, transparent)`,
-        }} />
+
+        {/* Subtle bottom rule */}
+        <div className="absolute bottom-0 left-0 right-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(200,146,42,0.18), transparent)' }} />
       </div>
     </div>
   )

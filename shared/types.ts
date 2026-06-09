@@ -71,6 +71,8 @@ export interface InventoryItem {
   quantity: number;
   type: 'weapon' | 'armor' | 'potion' | 'misc' | 'key';
   value?: number;
+  equipped?: boolean;
+  slot?: 'mainhand' | 'offhand' | 'armor' | 'helmet' | 'cloak' | 'accessory';
 }
 
 export interface Character {
@@ -108,6 +110,53 @@ export interface NpcMemory {
   metCharacters?: string[];  // character names this NPC has met
   interactionCount?: number; // incremented each time this NPC appears in worldStateChanges
   isKeyNPC?: boolean;        // if true, pinned to keyNPCs and never pruned
+  // Relationship system
+  relationshipScore?: number;  // -100 (bitter enemy) to 100 (devoted ally), 0 = neutral
+  relationshipLabel?: string;  // e.g. "trusted ally", "bitter rival", "romantic interest", "wary stranger"
+  role?: string;               // e.g. "merchant", "guard captain", "innkeeper", "quest giver"
+  portrait_url?: string;       // cached AI-generated or stock portrait URL
+  gender?: 'male' | 'female' | 'nonbinary'; // set on introduction, used for portrait matching
+}
+
+export interface CampaignSpineSnapshot {
+  currentArc: {
+    act: number;
+    label: string;
+    progress: number;
+    pressure: 'low' | 'rising' | 'dangerous' | 'climax';
+  };
+  lastRecap: string;
+  openThreads: string[];
+  keyRelationships: {
+    name: string;
+    disposition: NpcMemory['disposition'];
+    note: string;
+  }[];
+  nextPressure: string;
+  updatedAt: string;
+}
+
+export interface LocationNode {
+  name: string;
+  region: string;
+  description?: string;
+  type?: 'city' | 'region' | 'dungeon' | 'wilderness' | 'landmark' | 'unknown';
+  discoveredAt?: string;
+  lastVisitedAt?: string;
+  visits: number;
+  connectedTo: string[];
+  npcsPresent: string[];
+  questHooks: string[];
+  partyHere: string[];
+  tags: string[];
+}
+
+export interface LocationGraph {
+  currentLocation?: string;
+  nodes: LocationNode[];
+  regions: { name: string; locations: string[] }[];
+  nearby: string[];
+  updatedAt: string;
 }
 
 export interface CombatEnemy {
@@ -142,10 +191,12 @@ export interface WorldState {
   completedEvents?: string[];
   factionStandings?: Record<string, number>;
   discoveredLocations?: string[];
+  locationGraph?: LocationGraph;
   globalFlags?: Record<string, boolean | string | number>;
   npcMemory?: NpcMemory[];
   sessionNotes?: string[];
   campaignJournal?: CampaignJournalEntry[];
+  campaignSpine?: CampaignSpineSnapshot;
   characterHistory?: CharacterHistoryEntry[];
   antagonistProgress?: Record<string, { stepIndex: number; lastAction: string; knowsPlayers: boolean }>;
   sessionCount?: number;
@@ -181,16 +232,24 @@ export interface WorldState {
   actionsInCurrentAct?: number;  // resets to 0 each time the act advances
   endgamePhase?: 'none' | 'approaching' | 'confrontation';
   actionCount?: number; // total actions taken this campaign, used for villain move timing
+  lastHighStakesAction?: number; // actionCount value when the last high stakes moment fired
   futureHooks?: { id: string; description: string; source: string; createdAt: string; resolved: boolean }[];
   spotlightBalance?: Record<string, number>;  // characterId -> spotlight moment count
   pendingDirectorBeat?: { beat: string; urgency: 'low' | 'high' | 'critical'; expiresAfter: number } | null;
   lastPillarUsed?: string[];  // last 5 scene pillars used, for three-pillar balance tracking
+  pendingTurn?: {
+    actions: { characterId: string; userId: string; action: string; characterName: string; submittedAt: string }[];
+    roundId: string;
+    createdAt?: string;
+    expiresAt?: string;
+  } | null;
 }
 
 export interface WorldBible {
   geography: GeographyEntry[];
   pantheon: God[];
   toneRules: string[];
+  artBible?: ArtBible;
   forbiddenLoreHooks: string[];
   factions: Faction[];
   era: string;
@@ -230,11 +289,28 @@ export interface WorldBible {
     encounterCurve: string;
   };
   playerPreferences?: {
+    playMode?: 'solo' | 'collaborative';
+    partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now';
+    campaignLength?: 'one_shot' | 'short' | 'medium' | 'long' | 'open_ended';
     tone: string;
+    artStyle?: string;
     favoritePillars: string[];
     playerCount: number;
+    targetPlayerCount?: number;
+    waitForParty?: boolean;
     characterConcepts: string[];
   };
+}
+
+export interface ArtBible {
+  styleName: string;
+  masterPrompt: string;
+  characterStyle: string[];
+  environmentStyle: string[];
+  lighting: string[];
+  toneRules: string[];
+  avoid: string[];
+  scenePromptRules: string[];
 }
 
 export interface GeographyEntry {
@@ -411,7 +487,12 @@ export interface HighStakesChoice {
   consequenceHint: string;
 }
 
-export type Race = 'Human' | 'Elf' | 'Dwarf' | 'Halfling' | 'Gnome' | 'Half-Orc' | 'Tiefling' | 'Dragonborn';
+export type Race =
+  'Human' | 'Elf' | 'Dwarf' | 'Halfling' | 'Gnome' | 'Half-Orc' | 'Tiefling' | 'Dragonborn' |
+  'Aasimar' | 'Fire Genasi' | 'Water Genasi' | 'Earth Genasi' | 'Air Genasi' |
+  'Warforged' | 'Tabaxi' | 'Goliath' | 'Firbolg' | 'Changeling' | 'Kenku' | 'Dhampir' | 'Owlin' |
+  'Lizardfolk' | 'Satyr' | 'Harengon' | 'Yuan-Ti' | 'Triton' | 'Leonin' |
+  'Minotaur' | 'Bugbear' | 'Hobgoblin' | 'Goblin' | 'Tortle';
 export type CharacterClass = 'Fighter' | 'Wizard' | 'Rogue' | 'Cleric' | 'Ranger' | 'Paladin' | 'Barbarian' | 'Bard' | 'Druid' | 'Monk' | 'Sorcerer' | 'Warlock';
 
 export const RACE_STAT_BONUSES: Record<Race, Partial<CharacterStats>> = {
@@ -423,6 +504,31 @@ export const RACE_STAT_BONUSES: Record<Race, Partial<CharacterStats>> = {
   'Half-Orc': { str: 2, con: 1 },
   Tiefling: { cha: 2, int: 1 },
   Dragonborn: { str: 2, cha: 1 },
+  // Expanded races
+  Aasimar: { cha: 2, wis: 1 },
+  'Fire Genasi': { con: 2, int: 1 },
+  'Water Genasi': { con: 2, wis: 1 },
+  'Earth Genasi': { con: 2, str: 1 },
+  'Air Genasi': { dex: 2, int: 1 },
+  Warforged: { con: 2, str: 1 },
+  Tabaxi: { dex: 2, cha: 1 },
+  Goliath: { str: 2, con: 1 },
+  Firbolg: { wis: 2, str: 1 },
+  Changeling: { cha: 2, dex: 1 },
+  Kenku: { dex: 2, wis: 1 },
+  Dhampir: { dex: 2, cha: 1 },
+  Owlin: { wis: 2, dex: 1 },
+  Lizardfolk: { con: 2, str: 1 },
+  Satyr: { cha: 2, dex: 1 },
+  Harengon: { dex: 2, wis: 1 },
+  'Yuan-Ti': { cha: 2, int: 1 },
+  Triton: { str: 1, con: 1, cha: 1 },
+  Leonin: { con: 2, str: 1 },
+  Minotaur: { str: 2, con: 1 },
+  Bugbear: { str: 2, dex: 1 },
+  Hobgoblin: { con: 2, int: 1 },
+  Goblin: { dex: 2, con: 1 },
+  Tortle: { con: 2, wis: 1 },
 };
 
 export const CLASS_BASE_HP: Record<CharacterClass, number> = {

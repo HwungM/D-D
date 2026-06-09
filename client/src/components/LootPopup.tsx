@@ -59,17 +59,10 @@ export default function LootPopup({ items, goldChange, onDismiss }: LootPopupPro
           transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease',
         }}
       >
-        <div
-          className="border px-5 py-4 max-w-sm"
-          style={{
-            background: 'linear-gradient(135deg, #1a1207 0%, #2d1f0a 100%)',
-            borderColor: 'rgba(212,168,67,0.6)',
-            boxShadow: '0 0 30px rgba(212,168,67,0.25), inset 0 0 20px rgba(0,0,0,0.4)',
-          }}
-        >
+        <div className="max-w-sm border border-amber-200/34 bg-black/82 px-5 py-4 shadow-[0_24px_90px_rgba(0,0,0,0.72)] backdrop-blur-md">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-1 h-4 bg-amber-500" />
-            <p className="text-xs uppercase tracking-widest text-amber-400 font-sans">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-amber-100/72">
               {items.length > 0 && goldChange ? 'Loot & Gold' : items.length > 0 ? 'Item Found' : 'Gold Acquired'}
             </p>
           </div>
@@ -89,11 +82,11 @@ export default function LootPopup({ items, goldChange, onDismiss }: LootPopupPro
                   />
                 </div>
                 <div>
-                  <p className="text-parchment-200 font-serif text-sm">
+                  <p className="font-serif text-sm text-parchment-100">
                     {item.name}
-                    {item.quantity > 1 && <span className="text-amber-600 ml-1">×{item.quantity}</span>}
+                    {item.quantity > 1 && <span className="ml-1 text-amber-200/70">x{item.quantity}</span>}
                   </p>
-                  <p className="text-slate-500 text-xs font-serif italic">{item.description}</p>
+                  <p className="font-serif text-xs italic text-parchment-200/48">{item.description}</p>
                 </div>
               </div>
             ))}
@@ -107,14 +100,14 @@ export default function LootPopup({ items, goldChange, onDismiss }: LootPopupPro
                   <img src="/assets/items/gold-coin.png" alt="gold" className="w-7 h-7 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                 </div>
                 <div>
-                  <p className="text-amber-400 font-serif text-sm">+{goldChange} gold pieces</p>
-                  <p className="text-slate-500 text-xs font-serif italic">Added to your purse</p>
+                  <p className="font-serif text-sm text-amber-100">+{goldChange} gold pieces</p>
+                  <p className="font-serif text-xs italic text-parchment-200/48">Added to your purse</p>
                 </div>
               </div>
             )}
           </div>
 
-          <p className="text-slate-600 text-xs text-right mt-3 font-serif italic">tap to dismiss</p>
+          <p className="mt-3 text-right font-serif text-xs italic text-parchment-200/34">tap to dismiss</p>
         </div>
       </div>
     </div>
