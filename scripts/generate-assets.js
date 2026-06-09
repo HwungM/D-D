@@ -384,7 +384,7 @@ const ENEMY_FLAVOR = {
   'golem-iron': 'a towering humanoid figure of riveted iron plates, seams glowing faintly with bound magical energy, fists like anvils hanging at its sides, no face — just two amber rune-eyes set into a flat iron slab',
   'golem-stone': 'a massive humanoid of rough-hewn granite, enormous and slow, glowing carved runes across its chest, leaving cracked stone wherever it steps, staring straight ahead with ancient intent',
   'hell-hound': 'low and prowling, a pitch-black mastiff with molten-orange cracks in its hide, flame leaking from its jaws with every exhale, ember-red eyes, hackles raised, tail like a whip of fire',
-  'hill-giant': 'enormous and slovenly, rotten furs barely covering a massive gut, a tree torn up by its roots being used as a club, a dim but dangerous expression, dirt and bones in its matted hair',
+  'hill-giant': 'an enormous lumbering giant clad in crude stitched hides and animal skins, wielding an uprooted tree as a club, dim and brutish expression, tangled matted hair, looming against a stormy sky',
   hydra: 'erupting from water with five serpentine heads on long necks all striking outward in different directions simultaneously, scales glistening, rows of teeth in each thrashing head, its body a coiled mass below the surface',
   kobold: 'small and wiry with rust-red scales, enormous eyes in the dark, clutching a spear almost as tall as itself, grinning with too many teeth, wearing absurd salvaged armor held together with twine',
   'kobold-shaman': 'tiny and hunched over a staff topped with bones, crackling green magical energy around its clawed hands, ritual face-paint, frenzied eyes reflecting its own wild magic, a puffed-up sense of enormous importance',
