@@ -136,6 +136,70 @@ const ASSETS = [
   { file: 'scenes/bridge-day.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty ancient stone bridge spanning a deep misty chasm by day, weathered statues lining the railings, bright daylight breaking through drifting clouds below, a waterfall thundering somewhere in the depths, no travelers crossing. This is the daytime counterpart to a night version of the exact same bridge and camera angle — keep the composition identical, changing only the light and sky.` },
   { file: 'scenes/bridge-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same empty ancient stone bridge spanning a deep misty chasm at night, weathered statues lining the railings, moonlight cutting through drifting fog below, a waterfall glinting silver somewhere in the depths, no travelers crossing. This is the nighttime counterpart to a daytime version of the exact same bridge and camera angle — keep the composition identical, changing only the light and sky.` },
 
+  // ── NEW INTERIOR SCENES ────────────────────────────────────────────────────
+  { file: 'scenes/blacksmith-forge.png', size: '1536x1024', prompt: `${SCENE_STYLE} The interior of an empty blacksmith forge, roaring furnace bathing everything in orange-red firelight, an anvil at center, hammers and tongs hanging on the wall, sparks frozen in the air, no smith present.` },
+
+  { file: 'scenes/library-archives.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty grand library with soaring shelves of ancient tomes reaching the ceiling, rolling ladders on brass rails, dust motes drifting through shafts of amber candlelight, globes and arcane instruments on reading tables, utterly silent and unoccupied.` },
+
+  { file: 'scenes/temple-interior.png', size: '1536x1024', prompt: `${SCENE_STYLE} The empty interior of a grand fantasy temple, soaring stone columns, coloured light streaming through stained-glass rose windows, a central altar with a burning eternal flame, incense smoke curling toward the vaulted ceiling, no worshippers present.` },
+
+  { file: 'scenes/prison-cell.png', size: '1536x1024', prompt: `${SCENE_STYLE} A grim dungeon prison block, empty stone cells with iron bar doors, chains hanging from damp walls, a single torch flickering in the corridor, straw scattered on the floor, no prisoners, utterly silent.` },
+
+  { file: 'scenes/feast-hall.png', size: '1536x1024', prompt: `${SCENE_STYLE_LIVED_IN} A grand medieval feast hall mid-banquet, long trestle tables set with food and drink, anonymous feasting nobles and servants in the background going about the celebration, torchlight and chandeliers, tapestries on the stone walls, no single figure singled out.` },
+
+  { file: 'scenes/barracks.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty military barracks interior, rows of iron-frame bunks with rough blankets, equipment and armour hanging on pegs, a weapon rack along one wall, a single lantern swinging, no soldiers present.` },
+
+  { file: 'scenes/alchemist-lab.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty alchemist's laboratory, bubbling retorts and coiled glass tubes on stone benches, shelves of labelled specimen jars and glowing vials, arcane diagrams on the walls, a smoky haze and strange coloured vapours, no one working.` },
+
+  { file: 'scenes/thieves-den.png', size: '1536x1024', prompt: `${SCENE_STYLE_LIVED_IN} A dim underground thieves guild den, anonymous cloaked figures at a middle distance huddled over maps and dice games, low vaulted brick ceiling with hanging lanterns, a board covered in job-notices and wanted posters, no single figure singled out or facing the viewer.` },
+
+  { file: 'scenes/apothecary.png', size: '1536x1024', prompt: `${SCENE_STYLE_LIVED_IN} A crowded herbalist apothecary shop interior, drying herbs hanging from the rafters, shelves crammed with potion bottles and ingredient jars, an anonymous shopkeeper at the back counter partially turned away, warm herb-scented candlelight, no one singled out facing the viewer.` },
+
+  { file: 'scenes/gambling-den.png', size: '1536x1024', prompt: `${SCENE_STYLE_LIVED_IN} A smoky underground gambling den, anonymous gamblers around card and dice tables in the background, a haze of pipe-smoke, dim oil lamps over green cloth tables, no single figure singled out or facing the viewer.` },
+
+  { file: 'scenes/arena.png', size: '1536x1024', prompt: `${SCENE_STYLE_LIVED_IN} An ancient stone gladiatorial arena, sand floor ringed by tiered stone seats filled with anonymous cheering crowds in the background at a distance, twin iron gates at either end standing open, torches lighting the ring, no fighter on the sand.` },
+
+  { file: 'scenes/magic-shop.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty enchanted curio shop, shelves overflowing with glowing artefacts and curiosities, arcane instruments spinning slowly on their own, a glass case of luminous gemstones, candles that burn in impossible colors, no shopkeeper visible.` },
+
+  // ── NEW OUTDOOR SCENES ─────────────────────────────────────────────────────
+  { file: 'scenes/coastal-cliffs-day.png', size: '1536x1024', prompt: `${SCENE_STYLE} Empty coastal cliffs by day, sheer white rock faces dropping to churning teal ocean far below, seabirds wheeling overhead, waves crashing against rocks, bright sea wind, not a soul on the cliff path. This is the daytime counterpart to a night version of the exact same cliffs and camera angle — keep the composition identical, changing only the light and sky.` },
+  { file: 'scenes/coastal-cliffs-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same empty coastal cliffs at night, sheer rock faces silver in moonlight, dark churning ocean below, waves crashing, stars over open water, not a soul on the cliff path. This is the nighttime counterpart to a daytime version of the exact same cliffs and camera angle — keep the composition identical, changing only the light and sky.` },
+
+  { file: 'scenes/plains-day.png', size: '1536x1024', prompt: `${SCENE_STYLE} Vast empty rolling grassland plains by day, golden and green grass swaying in wind under an enormous open sky, a single dirt road vanishing toward the horizon, a distant farmstead barely visible, no travelers present. This is the daytime counterpart to a night version of the exact same plains and camera angle — keep the composition identical, changing only the light and sky.` },
+  { file: 'scenes/plains-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same vast empty rolling grassland plains at night, silver grass rippling under a huge starfield, the Milky Way blazing overhead, a single dirt road stretching to the horizon, no travelers present. This is the nighttime counterpart to a daytime version of the exact same plains and camera angle — keep the composition identical, changing only the light and sky.` },
+
+  { file: 'scenes/jungle-day.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty dense jungle by day, impossibly tall trees forming a cathedral canopy, beams of brilliant light cutting through green shadow, enormous hanging vines, exotic flowers, the sound of unseen birds implied in the stillness, no travelers visible. This is the daytime counterpart to a night version of the exact same jungle and camera angle — keep the composition identical, changing only the light and sky.` },
+  { file: 'scenes/jungle-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same empty dense jungle at night, bioluminescent fungi glowing softly along the roots, moonlight barely penetrating the canopy, fireflies drifting, cool blue-green darkness, no travelers visible. This is the nighttime counterpart to a daytime version of the exact same jungle and camera angle — keep the composition identical, changing only the light and sky.` },
+
+  { file: 'scenes/volcanic-day.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty volcanic landscape by day, rivers of slow orange lava cutting through black obsidian rock, ash falling like grey snow, a smoldering volcano in the background, sulfurous steam venting from fissures, no travelers present. This is the daytime counterpart to a night version of the exact same volcanic landscape and camera angle — keep the composition identical, changing only the light and sky.` },
+  { file: 'scenes/volcanic-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same empty volcanic landscape at night, lava rivers glowing vivid orange against black rock, the volcano lit dramatically from within, ash clouds backlit by molten light, no travelers present. This is the nighttime counterpart to a daytime version of the exact same volcanic landscape and camera angle — keep the composition identical, changing only the light and sky.` },
+
+  { file: 'scenes/fey-forest-day.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty enchanted fey forest by day, impossibly vivid colors, luminous flowers, colossal mushrooms at impossible scale, a path of silver moss, hanging lanterns of trapped firelight between the branches, no travelers present. This is the daytime counterpart to a night version of the exact same fey forest and camera angle — keep the composition identical, changing only the light and sky.` },
+  { file: 'scenes/fey-forest-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same empty enchanted fey forest at night, softly glowing flowers, giant bioluminescent mushrooms, will-o'-the-wisps floating between dark roots, silver moonlight filtering through an impossible canopy, no travelers present. This is the nighttime counterpart to a daytime version of the exact same fey forest and camera angle — keep the composition identical, changing only the light and sky.` },
+
+  { file: 'scenes/underdark.png', size: '1536x1024', prompt: `${SCENE_STYLE} The empty Underdark, a vast underground cavern stretching into impenetrable darkness, massive glowing mushrooms in blues and purples, stalactites hanging from a ceiling lost in shadow, a subterranean lake reflecting faint bioluminescent light, utterly silent, no creatures visible.` },
+
+  { file: 'scenes/farmland-day.png', size: '1536x1024', prompt: `${SCENE_STYLE_LIVED_IN} A peaceful farming village by day, thatched-roof cottages, plowed fields, a dirt lane with anonymous farmers tending crops and walking between buildings at a middle distance, a water mill by a stream, warm golden afternoon light, no single figure singled out. This is the daytime counterpart to a quieter evening version — keep the composition identical, changing only the light and activity level.` },
+  { file: 'scenes/farmland-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same peaceful farming village at night, thatched-roof cottages with warm window-light, plowed fields in moonlight, a dirt lane, the water mill still, woodsmoke drifting up from chimneys, utterly quiet, no figures outside. This is the nighttime counterpart to a daytime version — keep the composition identical, changing only the light and activity level.` },
+
+  { file: 'scenes/ruined-city-day.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty abandoned city by day, crumbling multi-story buildings with hollow windows, weeds and saplings growing through cobblestones, a collapsed plaza fountain, crows picking through rubble, sky visible through roofless halls, not a living soul. This is the daytime counterpart to a night version of the exact same ruined city and camera angle — keep the composition identical, changing only the light and sky.` },
+  { file: 'scenes/ruined-city-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same empty abandoned city at night, crumbling buildings silver in moonlight, hollow window-frames like dark eyes, weeds between cobblestones, starlight through roofless halls, an oppressive silence, not a living soul. This is the nighttime counterpart to a daytime version of the exact same ruined city and camera angle — keep the composition identical, changing only the light and sky.` },
+
+  { file: 'scenes/canyon-day.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty dramatic canyon by day, towering red-orange stone walls striated in layers, a winding dry riverbed at the bottom, a narrow bright sky above, dust and hawk feathers caught on thermals, no travelers present. This is the daytime counterpart to a night version of the exact same canyon and camera angle — keep the composition identical, changing only the light and sky.` },
+  { file: 'scenes/canyon-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same empty canyon at night, towering stone walls darkened to deep rust, a strip of star-filled sky far above, moonlight catching the rock faces in cold blue light, no travelers present. This is the nighttime counterpart to a daytime version of the exact same canyon and camera angle — keep the composition identical, changing only the light and sky.` },
+
+  { file: 'scenes/riverside-day.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty forested riverside by day, a wide river with a clear shallow ford, smooth river stones, overhanging willows and alder, dappled sunlight on the water, dragonflies skimming, no travelers crossing. This is the daytime counterpart to a night version — keep the composition identical, changing only the light and sky.` },
+  { file: 'scenes/riverside-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same empty forested riverside at night, the river shimmering under moonlight, willows draped in silver, soft mist rising from the water, frogs and crickets implied in the stillness, no travelers crossing. This is the nighttime counterpart to a daytime version — keep the composition identical, changing only the light and sky.` },
+
+  { file: 'scenes/watchtower-day.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty stone watchtower on a high hill by day, crenellated battlements, a signal fire pit at the top, vast landscape visible beyond — forest, road, distant mountains — wide blue sky, no guards present. This is the daytime counterpart to a night version — keep the composition identical, changing only the light and sky.` },
+  { file: 'scenes/watchtower-night.png', size: '1536x1024', prompt: `${SCENE_STYLE} The same empty stone watchtower at night, the signal fire burning at the top casting orange light over the battlements, a vast dark landscape below, stars overhead, no guards present. This is the nighttime counterpart to a daytime version — keep the composition identical, changing only the light and sky.` },
+
+  { file: 'scenes/ice-cave.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty glacial ice cave, walls and ceiling of blue-white translucent ice, pale cold light filtering through from above, breath-mist frozen in the air, icicles of impossible size, no explorers present.` },
+
+  { file: 'scenes/flooded-ruins.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty partially flooded underground ruin, knee-deep dark water covering a mosaic floor, ancient columns rising above the waterline, light shimmering up through the still surface, submerged stone carvings visible below, no explorers present.` },
+
+  { file: 'scenes/sky-realm.png', size: '1536x1024', prompt: `${SCENE_STYLE} An empty floating island in the clouds, green grass at the edge dropping off into endless blue sky, ancient stone ruins atop the island, the world far below visible through drifting cloud, no travelers present. Wide cinematic framing.` },
+
   // Item Icons
   { file: 'items/sword-common.png', prompt: `${STYLE} Item icon: a plain iron longsword, simple crossguard, worn leather grip, slightly pitted blade. Square icon, dark background.` },
   { file: 'items/sword-rare.png', prompt: `${STYLE} Item icon: an elegant silver longsword with a sapphire in the crossguard, runes etched along the blade, soft blue glow. Square icon, dark background.` },
@@ -303,6 +367,43 @@ const ENEMY_FLAVOR = {
   wolf: 'low and stalking with hackles raised and teeth bared in a silent snarl, sharp intelligent eyes locked on the viewer, matted fur bristling',
   wyvern: 'landing hard with wings flared wide for balance, a barbed tail curling high and ready to strike, a long sinuous neck and narrow predatory head',
   zombie: 'lurching forward with both arms outstretched and slack, a vacant rotted face, exposed bone and tattered grave-clothes, moving with dead-eyed momentum',
+  // ── EXPANDED BESTIARY ──────────────────────────────────────────────────────
+  basilisk: 'low-slung and heavy, eight powerful legs planted wide, a ridge of dorsal spines raised in threat display, two pairs of eyes glowing a sickly pale yellow, stone-grey scales, mouth slightly open to reveal blunt crushing teeth',
+  beholder: 'floating at eye level with its massive central eye wide open and staring directly at the viewer, ten smaller eyestalks splayed outward like a crown, each glowing with a different color of magical energy, its maw bristling with teeth',
+  bugbear: 'hunched and massive, nearly seven feet of matted shaggy dark fur, beady cunning orange eyes, a crude morningstar swung lazily over one shoulder, a predator's relaxed posture before a strike',
+  chimera: 'rearing back with all three heads — lion, goat, and dragon — roaring simultaneously, lion claws raking the air, goat horns lowered to gore, the dragon head exhaling a tongue of flame, leathery wings snapping open for balance',
+  cyclops: 'looming huge with its single enormous bloodshot eye narrowed in rage, a club the size of a tree trunk raised in both fists, crude hide armor straining over a massively muscled frame, tusks jutting from a thick lower jaw',
+  'death-knight': 'standing absolutely still in full black plate, a two-handed blade ignited in cold black flame held vertically before him, a visor that frames two burning crimson eyes, the air around him visibly freezing',
+  doppelganger: 'mid-transformation, one half of its body still featureless grey clay while the other half has resolved into someone else\'s face — an uncanny half-formed mirror, its expression utterly blank and unreadable',
+  'earth-elemental': 'a hulking living mass of boulders and packed earth, vaguely humanoid, enormous stone fists dragging along the ground, moss and roots erupting from cracks in its body, two glowing amber eyes deep inside a craggy head',
+  'fire-elemental': 'a pillar of roaring fire in a roughly humanoid shape, a face of screaming flame visible in its torso, arms of fire reaching outward, the ground around it scorched and glowing, intense heat visible in warped air',
+  'frost-giant': 'towering, pale blue-grey skin, frost in a matted beard, a massive ice-hewn axe rested on one shoulder, exhaling a cloud of freezing breath, glacier-blue eyes narrowed against a blizzard it seems indifferent to',
+  gargoyle: 'perched crouched on a stone ledge with wings partly spread, carved-stone grey skin cracked with age, talons gripping the edge, a snarling mouth of jagged fangs, glowing red pinpoint eyes — utterly still except for those eyes',
+  gnoll: 'cackling mid-stride with a spotted hyena head, a ransacked flail raised high, mangy striped fur over a hyena-human body, shredded scavenged armor, frenzied with bloodlust',
+  'gnoll-pack-lord': 'standing triumphant with bone trophies dangling from a decorated war-harness, a huge spiked flail in one hand, skull of a previous enemy adorning his pauldron, commanding the pack with an outstretched claw',
+  'golem-iron': 'a towering humanoid figure of riveted iron plates, seams glowing faintly with bound magical energy, fists like anvils hanging at its sides, no face — just two amber rune-eyes set into a flat iron slab',
+  'golem-stone': 'a massive humanoid of rough-hewn granite, enormous and slow, glowing carved runes across its chest, leaving cracked stone wherever it steps, staring straight ahead with ancient intent',
+  'hell-hound': 'low and prowling, a pitch-black mastiff with molten-orange cracks in its hide, flame leaking from its jaws with every exhale, ember-red eyes, hackles raised, tail like a whip of fire',
+  'hill-giant': 'enormous and slovenly, rotten furs barely covering a massive gut, a tree torn up by its roots being used as a club, a dim but dangerous expression, dirt and bones in its matted hair',
+  hydra: 'erupting from water with five serpentine heads on long necks all striking outward in different directions simultaneously, scales glistening, rows of teeth in each thrashing head, its body a coiled mass below the surface',
+  kobold: 'small and wiry with rust-red scales, enormous eyes in the dark, clutching a spear almost as tall as itself, grinning with too many teeth, wearing absurd salvaged armor held together with twine',
+  'kobold-shaman': 'tiny and hunched over a staff topped with bones, crackling green magical energy around its clawed hands, ritual face-paint, frenzied eyes reflecting its own wild magic, a puffed-up sense of enormous importance',
+  lamia: 'reclining with the upper body of a beautiful woman and the lower body of a great cat, claws fully extended, a false smile that doesn\'t reach predator\'s eyes, draped in stolen desert silks and looted jewels',
+  manticore: 'mid-air pounce, lion\'s body, leathery wings beating, a human-like face stretched into a killing grin full of rows of teeth, a scorpion tail arced overhead ready to volley spines',
+  medusa: 'partially turning with a calculating half-smile, hair that writhes as a nest of living serpents, each snake-head hissing, stone-grey eyes with slit pupils that glow faintly — deliberately looking away to tease, not yet killing',
+  minotaur: 'bellowing with its massive horned bull head thrown back, a double-headed axe in one fist, chest heaving, enormous hooves planted wide, a labyrinth corridor behind it, all muscle and fury',
+  mummy: 'unwrapping as it advances, ancient bandages trailing, desiccated amber-brown skin visible beneath, hollow black eye sockets glowing deep amber, one arm raised with a curse gesture, the other trailing grave-wrappings along the floor',
+  owlbear: 'rearing up on hind legs, the feathered owl-head letting out a bone-chilling screech, talons spread wide on both forelimbs, thick bear body, enormous — an apex predator annoyed',
+  'pit-fiend': 'colossal horned devil standing with terrible authority, leathery wings half-spread, a barbed mace in each clawed hand, molten eyes, black-iron hide with lava cracks, radiating absolute power',
+  revenant: 'advancing with one arm outstretched and burning eyes of cold blue fire, a face frozen in a death-mask expression of total unyielding purpose, burial clothes of quality now ruined, the air around it dropping to killing cold',
+  specter: 'a barely-visible translucent human form, almost invisible except for two points of cold white light where eyes should be, one hand reaching — the touch of death — trailing through solid stone as if it weren\'t there',
+  'stone-giant': 'sitting with enormous legs folded, idly tossing a boulder the size of a cart between two hands, weathered grey stone skin, calm and ancient eyes that suggest it has simply been here longer than everything else',
+  treant: 'an ancient tree-giant rising to full height, bark-skin, root-legs, branch-arms spread wide, two amber resin eyes blazing with ancient forest fury, moss and birds nesting in its upper reaches, leaves shaking as it roars',
+  wendigo: 'impossibly tall and emaciated, a great rack of antlers, hollow sunken eyes glowing pale blue, long clawed fingers, skin stretched over bone, exhaling a cloud of frozen air, radiating hunger and wrong',
+  werewolf: 'mid-transformation — partially humanoid but growing, a half-emerged wolf snout, hands becoming claws, shoulders broadening, torn clothing, eyes fully wolfen and golden, caught between two shapes in the most dangerous moment',
+  'will-o-wisp': 'a small floating ball of cold blue-white light with a thin veil of ghost-fire around it, drifting just above the ground in a misty marsh, casting no warmth, its tiny glow the only light in a dark wet place — beautiful and lethal',
+  wraith: 'flowing out of a wall, entirely shadow except for two dim red eyes, a vaguely human shape of dark negative space, one hand outstretched, draining the light and warmth from the air around it',
+  'yuan-ti': 'half-coiled, a scaled serpentine lower body below a sinuous human upper body, smooth cobra-hood flaring behind its head, a forked tongue tasting the air, faintly glowing slit-pupil eyes, holding a venom-soaked blade',
 };
 
 function enemyPortraitAsset(file) {
@@ -322,6 +423,20 @@ const ENEMY_FILES = [
   'enemies/skeleton-archer.png', 'enemies/skeleton.png', 'enemies/succubus.png', 'enemies/troll.png',
   'enemies/vampire.png', 'enemies/warlord.png', 'enemies/wight.png', 'enemies/wolf.png', 'enemies/wyvern.png',
   'enemies/zombie.png',
+  // ── EXPANDED BESTIARY ──────────────────────────────────────────────────────
+  'enemies/basilisk.png', 'enemies/beholder.png', 'enemies/bugbear.png', 'enemies/chimera.png',
+  'enemies/cyclops.png', 'enemies/death-knight.png', 'enemies/doppelganger.png',
+  'enemies/earth-elemental.png', 'enemies/fire-elemental.png', 'enemies/frost-giant.png',
+  'enemies/gargoyle.png', 'enemies/gnoll.png', 'enemies/gnoll-pack-lord.png',
+  'enemies/golem-iron.png', 'enemies/golem-stone.png',
+  'enemies/hell-hound.png', 'enemies/hill-giant.png', 'enemies/hydra.png',
+  'enemies/kobold.png', 'enemies/kobold-shaman.png',
+  'enemies/lamia.png', 'enemies/manticore.png', 'enemies/medusa.png',
+  'enemies/minotaur.png', 'enemies/mummy.png', 'enemies/owlbear.png',
+  'enemies/pit-fiend.png', 'enemies/revenant.png', 'enemies/specter.png',
+  'enemies/stone-giant.png', 'enemies/treant.png',
+  'enemies/wendigo.png', 'enemies/werewolf.png',
+  'enemies/will-o-wisp.png', 'enemies/wraith.png', 'enemies/yuan-ti.png',
 ];
 
 // Stock NPC portrait library — 32 archetypes × 4-5 variants each (~160 total).

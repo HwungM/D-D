@@ -47,18 +47,6 @@ function visibleSceneArt(imageUrl: string | null) {
   return imageUrl
 }
 
-// Stable cache key derived from the scene description so repeated/similar scenes
-// (the same tavern, the same dungeon corridor) reuse a generated image instead of
-// paying for a brand-new DALL-E render on every single turn.
-function sceneCacheKey(campaignId: string, prompt: string): string {
-  const normalized = prompt.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').slice(0, 80)
-  let hash = 0
-  for (let i = 0; i < normalized.length; i++) {
-    hash = (hash * 31 + normalized.charCodeAt(i)) | 0
-  }
-  return `scene-${campaignId}-${(hash >>> 0).toString(36)}`
-}
-
 function normalizeEvents(events: StoryEvent[]): StoryEvent[] {
   const result: StoryEvent[] = []
   for (const ev of events) {
@@ -376,9 +364,7 @@ export default function Game() {
       if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
 
       if (result.sceneImagePrompt) {
-        const local = matchSceneImage(result.sceneImagePrompt, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay)
-        if (local) setSceneImage(local)
-        assetApi.generate(result.sceneImagePrompt, sceneCacheKey(campaignId, result.sceneImagePrompt)).then(({ data: img }) => setSceneImage(img.url)).catch(() => {})
+        setSceneImage(matchSceneImage(result.sceneImagePrompt, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay))
       }
 
       if (result.isDeath) {
@@ -422,9 +408,7 @@ export default function Game() {
       }
       if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
       if (result.sceneImagePrompt) {
-        const local = matchSceneImage(result.sceneImagePrompt, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay)
-        if (local) setSceneImage(local)
-        assetApi.generate(result.sceneImagePrompt, `scene-${campaignId}-start`).then(({ data: img }) => setSceneImage(img.url)).catch(() => {})
+        setSceneImage(matchSceneImage(result.sceneImagePrompt, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay))
       }
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
@@ -554,14 +538,11 @@ export default function Game() {
         if (result.worldStateChanges.currentLocation) audioManager.setLocation(result.worldStateChanges.currentLocation)
       }
 
-      // Scene: try AI prompt match first, then async AI generation
+      // Scene: match against pre-generated library (no dynamic AI generation)
       if (result.sceneImagePrompt) {
-        const local = matchSceneImage(result.sceneImagePrompt, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay)
-        if (local) setSceneImage(local)
-        assetApi.generate(result.sceneImagePrompt, sceneCacheKey(campaignId, result.sceneImagePrompt)).then(({ data: img }) => setSceneImage(img.url)).catch(() => {})
+        setSceneImage(matchSceneImage(result.sceneImagePrompt, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay))
       } else if (result.worldStateChanges?.currentLocation) {
-        const local = matchSceneImage(result.worldStateChanges.currentLocation, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay)
-        if (local) setSceneImage(local)
+        setSceneImage(matchSceneImage(result.worldStateChanges.currentLocation, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay))
       }
 
       if (result.isDeath) {
