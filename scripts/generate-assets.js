@@ -689,6 +689,8 @@ async function generateAsset(asset, index, total) {
     return;
   }
 
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+
   try {
     console.log(`[${index}/${total}] Generating: ${asset.file}`);
     const response = await client.images.generate({
