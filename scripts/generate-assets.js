@@ -836,11 +836,77 @@ const NPC_ARCHETYPE_COUNTS = {
   'war-veteran': 4, 'town-crier': 4, undertaker: 4,
 };
 
+// ── ENEMY GENDER / ELITE VARIANTS ────────────────────────────────────────────
+const ENEMY_VARIANT_FLAVOR = {
+  'goblin-f': 'a wiry female goblin with cunning yellow eyes, wild dark hair, jagged teeth in a vicious grin, scraps of mismatched armour, clutching a crude curved blade',
+  'goblin-elite': 'an elite goblin champion, taller than average, wearing stolen plate armour pieces welded together, a war trophy necklace, battle-scarred face radiating dangerous cunning',
+  'skeleton-f': 'a female skeleton warrior, delicate but lethal bone frame strung with black sinew, faded feminine armour, glowing violet eye sockets, a graceful fighting stance',
+  'zombie-f': 'a female zombie, pallid rotting skin, tattered dress, empty white eyes, shambling forward with outstretched decayed hands, dark fluid matting her hair',
+  'orc-warrior-f': 'a fierce orcish female warrior, deep green skin, tusks filed to points, tribal war paint, heavy shoulders, wielding twin axes with practiced aggression',
+  'bandit-f': 'a cunning female bandit, quick sharp eyes under a road-worn hood, mismatched armour with guild markings, twin daggers at her hips, a dangerous easy smile',
+  'ghost-f': 'a female ghost, ethereal translucent figure of a woman in torn flowing robes, hollow sorrow in her spectral eyes, wisps of cold mist curling from her hands',
+  'cultist-f': 'a female cultist true believer, hollow devotion in sunken eyes, dark ceremonial robes with a sinister brand on her wrist, arms raised in fervent supplication',
+  'demon-f': 'a female demon, lithe and terrifying, obsidian horns curving back, dark scaled skin, burning amber eyes radiating malice, claws like blades',
+  'gnoll-f': 'a female gnoll huntress, spotted hyena-like fur, lean and fast, laughing jaws showing rows of crushing teeth, a bone-tipped spear, manic battle-gleam in her eyes',
+  'kobold-f': 'a female kobold trap-setter, small and quick, bright orange scales, oversized eyes glowing with clever malice, a tool belt stuffed with trip-wires and snares',
+  'wight-f': 'a female wight, undead noblewoman, tattered finery hanging on a corpse-thin frame, black sunken eyes burning with cold hatred, withered hands that drain life at a touch',
+  'wraith-f': 'a female wraith, a shadow of a woman barely visible within a column of freezing darkness, silver hair dissolving into smoke, a scream locked behind silent lips',
+  'troll-f': 'a female troll, enormous and moss-covered, long stringy hair draped with river weeds, knuckles dragging the ground, regenerating wounds closing before your eyes, low rumbling growl',
+  'ogre-f': 'a female ogre, massive and brutal, warty brown-grey skin, matted hair stuck with bones, wearing a makeshift pauldron of salvaged armour, a club the size of a door',
+};
+
+const ENEMY_VARIANT_FILES = [
+  'enemies/goblin-f.png', 'enemies/goblin-elite.png', 'enemies/skeleton-f.png',
+  'enemies/zombie-f.png', 'enemies/orc-warrior-f.png', 'enemies/bandit-f.png',
+  'enemies/ghost-f.png', 'enemies/cultist-f.png', 'enemies/demon-f.png',
+  'enemies/gnoll-f.png', 'enemies/kobold-f.png', 'enemies/wight-f.png',
+  'enemies/wraith-f.png', 'enemies/troll-f.png', 'enemies/ogre-f.png',
+];
+
+function enemyVariantAsset(file) {
+  const base = file.replace('enemies/', '').replace('.png', '');
+  const flavor = ENEMY_VARIANT_FLAVOR[base] || 'a menacing variant creature, unique pose and expression';
+  return { file, prompt: `${STYLE} Portrait of a menacing fantasy enemy: ${flavor}. Dramatic lighting, strong readable silhouette, full of threat and personality, fitting a painterly animated-fantasy bestiary. Waist-up composition, dark atmospheric background.` };
+}
+
+// ── VILLAIN PORTRAITS ─────────────────────────────────────────────────────────
+// 25 pre-generated boss/villain archetypes for named antagonists.
+// Client picks by name-hash so the same villain always gets the same portrait.
+const VILLAIN_PORTRAIT_ASSETS = [
+  { file: 'villains/ancient-lich.png', prompt: `${STYLE} Portrait of an Ancient Lich, supreme undead sorcerer, gaunt skeletal face with burning violet eye sockets, elaborate dark robes covered in necrotic runes, a staff crowned with a screaming skull, radiating dread and absolute power. Dramatic throne of bones background.` },
+  { file: 'villains/blood-countess.png', prompt: `${STYLE} Portrait of a Blood Countess, ancient vampire noblewoman, pale perfect beauty with predatory crimson eyes, elaborate dark court dress of blood-red and black, a goblet of dark wine, expression of cold aristocratic cruelty. Dark palace hall with candelabras background.` },
+  { file: 'villains/corrupted-priest.png', prompt: `${STYLE} Portrait of a Corrupted High Priest, once holy figure now fallen to darkness, torn ceremonial vestments covered in dark stains, holy symbols twisted into profane versions, eyes glowing with eldritch corruption, arms raised in dark invocation. Ruined cathedral background.` },
+  { file: 'villains/cruel-noble.png', prompt: `${STYLE} Portrait of a Cruel Noble, a powerful lord of ruthless ambition, immaculate expensive clothes masking a cold tyrant, thin smile that never reaches his calculating eyes, rings of office on every finger, a hidden dagger in his sleeve. Opulent manor background.` },
+  { file: 'villains/cult-prophet.png', prompt: `${STYLE} Portrait of a Cult Prophet, charismatic and deeply dangerous, fever-bright eyes burning with absolute conviction, elaborate cult vestments, arms raised in proclamation, a crowd of shadows behind him, the terrifying certainty of the truly devout. Dark cavern temple background.` },
+  { file: 'villains/dark-sorceress.png', prompt: `${STYLE} Portrait of a Dark Sorceress, a powerful mage who has embraced forbidden magic, striking severe beauty, dark robes crackling with shadow-lightning, arcane sigils floating around her outstretched hand, cold contempt for all lesser beings. Stormy tower background.` },
+  { file: 'villains/death-herald.png', prompt: `${STYLE} Portrait of a Death Herald, divine emissary of oblivion, spectral half-visible form, dark armour engraved with endings, a black scythe, empty eye sockets with a single cold blue flame in each, a calm that precedes annihilation. Battlefield of bones background.` },
+  { file: 'villains/demon-lord.png', prompt: `${STYLE} Portrait of a Demon Lord, immense and ancient infernal power, massive curved horns, volcanic dark skin cracked with magma-light, eyes of hellfire, an armour of fused souls, absolute dominion in his posture. Abyssal throne room background.` },
+  { file: 'villains/fallen-champion.png', prompt: `${STYLE} Portrait of a Fallen Champion, once the greatest hero of the realm, corrupted beyond recognition, cracked gleaming armour now dark with ichor, former noble face twisted with rage and grief, a legendary blade now burning with dark fire. Ruined battlefield background.` },
+  { file: 'villains/forsaken-ranger.png', prompt: `${STYLE} Portrait of a Forsaken Ranger, a lone hunter who made a terrible pact, hollow haunted eyes, dark weathered travelling clothes, twin blades of unnatural darkness, moving with predatory silence, something feral where conscience used to be. Dark forest background.` },
+  { file: 'villains/frost-witch.png', prompt: `${STYLE} Portrait of a Frost Witch, ancient and powerful winter sorceress, ice-blue skin, white hair frozen into jagged spikes, robes of woven snow and shadow, one hand raised conjuring a blizzard, cold cruelty in her crystalline eyes. Blizzard mountain pass background.` },
+  { file: 'villains/iron-tyrant.png', prompt: `${STYLE} Portrait of an Iron Tyrant, ruthless warlord-king of an iron empire, massive black plate armour etched with the names of conquered nations, a crown of bent swords, an expression of absolute domination, fists clenched, no mercy in his face. War-ravaged throne room background.` },
+  { file: 'villains/mad-alchemist.png', prompt: `${STYLE} Portrait of a Mad Alchemist, brilliant mind shattered by forbidden experiments, wild manic eyes behind cracked goggles, coat stained by a hundred dangerous reagents, a bubbling creation in one hand that should not exist, unstable brilliant insane. Ruinous laboratory background.` },
+  { file: 'villains/masked-villain.png', prompt: `${STYLE} Portrait of a Masked Villain, identity hidden behind an ornate and unsettling mask, elegant dark clothing that reveals nothing, perfectly still in a way that feels predatory, a presence that commands absolute attention. Shadowed chamber background.` },
+  { file: 'villains/merchant-of-doom.png', prompt: `${STYLE} Portrait of a Merchant of Doom, a smiling trader in cursed artefacts and damned souls, fine merchant clothes hiding terrible power, a ledger of contracts no one should have signed, a warm handshake that leaves a brand. Dark bazaar background.` },
+  { file: 'villains/necromancer-queen.png', prompt: `${STYLE} Portrait of a Necromancer Queen, undead empress commanding legions of the dead, regal and terrible, white skin, dark robes of burial cloth and shadow, a crown of skulls, cold violet eyes, one skeletal hand raised in command. Crypt throne room background.` },
+  { file: 'villains/pirate-lord.png', prompt: `${STYLE} Portrait of a Pirate Lord, feared master of the seas, weather-beaten and dangerous, a captain's coat heavy with trophies, a legendary blade at his hip, one eye replaced by a scrying stone, a grin that means someone is about to die. Ship deck in a storm background.` },
+  { file: 'villains/plague-bearer-lord.png', prompt: `${STYLE} Portrait of a Plague Bearer Lord, avatar of pestilence, a once-human figure now vessel for divine rot, tattered dark robes, skin mottled with spreading corruption, empty eyes weeping black tears, an aura of sickness that precedes him. Diseased city background.` },
+  { file: 'villains/serpent-queen.png', prompt: `${STYLE} Portrait of a Serpent Queen, yuan-ti or serpentine sorceress of terrible beauty, coiled lower body, human upper torso with scaled skin, cold reptilian eyes, elaborate jade and gold ceremonial dress, commanding presence of an ancient bloodline. Serpent temple background.` },
+  { file: 'villains/shadow-master.png', prompt: `${STYLE} Portrait of a Shadow Master, supreme spymaster and assassin, a figure barely visible against the dark, a face that suggests rather than reveals, darkness bending toward them as if loyal, the sense of someone who controls everything from unseen places. Absolute darkness background with a single point of light.` },
+  { file: 'villains/storm-tyrant.png', prompt: `${STYLE} Portrait of a Storm Tyrant, storm giant sorcerer-warlord, crackling with continuous lightning, sixty feet of divine arrogance, hair a storm cloud, eyes hurricane-grey, voice thunder itself. Storm-wracked mountain peak background.` },
+  { file: 'villains/undead-warlord.png', prompt: `${STYLE} Portrait of an Undead Warlord, wight or death knight commanding undead armies, imposing dark armour crackling with necrotic energy, hollow glowing eyes, a broadsword that drains life, the cold strategic intelligence of a general who cannot be killed. Battlefield of risen dead background.` },
+  { file: 'villains/void-herald.png', prompt: `${STYLE} Portrait of a Void Herald, emissary of an eldritch outer power, reality warping around its outline, a body that is mostly suggestion, eyes that contain the emptiness between stars, speaking in a voice that arrives before the mouth moves. Fractured reality background.` },
+  { file: 'villains/war-tyrant.png', prompt: `${STYLE} Portrait of a War Tyrant, conquering warlord who has never lost, scarred and enormous, black armour covered in the sigils of defeated nations, a great axe, presence that makes lesser warriors' legs shake, a general who makes war look inevitable. Burning siege background.` },
+  { file: 'villains/witch-queen.png', prompt: `${STYLE} Portrait of a Witch Queen, ancient matriarch of dark covens, terrible ageless beauty, elaborate dark robes woven with living shadows, a staff of twisted bone and moonstone, eyes that have cursed kingdoms, commanding absolute reverence from those who serve her. Dark forest throne background.` },
+];
+
 ASSETS.push(
   ...NPC_PORTRAITS,
   ...RACE_VARIANT_FILES.map(raceVariantAsset),
   ...ITEM_VARIANT_FILES.map(itemIconAsset),
   ...ENEMY_FILES.map(enemyPortraitAsset),
+  ...ENEMY_VARIANT_FILES.map(enemyVariantAsset),
+  ...VILLAIN_PORTRAIT_ASSETS,
 );
 
 function downloadImage(url, filepath) {

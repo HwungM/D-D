@@ -1236,7 +1236,7 @@ export default function Game() {
         <LevelUpScreen level={levelUpData.level} hpGained={levelUpData.hpGained} newAbility={levelUpData.newAbility} characterName={levelUpData.characterName} onContinue={() => setShowLevelUp(false)} />
       )}
       {showEnemyPopup && (
-        <EnemyPopup enemyName={enemyPopupName} campaignId={campaignId!} onDismiss={() => setShowEnemyPopup(false)} />
+        <EnemyPopup enemyName={enemyPopupName} campaignId={campaignId!} isBossFight={worldState?.combatState?.isBossFight} onDismiss={() => setShowEnemyPopup(false)} />
       )}
       {showLoot && (
         <LootPopup items={lootItems} goldChange={lootGold} onDismiss={() => setShowLoot(false)} />

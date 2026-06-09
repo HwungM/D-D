@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { assetApi } from '../lib/api'
 
 interface EnemyPopupProps {
   enemyName: string
   campaignId: string
+  isBossFight?: boolean
   onDismiss: () => void
 }
 
@@ -13,6 +13,7 @@ const ENEMY_IMAGES: [string, string][] = [
   ['young dragon', 'dragon-young'],
   ['dragon', 'dragon-young'],
   ['goblin shaman', 'goblin-shaman'],
+  ['goblin elite', 'goblin-elite'],
   ['goblin', 'goblin'],
   ['bandit leader', 'bandit-leader'],
   ['bandit', 'bandit'],
@@ -111,12 +112,30 @@ const ENEMY_IMAGES: [string, string][] = [
   ['kobold trapper', 'kobold-trapper'], ['vampire bride', 'vampire-bride'],
   ['fallen angel', 'fallen-angel'], ['dragon turtle', 'dragon-turtle'],
   ['storm giant', 'storm-giant'], ['fire giant', 'fire-giant'],
+  // ── GENDER / ELITE VARIANTS ───────────────────────────────────────────────
+  ['goblin-f', 'goblin-f'], ['skeleton-f', 'skeleton-f'], ['zombie-f', 'zombie-f'],
+  ['orc warrior-f', 'orc-warrior-f'], ['bandit-f', 'bandit-f'],
+  ['ghost-f', 'ghost-f'], ['cultist-f', 'cultist-f'], ['demon-f', 'demon-f'],
+  ['gnoll-f', 'gnoll-f'], ['kobold-f', 'kobold-f'], ['wight-f', 'wight-f'],
+  ['wraith-f', 'wraith-f'], ['troll-f', 'troll-f'], ['ogre-f', 'ogre-f'],
 ]
 
-const STYLE = 'Adult animated-fantasy character illustration in the vein of "The Legend of Vox Machina" — bold graphic-novel linework over painterly digital brushwork, exaggerated expressive faces, strong stylized proportions, vivid saturated colors, thick confident outlines, dynamic personality-driven pose, richly textured clothing and gear. Not photorealistic, not 3D-rendered — strictly 2D hand-illustrated, like a single frame from a high-end adult animated fantasy series.'
+const VILLAIN_PORTRAITS = [
+  'ancient-lich', 'blood-countess', 'corrupted-priest', 'cruel-noble', 'cult-prophet',
+  'dark-sorceress', 'death-herald', 'demon-lord', 'fallen-champion', 'forsaken-ranger',
+  'frost-witch', 'iron-tyrant', 'mad-alchemist', 'masked-villain', 'merchant-of-doom',
+  'necromancer-queen', 'pirate-lord', 'plague-bearer-lord', 'serpent-queen', 'shadow-master',
+  'storm-tyrant', 'undead-warlord', 'void-herald', 'war-tyrant', 'witch-queen',
+]
 
-function slugify(name: string): string {
-  return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
+function nameHash(name: string, count: number): number {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0
+  return Math.abs(h) % count
+}
+
+function villainPortrait(name: string): string {
+  return `/assets/villains/${VILLAIN_PORTRAITS[nameHash(name, VILLAIN_PORTRAITS.length)]}.png`
 }
 
 function staticMatch(name: string): string | null {
@@ -127,49 +146,22 @@ function staticMatch(name: string): string | null {
   return null
 }
 
-function enemyCacheKey(campaignId: string, name: string): string {
-  return `enemy-${campaignId}-${slugify(name)}`
+function resolvePortrait(name: string, isBoss?: boolean): string {
+  if (isBoss) return villainPortrait(name)
+  const match = staticMatch(name)
+  if (match) return match
+  return villainPortrait(name)
 }
 
-function enemyPrompt(name: string): string {
-  return `${STYLE} Portrait of a menacing fantasy enemy named "${name}" — unique and memorable, with a strong readable silhouette, full of threat and personality. Waist-up composition, dark atmospheric background, dramatic lighting.`
-}
-
-export default function EnemyPopup({ enemyName, campaignId, onDismiss }: EnemyPopupProps) {
+export default function EnemyPopup({ enemyName, campaignId: _campaignId, isBossFight, onDismiss }: EnemyPopupProps) {
   const [visible, setVisible] = useState(false)
-  const [imageUrl, setImageUrl] = useState<string>(() => staticMatch(enemyName) ?? '/assets/enemies/bandit.png')
-  const [generating, setGenerating] = useState(false)
+  const imageUrl = resolvePortrait(enemyName, isBossFight)
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true))
     const timer = setTimeout(onDismiss, 5000)
     return () => clearTimeout(timer)
   }, [onDismiss])
-
-  // If no static match, generate a bespoke portrait cached per-campaign so the
-  // same enemy always gets the same portrait throughout that story.
-  useEffect(() => {
-    if (staticMatch(enemyName)) return
-    const cacheKey = enemyCacheKey(campaignId, enemyName)
-
-    // Check cache first — free if it was already generated earlier in this campaign
-    assetApi.cached(cacheKey).then(({ data }) => {
-      if (data?.url) { setImageUrl(data.url); return }
-      // Not cached — generate and store
-      setGenerating(true)
-      assetApi.generate(enemyPrompt(enemyName), cacheKey, 'enemy')
-        .then(({ data: img }) => { if (img?.url) setImageUrl(img.url) })
-        .catch(() => {}) // keep the generic fallback on error
-        .finally(() => setGenerating(false))
-    }).catch(() => {
-      // Cache check failed — fall through to generate directly
-      setGenerating(true)
-      assetApi.generate(enemyPrompt(enemyName), cacheKey, 'enemy')
-        .then(({ data: img }) => { if (img?.url) setImageUrl(img.url) })
-        .catch(() => {})
-        .finally(() => setGenerating(false))
-    })
-  }, [enemyName, campaignId])
 
   return (
     <div
@@ -199,19 +191,8 @@ export default function EnemyPopup({ enemyName, campaignId, onDismiss }: EnemyPo
               src={imageUrl}
               alt={enemyName}
               className="w-full h-full object-cover object-top"
-              style={{
-                filter: 'contrast(1.1) saturate(0.85)',
-                transition: 'opacity 0.6s ease',
-                opacity: generating ? 0.5 : 1,
-              }}
+              style={{ filter: 'contrast(1.1) saturate(0.85)' }}
             />
-            {generating && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="font-fantasy text-[9px] uppercase tracking-[0.2em] text-red-200/60 animate-pulse">
-                  Summoning...
-                </span>
-              </div>
-            )}
             <div className="absolute inset-0" style={{
               background: 'linear-gradient(to bottom, transparent 36%, rgba(0,0,0,0.94) 100%)',
             }} />
