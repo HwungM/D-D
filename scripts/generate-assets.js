@@ -232,50 +232,50 @@ const ASSETS = [
 // Skin tones are baked in here too (matching the spirit of the base portraits)
 // so the female variants read as part of the same diverse cast.
 const RACE_FLAVOR = {
-  // Core PHB
-  human: 'deep brown skin, a strong jaw, weathered face, determined eyes, dark hair, battered but well-kept leather armor',
-  elf: 'warm olive-tan skin, sharp angular features, long flowing hair, piercing eyes, pointed ears, elegant bone structure, fine forest-green garb',
-  dwarf: 'ruddy tan skin, a thick braided beard with iron rings, a broad face, deep-set eyes, hammered steel pauldrons',
-  halfling: 'warm brown skin, curly hair, bright curious eyes, rosy cheeks, a small frame, a patched traveling cloak',
-  gnome: 'light olive skin, wild hair sticking out at angles, enormous goggles pushed up on the forehead, bright inquisitive eyes, mechanical trinkets on the collar',
-  'half-orc': 'grey-green skin, small upward tusks, a powerful jaw, amber eyes, ritual scars, iron-plated armor',
-  tiefling: 'deep crimson skin, small curved black horns, glowing gold eyes with no pupils, elegant features, dark arcane robes',
-  dragonborn: 'scaled bronze-and-gold skin, reptilian amber eyes, a regal angular face, subtle horns sweeping back, ornate scaled armor',
-  // Expanded races
-  aasimar: 'warm golden-hued skin with a faint inner divine glow, silver-white hair, luminous calm eyes, simple elegant clothing with subtle celestial motifs',
-  warforged: 'a living construct of polished dark metal and carved pale wood, glowing arcane runes along the plating, articulated joints, two bright gem-set eyes of steady warm amber light',
-  tabaxi: 'sleek spotted cat-folk features, large expressive feline gold eyes, graceful high cheekbones, short velvet fur, a tail tip just visible, lithe attentive posture',
-  'fire-genasi': 'warm ember-red skin with faint glowing cracks beneath the surface, a crown of living flickering flame instead of hair, intense smoldering orange eyes',
-  'water-genasi': 'smooth pale blue-green skin with a subtle aqueous sheen, flowing sea-blue hair that moves as if in a current, deep turquoise calm eyes',
-  'earth-genasi': 'skin of grey cracked stone with veins of dark mineral running through it, hair like jagged obsidian crystals or quartz shards jutting from the scalp, eyes like polished amber gems set in rock, the solidity and weight of living granite',
-  'air-genasi': 'near-white skin with a translucent ethereal quality, silver-white hair that moves in a subtle persistent breeze, pale silver-blue eyes, an air of constant subtle motion',
-  goliath: 'enormous frame of grey-blue stone-patterned skin, bold tribal markings across the face and arms, a broad powerful face, stoic bearing, compact features on a very large head',
-  firbolg: 'large gentle frame, soft grey-lavender skin, a broad kind face with a slightly bovine cast, large rounded ears, plain earth-toned robes woven with dried herbs and flowers',
-  changeling: 'pale smooth skin of uncertain ethnicity, large unsettlingly calm pale silver eyes, fine forgettable features that somehow resist being fully remembered, simple unobtrusive clothes',
-  kenku: 'a crow-headed humanoid with glossy black feathers, a sharp curved beak, bright obsidian eyes, sleek neck feathers, clever attentive posture, salvaged patchwork clothing',
-  dhampir: 'eerily pale skin, sharp elegant features with a subtle hollowness, vivid dark eyes with a faint red reflection, dark hair, aristocratic bearing with an unsettling undertone',
-  owlin: 'an owl-headed humanoid with dense tawny feathers, enormous forward-facing golden eyes, a small hooked beak, broad shoulders, a feathered cloak that doubles as wings',
-  lizardfolk: 'reptilian emerald-green scales, a broad flat head with a short blunt snout, amber slit-pupil eyes, a steady primordial patience, minimal clothing with bone and carved wood adornments',
-  satyr: 'a half-human half-goat humanoid, curved rams horns, a wide easy grin, mischievous dark eyes, curly hair, goat legs just visible at the frame base, natural magnetic charm',
-  harengon: 'a tall rabbit-folk humanoid, long upright ears, a small expressive nose, large warm brown eyes, soft tawny fur, a compact alert posture like someone always listening',
-  'yuan-ti': 'a humanoid with subtly serpentine features, smooth pale skin with faint scale patterns at the temples and neck, slit-pupil golden eyes, an unnervingly still aristocratic poise',
-  triton: 'silver-blue skin with delicate fin-like structures at the temples, deep oceanic eyes, an aristocratic marine bearing, scaled shoulder armor, hair like deep-sea kelp',
-  leonin: 'a lion-headed humanoid with a full proud golden mane, warm tawny fur, a broad powerful jaw, deep amber eyes, the bearing of ancient warrior royalty',
-  minotaur: 'a powerful humanoid with a full bull head, broad dark horns, a broad snout, deep dark bovine eyes, a heavy muscled neck, worn practical warrior gear',
-  bugbear: 'a massive shaggy humanoid, dark matted fur, small deep-set yellow eyes, a broad flat nose, a low sloped brow, barely contained powerful frame, rough salvaged clothing',
-  hobgoblin: 'a martial humanoid with orange-reddish skin, sharp features, military bearing, disciplined hard eyes, functional armor with unit insignia, controlled professional posture',
-  goblin: 'a small compact humanoid with mottled green-grey skin, enormous round yellow eyes, wide ears, a gap-toothed grin, scrappy but practical adventuring gear worn with surprising confidence',
-  tortle: 'a turtle-folk humanoid, a large domed shell on the back, olive-green weathered skin, a broad blunt face with patient kind eyes, simple practical wrappings',
+  // Core PHB — facial structure locked down explicitly
+  human: 'deep brown skin, a broad strong jaw, pronounced cheekbones, weathered crow\'s-feet at the eyes, a slightly crooked nose healed from an old break, determined dark eyes under a heavy brow, short black hair greying at the temples, battered leather armor',
+  elf: 'warm olive skin, an extremely elongated narrow skull, dramatically high sharp cheekbones, a long straight nose, thin lips, enormous upswept almond eyes of vivid violet, ears that taper to a long exaggerated point, angular jaw with almost no curve',
+  dwarf: 'ruddy copper-tan skin, a very wide broad skull, extremely low heavy brow ridge, a wide flat nose, wide-set deep-sunken grey eyes, a square jaw nearly as wide as the skull, a magnificent thick braided red beard wound with iron rings, hammered steel pauldrons',
+  halfling: 'warm brown skin, a very round full skull with plump rounded cheeks, a small upturned button nose, very large bright green eyes set wide apart, short curly black hair, prominent rounded ears slightly larger than human, small dimpled chin',
+  gnome: 'pale olive skin, an oversized domed forehead nearly twice the height of the lower face, enormous round amber eyes magnified behind thick goggle lenses, a very small pointed chin, a large cartoonishly expressive nose, wild white hair defying gravity, mechanical collar trinkets',
+  'half-orc': 'grey-green skin, a jutting underbite with two prominent upward-curving tusks, a very wide flat nose with flared nostrils, a heavy protruding brow ridge, wide-set amber eyes under thick brows, a powerful broad jaw, ritual scarring across the brow and cheeks',
+  tiefling: 'deep crimson skin, two smooth curving black horns rising from the forehead, entirely solid gold irises with no pupil or white, sharp angular cheekbones, a slightly too-wide jaw, subtly pointed teeth, fine aristocratic features with an unsettling geometry',
+  dragonborn: 'overlapping bronze-gold scales instead of skin, a fully reptilian head — no hair, a flat broad snout with visible nostrils, rigid bony brow ridges, amber slit-pupil eyes set wide on the skull, a long neck, horns swept back from the crown, ornate scaled armor',
+  // Expanded races — facial anatomy described specifically
+  aasimar: 'golden-hued skin with a faint visible inner light, silver-white hair, irises that are a single solid luminous silver with no pupil, a face of almost unsettling geometric perfection — symmetrical to an inhuman degree, high smooth brow, straight nose, full lips, a subtle halo-like glow around the hairline',
+  warforged: 'no organic face at all — a constructed head of overlapping dark metal plates and carved pale wood, a fixed expressionless faceplate with two inset amber gemstone eyes that glow steadily, articulated jaw of hinged metal, arcane runes etched along the plating, no hair, no skin, no nose — purely mechanical',
+  tabaxi: 'a fully feline head on a humanoid body — broad flat cat skull, large forward-facing gold slit-pupil eyes, a flat wide nose, a short muzzle with faint whisker spots, rounded ears set high on the skull, spotted tawny short fur covering the entire face, no human facial features at all',
+  'fire-genasi': 'ember-red skin cracked at the cheekbones and brow with lines of deep orange light beneath, no hair at all — replaced by living flame that rises from the scalp, eyebrows of flame, intense solid amber-orange eyes with no white, a slightly angular face with high cheekbones and a wide jaw',
+  'water-genasi': 'pale blue-green skin with a subtle wet sheen, flowing sea-blue hair that moves in slow motion as if permanently submerged, entirely solid deep turquoise eyes with no white or pupil, slightly pronounced high cheekbones, a long graceful neck, small fins at the temples like delicate gill structures',
+  'earth-genasi': 'skin that is literally grey cracked stone, hairline fractures running across the forehead and cheeks revealing darker rock beneath, hair replaced by jutting jagged obsidian crystal shards growing from the scalp, eyes that are smooth polished amber gemstones with no pupil, a very broad flat nose, a heavy square jaw of stone',
+  'air-genasi': 'near-translucent pale skin through which faint blue veins are visible, silver-white hair that perpetually floats and drifts as if in a constant wind, irises of pale silver-blue with no pupil surrounded by entirely white sclera, extremely fine delicate features — sharp thin nose, narrow jaw, high brow — almost too light to be real',
+  goliath: 'blue-grey stone-patterned skin with bold black tribal markings tattooed across forehead and cheeks, an extremely massive broad skull, a very wide flat nose, deep-set small pale eyes under a prominent brow shelf, a jaw wider than most humans\' shoulders, no neck hair — bald or close-shaved, the sheer scale of the head making other features seem compressed',
+  firbolg: 'soft grey-lavender skin, a very large round head with a broad flat bovine-like face, a wide flat nose with large nostrils, large floppy rounded ears set low, small gentle eyes of pale blue, a wide kind mouth, the overall impression of a very large gentle cow-person in robes hung with herbs',
+  changeling: 'perfectly smooth pale skin with no pores or blemishes, features that are slightly too symmetrical and slightly too undefined — a nose that\'s almost generic, eyes of flat featureless silver-grey, cheekbones that are present but somehow forgettable, the unsettling quality of a face your eye slides off of',
+  kenku: 'a completely avian crow head replacing the human face — glossy black feathers, a sharp heavy curved black beak where the mouth and nose would be, round obsidian eyes set on the sides of the head, a sleek feathered neck, no mammalian facial features whatsoever, patchwork clothing',
+  dhampir: 'skin so pale it reads almost white with faint grey undertones, pronounced sharp cheekbones with slight hollows beneath, a very strong straight nose, dark eyes with irises of deep red-black, slightly elongated upper canines just visible, fine dark hair, aristocratic angular features with a corpse-like stillness',
+  owlin: 'a complete owl head on a humanoid body — dense tawny-brown facial disc of feathers in a flat heart shape, two enormous forward-facing golden eyes that take up most of the face, a small sharp hooked beak, no visible ears externally, broad feathered shoulders, a short thick neck',
+  lizardfolk: 'fully reptilian head — broad flat skull, a wide blunt-ended snout, amber vertical-slit-pupil eyes set on the upper sides of the skull, no visible lips — just hard scale-edged mouth, overlapping dark green scales across the entire face, a pronounced dewlap at the throat, bone and carved-wood necklace',
+  satyr: 'a half-human upper face merging into goat features — two curved ram horns rising from curly hair, a wide nose that grades toward a goat\'s, a wide easy grin showing human-ish teeth, mischievous dark brown eyes, the lower face slightly more muzzle-forward than human, cloven-hoof legs just visible at the bottom of the frame',
+  harengon: 'a rabbit head on a humanoid body — long upright mobile ears rising from the top of the skull, a small twitching round nose, very large warm brown eyes set slightly to the sides, soft tawny fur covering the entire face, a small mouth, the alert compact posture of prey species constantly listening',
+  'yuan-ti': 'a mostly human face with deeply unsettling reptilian intrusions — faint overlapping scale patterns at the temples and along the jaw, slit-pupil golden eyes, a slightly too-wide jaw, a tongue that is subtly forked when the mouth opens, an aristocratic stillness that never blinks at the right time',
+  triton: 'silver-blue skin, small elegant fin-like crests at the temples where ears would be, entirely solid deep oceanic blue eyes with no white, a narrow elegant nose, pronounced high cheekbones, hair like dark kelp or deep-sea tendrils, scaled shoulder armor, an aristocratic marine bearing',
+  leonin: 'a fully lion head — a broad powerful feline skull, a wide flat nose, a full proud golden mane framing the face, deep amber eyes with round pupils, prominent cheek structure, visible whisker spots on the broad muzzle, tawny fur, the bearing of ancient warrior royalty',
+  minotaur: 'a complete bull head on a powerful humanoid neck — broad bovine skull, two large spreading dark horns, a broad flat wet-looking black nose, deep dark brown bovine eyes set wide on the skull, short dark fur covering the face, large cupped ears to the sides, heavy muscled neck',
+  bugbear: 'a massive shaggy head — dark matted brown-black fur, a very wide flat goblin-like nose, small deep-set yellow eyes under a very low heavy brow, large mobile pointed ears, a wide mouth, the overall shape more like a large bear-goblin hybrid than any human analog',
+  hobgoblin: 'orange-red skin, a broad flat nose, wide-set dark disciplined eyes under a pronounced brow ridge, prominent lower jaw with small lower tusks, slightly pointed ears, military bearing, functional armor with unit insignia — a face built for war, not beauty',
+  goblin: 'mottled green-grey skin, enormous round yellow eyes that dominate the face and are set very wide apart, a huge wide frog-like mouth full of crooked teeth, a very wide flat nose, enormous bat-like ears that stick out sideways, a receding forehead, the whole face wider than it is tall',
+  tortle: 'a turtle head — grey-green rough-textured skin, a broad blunt beak-like mouth replacing lips, round dark patient eyes set wide on a flat broad skull, a very wide flat nose structure, a thick wrinkled neck, the large domed shell visible behind the shoulders, simple practical wrappings',
 };
 
 // Override hooks for races whose base RACE_FLAVOR reads as male-coded (e.g. a beard).
 const RACE_FLAVOR_FEMALE = {
-  dwarf: 'ruddy tan skin, thick braided hair worked with iron rings, a strong handsome face, deep-set eyes, hammered steel pauldrons',
-  goliath: 'enormous frame of grey-blue stone-patterned skin, bold tribal markings, a broad strong face, stoic bearing, powerful shoulders, compact features on a large head',
-  bugbear: 'a massive shaggy humanoid, dark matted fur, small deep-set yellow eyes, large upright ears, barely contained powerful frame, rough salvaged clothing',
-  hobgoblin: 'a martial humanoid with orange-reddish skin, sharp features, military bearing, disciplined eyes, functional armor with unit markings, controlled professional posture',
-  minotaur: 'a powerful humanoid with a full cow-head, curved dark horns, broad snout, deep dark bovine eyes, a strong neck, worn practical warrior gear',
-  leonin: 'a lioness-headed humanoid with short tawny fur and powerful features, noble bearing, deep amber eyes, simple but dignified warrior clothing',
+  dwarf: 'ruddy copper-tan skin, a very wide broad skull, extremely low heavy brow ridge, a wide flat nose, wide-set deep-sunken grey eyes, a square jaw, thick braided auburn hair worked with iron rings instead of a beard, hammered steel pauldrons',
+  goliath: 'blue-grey stone-patterned skin with bold black tribal markings tattooed across forehead and cheeks, an extremely massive broad skull, a very wide flat nose, deep-set small pale eyes under a prominent brow shelf, a jaw wider than most humans\' shoulders, powerful build',
+  bugbear: 'a massive shaggy head, dark matted fur, small deep-set yellow eyes, large upright pointed ears, a wide flat nose, barely contained powerful frame, rough salvaged clothing',
+  hobgoblin: 'orange-red skin, a broad flat nose, wide-set disciplined dark eyes under a brow ridge, small lower tusks, slightly pointed ears, functional armor with unit markings, controlled military posture',
+  minotaur: 'a complete cow head on a powerful humanoid neck — curved dark horns, broad flat wet black nose, deep dark bovine eyes set wide, short dark fur, large cupped ears, a strong neck, practical warrior gear',
+  leonin: 'a fully lioness head — broad powerful feline skull, flat wide nose, short tawny fur with no mane, deep amber eyes, prominent muzzle structure, the bearing of ancient warrior royalty',
 };
 
 
@@ -294,7 +294,7 @@ function raceVariantAsset(file) {
   const race = raceSlug;
   const genderDesc = isWoman ? 'a woman' : 'a man';
   const flavor = (isWoman && RACE_FLAVOR_FEMALE[race]) || RACE_FLAVOR[race] || 'striking, memorable fantasy features';
-  return { file, prompt: `${STYLE} ${genderDesc.charAt(0).toUpperCase()}${genderDesc.slice(1)} of the ${race} people, with ${flavor}, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` };
+  return { file, prompt: `${STYLE} ${genderDesc.charAt(0).toUpperCase()}${genderDesc.slice(1)} of the ${race} people, with ${flavor}, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing. The facial structure and anatomy must be distinctly non-human and match the race description exactly — do NOT default to a standard human face shape.` };
 }
 
 // Male (base) + female variants per race so character creation always has both options.
