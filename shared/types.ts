@@ -71,6 +71,8 @@ export interface InventoryItem {
   quantity: number;
   type: 'weapon' | 'armor' | 'potion' | 'misc' | 'key';
   value?: number;
+  equipped?: boolean;
+  slot?: 'mainhand' | 'offhand' | 'armor' | 'helmet' | 'cloak' | 'accessory';
 }
 
 export interface Character {

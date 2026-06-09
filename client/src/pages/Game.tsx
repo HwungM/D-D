@@ -1089,7 +1089,22 @@ export default function Game() {
             </div>
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.18) transparent' }}>
               <SidebarErrorBoundary tabName={sidebarTab}>
-                {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
+                {sidebarTab === 'character' && currentCharacter && (
+                  <CharacterSheet
+                    character={currentCharacter}
+                    onEquipToggle={(itemId, equipped) => {
+                      setCharacter(prev => {
+                        if (!prev) return prev
+                        return {
+                          ...prev,
+                          inventory: prev.inventory.map(item =>
+                            (item.id || item.name) === itemId ? { ...item, equipped } : item
+                          ),
+                        }
+                      })
+                    }}
+                  />
+                )}
                 {sidebarTab === 'quests' && <QuestLog worldState={isNewCharacter ? null : worldState} />}
                 {sidebarTab === 'people' && <NPCCodex npcMemory={worldState?.npcMemory || []} keyNPCs={worldState?.keyNPCs} campaignId={campaignId!} />}
                 {sidebarTab === 'map' && <MapPanel worldState={worldState} />}
@@ -1119,7 +1134,22 @@ export default function Game() {
             </div>
             <div className="max-h-[74vh] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.18) transparent' }}>
               <SidebarErrorBoundary tabName={sidebarTab}>
-                {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
+                {sidebarTab === 'character' && currentCharacter && (
+                  <CharacterSheet
+                    character={currentCharacter}
+                    onEquipToggle={(itemId, equipped) => {
+                      setCharacter(prev => {
+                        if (!prev) return prev
+                        return {
+                          ...prev,
+                          inventory: prev.inventory.map(item =>
+                            (item.id || item.name) === itemId ? { ...item, equipped } : item
+                          ),
+                        }
+                      })
+                    }}
+                  />
+                )}
                 {sidebarTab === 'quests' && <QuestLog worldState={isNewCharacter ? null : worldState} />}
                 {sidebarTab === 'people' && <NPCCodex npcMemory={worldState?.npcMemory || []} keyNPCs={worldState?.keyNPCs} campaignId={campaignId!} />}
                 {sidebarTab === 'map' && <MapPanel worldState={worldState} />}

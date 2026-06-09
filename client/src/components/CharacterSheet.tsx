@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import type { Character, CharacterStats, InventoryItem } from '../../../shared/types'
 
 const XP_THRESHOLDS = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000]
@@ -75,10 +75,36 @@ function itemTypeRank(type: InventoryItem['type']) {
   return ['weapon', 'armor', 'potion', 'key', 'misc'].indexOf(type)
 }
 
-export default function CharacterSheet({ character }: { character: Character }) {
+const SLOTS: { key: NonNullable<InventoryItem['slot']>; label: string; icon: string; accepts: InventoryItem['type'][] }[] = [
+  { key: 'mainhand',  label: 'Main Hand',  icon: '⚔',  accepts: ['weapon'] },
+  { key: 'offhand',   label: 'Off Hand',   icon: '🛡',  accepts: ['weapon', 'armor', 'misc'] },
+  { key: 'armor',     label: 'Armor',      icon: '🧥',  accepts: ['armor'] },
+  { key: 'helmet',    label: 'Helmet',     icon: '⛑',  accepts: ['armor', 'misc'] },
+  { key: 'cloak',     label: 'Cloak',      icon: '🪄',  accepts: ['armor', 'misc'] },
+  { key: 'accessory', label: 'Accessory',  icon: '💍',  accepts: ['misc', 'armor'] },
+]
+
+function inferSlot(item: InventoryItem): InventoryItem['slot'] | null {
+  if (item.slot) return item.slot
+  const n = item.name.toLowerCase()
+  if (n.includes('helmet') || n.includes('hood') || n.includes('crown') || n.includes('hat') || n.includes('circlet')) return 'helmet'
+  if (n.includes('cloak') || n.includes('cape') || n.includes('mantle')) return 'cloak'
+  if (n.includes('ring') || n.includes('amulet') || n.includes('necklace') || n.includes('pendant') || n.includes('bracelet')) return 'accessory'
+  if (n.includes('shield') || n.includes('buckler') || n.includes('tome') || n.includes('orb') || n.includes('focus')) return 'offhand'
+  if (n.includes('armor') || n.includes('mail') || n.includes('plate') || n.includes('leather') || n.includes('robe') || n.includes('vest') || n.includes('breastplate') || n.includes('cuirass')) return 'armor'
+  if (item.type === 'weapon') return 'mainhand'
+  return null
+}
+
+export default function CharacterSheet({ character, onEquipToggle }: { character: Character; onEquipToggle?: (itemId: string, equipped: boolean) => void }) {
   const [inventoryOpen, setInventoryOpen] = useState(true)
   const [abilitiesOpen, setAbilitiesOpen] = useState(true)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+
+  const handleEquipToggle = useCallback((item: InventoryItem) => {
+    const id = item.id || item.name
+    onEquipToggle?.(id, !item.equipped)
+  }, [onEquipToggle])
 
   const hpPercent = Math.max(0, Math.min(100, (character.hp / character.max_hp) * 100))
   const hpColor = hpPercent > 60 ? '#22c55e' : hpPercent > 30 ? '#eab308' : '#ef4444'
@@ -198,6 +224,52 @@ export default function CharacterSheet({ character }: { character: Character }) 
           </section>
         )}
 
+        {/* Equipment slots */}
+        <section>
+          <SectionTitle title="Equipped" />
+          <div className="grid grid-cols-3 gap-1.5">
+            {SLOTS.map(slot => {
+              const worn = character.inventory.find(i => i.equipped && (i.slot === slot.key || (!i.slot && inferSlot(i) === slot.key)))
+              return (
+                <div
+                  key={slot.key}
+                  className="flex flex-col items-center gap-1 px-2 py-2.5"
+                  style={{
+                    border: worn ? '1px solid rgba(200,146,42,0.45)' : '1px solid rgba(255,255,255,0.08)',
+                    background: worn ? 'rgba(200,146,42,0.07)' : 'rgba(255,255,255,0.02)',
+                    minHeight: 72,
+                  }}
+                >
+                  {worn ? (
+                    <>
+                      <img
+                        src={itemIcon(worn)}
+                        alt=""
+                        className="h-8 w-8 object-contain"
+                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                      />
+                      <p className="w-full truncate text-center font-serif text-[10px] leading-tight" style={{ color: '#e8d9b8' }}>{worn.name}</p>
+                      <button
+                        type="button"
+                        onClick={() => handleEquipToggle(worn)}
+                        className="font-fantasy text-[8px] uppercase tracking-[0.14em] transition-opacity hover:opacity-100"
+                        style={{ color: 'rgba(200,146,42,0.55)' }}
+                      >
+                        unequip
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: 20, opacity: 0.25 }}>{slot.icon}</span>
+                      <p className="font-fantasy text-[9px] uppercase tracking-[0.12em]" style={{ color: 'rgba(180,160,120,0.35)' }}>{slot.label}</p>
+                    </>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
         <section>
           <button type="button" onClick={() => setInventoryOpen(v => !v)} className="w-full text-left">
             <SectionTitle title="Inventory" right={inventoryOpen ? 'Hide' : `${character.inventory.length} items / ${keyItems} key`} />
@@ -234,6 +306,19 @@ export default function CharacterSheet({ character }: { character: Character }) 
                         </div>
                         {selectedItem.description && (
                           <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/72">{selectedItem.description}</p>
+                        )}
+                        {inferSlot(selectedItem) && selectedItem.type !== 'potion' && selectedItem.type !== 'key' && (
+                          <button
+                            type="button"
+                            onClick={() => handleEquipToggle(selectedItem)}
+                            className="mt-2 px-3 py-1 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all"
+                            style={selectedItem.equipped
+                              ? { border: '1px solid rgba(200,146,42,0.45)', color: 'rgba(200,146,42,0.8)', background: 'rgba(200,146,42,0.08)' }
+                              : { border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(200,180,140,0.7)', background: 'rgba(255,255,255,0.04)' }
+                            }
+                          >
+                            {selectedItem.equipped ? '✓ Equipped' : 'Equip'}
+                          </button>
                         )}
                       </div>
                     </div>
