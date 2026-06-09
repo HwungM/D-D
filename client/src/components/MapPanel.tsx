@@ -4,13 +4,13 @@ interface MapPanelProps {
   worldState: WorldState | null
 }
 
-const TYPE_STYLE: Record<string, { label: string; color: string }> = {
-  city: { label: 'City', color: '#22d3ee' },
-  region: { label: 'Region', color: '#a78bfa' },
-  dungeon: { label: 'Dungeon', color: '#f87171' },
-  wilderness: { label: 'Wilds', color: '#4ade80' },
-  landmark: { label: 'Landmark', color: '#f59e0b' },
-  unknown: { label: 'Place', color: '#e8d8b0' },
+const TYPE_STYLE: Record<string, { label: string; accent: string }> = {
+  city:       { label: 'City',     accent: '#67e8f9' },
+  region:     { label: 'Region',   accent: '#c4b5fd' },
+  dungeon:    { label: 'Dungeon',  accent: '#f87171' },
+  wilderness: { label: 'Wilds',   accent: '#86efac' },
+  landmark:   { label: 'Landmark',accent: '#fbbf24' },
+  unknown:    { label: 'Place',   accent: '#d4b97a' },
 }
 
 function fallbackNodes(worldState: WorldState): LocationNode[] {
@@ -18,7 +18,7 @@ function fallbackNodes(worldState: WorldState): LocationNode[] {
     worldState.currentLocation,
     ...(worldState.discoveredLocations || []),
     ...Object.values(worldState.characterLocations || {}),
-  ].filter((name): name is string => !!name && name.trim().length > 0)))
+  ].filter((n): n is string => !!n && n.trim().length > 0)))
 
   return names.map(name => ({
     name,
@@ -33,49 +33,68 @@ function fallbackNodes(worldState: WorldState): LocationNode[] {
   }))
 }
 
-function markerCount(node: LocationNode) {
-  return node.partyHere.length + node.npcsPresent.length + node.questHooks.length
-}
-
 function LocationCard({ node, active }: { node: LocationNode; active?: boolean }) {
   const style = TYPE_STYLE[node.type || 'unknown'] || TYPE_STYLE.unknown
+  const hasMarkers = node.partyHere.length > 0 || node.npcsPresent.length > 0 || node.questHooks.length > 0
+
   return (
-    <article className={`border px-3 py-3 ${active ? 'border-amber-200/42 bg-amber-300/[0.07]' : 'border-white/10 bg-white/[0.025]'}`}>
-      <div className="flex items-start justify-between gap-3">
+    <article
+      className="border px-3 py-3 transition-all"
+      style={active
+        ? { borderColor: 'rgba(200,146,42,0.5)', background: 'rgba(200,146,42,0.08)', boxShadow: '0 0 20px rgba(200,146,42,0.07)' }
+        : { borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }
+      }
+    >
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate font-serif text-base font-semibold text-parchment-100">{node.name}</p>
-          <p className="mt-1 font-fantasy text-[9px] uppercase tracking-[0.16em]" style={{ color: style.color }}>
+          <p className="truncate font-fantasy text-base" style={{ color: active ? '#f5dea0' : '#e8d9b8' }}>{node.name}</p>
+          <p className="mt-0.5 font-fantasy text-[9px] uppercase tracking-[0.18em]" style={{ color: style.accent, opacity: 0.85 }}>
             {style.label} / {node.region}
           </p>
         </div>
-        {markerCount(node) > 0 && (
-          <span className="shrink-0 border border-cyan-200/18 bg-cyan-300/[0.055] px-2 py-1 font-serif text-xs text-cyan-100/72">
-            {markerCount(node)} marks
+        {hasMarkers && (
+          <span className="shrink-0 px-2 py-0.5 font-serif text-[10px]"
+            style={{ color: 'rgba(200,146,42,0.85)', border: '1px solid rgba(200,146,42,0.28)', background: 'rgba(200,146,42,0.07)' }}>
+            {node.partyHere.length + node.npcsPresent.length + node.questHooks.length} marks
           </span>
         )}
       </div>
 
       {node.description && (
-        <p className="mt-2 line-clamp-3 font-serif text-sm leading-relaxed text-parchment-200/62">{node.description}</p>
+        <p className="mt-2 font-serif text-xs leading-relaxed"
+          style={{ color: 'rgba(220,200,165,0.75)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {node.description}
+        </p>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {node.partyHere.length > 0 && (
-          <span className="border border-emerald-200/18 bg-emerald-300/[0.055] px-2 py-1 font-fantasy text-[9px] uppercase tracking-[0.14em] text-emerald-100/72">Party</span>
-        )}
-        {node.npcsPresent.length > 0 && (
-          <span className="border border-violet-200/18 bg-violet-300/[0.055] px-2 py-1 font-fantasy text-[9px] uppercase tracking-[0.14em] text-violet-100/72">NPC</span>
-        )}
-        {node.questHooks.length > 0 && (
-          <span className="border border-amber-200/18 bg-amber-300/[0.055] px-2 py-1 font-fantasy text-[9px] uppercase tracking-[0.14em] text-amber-100/72">Quest</span>
-        )}
-        {node.connectedTo.slice(0, 2).map(place => (
-          <span key={place} className="border border-white/8 bg-black/18 px-2 py-1 font-serif text-xs text-parchment-200/48">
-            path: {place}
-          </span>
-        ))}
-      </div>
+      {(node.partyHere.length > 0 || node.npcsPresent.length > 0 || node.questHooks.length > 0 || node.connectedTo.length > 0) && (
+        <div className="mt-2.5 flex flex-wrap gap-1">
+          {node.partyHere.length > 0 && (
+            <Tag color="rgba(134,239,172,0.85)" bg="rgba(34,197,94,0.08)" border="rgba(134,239,172,0.22)">Party</Tag>
+          )}
+          {node.npcsPresent.length > 0 && (
+            <Tag color="rgba(196,181,253,0.85)" bg="rgba(139,92,246,0.08)" border="rgba(196,181,253,0.22)">NPC</Tag>
+          )}
+          {node.questHooks.length > 0 && (
+            <Tag color="rgba(251,191,36,0.85)" bg="rgba(200,146,42,0.08)" border="rgba(251,191,36,0.22)">Quest</Tag>
+          )}
+          {node.connectedTo.slice(0, 3).map(place => (
+            <Tag key={place} color="rgba(200,180,140,0.6)" bg="rgba(0,0,0,0.2)" border="rgba(255,255,255,0.09)">
+              → {place}
+            </Tag>
+          ))}
+        </div>
+      )}
     </article>
+  )
+}
+
+function Tag({ children, color, bg, border }: { children: React.ReactNode; color: string; bg: string; border: string }) {
+  return (
+    <span className="px-2 py-0.5 font-fantasy text-[9px] uppercase tracking-[0.14em]"
+      style={{ color, background: bg, border: `1px solid ${border}` }}>
+      {children}
+    </span>
   )
 }
 
@@ -83,7 +102,7 @@ export default function MapPanel({ worldState }: MapPanelProps) {
   if (!worldState) {
     return (
       <div className="p-5 text-center">
-        <p className="font-serif text-sm italic text-parchment-200/52">No map has been drawn yet.</p>
+        <p className="font-serif text-sm italic" style={{ color: 'rgba(200,180,140,0.45)' }}>No map has been drawn yet.</p>
       </div>
     )
   }
@@ -91,65 +110,85 @@ export default function MapPanel({ worldState }: MapPanelProps) {
   const graph = worldState.locationGraph
   const nodes = graph?.nodes?.length ? graph.nodes : fallbackNodes(worldState)
   const currentName = graph?.currentLocation || worldState.currentLocation
-  const current = nodes.find(node => node.name === currentName) || nodes[0]
+  const current = nodes.find(n => n.name === currentName) || nodes[0]
   const regions = graph?.regions?.length
     ? graph.regions
-    : [{ name: 'Known Realm', locations: nodes.map(node => node.name) }]
+    : [{ name: 'Known Realm', locations: nodes.map(n => n.name) }]
   const nearby = graph?.nearby?.length
     ? graph.nearby
-    : current?.connectedTo || nodes.filter(node => node.name !== current?.name).slice(0, 6).map(node => node.name)
+    : current?.connectedTo || nodes.filter(n => n.name !== current?.name).slice(0, 6).map(n => n.name)
 
   return (
-    <div className="space-y-6 p-4 text-sm text-parchment-100">
-      <section className="border border-cyan-200/20 bg-[linear-gradient(135deg,rgba(34,211,238,0.07),rgba(245,158,11,0.035))] p-4">
-        <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-cyan-200/62">Realm Map</p>
-        <h3 className="mt-1 font-fantasy text-2xl text-parchment-100">{current?.name || 'Unknown Road'}</h3>
-        <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/68">
-          {current?.description || 'The party has not mapped enough of this place to name its contours yet.'}
+    <div className="space-y-5 p-4">
+
+      {/* Current location hero card */}
+      <section className="p-4" style={{
+        background: 'linear-gradient(135deg, rgba(200,146,42,0.1), rgba(200,80,30,0.05))',
+        border: '1px solid rgba(200,146,42,0.32)',
+        boxShadow: '0 0 30px rgba(200,146,42,0.06)',
+      }}>
+        <p className="font-fantasy text-[9px] uppercase tracking-[0.26em]" style={{ color: 'rgba(200,146,42,0.72)' }}>
+          Current Location
         </p>
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <div className="border border-white/10 bg-black/22 px-3 py-2">
-            <p className="font-fantasy text-[9px] uppercase tracking-[0.16em] text-parchment-200/44">Places</p>
-            <p className="mt-1 font-serif text-lg text-parchment-100">{nodes.length}</p>
-          </div>
-          <div className="border border-white/10 bg-black/22 px-3 py-2">
-            <p className="font-fantasy text-[9px] uppercase tracking-[0.16em] text-parchment-200/44">Regions</p>
-            <p className="mt-1 font-serif text-lg text-parchment-100">{regions.length}</p>
-          </div>
-          <div className="border border-white/10 bg-black/22 px-3 py-2">
-            <p className="font-fantasy text-[9px] uppercase tracking-[0.16em] text-parchment-200/44">Nearby</p>
-            <p className="mt-1 font-serif text-lg text-parchment-100">{nearby.length}</p>
-          </div>
+        <h3 className="mt-1 font-fantasy text-2xl" style={{ color: '#f5dea0' }}>
+          {current?.name || 'Unknown Road'}
+        </h3>
+        {current?.description && (
+          <p className="mt-2 font-serif text-sm leading-relaxed" style={{ color: 'rgba(220,200,165,0.8)' }}>
+            {current.description}
+          </p>
+        )}
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {[
+            { label: 'Places',  value: nodes.length },
+            { label: 'Regions', value: regions.length },
+            { label: 'Nearby',  value: nearby.length },
+          ].map(stat => (
+            <div key={stat.label} className="px-2 py-2 text-center"
+              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <p className="font-fantasy text-[8px] uppercase tracking-[0.14em]" style={{ color: 'rgba(180,160,120,0.6)' }}>{stat.label}</p>
+              <p className="mt-0.5 font-fantasy text-xl" style={{ color: '#f5e6c8' }}>{stat.value}</p>
+            </div>
+          ))}
         </div>
       </section>
 
+      {/* Nearby roads */}
       {nearby.length > 0 && (
         <section>
-          <p className="mb-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/62">Nearby Roads</p>
-          <div className="grid grid-cols-2 gap-2">
+          <p className="mb-2 px-1 font-fantasy text-[9px] uppercase tracking-[0.26em]" style={{ color: 'rgba(200,146,42,0.65)' }}>
+            Nearby Roads
+          </p>
+          <div className="grid grid-cols-2 gap-1.5">
             {nearby.map(place => (
-              <div key={place} className="border border-amber-200/14 bg-amber-300/[0.035] px-3 py-2">
-                <p className="truncate font-serif text-sm text-parchment-100">{place}</p>
+              <div key={place} className="px-3 py-2"
+                style={{ background: 'rgba(200,146,42,0.05)', border: '1px solid rgba(200,146,42,0.18)' }}>
+                <p className="truncate font-serif text-sm" style={{ color: '#ddd0b0' }}>{place}</p>
               </div>
             ))}
           </div>
         </section>
       )}
 
+      {/* All locations by region */}
       <section>
-        <p className="mb-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/62">Regions</p>
+        <p className="mb-2 px-1 font-fantasy text-[9px] uppercase tracking-[0.26em]" style={{ color: 'rgba(200,146,42,0.65)' }}>
+          Known World
+        </p>
         <div className="space-y-3">
           {regions.map(region => {
             const regionNodes = region.locations
-              .map(name => nodes.find(node => node.name === name))
-              .filter((node): node is LocationNode => !!node)
+              .map(name => nodes.find(n => n.name === name))
+              .filter((n): n is LocationNode => !!n)
             return (
-              <div key={region.name} className="border border-white/8 bg-white/[0.018] p-3">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <h4 className="font-fantasy text-base text-parchment-100">{region.name}</h4>
-                  <span className="font-serif text-xs text-parchment-200/44">{regionNodes.length} places</span>
+              <div key={region.name}
+                style={{ border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)' }}>
+                <div className="flex items-center justify-between gap-3 border-b px-3 py-2"
+                  style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <h4 className="font-fantasy text-sm" style={{ color: '#e8d9b8' }}>{region.name}</h4>
+                  <span className="font-serif text-[10px]" style={{ color: 'rgba(180,160,120,0.5)' }}>{regionNodes.length} places</span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-px p-1.5">
                   {regionNodes.map(node => (
                     <LocationCard key={node.name} node={node} active={node.name === current?.name} />
                   ))}
@@ -160,16 +199,24 @@ export default function MapPanel({ worldState }: MapPanelProps) {
         </div>
       </section>
 
-      {current && (current.npcsPresent.length > 0 || current.questHooks.length > 0 || current.partyHere.length > 0) && (
+      {/* Active markers at current location */}
+      {current && (current.npcsPresent.length > 0 || current.questHooks.length > 0) && (
         <section>
-          <p className="mb-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/62">Current Markers</p>
-          <div className="space-y-2">
-            {current.partyHere.length > 0 && <p className="border border-emerald-200/14 bg-emerald-300/[0.035] px-3 py-2 font-serif text-sm text-parchment-200/72">Party presence is marked here.</p>}
+          <p className="mb-2 px-1 font-fantasy text-[9px] uppercase tracking-[0.26em]" style={{ color: 'rgba(200,146,42,0.65)' }}>
+            Here Now
+          </p>
+          <div className="space-y-1.5">
             {current.npcsPresent.map(npc => (
-              <p key={npc} className="border border-violet-200/14 bg-violet-300/[0.035] px-3 py-2 font-serif text-sm text-parchment-200/72">NPC: {npc}</p>
+              <p key={npc} className="px-3 py-2 font-serif text-sm"
+                style={{ color: 'rgba(220,200,165,0.82)', border: '1px solid rgba(196,181,253,0.2)', background: 'rgba(139,92,246,0.06)' }}>
+                {npc}
+              </p>
             ))}
             {current.questHooks.map(quest => (
-              <p key={quest} className="border border-amber-200/14 bg-amber-300/[0.035] px-3 py-2 font-serif text-sm text-parchment-200/72">Quest: {quest}</p>
+              <p key={quest} className="px-3 py-2 font-serif text-sm"
+                style={{ color: 'rgba(220,200,165,0.82)', border: '1px solid rgba(251,191,36,0.2)', background: 'rgba(200,146,42,0.06)' }}>
+                {quest}
+              </p>
             ))}
           </div>
         </section>
