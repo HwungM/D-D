@@ -35,6 +35,15 @@ function formatLabel(value?: string) {
 
 const FALLBACK_SCENE_URL = '/media/loading/everrealm-crystal-party.png'
 
+function probeImage(url: string): Promise<string> {
+  return new Promise(resolve => {
+    const img = new Image()
+    img.onload = () => resolve(url)
+    img.onerror = () => resolve(FALLBACK_SCENE_URL)
+    img.src = url
+  })
+}
+
 export default function SceneDisplay({
   imageUrl,
   location,
@@ -46,26 +55,29 @@ export default function SceneDisplay({
   partyHereNames = [],
   inCombat,
 }: SceneDisplayProps) {
-  const resolvedUrl = imageUrl || FALLBACK_SCENE_URL
-  const [displayUrl, setDisplayUrl] = useState(resolvedUrl)
+  const rawUrl = imageUrl || FALLBACK_SCENE_URL
+  const [displayUrl, setDisplayUrl] = useState(FALLBACK_SCENE_URL)
   const [incomingUrl, setIncomingUrl] = useState<string | null>(null)
   const [incomingVisible, setIncomingVisible] = useState(false)
 
   useEffect(() => {
-    if (resolvedUrl === displayUrl || resolvedUrl === incomingUrl) return
-    setIncomingUrl(resolvedUrl)
-    setIncomingVisible(false)
-    const showTimer = window.setTimeout(() => setIncomingVisible(true), 30)
-    const swapTimer = window.setTimeout(() => {
-      setDisplayUrl(resolvedUrl)
-      setIncomingUrl(null)
+    let cancelled = false
+    probeImage(rawUrl).then(verified => {
+      if (cancelled) return
+      if (verified === displayUrl || verified === incomingUrl) return
+      setIncomingUrl(verified)
       setIncomingVisible(false)
-    }, 750)
-    return () => {
-      window.clearTimeout(showTimer)
-      window.clearTimeout(swapTimer)
-    }
-  }, [resolvedUrl, displayUrl, incomingUrl])
+      const showTimer = window.setTimeout(() => { if (!cancelled) setIncomingVisible(true) }, 30)
+      const swapTimer = window.setTimeout(() => {
+        if (cancelled) return
+        setDisplayUrl(verified)
+        setIncomingUrl(null)
+        setIncomingVisible(false)
+      }, 750)
+      return () => { window.clearTimeout(showTimer); window.clearTimeout(swapTimer) }
+    })
+    return () => { cancelled = true }
+  }, [rawUrl])
 
   const tint = TIME_TINTS[timeOfDay]
 
