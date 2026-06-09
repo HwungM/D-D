@@ -785,29 +785,30 @@ export default function Game() {
         <img
           src={sceneArtUrl}
           alt=""
-          className="h-full w-full object-cover opacity-[0.34] blur-[1px] scale-[1.02]"
+          className="h-full w-full object-cover opacity-[0.22] blur-[2px] scale-[1.03]"
         />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_48%_10%,rgba(20,184,166,0.16),transparent_34%),linear-gradient(90deg,rgba(5,6,7,0.95),rgba(5,6,7,0.68)_48%,rgba(5,6,7,0.95))]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/22 to-[#050607]" />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(6,4,2,0.97) 0%, rgba(6,4,2,0.7) 46%, rgba(6,4,2,0.97) 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(6,4,2,0.72) 0%, rgba(6,4,2,0.18) 40%, rgba(6,4,2,0.88) 100%)' }} />
       </div>
 
       {/* -- Header -- */}
-      <header className="relative z-20 shrink-0 border-b border-white/8 bg-black/58 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
+      <header className="relative z-20 shrink-0 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8" style={{ background: 'rgba(10,7,3,0.95)', borderBottom: '1px solid rgba(200,146,42,0.2)' }}>
         <div className="mx-auto flex max-w-[1540px] items-center justify-between gap-4">
         {/* Left: nav + character */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="grid h-10 w-10 shrink-0 place-items-center border border-cyan-200/26 bg-cyan-200/8 shadow-[0_0_28px_rgba(34,211,238,0.16)]">
-            <span className="font-fantasy text-xl text-amber-200">E</span>
+          <div className="grid h-9 w-9 shrink-0 place-items-center border" style={{ borderColor: 'rgba(200,146,42,0.45)', background: 'rgba(200,146,42,0.1)', boxShadow: '0 0 18px rgba(200,146,42,0.18)' }}>
+            <span className="font-fantasy text-lg" style={{ color: '#f5dea0' }}>E</span>
           </div>
           <div className="hidden min-w-0 sm:block">
-            <p className="font-fantasy text-xl uppercase tracking-[0.1em] text-parchment-100">The Everrealm</p>
-            <p className="font-serif text-xs uppercase tracking-[0.22em] text-amber-200/54">Living campaign</p>
+            <p className="font-fantasy text-xl uppercase tracking-[0.1em]" style={{ color: '#f5e6c8' }}>The Everrealm</p>
+            <p className="font-serif text-[10px] uppercase tracking-[0.22em]" style={{ color: 'rgba(200,146,42,0.7)' }}>Living Campaign</p>
           </div>
           <button
             onClick={() => navigate('/dashboard')}
-            className="ml-0 border border-parchment-200/14 bg-black/22 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.18em] text-parchment-200/58 transition-all duration-200 hover:border-amber-200/45 hover:text-parchment-100 sm:ml-3"
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(220,200,160,0.8)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(232,212,168,0.58)' }}
+            className="ml-0 px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.18em] transition-all duration-200 sm:ml-3"
+            style={{ border: '1px solid rgba(200,146,42,0.25)', color: 'rgba(220,200,160,0.7)', background: 'rgba(200,146,42,0.06)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,146,42,0.55)'; (e.currentTarget as HTMLElement).style.color = '#f5dea0' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,146,42,0.25)'; (e.currentTarget as HTMLElement).style.color = 'rgba(220,200,160,0.7)' }}
           >
             Hall
           </button>
@@ -822,8 +823,8 @@ export default function Game() {
                   onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                 />
               </div>
-              <span className="font-fantasy text-sm truncate text-parchment-100">{currentCharacter.name}</span>
-              <span className="font-serif text-xs shrink-0 text-amber-200/68">Lv {currentCharacter.level}</span>
+              <span className="font-fantasy text-sm truncate" style={{ color: '#f5e6c8' }}>{currentCharacter.name}</span>
+              <span className="font-serif text-xs shrink-0" style={{ color: 'rgba(200,146,42,0.82)' }}>Lv {currentCharacter.level}</span>
               <div className="hidden sm:flex items-center gap-1.5 shrink-0">
                 <div className="h-1.5 w-20 overflow-hidden border border-white/10 bg-black/52">
                   <div className="h-full transition-all duration-700" style={{ width: `${hpPercent}%`, background: hpColor, boxShadow: `0 0 5px ${hpColor}70` }} />
@@ -840,7 +841,8 @@ export default function Game() {
           {campaignId && (
             <button
               onClick={() => setShowInviteModal(true)}
-              className="border border-amber-300/34 bg-amber-300/9 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] text-amber-100 transition-all duration-200 hover:border-amber-200"
+              className="px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200"
+              style={{ border: '1px solid rgba(200,146,42,0.4)', background: 'rgba(200,146,42,0.1)', color: '#f5dea0' }}
             >
               Invite
             </button>
@@ -852,11 +854,11 @@ export default function Game() {
               <button
                 key={tab}
                 onClick={() => { setSidebarTab(tab); setShowSidebar(sidebarTab !== tab || !showSidebar) }}
-                className={`border px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200 ${
-                  isActive
-                    ? 'border-cyan-200/50 bg-cyan-200/12 text-cyan-50'
-                    : 'border-white/10 bg-white/[0.025] text-parchment-200/62 hover:border-amber-200/34 hover:text-parchment-100'
-                }`}
+                className="px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200"
+                style={isActive
+                  ? { border: '1px solid rgba(200,146,42,0.65)', background: 'rgba(200,146,42,0.16)', color: '#f5dea0', boxShadow: '0 0 14px rgba(200,146,42,0.14)' }
+                  : { border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'rgba(200,180,140,0.65)' }
+                }
               >
                 {labels[tab]}
               </button>
@@ -927,7 +929,7 @@ export default function Game() {
       <div className="relative z-10 everrealm-game-main mx-auto flex w-full max-w-[1540px] flex-col lg:flex-row flex-1 overflow-hidden gap-4 p-3 sm:p-4 min-h-0">
 
         {/* -- LEFT: Persistent scene panel -- */}
-        <div className="everrealm-scene-column flex flex-col shrink-0 overflow-hidden border border-cyan-200/16 bg-black/42 shadow-[0_24px_120px_rgba(0,0,0,0.55)] backdrop-blur-md">
+        <div className="everrealm-scene-column flex flex-col shrink-0 overflow-hidden shadow-[0_24px_120px_rgba(0,0,0,0.65)]" style={{ border: '1px solid rgba(200,146,42,0.18)' }}>
           <div className="w-full h-[36vh] min-h-[250px] lg:w-[42vw] xl:w-[46vw] lg:max-w-[760px] lg:h-full lg:min-h-0">
             <SceneDisplay
               imageUrl={sceneArtUrl}
@@ -951,16 +953,16 @@ export default function Game() {
         </div>
 
         {/* -- CENTER: Narrative feed -- */}
-        <div className="everrealm-story-column flex-1 flex flex-col overflow-hidden min-h-0 border border-white/10 bg-black/50 shadow-[0_18px_80px_rgba(0,0,0,0.35)] backdrop-blur-md">
+        <div className="everrealm-story-column flex-1 flex flex-col overflow-hidden min-h-0" style={{ border: '1px solid rgba(200,146,42,0.15)', background: 'rgba(12,8,3,0.88)', backdropFilter: 'blur(12px)' }}>
           <div className="shrink-0 px-4 py-3 flex items-center justify-between gap-3" style={{
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
-            background: 'linear-gradient(90deg, rgba(0,0,0,0.58), rgba(20,184,166,0.06), rgba(0,0,0,0.2))',
+            borderBottom: '1px solid rgba(200,146,42,0.18)',
+            background: 'linear-gradient(90deg, rgba(20,12,4,0.98), rgba(25,16,6,0.92))',
           }}>
             <div className="min-w-0">
-              <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/62">
+              <p className="font-fantasy text-[10px] uppercase tracking-[0.28em]" style={{ color: 'rgba(200,146,42,0.8)' }}>
                 Dungeon Master
               </p>
-              <h1 className="mt-1 font-fantasy text-3xl truncate text-parchment-100">
+              <h1 className="mt-0.5 font-fantasy text-3xl truncate" style={{ color: '#f5e6c8' }}>
                 {campaignName || 'The Everrealm'}
               </h1>
             </div>
@@ -988,7 +990,7 @@ export default function Game() {
             </div>
           </div>
 
-          <div ref={narratorRef} className="everrealm-story-feed flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.35) transparent' }}>
+          <div ref={narratorRef} className="everrealm-story-feed flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-2.5" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.3) transparent' }}>
 
               {showDice && lastActionResult?.diceRoll && (
                 <div className="px-4">
@@ -1025,20 +1027,22 @@ export default function Game() {
               })()}
 
               {isLoading && (
-                <div className="mx-1 border border-amber-200/24 bg-black/48 px-4 py-3 shadow-[0_18px_60px_rgba(0,0,0,0.42)]">
+                <div className="mx-1 px-4 py-3" style={{ background: 'rgba(28,18,8,0.92)', border: '1px solid rgba(200,146,42,0.28)', borderTopColor: 'rgba(200,146,42,0.6)' }}>
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="font-fantasy text-[10px] uppercase tracking-[0.26em] text-cyan-200/62">Resolving Action</p>
-                      <p className="mt-1 font-serif text-sm italic text-parchment-200/72">
-                        The Dungeon Master is weighing the scene.
+                      <p className="font-fantasy text-[10px] uppercase tracking-[0.26em]" style={{ color: 'rgba(200,146,42,0.82)' }}>The Dungeon Master is thinking…</p>
+                      <p className="mt-1 font-serif text-sm italic" style={{ color: 'rgba(220,200,160,0.65)' }}>
+                        Weighing fate. The dice are listening.
                       </p>
                     </div>
-                    <span className="hidden border border-amber-200/24 bg-amber-300/8 px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] text-amber-100/80 sm:block">
+                    <span className="hidden px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] sm:block"
+                      style={{ color: 'rgba(200,146,42,0.8)', border: '1px solid rgba(200,146,42,0.28)', background: 'rgba(200,146,42,0.08)' }}>
                       Weaving
                     </span>
                   </div>
-                  <div className="mt-3 h-px overflow-hidden bg-white/10">
-                    <div className="h-full w-1/3 animate-pulse bg-[linear-gradient(90deg,rgba(34,211,238,0.2),rgba(245,158,11,0.85),rgba(34,211,238,0.2))]" />
+                  <div className="mt-3 h-px overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                    <div className="h-full w-1/3 animate-pulse"
+                      style={{ background: 'linear-gradient(90deg, rgba(200,146,42,0.2), rgba(200,146,42,0.85), rgba(200,146,42,0.2))' }} />
                   </div>
                 </div>
               )}
@@ -1107,16 +1111,18 @@ export default function Game() {
         </div>
 
         {showSidebar && (
-          <aside className="fixed bottom-4 right-4 top-[92px] z-40 hidden w-[380px] flex-col overflow-hidden border border-cyan-200/18 bg-black/82 shadow-[0_30px_130px_rgba(0,0,0,0.7)] backdrop-blur-md xl:flex animate-slide-in-right">
-            <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+          <aside className="fixed bottom-4 right-4 top-[60px] z-40 hidden w-[380px] flex-col overflow-hidden shadow-[0_30px_130px_rgba(0,0,0,0.75)] backdrop-blur-xl xl:flex animate-slide-in-right" style={{ border: '1px solid rgba(200,146,42,0.28)', background: 'rgba(14,9,3,0.97)' }}>
+            <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: '1px solid rgba(200,146,42,0.18)', background: 'rgba(20,13,5,0.98)' }}>
               <div>
-                <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/58">Codex</p>
-                <h2 className="mt-1 font-fantasy text-2xl text-parchment-100">{sidebarLabels[sidebarTab]}</h2>
+                <p className="font-fantasy text-[10px] uppercase tracking-[0.28em]" style={{ color: 'rgba(200,146,42,0.7)' }}>Codex</p>
+                <h2 className="mt-0.5 font-fantasy text-2xl" style={{ color: '#f5e6c8' }}>{sidebarLabels[sidebarTab]}</h2>
               </div>
               <button
                 onClick={() => setShowSidebar(false)}
-                className="border border-white/10 bg-white/[0.025] px-2.5 py-1 font-fantasy text-[10px] uppercase tracking-[0.14em] text-parchment-200/56 transition-all hover:border-amber-200/38 hover:text-parchment-100"
-                style={{ border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(180,160,120,0.56)', background: 'rgba(255,255,255,0.03)' }}
+                className="px-2.5 py-1 font-fantasy text-[10px] uppercase tracking-[0.14em] transition-all"
+                style={{ border: '1px solid rgba(200,146,42,0.22)', color: 'rgba(200,180,140,0.65)', background: 'rgba(200,146,42,0.06)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,146,42,0.5)'; (e.currentTarget as HTMLElement).style.color = '#f5dea0' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,146,42,0.22)'; (e.currentTarget as HTMLElement).style.color = 'rgba(200,180,140,0.65)' }}
               >
                 Close
               </button>
@@ -1137,18 +1143,16 @@ export default function Game() {
       {showSidebar && (
         <div className="fixed inset-0 z-40 xl:hidden" style={{ background: 'rgba(0,0,0,0.58)', backdropFilter: 'blur(6px)' }}>
           <button className="absolute inset-0 cursor-default" aria-label="Close panel" onClick={() => setShowSidebar(false)} />
-          <div className="absolute inset-x-2 bottom-2 max-h-[86vh] overflow-hidden border border-cyan-200/18 bg-black/88 backdrop-blur-md animate-slide-up-panel" style={{
-            border: '1px solid rgba(34,211,238,0.18)',
-            boxShadow: '0 24px 80px rgba(0,0,0,0.45)',
-          }}>
-            <div className="flex items-center justify-between gap-3 border-b border-white/8 px-4 py-3">
+          <div className="absolute inset-x-2 bottom-2 max-h-[86vh] overflow-hidden backdrop-blur-xl animate-slide-up-panel" style={{ border: '1px solid rgba(200,146,42,0.28)', background: 'rgba(14,9,3,0.97)', boxShadow: '0 24px 80px rgba(0,0,0,0.7)' }}>
+            <div className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: '1px solid rgba(200,146,42,0.18)' }}>
               <div>
-                <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/58">Codex</p>
-                <h2 className="mt-1 font-fantasy text-2xl text-parchment-100">{sidebarLabels[sidebarTab]}</h2>
+                <p className="font-fantasy text-[10px] uppercase tracking-[0.28em]" style={{ color: 'rgba(200,146,42,0.7)' }}>Codex</p>
+                <h2 className="mt-0.5 font-fantasy text-2xl" style={{ color: '#f5e6c8' }}>{sidebarLabels[sidebarTab]}</h2>
               </div>
               <button
                 onClick={() => setShowSidebar(false)}
-                className="border border-white/10 bg-white/[0.025] px-2.5 py-1 font-fantasy text-[10px] uppercase tracking-[0.14em] text-parchment-200/56 transition-all hover:border-amber-200/38 hover:text-parchment-100"
+                className="px-2.5 py-1 font-fantasy text-[10px] uppercase tracking-[0.14em] transition-all"
+                style={{ border: '1px solid rgba(200,146,42,0.22)', color: 'rgba(200,180,140,0.65)', background: 'rgba(200,146,42,0.06)' }}
               >
                 Close
               </button>
