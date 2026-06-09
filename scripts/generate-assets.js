@@ -247,7 +247,7 @@ const RACE_FLAVOR = {
   tabaxi: 'sleek spotted cat-folk features, large expressive feline gold eyes, graceful high cheekbones, short velvet fur, a tail tip just visible, lithe attentive posture',
   'fire-genasi': 'warm ember-red skin with faint glowing cracks beneath the surface, a crown of living flickering flame instead of hair, intense smoldering orange eyes',
   'water-genasi': 'smooth pale blue-green skin with a subtle aqueous sheen, flowing sea-blue hair that moves as if in a current, deep turquoise calm eyes',
-  'earth-genasi': 'skin the color of dense brown stone with hairline fissures of darker rock texture, deep amber eyes, hair like dark clay, the stillness of deep bedrock',
+  'earth-genasi': 'skin of grey cracked stone with veins of dark mineral running through it, hair like jagged obsidian crystals or quartz shards jutting from the scalp, eyes like polished amber gems set in rock, the solidity and weight of living granite',
   'air-genasi': 'near-white skin with a translucent ethereal quality, silver-white hair that moves in a subtle persistent breeze, pale silver-blue eyes, an air of constant subtle motion',
   goliath: 'enormous frame of grey-blue stone-patterned skin, bold tribal markings across the face and arms, a broad powerful face, stoic bearing, compact features on a very large head',
   firbolg: 'large gentle frame, soft grey-lavender skin, a broad kind face with a slightly bovine cast, large rounded ears, plain earth-toned robes woven with dried herbs and flowers',
@@ -279,21 +279,28 @@ const RACE_FLAVOR_FEMALE = {
 };
 
 
+// Multi-word race slugs that need special parsing
+const MULTI_WORD_RACES = [
+  'half-orc', 'fire-genasi', 'water-genasi', 'earth-genasi', 'air-genasi',
+  'yuan-ti', 'will-o-wisp',
+];
+
 function raceVariantAsset(file) {
   const base = file.replace('races/', '').replace('.png', '');
-  const tokens = base.split('-');
-  const race = tokens[0] === 'half' ? 'half-orc' : tokens[0];
-  const rest = tokens[0] === 'half' ? tokens.slice(2) : tokens.slice(1);
-  const genderDesc = rest.includes('f') ? 'a woman' : rest.includes('m') ? 'a man' : 'a figure';
-  const toneDesc = rest.includes('black') ? ', with a deep dark complexion' : '';
-  const isWoman = rest.includes('f');
+  // Detect female suffix first
+  const isWoman = base.endsWith('-f');
+  const raceSlug = isWoman ? base.slice(0, -2) : base;
+  // Look up display name
+  const race = raceSlug;
+  const genderDesc = isWoman ? 'a woman' : 'a man';
   const flavor = (isWoman && RACE_FLAVOR_FEMALE[race]) || RACE_FLAVOR[race] || 'striking, memorable fantasy features';
-  return { file, prompt: `${STYLE} ${genderDesc.charAt(0).toUpperCase()}${genderDesc.slice(1)} of the ${race} people, with ${flavor}${toneDesc}, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` };
+  return { file, prompt: `${STYLE} ${genderDesc.charAt(0).toUpperCase()}${genderDesc.slice(1)} of the ${race} people, with ${flavor}, a calm, composed, neutral expression. ${RACE_BACKGROUND} Head-and-shoulders, facing the viewer, character-select-screen framing.` };
 }
 
-// Female variants per race so character creation always has both options.
+// Male (base) + female variants per race so character creation always has both options.
+// Core PHB male bases are hand-crafted in ASSETS above; only female variants needed here.
 const RACE_VARIANT_FILES = [
-  // Core PHB
+  // Core PHB — female only (males already defined above with custom prompts)
   'races/dragonborn-f.png',
   'races/dwarf-f.png',
   'races/elf-f.png',
