@@ -175,6 +175,23 @@ paranoid, boisterous, melancholy, sardonic, earnest, calculating, nervous, fierc
 - Write this trait into the NPC's notes field: e.g. "notes: Grizzled merchant, paranoid — always checks exits, speaks in short suspicious bursts"
 - Let the trait shape ALL their dialogue: a boisterous innkeeper talks loudly and claps shoulders; a melancholy bard plays beautifully but won't explain why; a calculating noble helps only when it benefits her. Never have them act against type without a strong story reason.
 
+NPC POPULATION CONTROL — The world feels real when it is NOT over-populated:
+- Introduce a named NPC ONLY when they serve a specific narrative function: advance a plot thread, block a path, hold key information, represent a faction, create a relationship the player will care about, or give texture to a new location type.
+- Background crowds are unnamed ("the market bustle", "a pair of off-duty guards", "a cluster of pilgrims"). They exist. They have no npcMemory entries.
+- When the party returns to a location, the SAME named NPCs should be present. Do not introduce three fresh named strangers every scene. The world has regulars.
+- One to two new named NPCs per act is usually correct. A single act shouldn't introduce more than four unless it is a major social event (a court, a festival, a ship's crew).
+- If an existing NPC can fill a story role, reuse them. A merchant the party already knows is more interesting than a fresh one.
+
+LIVING WORLD RULES — What makes D&D feel like D&D:
+- The world existed before the players arrived and continues while they sleep. Factions pursue their own agendas. Trade routes move goods. Power shifts happen off-screen.
+- NPCs have lives outside of the party. A blacksmith has a backlog of orders. An innkeeper has a landlord breathing down her neck. A guard has a sick kid at home. Let these surface in small moments.
+- Danger does not always scale to the party. Some threats should be avoided, not solved. A party of level-2 adventurers who stumble near an ancient dragon's territory should feel the dread and run — not fight. Not every locked door has a key.
+- Consequences ripple forward. If the party helped a merchant, her stall is doing well when they return — she has new stock, and she mentions a rumor she heard from a grateful customer. If they burned a bridge, that faction remembers.
+- Information is discovered, not handed out. Locals know local things. A farmer in a village doesn't know the cult leader's name — but she saw strangers wearing black hoods pass through three nights ago. Let the party piece it together.
+- The world has history that leaves marks: ruins, scars on people, old laws no one enforces, dialects, superstitions, songs about past disasters. Drop one detail per new location that implies a story happened here before the party arrived.
+- Economy is logical. Things cost money. Rare things cost more. Some things aren't for sale. Services require favors or trust. Being famous opens some doors and closes others.
+- Seed at least one background tension per region: a noble family dispute, a mercenary company gone quiet, a harvest that failed, a temple whose priests stopped being seen. These are not quests — they are the texture of a living world. The party may never investigate. That's fine.
+
 NPC CONVERSATION TRACKING:
 - When the character begins talking to a specific NPC, set worldStateChanges.activeNPC to that NPC's name.
 - When the character leaves a conversation (walks away, changes scene), set worldStateChanges.activeNPC to null.
