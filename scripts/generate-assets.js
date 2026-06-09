@@ -31,6 +31,7 @@ const SCENE_STYLE_LIVED_IN = 'Lived-in environment establishing-shot illustratio
 // so the roster reads as a clean, consistent lineup (think character-select
 // grid, not illustrated storybook spreads).
 const RACE_BACKGROUND = 'SOLO PORTRAIT ONLY — exactly one person, no other characters, no crowd, no companions in frame or background. Facing forward toward the viewer, calm neutral resting expression (not laughing, shouting, or reacting to anything). Plain simple backdrop: a softly blurred wash of warm amber candlelight fading into deep shadow, flat and uncluttered, identical lighting and backdrop treatment across every portrait in this set so they form a clean matching lineup.';
+const RACE_DIVERSITY = 'Draw from the full spectrum of global human ethnic diversity — dark skin tones, broad noses, wide faces, natural hair textures. Not European by default. Not a model or hero archetype — a real person with natural imperfect features, asymmetry, lived-in face. NOT conventionally beautiful or idealized.';
 
 const ASSETS = [
   // DM Portraits
@@ -231,10 +232,6 @@ const ASSETS = [
 // whole asset set can be regenerated in one consistent pass in the new style.
 // Skin tones are baked in here too (matching the spirit of the base portraits)
 // so the female variants read as part of the same diverse cast.
-// Anti-default directive appended to every race portrait prompt.
-// Fights the model's tendency toward European features and idealized beauty.
-const RACE_DIVERSITY = 'Draw from the full spectrum of global human ethnic diversity — dark skin tones, broad noses, wide faces, natural hair textures. Not European by default. Not a model or hero archetype — a real person with natural imperfect features, asymmetry, lived-in face. NOT conventionally beautiful or idealized.';
-
 const RACE_FLAVOR = {
   human: 'dark brown skin with warm undertones, a broad strong jaw with slight asymmetry, wide flat nose with broad nostrils, weathered crow feet at deep-set dark brown eyes under a heavy brow, short natural black hair with grey at the temples, battered leather armor — looks like someone who has actually lived',
   elf: 'warm medium-brown skin, an extremely elongated narrow skull, dramatically high sharp cheekbones, a long straight nose, enormous upswept almond eyes of vivid violet, ears that taper to a very long exaggerated point, angular jaw with almost no curve — distinctly non-human bone structure, fine forest-green garb',
