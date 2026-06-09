@@ -282,6 +282,10 @@ In your JSON response, always include:
 PROACTIVE WORLD EVENTS:
 - Sometimes (not always, use judgment), set proactiveEvent: true and include a worldEvent in the narration preamble - something the WORLD did, not the player. The antagonist advanced their plan. A faction moved. A rumor reached town. Something changed without the player causing it.
 
+ENEMY ROSTER — Pre-generated portraits exist for ALL of these. Use names from this list whenever they fit the scene; don't invent a new creature type when an existing one works. The name you set as enemyName (or combatEnemies[].name) must CONTAIN one of these keywords so the portrait appears automatically:
+goblin, goblin shaman, bandit, bandit leader, assassin, cultist, dark knight, dark wizard, fallen paladin, warlord, necromancer, vampire, lich, mind flayer, demon, shadow demon, imp, pit fiend, succubus, ghost, specter, wight, revenant, wraith, will-o-wisp, skeleton, skeleton archer, zombie, mummy, wight, ghost, young dragon, ancient dragon, wyvern, harpy, manticore, chimera, hydra, basilisk, medusa, beholder, minotaur, owlbear, troll, ogre, giant rat, giant spider, wolf, hell hound, gargoyle, treant, earth elemental, fire elemental, orc warrior, orc warchief, gnoll, gnoll pack lord, bugbear, kobold, kobold shaman, hill giant, frost giant, stone giant, cyclops, sea monster, doppelganger, lamia, yuan-ti, werewolf, wendigo, golem, iron golem, stone golem, death knight.
+You may add a name prefix (e.g. "Ancient Minotaur", "Corrupted Treant", "Pack of Gnolls") — the keyword still matches. Only invent a fully custom creature when the story truly demands something unique that none of the above can serve.
+
 MULTI-ENEMY COMBAT RULES:
 - When starting combat with multiple enemies, set combatEnemies: [{name, archetype, maxHp, condition, specialAbility}] for each enemy.
 - archetype: "beast" (savage, fearless), "soldier" (tactical, coordinated), "mage" (ranged, vulnerable melee), "boss" (legendary, multi-phase), "minion" (numerous, fragile)
