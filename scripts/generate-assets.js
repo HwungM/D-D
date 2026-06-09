@@ -324,7 +324,29 @@ const ENEMY_FILES = [
   'enemies/zombie.png',
 ];
 
+// Stock NPC portraits — common archetypes used as instant fallbacks when a named
+// NPC hasn't had a bespoke portrait generated yet (same pattern as enemies).
+const NPC_STOCK = [
+  { file: 'npcs/merchant.png', prompt: `${STYLE} Portrait of a friendly human male merchant NPC, warm smile, practical travelling clothes with many pockets, a coin purse at his belt, a ledger tucked under one arm, standing confidently. Waist-up, warm candlelit market background, approachable and trustworthy.` },
+  { file: 'npcs/merchant-f.png', prompt: `${STYLE} Portrait of a friendly human female merchant NPC, sharp intelligent eyes, colourful layered travelling clothes, coin purse and ledger, a confident trader's smile. Waist-up, warm candlelit market background, approachable and trustworthy.` },
+  { file: 'npcs/innkeeper.png', prompt: `${STYLE} Portrait of a stout jovial human male innkeeper NPC, rosy cheeks, a thick apron, rolled sleeves, holding a tankard, laugh lines around kind eyes. Waist-up, warm firelit tavern background.` },
+  { file: 'npcs/innkeeper-f.png', prompt: `${STYLE} Portrait of a warm sturdy human female innkeeper NPC, practical braid, flour-dusted apron, kind but tired eyes, holding a cloth and a key. Waist-up, warm firelit tavern background.` },
+  { file: 'npcs/guard.png', prompt: `${STYLE} Portrait of a stoic human male city guard NPC, a dented iron helmet pushed back on his head, chainmail, a spear resting on his shoulder, expression wary but not unkind. Waist-up, stone wall background.` },
+  { file: 'npcs/guard-f.png', prompt: `${STYLE} Portrait of a capable human female city guard NPC, short practical hair, chainmail, hand resting on her sword hilt, expression watchful and composed. Waist-up, stone wall background.` },
+  { file: 'npcs/noble.png', prompt: `${STYLE} Portrait of a haughty human male noble NPC, fine embroidered doublet, swept-back hair, a jewelled ring, expression politely disdainful and calculating. Waist-up, richly draped interior background.` },
+  { file: 'npcs/noble-f.png', prompt: `${STYLE} Portrait of an elegant human female noble NPC, elaborate upswept hair, fine silk gown with jewelled brooch, expression imperious but composed, clearly used to being obeyed. Waist-up, richly draped interior background.` },
+  { file: 'npcs/blacksmith.png', prompt: `${STYLE} Portrait of a muscular dwarf male blacksmith NPC, soot-stained face, thick leather apron, a hammer tucked into his belt, arms crossed, gruff but honest expression. Waist-up, forge-glow background.` },
+  { file: 'npcs/healer.png', prompt: `${STYLE} Portrait of a gentle elf female healer NPC, soft features, simple white and green robes, a herbal satchel at her side, warm compassionate eyes, hands folded. Waist-up, soft natural light background.` },
+  { file: 'npcs/scholar.png', prompt: `${STYLE} Portrait of an elderly gnome male scholar NPC, enormous round spectacles, ink-stained fingers clutching a quill, wild white hair, surrounded by floating note-cards, curious delighted expression. Waist-up, candlelit library background.` },
+  { file: 'npcs/informant.png', prompt: `${STYLE} Portrait of a shady half-elf male informant NPC, hood half-pulled up, eyes darting to one side, a sly knowing smirk, mismatched layered clothes hiding many pockets, clearly knows more than he lets on. Waist-up, dark alley shadow background.` },
+  { file: 'npcs/elder.png', prompt: `${STYLE} Portrait of a wise elderly human female village elder NPC, deep wrinkles, silver hair in a loose bun, warm weathered eyes that have seen much, simple practical clothes, a carved walking staff. Waist-up, warm hearth-light background.` },
+  { file: 'npcs/priest.png', prompt: `${STYLE} Portrait of a devout human male priest NPC, tonsured hair, simple holy robes with a sun-cross symbol, a calm open expression, hands folded in front of him. Waist-up, candlelit chapel background.` },
+  { file: 'npcs/criminal.png', prompt: `${STYLE} Portrait of a dangerous tiefling female crime boss NPC, deep red skin, sharp curved horns, cold calculating eyes, fine dark clothing with a concealed blade hilt visible, expression of cool authority. Waist-up, dark smoky interior background.` },
+  { file: 'npcs/mysterious-stranger.png', prompt: `${STYLE} Portrait of a mysterious cloaked figure NPC of unknown race, deep hood casting the face in shadow except for two glinting eyes, an ornate clasp on the cloak, an aura of hidden purpose. Waist-up, misty indistinct background.` },
+];
+
 ASSETS.push(
+  ...NPC_STOCK,
   ...RACE_VARIANT_FILES.map(raceVariantAsset),
   ...ITEM_VARIANT_FILES.map(itemIconAsset),
   ...ENEMY_FILES.map(enemyPortraitAsset),

@@ -108,6 +108,11 @@ export interface NpcMemory {
   metCharacters?: string[];  // character names this NPC has met
   interactionCount?: number; // incremented each time this NPC appears in worldStateChanges
   isKeyNPC?: boolean;        // if true, pinned to keyNPCs and never pruned
+  // Relationship system
+  relationshipScore?: number;  // -100 (bitter enemy) to 100 (devoted ally), 0 = neutral
+  relationshipLabel?: string;  // e.g. "trusted ally", "bitter rival", "romantic interest", "wary stranger"
+  role?: string;               // e.g. "merchant", "guard captain", "innkeeper", "quest giver"
+  portrait_url?: string;       // cached AI-generated or stock portrait URL
 }
 
 export interface CampaignSpineSnapshot {

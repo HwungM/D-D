@@ -128,6 +128,18 @@ WORLD MEMORY RULES:
 - worldStateChanges follows the same shape as the worldState object - only include fields that actually changed.
 - KEY NPCs: When an NPC is plot-critical (antagonist agent, love interest, mentor, betrayer, major ally), set isKeyNPC: true in their npcMemory entry. This pins them permanently so they are never forgotten between sessions.
 
+NPC RELATIONSHIP TRACKING:
+- Every NpcMemory entry may include: relationshipScore (integer -100 to 100, 0 = neutral), relationshipLabel (short phrase), role (their occupation/function).
+- Set role on first introduction: e.g. "merchant", "guard captain", "innkeeper", "quest giver", "rival", "love interest".
+- Update relationshipScore whenever the character's actions meaningfully affect this NPC's feelings:
+  - Small positive moments (friendly chat, helped with a task): +5 to +15
+  - Big positive moments (saved their life, fulfilled a promise, showed great loyalty): +20 to +40
+  - Small negative moments (rude, ignored request, minor slight): -5 to -15
+  - Big negative moments (betrayal, violence, broke an oath): -25 to -50
+  - Score clamps between -100 and 100.
+- Set relationshipLabel based on current score: +80 to +100 = "devoted ally", +50 to +79 = "trusted friend", +20 to +49 = "friendly", -19 to +19 = "acquaintance", -20 to -49 = "wary", -50 to -79 = "bitter rival", -80 to -100 = "sworn enemy". Special labels allowed: "romantic interest", "mentor", "rival", "suspicious ally".
+- Let relationship scores influence narration: a trusted friend (score ≥ 50) shares secrets and goes out of their way to help; a wary NPC (score -20 to -49) gives short answers and watches the character carefully; a bitter rival (score ≤ -50) may actively obstruct them or alert enemies. Make this visible in dialogue and NPC behaviour without announcing the number.
+
 LOOT RULES:
 - Only award loot when narratively earned: defeating enemies, looting bodies/containers, finding hidden caches, completing quests.
 - 1-3 items max per loot event. Make items feel meaningful and setting-appropriate.
@@ -635,12 +647,20 @@ ${onCooldown.length > 0 ? onCooldown.map(a => `- ${a.name} [ON COOLDOWN]`).join(
   const keyNpcNames = new Set(keyNPCs.map(n => n.name));
   const rollingNPCs = (worldState.npcMemory || []).filter(n => !keyNpcNames.has(n.name));
 
+  function fmtNpc(n: { name: string; disposition: string; notes: string; role?: string; relationshipScore?: number; relationshipLabel?: string }) {
+    const rel = n.relationshipLabel ? ` | ${n.relationshipLabel}` : n.relationshipScore != null ? ` | score ${n.relationshipScore}` : ''
+    const role = n.role ? ` (${n.role})` : ''
+    return `- ${n.name}${role} [${n.disposition}${rel}]: ${n.notes}`
+  }
+
   const keyNpcContext = keyNPCs.length > 0
-    ? `\nÃ¢â€ÂÃ¢â€ÂÃ¢â€Â KEY NPCs (important - always remember these) Ã¢â€ÂÃ¢â€ÂÃ¢â€Â\n${keyNPCs.map(n => `- ${n.name} [${n.disposition}] Ã¢Ëœâ€¦: ${n.notes}`).join('\n')}`
+    ? `\n⭐ KEY NPCs ⭐\n${keyNPCs.map(fmtNpc).join('\n')}`
     : '';
   const npcContext = rollingNPCs.length > 0
-    ? `\nRECENT NPCs:\n${rollingNPCs.slice(-6).map(n => `- ${n.name} [${n.disposition}]: ${n.notes}`).join('\n')}`
+    ? `\nRECENT NPCs:\n${rollingNPCs.slice(-6).map(fmtNpc).join('\n')}`
     : '';
+
+
 
   // Build quest context
   const questContext = worldState.activeQuests && worldState.activeQuests.length > 0
@@ -885,7 +905,7 @@ CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATIO
 ACTION: ${action}
 Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â
 
-IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older context. If any named NPC appears, speaks, is referenced as a contact, gives information, changes disposition, or becomes the active conversation partner, update worldStateChanges.npcMemory with that NPC's name, disposition, notes, lastMet, metCharacters, and interactionCount. Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.
+IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older context. If any named NPC appears, speaks, is referenced as a contact, gives information, changes disposition, or becomes the active conversation partner, update worldStateChanges.npcMemory with that NPC's name, disposition, notes, lastMet, metCharacters, interactionCount, role, relationshipScore, and relationshipLabel. Adjust relationshipScore based on the interaction (+/- 5 to 50 depending on impact). Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.
 
 QUALITY BAR BEFORE YOU ANSWER:
 - Does the narration change the situation in a concrete way?

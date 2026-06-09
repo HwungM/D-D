@@ -27,6 +27,7 @@ import HighStakesChoice from '../components/HighStakesChoice'
 import SidebarErrorBoundary from '../components/SidebarErrorBoundary'
 import DiceRollModal from '../components/DiceRollModal'
 import DevPanel from '../components/DevPanel'
+import NPCCodex from '../components/NPCCodex'
 import { audioManager } from '../lib/audio'
 import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType, RollContext } from '../../../shared/types'
 
@@ -97,7 +98,7 @@ export default function Game() {
   const [started, setStarted] = useState(false)
   const [showDice, setShowDice] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
-  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'map' | 'world'>('character')
+  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'map' | 'world' | 'people'>('character')
   const narratorRef = useRef<HTMLDivElement>(null)
   const historicalIds = useRef<Set<string>>(new Set())
   const coopWaitingRef = useRef(false)
@@ -774,7 +775,7 @@ export default function Game() {
     currentCharacter?.name,
     ...partyMembersHere.map(member => member.character?.name),
   ].filter(Boolean) as string[]
-  const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', map: 'Realm Map', world: 'World' } as const
+  const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', map: 'Realm Map', world: 'World', people: 'People & Relations' } as const
   const sceneArtUrl = visibleSceneArt(currentSceneImage)
 
   // -- Main game layout ------------------------------------------------------
@@ -844,8 +845,8 @@ export default function Game() {
               Invite
             </button>
           )}
-          {(['character', 'quests', 'map', 'world'] as const).map(tab => {
-            const labels = { character: 'Sheet', quests: 'Quests', map: 'Map', world: 'World' }
+          {(['character', 'quests', 'people', 'map', 'world'] as const).map(tab => {
+            const labels = { character: 'Sheet', quests: 'Quests', map: 'Map', world: 'World', people: 'People' }
             const isActive = showSidebar && sidebarTab === tab
             return (
               <button
@@ -1124,6 +1125,7 @@ export default function Game() {
               <SidebarErrorBoundary tabName={sidebarTab}>
                 {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
                 {sidebarTab === 'quests' && <QuestLog worldState={isNewCharacter ? null : worldState} />}
+                {sidebarTab === 'people' && <NPCCodex npcMemory={worldState?.npcMemory || []} keyNPCs={worldState?.keyNPCs} campaignId={campaignId!} />}
                 {sidebarTab === 'map' && <MapPanel worldState={worldState} />}
                 {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
               </SidebarErrorBoundary>
@@ -1155,6 +1157,7 @@ export default function Game() {
               <SidebarErrorBoundary tabName={sidebarTab}>
                 {sidebarTab === 'character' && currentCharacter && <CharacterSheet character={currentCharacter} />}
                 {sidebarTab === 'quests' && <QuestLog worldState={isNewCharacter ? null : worldState} />}
+                {sidebarTab === 'people' && <NPCCodex npcMemory={worldState?.npcMemory || []} keyNPCs={worldState?.keyNPCs} campaignId={campaignId!} />}
                 {sidebarTab === 'map' && <MapPanel worldState={worldState} />}
                 {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
               </SidebarErrorBoundary>
