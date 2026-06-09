@@ -1,8 +1,15 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks, generateCoopNarration } from './openai';
 import OpenAI from 'openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode } from '../../../shared/types';
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
+
+// Safe array coercion — (value || []) only guards against null/undefined, but the AI
+// occasionally returns {} for a field that should be an array, which is truthy and
+// causes .map() to crash. This helper handles that case cleanly.
+function toArr<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
 
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 import { getAbilityForLevel } from '../../../shared/classAbilities';
@@ -97,7 +104,7 @@ function buildLocationGraphSnapshot(worldState: WorldState, worldBible: WorldBib
     partyByLocation.set(name, [...(partyByLocation.get(name) || []), characterId]);
   }
 
-  const existingNodes = new Map((worldState.locationGraph?.nodes || []).map(node => [node.name.toLowerCase(), node]));
+  const existingNodes = new Map(toArr<LocationNode>(worldState.locationGraph?.nodes).map(node => [node.name.toLowerCase(), node]));
   const sortedNames = Array.from(names).filter(Boolean).sort((a, b) => a.localeCompare(b));
   const nodes = sortedNames.map(name => {
     const previous = existingNodes.get(name.toLowerCase());
@@ -234,8 +241,8 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   // npcMemory: merge by name (upsert), preserving metCharacters + interactionCount from both sides
   if (changes.npcMemory) {
     const npcArray = (Array.isArray(changes.npcMemory) ? changes.npcMemory : Object.values(changes.npcMemory)).filter(isNpcMemory);
-    const existing = new Map((current.npcMemory || []).map(n => [n.name, n]));
-    const keyNpcMap = new Map((current.keyNPCs || []).map(n => [n.name, n]));
+    const existing = new Map(toArr<NpcMemory>(current.npcMemory).map(n => [n.name, n]));
+    const keyNpcMap = new Map(toArr<NpcMemory>(current.keyNPCs).map(n => [n.name, n]));
 
     for (const npc of npcArray) {
       const prev = existing.get(npc.name);
@@ -261,7 +268,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   // activeQuests: merge by title (upsert)
   if (changes.activeQuests) {
     const questArray = (Array.isArray(changes.activeQuests) ? changes.activeQuests : Object.values(changes.activeQuests)).filter(isActiveQuest);
-    const existing = new Map((current.activeQuests || []).map(q => [q.title, q]));
+    const existing = new Map(toArr<ActiveQuest>(current.activeQuests).map(q => [q.title, q]));
     for (const q of questArray) existing.set(q.title, { ...existing.get(q.title), ...q, startedAt: existing.get(q.title)?.startedAt || new Date().toISOString() });
     merged.activeQuests = Array.from(existing.values());
   }
@@ -275,7 +282,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
     if (all.length <= 100) {
       merged.discoveredLocations = all;
     } else {
-      const nodeByName = new Map((current.locationGraph?.nodes || []).map(node => [node.name.toLowerCase(), node]));
+      const nodeByName = new Map(toArr<LocationNode>(current.locationGraph?.nodes).map(node => [node.name.toLowerCase(), node]));
       const scored = all.map((name, index) => {
         const node = nodeByName.get(name.toLowerCase());
         const visits = node?.visits || 0;
@@ -309,14 +316,14 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
 
   // foreshadowingLedger: merge by id (upsert)
   if (changes.foreshadowingLedger) {
-    const existing = new Map((current.foreshadowingLedger || []).map(f => [f.id, f]));
+    const existing = new Map(toArr<ForeshadowingEntry>(current.foreshadowingLedger).map(f => [f.id, f]));
     for (const entry of changes.foreshadowingLedger) existing.set(entry.id, { ...existing.get(entry.id), ...entry });
     merged.foreshadowingLedger = Array.from(existing.values()).slice(-50);
   }
 
   // backstoryHooks: merge by characterId+hook (upsert by hook text)
   if (changes.backstoryHooks) {
-    const existing = new Map((current.backstoryHooks || []).map(h => [`${h.characterId}:${h.hook}`, h]));
+    const existing = new Map(toArr<BackstoryHook>(current.backstoryHooks).map(h => [`${h.characterId}:${h.hook}`, h]));
     for (const hook of changes.backstoryHooks) existing.set(`${hook.characterId}:${hook.hook}`, { ...existing.get(`${hook.characterId}:${hook.hook}`), ...hook });
     // Keep all dormant/active hooks (the story still owes them a payoff), but cap resolved
     // ones so a long campaign doesn't accumulate an ever-growing list of closed-out threads.
@@ -520,7 +527,7 @@ export async function applyConsequences(
 
     if (actionResult.statusEffectChanges) {
       if (actionResult.statusEffectChanges.remove) {
-        const toRemove = new Set(actionResult.statusEffectChanges.remove.map(n => n.toLowerCase()));
+        const toRemove = new Set(toArr<string>(actionResult.statusEffectChanges.remove).map(n => n.toLowerCase()));
         effects = effects.filter(e => !toRemove.has(e.name.toLowerCase()));
       }
       if (actionResult.statusEffectChanges.add) {
@@ -553,8 +560,8 @@ export async function applyConsequences(
   }
 
   // Remove consumed items from inventory when AI narrates their use
-  if (actionResult.consumedItems && actionResult.consumedItems.length > 0) {
-    const consumed = new Set(actionResult.consumedItems.map(c => c.toLowerCase()));
+  if (actionResult.consumedItems && toArr(actionResult.consumedItems).length > 0) {
+    const consumed = new Set(toArr<string>(actionResult.consumedItems).map(c => c.toLowerCase()));
     const inv = updates.inventory ?? currentCharacter.inventory ?? [];
     updates.inventory = inv
       .map(item => consumed.has(item.name.toLowerCase()) ? { ...item, quantity: item.quantity - 1 } : item)
@@ -723,8 +730,8 @@ export async function processAction(
   const mustIntroduce = currentAct === 1 ? (roadmap?.act1MustIntroduce || []) : [];
   const mustIntroduceStatus: Record<string, boolean> = {};
   if (mustIntroduce.length > 0) {
-    const allNpcNamesLower = (ws.npcMemory || []).map(n => n.name.toLowerCase());
-    const allLocationsLower = (ws.discoveredLocations || []).map(l => l.toLowerCase());
+    const allNpcNamesLower = toArr<NpcMemory>(ws.npcMemory).map(n => n.name.toLowerCase());
+    const allLocationsLower = toArr<string>(ws.discoveredLocations).map(l => l.toLowerCase());
     for (const item of mustIntroduce) {
       const itemLower = item.toLowerCase();
       mustIntroduceStatus[item] =
@@ -971,8 +978,8 @@ export async function processAction(
   // If the model sets activeNPC but forgets npcMemory, still save a lightweight character card.
   const activeNpcName = typeof activeNPCChange.activeNPC === 'string' ? activeNPCChange.activeNPC.trim() : '';
   const existingNpcNames = new Set([
-    ...(ws.npcMemory || []).map(npc => npc.name.toLowerCase()),
-    ...(((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory || []).map(npc => npc.name.toLowerCase())),
+    ...toArr<NpcMemory>(ws.npcMemory).map(npc => npc.name.toLowerCase()),
+    ...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory).map(npc => npc.name.toLowerCase()),
   ]);
   const autoNpcMemory: NpcMemory[] = activeNpcName && !existingNpcNames.has(activeNpcName.toLowerCase())
     ? [{
