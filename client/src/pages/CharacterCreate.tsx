@@ -54,9 +54,12 @@ const RACES: Race[] = [
 const CLASSES: CharacterClass[] = ['Fighter', 'Wizard', 'Rogue', 'Cleric', 'Ranger', 'Paladin', 'Barbarian', 'Bard', 'Druid', 'Monk', 'Sorcerer', 'Warlock']
 
 type RaceInfo = {
-  description: string
-  tendency: string
-  playstyle: string
+  tagline: string       // one punchy sentence, the fantasy sell
+  description: string   // 2-3 sentences of lore/flavor
+  origins: string       // where they come from, their place in the world
+  tendency: string      // how the DM uses this race, cultural notes
+  worldReaction: string // how NPCs/the world reacts to seeing you
+  playstyle: string     // who this race is best for
 }
 
 type ClassInfo = {
@@ -68,163 +71,259 @@ type ClassInfo = {
 
 const RACE_INFO: Record<Race, RaceInfo> = {
   Human: {
+    tagline: 'The most dangerous creature alive — a person with something to prove.',
     description: 'Humans are the most adaptable and ambitious of all races, found in every corner of the known world. Their brief lives drive them to achieve quickly - to build empires, forge legends, and leave marks that outlast them.',
+    origins: 'Found everywhere, belonging nowhere in particular. Humans built most of the cities, roads, and empires that define the known world — and tore them down again.',
     tendency: 'The DM leans into human ambition and politics. Faction leaders treat you as a wildcard worth cultivating. Doors open through sheer force of personality - but rivals watch your rise closely.',
+    worldReaction: 'Neutral everywhere. The default. Nobody flinches, nobody stares. You are the baseline against which every other race is measured — a double-edged advantage.',
     playstyle: 'Best for players who want maximum flexibility and no narrative baggage - a blank slate to write their own legend.',
   },
   Elf: {
+    tagline: 'Old enough to remember when this kingdom was a forest.',
     description: 'Elves are ancient beings who walk the world with the quiet confidence of those who have seen civilizations rise and crumble. They carry the weight of long memory - and the loneliness that comes with outliving everything they love.',
+    origins: 'Ancient forest cities, fading lunar sanctuaries, and the memory of an age when elves were the dominant power. Many have since chosen solitude over a world that moves too fast.',
     tendency: 'The DM weaves in ancient lore hooks and forgotten histories. Ruins hold personal meaning. NPCs from old bloodlines treat you with earned respect - or ancient resentment.',
+    worldReaction: 'Treated with respect tinged with unease — your longevity is admirable and unsettling in equal measure. Some see wisdom. Some see arrogance. Old enemies have very long memories.',
     playstyle: 'Best for players who love world-building investment, backstory depth, and playing someone who knows more than they let on.',
   },
   Dwarf: {
+    tagline: 'An oath made by a dwarf is carved in stone — and so is a grudge.',
     description: 'Dwarves are carved from the bones of the earth - enduring, stubborn, and fiercely loyal to their kin and their oaths. A dwarf never forgets a debt, whether it is owed to them or by them.',
+    origins: 'Mountain holds, deep forge-cities, and clan-halls built into the bones of the earth. Dwarf civilization is ancient, insular, and fiercely proud of both.',
     tendency: 'The DM introduces clan politics, grudges with long histories, and underground threats. Your resilience earns respect from hard people. Slights are remembered and returned.',
+    worldReaction: 'Trusted by merchants and soldiers. Welcomed in cities that value craft and reliability. Underground cultures treat you as kin. Ancient enemies of dwarven clans carry grudges you may not even know about.',
     playstyle: 'Best for players who want a tough, dependable character with strong cultural ties and a history that the world actually cares about.',
   },
   Halfling: {
+    tagline: 'Hard to kill, easy to underestimate. Halflings are fine with both.',
     description: 'Halflings are small in stature but surprisingly difficult to kill - luck follows them the way trouble follows everyone else. They thrive in the cracks of the world, moving unseen and surviving by wit and warmth.',
+    origins: 'Rolling farmland, river towns, and the comfortable margins of larger civilizations. Halflings rarely build empires — they outlast them.',
     tendency: 'The DM narrates moments where the world underestimates you - and you exploit it. Luck turns in your favor at unexpected moments. Common folk trust you instinctively; nobles dismiss you at their peril.',
+    worldReaction: 'Universally underestimated. Common folk are immediately warm and trusting. Guards and officials dismiss you as nonthreatening. The moment you exploit that, it becomes your greatest weapon.',
     playstyle: 'Best for players who enjoy being the underdog, using charm and cleverness over brute force, and surprising the table.',
   },
   Gnome: {
+    tagline: 'The world is a puzzle and they have decided to solve all of it.',
     description: 'Gnomes are relentlessly curious beings whose connection to the arcane runs deep and strange. They see the world as a puzzle to be solved, a mechanism to be taken apart - and they have absolutely no patience for boredom.',
+    origins: 'Tinkerer warrens, arcane academies, and the narrow spaces between disciplines where nobody else thought to look. Gnomes appear wherever curiosity is rewarded.',
     tendency: 'The DM seeds arcane mysteries and mechanical curiosities that only you notice. Magic items have history you can read. Scholars seek you out. Your inventions sometimes work perfectly and occasionally terribly.',
+    worldReaction: 'Viewed as harmless eccentrics — until they aren\'t. Scholars and artificers seek you out. Most people find your enthusiasm charming in small doses and exhausting in large ones.',
     playstyle: 'Best for players who love roleplaying eccentricity, tinkering with the world\'s lore, and finding creative off-label solutions.',
   },
   'Half-Orc': {
+    tagline: 'Built for war. Choosing what to do with that every single day.',
     description: 'Half-Orcs carry the blood of two worlds and the welcome of neither - they are defined by what they overcome. They are frightening when angered and awe-inspiring when they choose mercy, and both leave an impression.',
+    origins: 'Border communities, war-camps, and the hard places between civilizations where survival matters more than bloodline. Half-orcs made their own culture because neither parent gave them one.',
     tendency: 'The DM gives weight to your physical presence. Guards step aside. Thugs reconsider. Brute-force solutions are respected, not just tolerated. The world watches to see what you do with your power.',
+    worldReaction: 'Guards tense. Thugs reconsider. Children stare. Those who know your reputation either respect it or test it. Earning genuine trust takes longer — and matters more.',
     playstyle: 'Best for players who want a character defined by inner conflict, physical dominance, and the ongoing project of proving the world wrong.',
   },
   Tiefling: {
+    tagline: 'Blamed for a deal they never made. Tired of apologizing for it.',
     description: 'Tieflings bear the infernal mark of a pact made generations ago - horns, tail, and eyes that glow with hellish light. The world does not trust them, and some have decided the world can burn for it.',
+    origins: 'Scattered across civilization with no homeland to call their own — the legacy of infernal pacts made by ancestors long dead. Most grew up navigating suspicion before they could walk.',
     tendency: 'NPCs are wary or hostile by default until you prove yourself. The DM introduces social friction and moments of prejudice - and gives you the chance to face it down, exploit it, or transcend it entirely.',
+    worldReaction: 'Distrust is the default. Shopkeepers watch you. Clergy are wary. Some people cross the street. The moment you prove yourself, the reaction flips — but you have to prove yourself first, every time, in every city.',
     playstyle: 'Best for players who relish playing a complex outsider, earning trust the hard way, and wielding a dark aesthetic with sharp emotional depth.',
   },
   Dragonborn: {
+    tagline: 'The blood of dragons. The weight of legacy.',
     description: 'Dragonborn are proud warriors of draconic heritage - scales like armor, breath like a weapon, and a culture built entirely on honor and legacy. They do not start fights. They finish them.',
+    origins: 'Ancient clans built around draconic bloodlines, pride, and the martial code that connects them. Some are scattered across empires; others maintain isolated communities dedicated to their ancestor\'s color.',
     tendency: 'The DM acknowledges your lineage. Dragon-cults take notice. Enemies who survive speak of you. Your ancestry opens doors in ancient places - and attracts predators who want to claim what you carry.',
+    worldReaction: 'Impossible to ignore. Awe is common. Dragon cults take notice. Your ancestry announces itself before you speak. In civilized cities, people stare. In ancient places, doors open.',
     playstyle: 'Best for players who want a dignified, honor-driven character who leaves a mark everywhere they go and never needs to raise their voice.',
   },
   Aasimar: {
+    tagline: 'Touched by the divine. Whether that\'s a gift depends on the day.',
     description: 'Born with a touch of the divine, Aasimars carry celestial light within them — a blessing or a burden depending on the day. They are called to greatness, and the world can feel it.',
+    origins: 'Born across all races when celestial influence brushes a mortal bloodline. There is no aasimar homeland — only the calling that follows each one, different for every soul.',
     tendency: 'Clergy treat you with reverence or dangerous obsession. Undead and fiends recoil. Your inner light surfaces at moments of genuine virtue. Some treat you as an omen. Your divine mandate creates impossible choices.',
+    worldReaction: 'Clergy treat you with reverence or dangerous obsession. Common folk see you as blessed or marked. Undead and fiends instinctively react to your presence. Being seen as sacred is its own kind of prison.',
     playstyle: 'Best for players who want a character wrestling with destiny, gravitating toward redemption arcs, and experiencing the weight of being seen as sacred.',
   },
   'Fire Genasi': {
+    tagline: 'Fire given a face and a temper to match.',
     description: 'The blood of the Elemental Plane of Fire runs through your veins — you carry warmth that never leaves, a temper that ignites, and an inner fire that literally shows on your skin.',
+    origins: 'Born where the Elemental Plane of Fire bleeds into the mortal world — near volcanos, forge-temples, or in the bloodline of someone who made a deal with an efreeti. They carry warmth that never leaves.',
     tendency: 'Flames lean toward you. Fire-wielding enemies hesitate. Sages want to study your elemental blood. Fire temples treat you as kin. Your emotions register as temperature changes around you.',
+    worldReaction: 'Fascinating and intimidating in equal measure. Fire temples treat you as kin. Sages want to study your blood. Enemies who have faced fire magic are wary. Your emotions register as temperature shifts that people notice.',
     playstyle: 'Best for players who want a visually striking elemental character with fiery passion and a connection to the primal forces of creation.',
   },
   'Water Genasi': {
+    tagline: 'Patient as the ocean. Dangerous the same way.',
     description: 'Touched by the endless ocean, Water Genasi move through the world with the calm patience of deep water — and the sudden terrifying force of a wave when moved to action.',
+    origins: 'Coastal bloodlines touched by the Elemental Plane of Water, born near ancient sea shrines, or descended from those who bargained with water spirits. They are never truly comfortable away from open water.',
     tendency: 'Water parts around you subtly. Sailors and sea-folk recognize something in you. Sea creatures treat you with deference. Your emotions shift the weather near coasts when strong enough.',
+    worldReaction: 'Sailors and sea-folk recognize something in you and treat you differently — with respect or superstition. Inland communities find you uncanny. Sea creatures respond to your presence with deference.',
     playstyle: 'Best for players who want fluid adaptability, an affinity for secrets that run deep, and a serene surface hiding enormous depths.',
   },
   'Earth Genasi': {
+    tagline: 'Older than memory. Steady as bedrock.',
     description: 'Solid as stone, patient as mountains. Earth Genasi carry the stillness of bedrock and the inevitability of avalanches. They endure what destroys others and remember everything.',
+    origins: 'Deep places where the Elemental Plane of Earth presses against the mortal world — mine veins, cavern shrines, places where the stone remembers. They move through the world like the earth itself: unhurried and inevitable.',
     tendency: 'The ground responds to you. Miners and stoneworkers trust you instinctively. Burrowing creatures defer. Your patience in negotiations unnerves those used to quick answers.',
+    worldReaction: 'Miners and stoneworkers trust you instinctively. Underground communities treat you as kin. Your stillness in negotiations unnerves people used to quick answers. Burrowing creatures defer to you.',
     playstyle: 'Best for players who want an unmovable anchor — the character who is still standing when everything else has fallen.',
   },
   'Air Genasi': {
+    tagline: 'You cannot catch the wind. They have made peace with this about themselves.',
     description: 'Light as a breeze and twice as difficult to catch. Air Genasi carry the restlessness of the wind — always moving, always arriving somewhere new, carrying whispers from a hundred places.',
+    origins: 'Storm-touched bloodlines, high mountain sanctuaries, or the legacy of a bargain with a djinn. Air genasi are born restless — and carry that restlessness into every room they enter.',
     tendency: 'Wind moves with you. Messages travel fast in your vicinity. Storm magic resonates. Your laughter can start a wind. Those who deal in secrets find you unnerving — you always seem to already know.',
+    worldReaction: 'People find you captivating and difficult to read. Your laughter can start a wind. Storm magic resonates visibly around you. Those who deal in secrets find you unnerving — you always seem to already know.',
     playstyle: 'Best for players who want swiftness, freedom of movement, and a character that nobody can quite pin down.',
   },
   Warforged: {
+    tagline: 'Made for war. Figuring out what they are in peace.',
     description: 'Built for war, choosing peace. Warforged are living constructs of metal and magic who survived the conflicts that made them and now must figure out what they are in a world that no longer needs soldiers.',
+    origins: 'Created in magical forges during a conflict that ended. There is no warforged homeland — only the purpose they were built for, which is gone, and the question of what fills that space now.',
     tendency: 'Some refuse to see you as a person. Others are fascinated. You do not sleep or eat — creating social friction. Who built you, and why, is always a story hook. Veterans recognize your type and have feelings about it.',
+    worldReaction: 'Some refuse to see you as a person. Others are fascinated. You do not sleep or eat, which creates friction in social situations. Veterans who fought alongside or against warforged have strong, specific feelings about it.',
     playstyle: 'Best for players who want to explore questions of identity, consciousness, and purpose — the soldier who must define themselves outside of war.',
   },
   Tabaxi: {
+    tagline: 'Insatiably curious. Occasionally about things that belong to you.',
     description: 'Cat-folk driven by insatiable curiosity, Tabaxi wander the world collecting experiences, stories, and occasionally things that do not belong to them. Everything is interesting. Everything.',
+    origins: 'Distant jungle cities built around the worship of a mysterious figure called the Cat Lord. Most Tabaxi who wander are driven by a specific obsession — a story, an artifact, a place — that they chase across the world.',
     tendency: 'NPCs find you charming until the curiosity becomes unsettling. Your speed catches enemies completely off-guard. You have likely already been everywhere and remember everything you saw. Shiny things are a problem.',
+    worldReaction: 'Your speed and agility catch people completely off-guard. NPCs find you charming until the curiosity becomes unsettling. Everyone you meet becomes part of the story you are collecting. Shiny things are genuinely a problem.',
     playstyle: 'Best for players who love information-gathering, unexpected speed, and playing someone who treats the world as an endlessly fascinating museum.',
   },
   Goliath: {
+    tagline: 'Where they come from, every day is a test. They bring that with them.',
     description: 'Raised in mountain tribes where performance is everything and weakness is not tolerated, Goliaths carry a meritocracy in their bones. They compete with everything. They cannot not compete.',
+    origins: 'Mountain tribes where survival is meritocracy and weakness is not tolerated. Goliaths who leave their peaks usually left because they won, or because they lost, and neither one they will discuss easily.',
     tendency: 'Lowland civilization feels soft and dishonest. Physical challenges are invitations. Your sheer size changes room dynamics. You keep track of every test passed and failed — and so does your tribe.',
+    worldReaction: 'Your sheer size changes the atmosphere of rooms. Physical challenges are read as invitations. Common folk are intimidated. Warriors want to test themselves against you. You track every contest — and so does everyone who knows what you are.',
     playstyle: 'Best for players who want to be the physically unstoppable force and roleplay a character who sees every obstacle as something to be beaten.',
   },
   Firbolg: {
+    tagline: 'Gentle enough to talk to trees. Dangerous enough that the trees listen back.',
     description: 'Gentle giant-kin who carry deep fey connections and a preference for peace — but whose capacity for violence when pushed is genuinely staggering. They speak to plants. They remember the old forest.',
+    origins: 'Ancient forests and the fey-touched wilderness where giant-kin bloodlines and druidic tradition merged over centuries. Firbolg rarely leave — when they do, something significant drove them out.',
     tendency: 'Animals and nature behave differently around you. Druids treat you as kin. Your cultural distaste for names and ownership creates odd social moments. When you finally lose your patience, enemies realize they misread you entirely.',
+    worldReaction: 'Animals behave differently around you. Druids treat you as kin. Your cultural practices around names and ownership create awkward moments in civilization. When you finally lose your patience, it surprises everyone who misread your quietness as weakness.',
     playstyle: 'Best for players who want the "gentle giant with a secret" arc — peaceful by choice, formidable by nature, wise beyond the trappings of civilization.',
   },
   Changeling: {
+    tagline: 'Every face they wear is real. Even they are not sure which is theirs.',
     description: 'Natural shapeshifters who live in the gap between identity and performance. Every face they wear is real. Which one is theirs? That question follows them everywhere.',
+    origins: 'No homeland. No community. Changelings appear wherever people need to disappear — cities, guild-halls, noble courts. They exist in the space between identities, belonging everywhere and nowhere.',
     tendency: 'People are unsettled when they realize what they are talking to. Even well-intentioned changelings trigger distrust. Their nature is transgressive to fixed identity. NPCs who learn what you are react with specific, personal fear.',
+    worldReaction: 'People are unsettled when they learn what they are talking to. Even well-intentioned changelings trigger a specific, personal fear in others. Your nature is transgressive to anyone with a fixed sense of self.',
     playstyle: 'Best for players who enjoy deception, social infiltration, and exploring the philosophical question of what makes a self.',
   },
   Kenku: {
+    tagline: 'Cursed to never speak in their own voice. Extraordinary in spite of it.',
     description: 'Crow-folk cursed to never speak with their own voice — only sounds they have heard before. Their communication is uncanny patchwork. Their loss is real. Their cleverness in spite of it is extraordinary.',
+    origins: 'A fallen people stripped of flight and original speech by an ancient punishment. Kenku cities are rare and secretive. Most live on the margins, finding roles that reward their perfect mimicry and uncanny observational skills.',
     tendency: 'People underestimate how much you understand because of how you speak. Thieves guilds have always found Kenku useful. Your mimicry is perfect — which occasionally creates problems. Your curse has a history that the world sometimes remembers.',
+    worldReaction: 'People underestimate your intelligence because of how you communicate. Thieves guilds have always found Kenku useful. Your perfect mimicry is impressive until it creates problems. Some who know the history of your curse respond with pity. Others with guilt.',
     playstyle: 'Best for players who want a unique roleplaying challenge, a character defined by constraint and creativity, and the melancholy of something taken away.',
   },
   Dhampir: {
+    tagline: 'Half vampire. Choosing every day what they will not become.',
     description: 'Half-vampire. The hunger is always there. You are beautiful in a way that unsettles. You are strong in a way that frightens. You are choosing, every day, what you will not become.',
+    origins: 'Born in the shadow of vampiric bloodlines — from a dhampir parent, a vampiric bite during pregnancy, or something older and stranger. There is no dhampir community. There is only the hunger and the choice.',
     tendency: 'Religious figures are suspicious. Vampires see you as tool or abomination. Mortals who learn your nature have a specific fear response. Your charm attracts the wrong attention. The tension between what you are and what you choose defines your arc.',
+    worldReaction: 'Religious figures are suspicious. Vampires see you as tool or abomination. Mortals who learn your nature have a specific fear response. Your beauty attracts the wrong attention. Your restraint is something people do not know how to account for.',
     playstyle: 'Best for players who want a dark seductive edge, the temptation arc done right, and a character whose restraint is as compelling as their power.',
   },
   Owlin: {
+    tagline: 'They see everything. They share almost none of it.',
     description: 'Owl-folk of silent wings and eerie perception. They are nocturnal, wise, and unreadable to most humanoids — and they prefer it that way. The dark holds no fear for them. Very little does.',
+    origins: 'Mysterious communities in ancient forests and mountain eyries, connected to the Feywild through traditions so old the reason has been forgotten. Most Owlin who enter the wider world do so on a specific errand.',
     tendency: 'Your silent movement unnerves people. Daylight is genuinely uncomfortable for you. Scholars and mages want access to your legendary wisdom. Your emotional expression is alien in ways that create interesting misunderstandings.',
+    worldReaction: 'Your silent movement genuinely unsettles people — something that large should not move that quietly. Scholars want access to your wisdom. Your emotional expression is alien in ways that create interesting misunderstandings. Daylight is visibly uncomfortable for you.',
     playstyle: 'Best for players who want a mysterious observer archetype — the one who already knows the answer before anyone else thinks to ask the question.',
   },
   Lizardfolk: {
+    tagline: 'They do not experience the world through social emotion. This is everyone else\'s problem.',
     description: 'Lizardfolk experience the world through survival pragmatism rather than social emotion. They find humanoid sentimentality baffling and fascinating in equal measure. They adapt, mimic, and observe with terrifying precision.',
+    origins: 'Ancient swamp civilizations and river-delta territories that predate most humanoid kingdoms. Lizardfolk society is built on pragmatic survival logic that looks baffling and occasionally horrifying to outsiders.',
     tendency: 'Other races project emotions onto you and are wrong. The DM uses this dissonance deliberately. Your cultural practices around food and death disturb NPCs. When you finally understand something about humanoid culture, you ask the question that makes everyone uncomfortable.',
+    worldReaction: 'Other races project emotions onto you and are consistently wrong. Your cultural practices around food and death disturb NPCs. When you finally understand something about humanoid culture, you ask the question that makes everyone uncomfortable.',
     playstyle: 'Best for players who enjoy playing something genuinely alien — an outsider\'s perspective on what everybody else takes for granted.',
   },
   Satyr: {
+    tagline: 'Fey joy in a mortal world. Neither fully at home in either.',
     description: 'Fey hedonists who exist at the intersection of joy and danger. Satyrs are excellent at parties and terrible for any plan requiring restraint. The Feywild echoes in them — they age differently, dream strangely, occasionally slip into fey logic.',
+    origins: 'The Feywild, specifically its wild edges where pleasure and danger blur. Satyrs who cross into the mortal world carry fey logic with them — which means their priorities are occasionally incomprehensible to those who only live here.',
     tendency: 'Music and nature magic call to you. Fey creatures treat you as kin. The rules of civilization sit lightly on you. Your joy is genuine and contagious — but your priorities can seem incomprehensible to those who live only in the material world.',
+    worldReaction: 'Music and nature magic respond to your presence. Fey creatures treat you as kin. The rules of civilization sit lightly on you in ways that unsettle people who take those rules seriously. Your joy is contagious. Your priorities are not always relatable.',
     playstyle: 'Best for players who want to embody charisma and freedom, lean into the morally complex fey worldview, and have the most fun at any given table.',
   },
   Harengon: {
+    tagline: 'A prey animal\'s reflexes. A person\'s determination not to be prey.',
     description: 'Rabbit-folk who escaped the Feywild carrying its restlessness. Lightning-fast and always watchful — a prey animal\'s hypervigilance wrapped in the body of a person who refuses to be prey.',
+    origins: 'Escapees from the Feywild carrying its restless energy. Harengon communities exist at crossroads and transit points — places where you can always see the exits. Their hypervigilance is not a flaw. It is a survival strategy that works.',
     tendency: 'Your reflexes are beyond normal limits. Your perception catches things others miss. Your instinct to flee reads as cowardice to those who do not understand it is a survival strategy, not a character flaw. You notice exits first.',
+    worldReaction: 'Your reflexes catch people completely off-guard. Your instinct to assess exits first reads as cowardice to those who do not understand it. Once you choose to stop running, the thing you turn to face has a problem.',
     playstyle: 'Best for players who want breathtaking speed, a nervous-energy character who is more dangerous than they look, and the arc of choosing when to stop running.',
   },
   'Yuan-Ti': {
+    tagline: 'Cold-blooded in every sense. Ancient in ways they carry like armor.',
     description: 'Serpentine bloodline — cold, calculating, long-memoried. Yuan-Ti feel alien to other races in a way that is hard to name. Something instinctual says "wrong" when you look too long. They are very used to this.',
+    origins: 'Serpent empires that predated most humanoid civilizations, dedicated to the transformation of flesh toward a divine serpentine ideal. Most yuan-ti communities are secretive and hierarchical. The ones who leave have complicated reasons.',
     tendency: 'Serpent cults recognize you and have opinions. Your emotional detachment reads as wisdom or cruelty. Ancient enemies of serpentine peoples carry old grudges that surface. Diplomacy works differently for you — your calm is more unsettling than raised voices.',
+    worldReaction: 'Something instinctual says "wrong" when people look at you too long. Serpent cults recognize you and have strong opinions. Your calm in negotiations reads as either wisdom or threat. Ancient enemies of yuan-ti carry old grudges that surface unexpectedly.',
     playstyle: 'Best for players who want to play the composed, calculating mastermind — serene on the surface, lethal underneath, with ancient stakes at every turn.',
   },
   Triton: {
+    tagline: 'Guardians of the deep who have decided the surface needs watching.',
     description: 'Sea-dwellers who moved to the surface carrying the politics of the deep with them. Tritons have a subtle condescension about land-folk they are actively trying to suppress — and not always succeeding.',
+    origins: 'Underwater kingdoms in the deepest ocean trenches, tasked by divine mandate with holding back threats from the darkest depths. Most surface-dwellers have never heard of them. Tritons find this bewildering.',
     tendency: 'The ocean calls to you. Sailors are fascinated. Sea monsters react to your presence with aggression or deference. The underwater kingdoms have interests in the surface world and you are their representative whether you asked to be or not.',
+    worldReaction: 'Sailors are fascinated and a little afraid. Sea monsters react to your presence with aggression or deference. The underwater kingdoms have political interests on the surface and you are their representative whether you agreed to that or not.',
     playstyle: 'Best for players who enjoy playing a fish-out-of-water (literally), navigating cultural misunderstandings, and having a secret political weight behind ordinary encounters.',
   },
   Leonin: {
+    tagline: 'Their roar is a weapon. Their memory for honor is longer than most kingdoms.',
     description: 'Lion-warrior people from ancient sun-baked plains. Their pride is total, their memory for honor is long, and their roar is a weapon. They do not forget what they are owed — or what they owe.',
+    origins: 'Ancient sun-baked plains and savanna kingdoms built around a warrior tradition so old it has become religion. Leonin who leave their homelands carry that tradition with them everywhere — it is not negotiable.',
     tendency: 'Your roar changes the dynamics of combat. Ancient warrior orders see you as kin. Slights are remembered with leonin patience — which is to say, forever. The honored dead are a presence in your life that others find intense and moving.',
+    worldReaction: 'Your roar literally changes combat dynamics. Ancient warrior orders see you as kin. Slights are remembered with leonin patience — which is to say, permanently. The honored dead are a daily presence in your life that others find intense.',
     playstyle: 'Best for players who want to embody noble ferocity, carry their culture into every room, and play someone whose pride is both a strength and a perfect pressure point.',
   },
   Minotaur: {
+    tagline: 'The world sees a monster. They are exhausted of correcting it.',
     description: 'Labyrinth-born and carrying its weight. Some see a monster. What they miss is the person inside who has been fighting that label since birth — and is very tired of it.',
+    origins: 'Labyrinthine island cities and coastal warrior cultures. Minotaur civilization values navigation, memory, and earned strength. The reputation that precedes them in most of the world is almost entirely wrong.',
     tendency: 'Your sense of direction is supernatural — you cannot get lost. People who only see your exterior make dangerous assumptions. When you choose to protect someone, it is absolute. The history of minotaurs as weapons has left wounds the world does not always remember it inflicted.',
+    worldReaction: 'People who only see your exterior make dangerous assumptions — which you can choose to exploit or spend your whole adventure correcting. When you choose to protect someone, it is absolute. Your sense of direction is supernatural.',
     playstyle: 'Best for players who want to subvert the monster archetype, play someone whose gentleness is more powerful than their strength, and make NPCs reconsider their assumptions.',
   },
   Bugbear: {
+    tagline: 'Something that size should not move that quietly. It does.',
     description: 'Large, sneaky, terrifying in the dark. Bugbears are the thing that moves silently through shadows at a size that should make that impossible. And they know the effect they have.',
+    origins: 'Goblinoid territories, wilderness margins, and the hidden places where predators thrive. Bugbear communities are small, territorial, and fiercely loyal internally — almost nothing of which the outside world knows or believes.',
     tendency: 'Common folk are afraid. Your stealth at your size genuinely unsettles people. Goblinoid communities have complex politics with you. You are more loyal than anyone expects once trust is earned — and earning it is the whole story.',
+    worldReaction: 'Common folk are afraid. Your stealth at your size is genuinely unsettling to everyone who witnesses it. Goblinoid communities have complex politics involving you. Trust, once earned, is absolute — earning it is the entire arc.',
     playstyle: 'Best for players who want a powerfully built stealth character, enjoy subverting expectations, and like the arc of being trusted despite what the world says you are.',
   },
   Hobgoblin: {
+    tagline: 'Disciplined to the bone. More reliable than anyone expected. They know.',
     description: 'Disciplined, martial, driven by a rigid honor code that is entirely real and entirely theirs. Hobgoblins bring military structure to everything and are inexplicably reliable in a way that surprises people who only know their reputation.',
+    origins: 'Militant kingdoms built on strict hierarchy, honor codes, and the belief that excellence is the only virtue that matters. Most hobgoblin communities run with military precision. The ones who leave are usually running toward something, not away.',
     tendency: 'Factions with armies want to recruit or conscript you. Breaking your honor system has genuine consequences. You are a devastatingly organized opponent — and an unexpectedly steadfast ally. Military veterans recognize your bearing and treat you differently.',
+    worldReaction: 'Military organizations want to recruit or conscript you. Breaking your honor system has genuine narrative consequences. Veterans recognize your bearing and treat you differently — sometimes with respect, sometimes with wariness about which side you were on.',
     playstyle: 'Best for players who want a character defined by discipline and earned trust — the one who keeps their word even when everyone expected them not to.',
   },
   Goblin: {
+    tagline: 'Small. Scrappy. Two steps ahead of everyone who underestimated them.',
     description: 'Small, scrappy, underestimated at every turn and exhausted of it. Goblins have had to be twice as clever to get half as far, and they have the creativity to show for it.',
+    origins: 'The margins — caves, city warrens, abandoned structures, anywhere with a gap big enough to slip through. Goblins built resilience and creativity out of necessity, in a world that never gave them much of anything else.',
     tendency: 'The world dismisses you first. You weaponize that. Other goblinoids have strong opinions. Your resourcefulness finds solutions nobody else thought of because nobody else had to think that way. The small victories matter most.',
+    worldReaction: 'Dismissed first, every time. You weaponize this. Other goblinoids have strong and complicated opinions. Guards do not take you seriously until suddenly they have to. The small victories matter most — and you collect them.',
     playstyle: 'Best for players who love the underdog arc, playing the smartest person in the room who nobody believes is the smartest person in the room, and proving everyone wrong.',
   },
   Tortle: {
+    tagline: 'They carry their home with them. They have had time to think about what that means.',
     description: 'Ancient patient shell-bearers who carry their home on their back. Tortles have likely already lived a full life before setting out — they adventure as a final chapter, not a first one.',
+    origins: 'Coastal shores and island communities where tortles live long meditative lives before undertaking a final journey. Most adventuring tortles have already lived a full existence. This is the last chapter, not the first.',
     tendency: 'Your patience is genuine — you have seen generations come and go. Religious figures and philosophers are drawn to you. Your shell is both armor and identity — touching it without permission is deeply transgressive. You have seen how this ends before. You are curious if it ends differently this time.',
+    worldReaction: 'Your patience is genuine and unnerving to people in a hurry. Religious figures and philosophers are drawn to you. Your shell is identity — touching it without permission is deeply transgressive. You have seen how most things end. You are here because you are curious if this one ends differently.',
     playstyle: 'Best for players who want to roleplay earned wisdom, patient strength, and the specific perspective of someone who is here by choice, not necessity.',
   },
 }
@@ -730,16 +829,34 @@ export default function CharacterCreate() {
               })}
             </div>
             {selectedRace && (
-              <div className="mt-4 p-4 border border-white/10 bg-white/[0.025] space-y-3">
-                <p className="text-parchment-200 font-serif text-sm leading-relaxed">{RACE_INFO[selectedRace].description}</p>
-                <div className="border-t border-white/10 pt-3 space-y-2">
-                  <div className="flex gap-2 items-start">
-                    <span className="text-xs uppercase tracking-widest font-sans shrink-0 mt-0.5" style={{ color: '#c8922a' }}>Tendency</span>
-                    <p className="text-parchment-200/58 font-serif text-xs leading-relaxed">{RACE_INFO[selectedRace].tendency}</p>
+              <div className="mt-4 border border-white/10 bg-black/40 overflow-hidden">
+                {/* Tagline */}
+                <div className="px-4 pt-4 pb-3 border-b border-white/8">
+                  <p className="font-fantasy text-base text-amber-200 leading-snug italic">"{RACE_INFO[selectedRace].tagline}"</p>
+                </div>
+                {/* Description */}
+                <div className="px-4 py-3 border-b border-white/8">
+                  <p className="text-parchment-200/80 font-serif text-sm leading-relaxed">{RACE_INFO[selectedRace].description}</p>
+                </div>
+                {/* Grid of info sections */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-white/8">
+                  <div className="px-4 py-3 space-y-1">
+                    <span className="font-sans text-[10px] uppercase tracking-[0.2em]" style={{ color: '#c8922a' }}>Origins</span>
+                    <p className="text-parchment-200/62 font-serif text-xs leading-relaxed">{RACE_INFO[selectedRace].origins}</p>
                   </div>
-                  <div className="flex gap-2 items-start">
-                    <span className="text-xs uppercase tracking-widest font-sans shrink-0 mt-0.5" style={{ color: '#c8922a' }}>Suits</span>
-                    <p className="text-parchment-200/58 font-serif text-xs leading-relaxed">{RACE_INFO[selectedRace].playstyle}</p>
+                  <div className="px-4 py-3 space-y-1">
+                    <span className="font-sans text-[10px] uppercase tracking-[0.2em]" style={{ color: '#c8922a' }}>World Reaction</span>
+                    <p className="text-parchment-200/62 font-serif text-xs leading-relaxed">{RACE_INFO[selectedRace].worldReaction}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-white/8 border-t border-white/8">
+                  <div className="px-4 py-3 space-y-1">
+                    <span className="font-sans text-[10px] uppercase tracking-[0.2em]" style={{ color: '#c8922a' }}>Tendencies</span>
+                    <p className="text-parchment-200/62 font-serif text-xs leading-relaxed">{RACE_INFO[selectedRace].tendency}</p>
+                  </div>
+                  <div className="px-4 py-3 space-y-1">
+                    <span className="font-sans text-[10px] uppercase tracking-[0.2em]" style={{ color: '#c8922a' }}>Best For</span>
+                    <p className="text-parchment-200/62 font-serif text-xs leading-relaxed">{RACE_INFO[selectedRace].playstyle}</p>
                   </div>
                 </div>
               </div>
