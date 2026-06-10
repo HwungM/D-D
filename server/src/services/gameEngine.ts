@@ -1760,11 +1760,96 @@ export async function processCoopAction(
     combatState = null;
   }
 
+  // Update foreshadowing ledger from AI response
+  const ledgerChanges: ForeshadowingEntry[] = [];
+  if (aiResponse.newForeshadowing) {
+    for (const f of aiResponse.newForeshadowing) {
+      ledgerChanges.push({
+        id: f.id || crypto.randomUUID(),
+        description: f.description,
+        type: f.type as ForeshadowingEntry['type'],
+        introducedInAct: campaign.act || 1,
+        payoffStatus: 'planted',
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+  if (aiResponse.paidOffForeshadowing) {
+    const existing = ws.foreshadowingLedger || [];
+    for (const id of aiResponse.paidOffForeshadowing) {
+      const entry = existing.find(f => f.id === id);
+      if (entry) ledgerChanges.push({ ...entry, payoffStatus: 'paid_off', payoffDescription: 'Resolved in story' });
+    }
+  }
+
+  // Update backstory hooks for either character
+  const hookChanges: BackstoryHook[] = [];
+  if (aiResponse.backstoryHookActivated) {
+    const hooks = ws.backstoryHooks || [];
+    const dormant = hooks.find(h => h.characterId === aiResponse.backstoryHookActivated && h.status === 'dormant');
+    if (dormant) hookChanges.push({ ...dormant, status: 'active', seededAt: new Date().toISOString() });
+  }
+  if (aiResponse.backstoryHookResolved) {
+    const hooks = ws.backstoryHooks || [];
+    const active = hooks.find(h => h.characterId === aiResponse.backstoryHookResolved && h.status === 'active');
+    if (active) hookChanges.push({ ...active, status: 'resolved' });
+  }
+
+  // Track act goal achievements
+  const goalChanges: string[] = [];
+  if (aiResponse.actGoalAchieved) goalChanges.push(aiResponse.actGoalAchieved);
+
+  // Run Story Director every 5 actions to evaluate campaign health
+  if (newActionCount % 5 === 0) {
+    try {
+      const directorBeat = await runStoryDirector(ws, wb, characters, campaign.act);
+      if (directorBeat) {
+        ws.pendingDirectorBeat = {
+          beat: directorBeat.beat,
+          urgency: directorBeat.urgency,
+          expiresAfter: newActionCount + 2,
+        };
+      }
+    } catch { /* non-critical */ }
+  }
+
+  // Trigger villain move every 10 actions
+  let villainMoveNote: string | undefined;
+  if (newActionCount % 10 === 0 && wb.primaryAntagonist) {
+    try {
+      const move = await generateVillainMove(ws, wb, campaign.act || 1);
+      villainMoveNote = move.sessionNote;
+    } catch { /* non-critical */ }
+  }
+
+  // Handle endgame phase triggers from AI
+  let endgamePhase = ws.endgamePhase;
+  if (aiResponse.triggerFinalConfrontation) {
+    endgamePhase = 'confrontation';
+  } else if (aiResponse.endgameResolved) {
+    endgamePhase = 'none';
+  } else if (!endgamePhase || endgamePhase === 'none') {
+    const antagonistProgress = ws.antagonistProgress || {};
+    const primaryAntagonist = wb.primaryAntagonist;
+    if (primaryAntagonist) {
+      const progress = antagonistProgress[primaryAntagonist.name];
+      const totalSteps = primaryAntagonist.planSteps?.length || 5;
+      if (progress && progress.stepIndex >= totalSteps - 1) {
+        endgamePhase = 'approaching';
+      }
+    }
+  }
+
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
     ...(autoNpcMemory.length > 0
       ? { npcMemory: [...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory), ...autoNpcMemory] }
       : {}),
+    ...(ledgerChanges.length > 0 ? { foreshadowingLedger: ledgerChanges } : {}),
+    ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
+    ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
+    ...(endgamePhase !== ws.endgamePhase ? { endgamePhase } : {}),
+    pendingDirectorBeat: aiResponse.directorBeatExecuted ? null : ws.pendingDirectorBeat,
     actionCount: newActionCount,
     actionsInCurrentAct: newActionsInCurrentAct,
     combatState,
@@ -1809,7 +1894,9 @@ export async function processCoopAction(
       hpChange: aiResponse.character1Changes?.hpChange ?? aiResponse.hpChange,
       loot: aiResponse.character1Changes?.loot ?? undefined,
       statusEffectChanges: aiResponse.character1Changes?.statusEffectChanges ?? undefined,
-      sessionNote: aiResponse.sessionNote,
+      sessionNote: villainMoveNote
+        ? [aiResponse.sessionNote, villainMoveNote].filter(Boolean).join(' ')
+        : aiResponse.sessionNote,
       goldChange: aiResponse.character1Changes?.goldChange,
       isDeath: aiResponse.character1Changes?.isDeath,
       deathDescription: aiResponse.character1Changes?.deathDescription,
@@ -1841,6 +1928,33 @@ export async function processCoopAction(
     characters[1],
     { id: campaignId, world_state: char1Result.updatedWorldState, act: campaign.act, world_bible: wb }
   );
+
+  // Advance act if triggered
+  if (aiResponse.advanceAct) {
+    const newAct = (campaign.act || 1) + 1;
+    await supabaseAdmin.from('campaigns').update({ act: newAct }).eq('id', campaignId);
+
+    const { data: freshCamp } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaignId).single();
+    if (freshCamp) {
+      const postActWs = (freshCamp.world_state as WorldState) || {};
+      const hooks = postActWs.backstoryHooks || [];
+      const actLabel = newAct === 2 ? 'act2' : newAct === 3 ? 'act3' : 'act1';
+      let hooksChanged = false;
+      const updatedHooks = hooks.map(h => {
+        if (h.status === 'dormant' && (h as unknown as Record<string, string>).seedTiming === actLabel) {
+          hooksChanged = true;
+          return { ...h, status: 'active' as const, seededAt: new Date().toISOString() };
+        }
+        return h;
+      });
+      const wsUpdates: Partial<WorldState> = { actionsInCurrentAct: 0 };
+      if (hooksChanged) wsUpdates.backstoryHooks = updatedHooks;
+      const advancedWorldState = { ...postActWs, ...wsUpdates };
+      advancedWorldState.locationGraph = buildLocationGraphSnapshot(advancedWorldState, wb);
+      advancedWorldState.campaignSpine = buildCampaignSpineSnapshot(advancedWorldState, wb, newAct);
+      await supabaseAdmin.from('campaigns').update({ world_state: advancedWorldState }).eq('id', campaignId);
+    }
+  }
 
   // Save story events for both characters
   await Promise.all([
