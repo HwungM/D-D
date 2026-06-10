@@ -47,6 +47,14 @@ export interface ShopItem {
 }
 
 
+export interface Recipe {
+  id: string;
+  name: string;
+  description: string;
+  resultItem: { name: string; description: string; type: 'weapon' | 'armor' | 'potion' | 'misc' | 'key'; value?: number };
+  materials: { name: string; quantity: number }[];
+}
+
 export interface CharacterStats {
   str: number;
   dex: number;
@@ -237,6 +245,7 @@ export interface WorldState {
   spotlightBalance?: Record<string, number>;  // characterId -> spotlight moment count
   pendingDirectorBeat?: { beat: string; urgency: 'low' | 'high' | 'critical'; expiresAfter: number } | null;
   unlockedAchievements?: UnlockedAchievement[];
+  knownRecipes?: Recipe[];
   lastPillarUsed?: string[];  // last 5 scene pillars used, for three-pillar balance tracking
   pendingTurn?: {
     actions: { characterId: string; userId: string; action: string; characterName: string; submittedAt: string }[];
@@ -427,6 +436,7 @@ export interface ActionResult {
   character2Changes?: { hp?: number; gold?: number; inventory?: unknown };
   achievementUnlocked?: { title: string; description: string };
   comboBonus?: boolean;
+  newRecipe?: Recipe;
 }
 
 export interface UnlockedAchievement {

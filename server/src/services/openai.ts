@@ -1,7 +1,7 @@
 ﻿import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { supabaseAdmin } from './supabase';
-import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext, CharacterOnlineStatus, NpcMemory, CombatEnemy } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext, CharacterOnlineStatus, NpcMemory, CombatEnemy, Recipe } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
 
 dotenv.config();
@@ -287,6 +287,12 @@ OPTIONAL SUGGESTION RULES:
 CHARACTER HISTORY RULES:
 - Set characterHistoryNote when the player makes a significant choice that should echo forward: sparing/killing someone important, making an oath, gaining a powerful enemy, doing something morally significant.
 
+CRAFTING RULES:
+- The player may attempt to craft an item using materials from their inventory (e.g. "craft a healing salve using moonpetal and vial"). If they have a known recipe (listed in knownRecipes) and the required materials in inventory, resolve it: set consumedItems to the exact material names consumed, and add the resulting item via loot.
+- If they don't have a matching recipe but the attempt is plausible given their materials and the world's lore, you may still allow an improvised craft: consume the materials via consumedItems and grant a sensible result via loot.
+- Occasionally (when a player examines a workbench, visits a blacksmith/alchemist, finds a recipe scroll, or an NPC teaches them), set newRecipe with a full recipe definition (id, name, description, resultItem, materials) so they can craft it again later. Don't repeat a recipe already in knownRecipes (provided in context).
+- Keep recipes grounded in the world's lore and the materials/items that actually exist in this campaign.
+
 ACHIEVEMENT RULES:
 - Occasionally (a few times per session, not every turn) award a memorable achievement when the player does something noteworthy: first kill, first boss defeat, a clever or daring solution, a major story milestone, surviving a near-death moment, a perfect social outmaneuver, discovering a major secret, completing an act.
 - When you do, set achievementUnlocked to a short punchy title (3-5 words, e.g. "First Blood", "Silver Tongue", "Cheated Death") plus a one-sentence description of what earned it. Otherwise leave it null.
@@ -521,6 +527,7 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "choiceCards": [{"title": "string", "description": "string", "consequenceHint": "string"}] | null,
   "characterHistoryNote": {"type": "choice|ally|enemy|oath|deed|loss", "description": "string", "impact": "string"} | null,
   "achievementUnlocked": {"title": "string", "description": "string"} | null,
+  "newRecipe": {"id": "unique-id", "name": "string", "description": "string", "resultItem": {"name": "string", "description": "string", "type": "weapon|armor|potion|misc|key", "value": 10}, "materials": [{"name": "string", "quantity": 1}]} | null,
   "antagonistUpdate": {"name": "string", "newStep": "string|null", "lastAction": "string", "nowKnowsPlayers": boolean} | null,
   "proactiveEvent": boolean,
   "sceneMomentum": "advancing" | "stalling" | "transitioning",
@@ -642,6 +649,7 @@ export type NarrationResult = {
   characterHistoryNote?: { type: string; description: string; impact: string };
   achievementUnlocked?: { title: string; description: string };
   comboBonus?: boolean;
+  newRecipe?: Recipe;
   antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
   proactiveEvent?: boolean;
   awaitingRoll?: boolean;
@@ -901,6 +909,7 @@ ${character.status_effects && character.status_effects.length > 0 ? `ACTIVE STAT
 Notable inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
 STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
+${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
 ${abilitiesBlock}
 ${suggestionContextBlock}
 ${endgameBlock}
@@ -1130,6 +1139,41 @@ function cleanStatusEffectChanges(value: unknown): NarrationResult['statusEffect
   return { add: add && add.length > 0 ? add : undefined, remove: remove.length > 0 ? remove : undefined };
 }
 
+const VALID_ITEM_TYPES = new Set(['weapon', 'armor', 'potion', 'misc', 'key']);
+
+function cleanRecipe(value: unknown): Recipe | undefined {
+  const record = asRecord(value);
+  if (!record) return undefined;
+  const id = asString(record.id);
+  const name = asString(record.name);
+  const description = asString(record.description);
+  const resultRecord = asRecord(record.resultItem);
+  const resultName = resultRecord && asString(resultRecord.name);
+  if (!id || !name || !description || !resultRecord || !resultName) return undefined;
+  const resultType = asString(resultRecord.type);
+  const materials = Array.isArray(record.materials)
+    ? record.materials
+        .map(asRecord)
+        .filter((m): m is Record<string, unknown> => !!m)
+        .map(m => ({ name: asString(m.name) || '', quantity: clampNumber(m.quantity, 1, 99) || 1 }))
+        .filter(m => !!m.name)
+        .slice(0, 5)
+    : [];
+  if (materials.length === 0) return undefined;
+  return {
+    id,
+    name,
+    description,
+    resultItem: {
+      name: resultName,
+      description: asString(resultRecord.description) || '',
+      type: VALID_ITEM_TYPES.has(resultType || '') ? resultType as Recipe['resultItem']['type'] : 'misc',
+      value: clampNumber(resultRecord.value, 0, 10000),
+    },
+    materials,
+  };
+}
+
 function cleanChoiceCards(value: unknown): NarrationResult['choiceCards'] | undefined {
   if (!Array.isArray(value)) return undefined;
   const cards = value
@@ -1233,6 +1277,7 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
     characterHistoryNote: asRecord(parsed.characterHistoryNote) as NarrationResult['characterHistoryNote'] | undefined,
     achievementUnlocked: asRecord(parsed.achievementUnlocked) as NarrationResult['achievementUnlocked'] | undefined,
     comboBonus: asBoolean(parsed.comboBonus),
+    newRecipe: cleanRecipe(parsed.newRecipe),
     antagonistUpdate: asRecord(parsed.antagonistUpdate) as NarrationResult['antagonistUpdate'] | undefined,
     proactiveEvent: asBoolean(parsed.proactiveEvent),
     awaitingRoll,
@@ -1402,6 +1447,7 @@ Visual style: ${worldBible.artBible?.masterPrompt || EVERREALM_ART_BIBLE.masterP
 ${worldState.combatState?.inCombat ? `IN COMBAT: ${worldState.combatState.enemyName} (${worldState.combatState.enemyCondition}) - Round ${worldState.combatState.roundNumber}` : ''}
 ${worldState.activeQuests && worldState.activeQuests.filter(q => q.status === 'active').length > 0 ? `Active quests: ${worldState.activeQuests.filter(q => q.status === 'active').map(q => q.title).join(', ')}` : ''}
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
+${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
 
 ${charBlock(c1, 'CHARACTER 1')}
 
@@ -1449,6 +1495,7 @@ Respond with JSON:
   "isHighStakes": boolean,
   "choiceCards": [{"title": "string", "description": "string", "consequenceHint": "string"}] | null,
   "achievementUnlocked": {"title": "string", "description": "string"} | null,
+  "newRecipe": {"id": "unique-id", "name": "string", "description": "string", "resultItem": {"name": "string", "description": "string", "type": "weapon|armor|potion|misc|key", "value": 10}, "materials": [{"name": "string", "quantity": 1}]} | null,
   "comboBonus": boolean,
   "sceneMomentum": "advancing" | "stalling" | "transitioning",
   "pacingMode": "exploration" | "tension" | "climax" | "resolution",

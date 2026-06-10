@@ -1191,6 +1191,12 @@ export default function Game() {
                         ),
                       })
                     }}
+                    knownRecipes={worldState?.knownRecipes}
+                    crafting={isLoading}
+                    onCraft={(recipe) => {
+                      const materials = recipe.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')
+                      handleAction(`Craft a ${recipe.resultItem.name} using ${materials}`)
+                    }}
                   />
                 )}
                 {sidebarTab === 'quests' && <QuestLog worldState={isNewCharacter ? null : worldState} />}
@@ -1234,6 +1240,12 @@ export default function Game() {
                           (it.id || it.name) === itemId ? { ...it, equipped } : it
                         ),
                       })
+                    }}
+                    knownRecipes={worldState?.knownRecipes}
+                    crafting={isLoading}
+                    onCraft={(recipe) => {
+                      const materials = recipe.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')
+                      handleAction(`Craft a ${recipe.resultItem.name} using ${materials}`)
                     }}
                   />
                 )}

@@ -1,12 +1,18 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks, generateCoopNarration } from './openai';
 import OpenAI from 'openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe } from '../../../shared/types';
 
 function appendAchievement(existing: UnlockedAchievement[] | undefined, achievement: { title: string; description: string }, characterName: string): UnlockedAchievement[] {
   const list = existing || [];
   if (list.some(a => a.title === achievement.title)) return list;
   return [...list, { title: achievement.title, description: achievement.description, characterName, unlockedAt: new Date().toISOString() }];
+}
+
+function appendRecipe(existing: Recipe[] | undefined, recipe: Recipe): Recipe[] {
+  const list = existing || [];
+  if (list.some(r => r.name === recipe.name)) return list;
+  return [...list, recipe];
 }
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
 
@@ -1108,6 +1114,9 @@ export async function processAction(
     ...(aiResponse.achievementUnlocked
       ? { unlockedAchievements: appendAchievement(ws.unlockedAchievements, aiResponse.achievementUnlocked, (character as Character).name) }
       : {}),
+    ...(aiResponse.newRecipe
+      ? { knownRecipes: appendRecipe(ws.knownRecipes, aiResponse.newRecipe) }
+      : {}),
   };
 
   // Consumed items: prefer AI's explicit list, fall back to narration regex
@@ -1597,6 +1606,9 @@ export async function processCoopAction(
     spotlightBalance: currentBalance,
     ...(aiResponse.achievementUnlocked
       ? { unlockedAchievements: appendAchievement(ws.unlockedAchievements, aiResponse.achievementUnlocked, characters[0].name) }
+      : {}),
+    ...(aiResponse.newRecipe
+      ? { knownRecipes: appendRecipe(ws.knownRecipes, aiResponse.newRecipe) }
       : {}),
   };
 

@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from 'react'
-import type { Character, CharacterStats, InventoryItem } from '../../../shared/types'
+import type { Character, CharacterStats, InventoryItem, Recipe } from '../../../shared/types'
 
 const XP_THRESHOLDS = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000]
 const STAT_LABELS: Record<keyof CharacterStats, string> = {
@@ -96,8 +96,9 @@ function inferSlot(item: InventoryItem): InventoryItem['slot'] | null {
   return null
 }
 
-export default function CharacterSheet({ character, onEquipToggle }: { character: Character; onEquipToggle?: (itemId: string, equipped: boolean) => void }) {
+export default function CharacterSheet({ character, onEquipToggle, knownRecipes, onCraft, crafting }: { character: Character; onEquipToggle?: (itemId: string, equipped: boolean) => void; knownRecipes?: Recipe[]; onCraft?: (recipe: Recipe) => void; crafting?: boolean }) {
   const [inventoryOpen, setInventoryOpen] = useState(true)
+  const [craftingOpen, setCraftingOpen] = useState(true)
   const [abilitiesOpen, setAbilitiesOpen] = useState(true)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
 
@@ -370,6 +371,55 @@ export default function CharacterSheet({ character, onEquipToggle }: { character
             )
           )}
         </section>
+
+        {knownRecipes && knownRecipes.length > 0 && (
+          <section>
+            <button type="button" onClick={() => setCraftingOpen(v => !v)} className="w-full text-left">
+              <SectionTitle title="Crafting" right={craftingOpen ? 'Hide' : `${knownRecipes.length}`} />
+            </button>
+            {craftingOpen && (
+              <div className="space-y-2">
+                {knownRecipes.map(recipe => {
+                  const missing = recipe.materials.filter(m => {
+                    const have = character.inventory.find(i => i.name.toLowerCase() === m.name.toLowerCase())
+                    return !have || have.quantity < m.quantity
+                  })
+                  const canCraft = missing.length === 0
+                  return (
+                    <article key={recipe.id} className="border border-amber-200/14 bg-amber-300/[0.03] p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-fantasy text-sm text-parchment-100">{recipe.name}</p>
+                          <p className="mt-1 font-serif text-xs italic text-parchment-200/60">{recipe.description}</p>
+                        </div>
+                        <span className="shrink-0 font-fantasy text-[9px] uppercase tracking-[0.16em] text-amber-100/60">→ {recipe.resultItem.name}</span>
+                      </div>
+                      <p className="mt-2 font-serif text-xs text-parchment-200/70">
+                        Requires: {recipe.materials.map(m => {
+                          const have = character.inventory.find(i => i.name.toLowerCase() === m.name.toLowerCase())
+                          const haveQty = have?.quantity || 0
+                          return `${m.name} (${haveQty}/${m.quantity})`
+                        }).join(', ')}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={!canCraft || crafting}
+                        onClick={() => onCraft?.(recipe)}
+                        className="mt-2 px-3 py-1 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all disabled:cursor-not-allowed disabled:opacity-40"
+                        style={canCraft
+                          ? { border: '1px solid rgba(200,146,42,0.45)', color: 'rgba(200,146,42,0.9)', background: 'rgba(200,146,42,0.08)' }
+                          : { border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(200,180,140,0.5)', background: 'rgba(255,255,255,0.02)' }
+                        }
+                      >
+                        {canCraft ? 'Craft' : 'Missing materials'}
+                      </button>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </div>
   )
