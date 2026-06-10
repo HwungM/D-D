@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from 'react'
-import type { Character, CharacterStats, InventoryItem, Recipe } from '../../../shared/types'
+import type { Character, CharacterStats, InventoryItem, Recipe, Companion } from '../../../shared/types'
 
 const XP_THRESHOLDS = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000]
 const STAT_LABELS: Record<keyof CharacterStats, string> = {
@@ -96,7 +96,7 @@ function inferSlot(item: InventoryItem): InventoryItem['slot'] | null {
   return null
 }
 
-export default function CharacterSheet({ character, onEquipToggle, knownRecipes, onCraft, crafting }: { character: Character; onEquipToggle?: (itemId: string, equipped: boolean) => void; knownRecipes?: Recipe[]; onCraft?: (recipe: Recipe) => void; crafting?: boolean }) {
+export default function CharacterSheet({ character, onEquipToggle, knownRecipes, onCraft, crafting, companion }: { character: Character; onEquipToggle?: (itemId: string, equipped: boolean) => void; knownRecipes?: Recipe[]; onCraft?: (recipe: Recipe) => void; crafting?: boolean; companion?: Companion | null }) {
   const [inventoryOpen, setInventoryOpen] = useState(true)
   const [craftingOpen, setCraftingOpen] = useState(true)
   const [abilitiesOpen, setAbilitiesOpen] = useState(true)
@@ -294,6 +294,23 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
                 </article>
               ))}
             </div>
+          </section>
+        )}
+
+        {companion && (
+          <section>
+            <SectionTitle title="Companion" />
+            <article className="border border-emerald-200/16 bg-emerald-300/[0.04] p-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="font-fantasy text-sm text-emerald-100">{companion.name}</p>
+                <p className="font-fantasy text-[9px] uppercase tracking-[0.14em] text-emerald-100/50">Bond {companion.bondLevel}/5</p>
+              </div>
+              <p className="mt-0.5 font-fantasy text-[9px] uppercase tracking-[0.12em] text-emerald-100/40">{companion.species}</p>
+              <p className="mt-1 font-serif text-xs text-parchment-200/70">{companion.description}</p>
+              {companion.abilityHint && (
+                <p className="mt-1.5 font-serif text-xs italic text-emerald-100/60">{companion.abilityHint}</p>
+              )}
+            </article>
           </section>
         )}
 

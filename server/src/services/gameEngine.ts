@@ -359,7 +359,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 
   // Simple scalar fields
-  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs', 'unlockedAchievements', 'knownRecipes', 'spotlightBalance', 'lastPillarUsed', 'lastHighStakesAction', 'pendingDirectorBeat', 'pendingTurn', 'coopPendingRoll'] as const) {
+  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs', 'unlockedAchievements', 'knownRecipes', 'spotlightBalance', 'lastPillarUsed', 'lastHighStakesAction', 'pendingDirectorBeat', 'pendingTurn', 'coopPendingRoll', 'companion'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
   }
 
@@ -1119,6 +1119,9 @@ export async function processAction(
     ...(aiResponse.newRecipe
       ? { knownRecipes: appendRecipe(ws.knownRecipes, aiResponse.newRecipe) }
       : {}),
+    ...(aiResponse.companion !== undefined
+      ? { companion: aiResponse.companion }
+      : {}),
   };
 
   // Consumed items: prefer AI's explicit list, fall back to narration regex
@@ -1611,6 +1614,9 @@ export async function processCoopAction(
       : {}),
     ...(aiResponse.newRecipe
       ? { knownRecipes: appendRecipe(ws.knownRecipes, aiResponse.newRecipe) }
+      : {}),
+    ...(aiResponse.companion !== undefined
+      ? { companion: aiResponse.companion }
       : {}),
   };
 

@@ -47,6 +47,14 @@ export interface ShopItem {
 }
 
 
+export interface Companion {
+  name: string;
+  species: string;
+  description: string;
+  bondLevel: number;
+  abilityHint?: string;
+}
+
 export interface Recipe {
   id: string;
   name: string;
@@ -248,6 +256,7 @@ export interface WorldState {
   pendingDirectorBeat?: { beat: string; urgency: 'low' | 'high' | 'critical'; expiresAfter: number } | null;
   unlockedAchievements?: UnlockedAchievement[];
   knownRecipes?: Recipe[];
+  companion?: Companion | null;
   lastPillarUsed?: string[];  // last 5 scene pillars used, for three-pillar balance tracking
   pendingTurn?: {
     actions: { characterId: string; userId: string; action: string; characterName: string; submittedAt: string }[];

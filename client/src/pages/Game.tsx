@@ -1193,6 +1193,7 @@ export default function Game() {
                       })
                     }}
                     knownRecipes={worldState?.knownRecipes}
+                    companion={worldState?.companion}
                     crafting={isLoading}
                     onCraft={(recipe) => {
                       const materials = recipe.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')
@@ -1244,6 +1245,7 @@ export default function Game() {
                       })
                     }}
                     knownRecipes={worldState?.knownRecipes}
+                    companion={worldState?.companion}
                     crafting={isLoading}
                     onCraft={(recipe) => {
                       const materials = recipe.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')

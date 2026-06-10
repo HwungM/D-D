@@ -1,7 +1,7 @@
 ﻿import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import { supabaseAdmin } from './supabase';
-import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext, CharacterOnlineStatus, NpcMemory, CombatEnemy, Recipe } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext, CharacterOnlineStatus, NpcMemory, CombatEnemy, Recipe, Companion } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
 
 dotenv.config();
@@ -287,6 +287,13 @@ OPTIONAL SUGGESTION RULES:
 CHARACTER HISTORY RULES:
 - Set characterHistoryNote when the player makes a significant choice that should echo forward: sparing/killing someone important, making an oath, gaining a powerful enemy, doing something morally significant.
 
+COMPANION RULES:
+- A character may acquire a companion (tamed creature, loyal pet, hireling, spirit guide) through a meaningful story moment - taming a wild animal, rescuing a creature, an NPC gifting/assigning a helper, a magical bond. This should feel earned, not random.
+- When this happens, set companion to {name, species, description, bondLevel: 1, abilityHint: one sentence on how the companion can help (scouting, combat support, carrying items, social value)}.
+- If the character already has a companion (provided in context), reference it naturally in narration when relevant - it travels with them, reacts to events, occasionally helps. Don't introduce a second companion unless the first is lost/given away.
+- You may raise bondLevel (max 5) over time as the relationship deepens through meaningful shared moments - set companion with the same name/species/description but an incremented bondLevel. Don't increment more than once every several actions.
+- To remove a companion (it leaves, dies, is given away), set companion to null and reflect this in the narration.
+
 EQUIPMENT SET RULES:
 - Occasionally, when granting weapon/armor loot that fits a thematic pair or trio (e.g. matching armor pieces from the same forge, a blade and shield bearing the same sigil, robes of a specific order), set setName to a short evocative set name shared across those pieces, and setBonus to a one-sentence description of the bonus granted when 2+ pieces of that set are equipped together.
 - Don't force this - most loot has no set. Reserve sets for special, memorable finds (boss drops, vault rewards, crafted gear).
@@ -541,6 +548,7 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "characterHistoryNote": {"type": "choice|ally|enemy|oath|deed|loss", "description": "string", "impact": "string"} | null,
   "achievementUnlocked": {"title": "string", "description": "string"} | null,
   "newRecipe": {"id": "unique-id", "name": "string", "description": "string", "resultItem": {"name": "string", "description": "string", "type": "weapon|armor|potion|misc|key", "value": 10}, "materials": [{"name": "string", "quantity": 1}]} | null,
+  "companion": {"name": "string", "species": "string", "description": "string", "bondLevel": number, "abilityHint": "string"} | null,
   "antagonistUpdate": {"name": "string", "newStep": "string|null", "lastAction": "string", "nowKnowsPlayers": boolean} | null,
   "proactiveEvent": boolean,
   "sceneMomentum": "advancing" | "stalling" | "transitioning",
@@ -663,6 +671,7 @@ export type NarrationResult = {
   achievementUnlocked?: { title: string; description: string };
   comboBonus?: boolean;
   newRecipe?: Recipe;
+  companion?: Companion | null;
   antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
   proactiveEvent?: boolean;
   awaitingRoll?: boolean;
@@ -923,6 +932,7 @@ Notable inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ')
 STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
+${worldState.companion ? `companion: ${worldState.companion.name} the ${worldState.companion.species} (bond level ${worldState.companion.bondLevel}) - ${worldState.companion.description}` : ''}
 ${abilitiesBlock}
 ${suggestionContextBlock}
 ${endgameBlock}
@@ -1156,6 +1166,23 @@ function cleanStatusEffectChanges(value: unknown): NarrationResult['statusEffect
 
 const VALID_ITEM_TYPES = new Set(['weapon', 'armor', 'potion', 'misc', 'key']);
 
+function cleanCompanion(value: unknown): Companion | null | undefined {
+  if (value === null) return null;
+  const record = asRecord(value);
+  if (!record) return undefined;
+  const name = asString(record.name);
+  const species = asString(record.species);
+  const description = asString(record.description);
+  if (!name || !species || !description) return undefined;
+  return {
+    name,
+    species,
+    description,
+    bondLevel: clampNumber(record.bondLevel, 1, 5) || 1,
+    abilityHint: asString(record.abilityHint),
+  };
+}
+
 function cleanRecipe(value: unknown): Recipe | undefined {
   const record = asRecord(value);
   if (!record) return undefined;
@@ -1293,6 +1320,7 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
     achievementUnlocked: asRecord(parsed.achievementUnlocked) as NarrationResult['achievementUnlocked'] | undefined,
     comboBonus: asBoolean(parsed.comboBonus),
     newRecipe: cleanRecipe(parsed.newRecipe),
+    companion: cleanCompanion(parsed.companion),
     antagonistUpdate: asRecord(parsed.antagonistUpdate) as NarrationResult['antagonistUpdate'] | undefined,
     proactiveEvent: asBoolean(parsed.proactiveEvent),
     awaitingRoll,
@@ -1463,6 +1491,7 @@ ${worldState.combatState?.inCombat ? `IN COMBAT: ${worldState.combatState.enemyN
 ${worldState.activeQuests && worldState.activeQuests.filter(q => q.status === 'active').length > 0 ? `Active quests: ${worldState.activeQuests.filter(q => q.status === 'active').map(q => q.title).join(', ')}` : ''}
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
+${worldState.companion ? `companion: ${worldState.companion.name} the ${worldState.companion.species} (bond level ${worldState.companion.bondLevel}) - ${worldState.companion.description}` : ''}
 
 ${charBlock(c1, 'CHARACTER 1')}
 
@@ -1512,6 +1541,7 @@ Respond with JSON:
   "choiceCards": [{"title": "string", "description": "string", "consequenceHint": "string"}] | null,
   "achievementUnlocked": {"title": "string", "description": "string"} | null,
   "newRecipe": {"id": "unique-id", "name": "string", "description": "string", "resultItem": {"name": "string", "description": "string", "type": "weapon|armor|potion|misc|key", "value": 10}, "materials": [{"name": "string", "quantity": 1}]} | null,
+  "companion": {"name": "string", "species": "string", "description": "string", "bondLevel": number, "abilityHint": "string"} | null,
   "comboBonus": boolean,
   "sceneMomentum": "advancing" | "stalling" | "transitioning",
   "pacingMode": "exploration" | "tension" | "climax" | "resolution",
