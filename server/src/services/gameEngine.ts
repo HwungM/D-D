@@ -278,7 +278,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   // the most-recently-discovered — otherwise a beloved home base discovered
   // early gets silently evicted the moment the party finds its 101st location.
   if (changes.discoveredLocations) {
-    const all = Array.from(new Set([...(current.discoveredLocations || []), ...changes.discoveredLocations]));
+    const all = Array.from(new Set([...(current.discoveredLocations || []), ...toArr<string>(changes.discoveredLocations)]));
     if (all.length <= 100) {
       merged.discoveredLocations = all;
     } else {
@@ -317,14 +317,14 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   // foreshadowingLedger: merge by id (upsert)
   if (changes.foreshadowingLedger) {
     const existing = new Map(toArr<ForeshadowingEntry>(current.foreshadowingLedger).map(f => [f.id, f]));
-    for (const entry of changes.foreshadowingLedger) existing.set(entry.id, { ...existing.get(entry.id), ...entry });
+    for (const entry of toArr<ForeshadowingEntry>(changes.foreshadowingLedger)) existing.set(entry.id, { ...existing.get(entry.id), ...entry });
     merged.foreshadowingLedger = Array.from(existing.values()).slice(-50);
   }
 
   // backstoryHooks: merge by characterId+hook (upsert by hook text)
   if (changes.backstoryHooks) {
     const existing = new Map(toArr<BackstoryHook>(current.backstoryHooks).map(h => [`${h.characterId}:${h.hook}`, h]));
-    for (const hook of changes.backstoryHooks) existing.set(`${hook.characterId}:${hook.hook}`, { ...existing.get(`${hook.characterId}:${hook.hook}`), ...hook });
+    for (const hook of toArr<BackstoryHook>(changes.backstoryHooks)) existing.set(`${hook.characterId}:${hook.hook}`, { ...existing.get(`${hook.characterId}:${hook.hook}`), ...hook });
     // Keep all dormant/active hooks (the story still owes them a payoff), but cap resolved
     // ones so a long campaign doesn't accumulate an ever-growing list of closed-out threads.
     const all = Array.from(existing.values());
@@ -335,7 +335,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
 
   // actGoalsAchieved: union
   if (changes.actGoalsAchieved) {
-    merged.actGoalsAchieved = Array.from(new Set([...(current.actGoalsAchieved || []), ...changes.actGoalsAchieved]));
+    merged.actGoalsAchieved = Array.from(new Set([...(current.actGoalsAchieved || []), ...toArr<string>(changes.actGoalsAchieved)]));
   }
 
   // shopInventory: merge by location key
@@ -1075,7 +1075,7 @@ export async function processAction(
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
     ...(autoNpcMemory.length > 0
-      ? { npcMemory: [...(((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory) || []), ...autoNpcMemory] }
+      ? { npcMemory: [...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory), ...autoNpcMemory] }
       : {}),
     ...locationTracking,
     ...activeNPCChange,
