@@ -294,6 +294,12 @@ COMPANION RULES:
 - You may raise bondLevel (max 5) over time as the relationship deepens through meaningful shared moments - set companion with the same name/species/description but an incremented bondLevel. Don't increment more than once every several actions.
 - To remove a companion (it leaves, dies, is given away), set companion to null and reflect this in the narration.
 
+FACTION REPUTATION RULES:
+- Track standing with recurring factions/groups/organizations the party interacts with (a guild, a noble house, a cult, a town's guards, etc.).
+- When the party's actions meaningfully help, harm, betray, or impress a faction, set factionRepChange to {faction: "name", delta: a number from -20 to +20 reflecting the magnitude}. Small favors are small (+/-5), major acts (saving/destroying a faction's holdings, public betrayal) are large (+/-15 to 20).
+- Standing accumulates over time (existing standings provided in context, range -100 to 100). Reflect current standing in how NPCs from that faction treat the party - hostile/wary if very negative, warm/favored if very positive.
+- Only set factionRepChange when something genuinely reputation-affecting happens, not every action.
+
 EQUIPMENT SET RULES:
 - Occasionally, when granting weapon/armor loot that fits a thematic pair or trio (e.g. matching armor pieces from the same forge, a blade and shield bearing the same sigil, robes of a specific order), set setName to a short evocative set name shared across those pieces, and setBonus to a one-sentence description of the bonus granted when 2+ pieces of that set are equipped together.
 - Don't force this - most loot has no set. Reserve sets for special, memorable finds (boss drops, vault rewards, crafted gear).
@@ -549,6 +555,7 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "achievementUnlocked": {"title": "string", "description": "string"} | null,
   "newRecipe": {"id": "unique-id", "name": "string", "description": "string", "resultItem": {"name": "string", "description": "string", "type": "weapon|armor|potion|misc|key", "value": 10}, "materials": [{"name": "string", "quantity": 1}]} | null,
   "companion": {"name": "string", "species": "string", "description": "string", "bondLevel": number, "abilityHint": "string"} | null,
+  "factionRepChange": {"faction": "string", "delta": number} | null,
   "antagonistUpdate": {"name": "string", "newStep": "string|null", "lastAction": "string", "nowKnowsPlayers": boolean} | null,
   "proactiveEvent": boolean,
   "sceneMomentum": "advancing" | "stalling" | "transitioning",
@@ -672,6 +679,7 @@ export type NarrationResult = {
   comboBonus?: boolean;
   newRecipe?: Recipe;
   companion?: Companion | null;
+  factionRepChange?: { faction: string; delta: number };
   antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
   proactiveEvent?: boolean;
   awaitingRoll?: boolean;
@@ -933,6 +941,7 @@ STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
 ${worldState.companion ? `companion: ${worldState.companion.name} the ${worldState.companion.species} (bond level ${worldState.companion.bondLevel}) - ${worldState.companion.description}` : ''}
+${worldState.factionStandings && Object.keys(worldState.factionStandings).length > 0 ? `faction standings: ${Object.entries(worldState.factionStandings).map(([f, v]) => `${f} (${v})`).join(', ')}` : ''}
 ${abilitiesBlock}
 ${suggestionContextBlock}
 ${endgameBlock}
@@ -1183,6 +1192,16 @@ function cleanCompanion(value: unknown): Companion | null | undefined {
   };
 }
 
+function cleanFactionRepChange(value: unknown): { faction: string; delta: number } | undefined {
+  const record = asRecord(value);
+  if (!record) return undefined;
+  const faction = asString(record.faction);
+  if (!faction) return undefined;
+  const delta = clampNumber(record.delta, -20, 20);
+  if (delta === undefined || delta === 0) return undefined;
+  return { faction, delta };
+}
+
 function cleanRecipe(value: unknown): Recipe | undefined {
   const record = asRecord(value);
   if (!record) return undefined;
@@ -1321,6 +1340,7 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
     comboBonus: asBoolean(parsed.comboBonus),
     newRecipe: cleanRecipe(parsed.newRecipe),
     companion: cleanCompanion(parsed.companion),
+    factionRepChange: cleanFactionRepChange(parsed.factionRepChange),
     antagonistUpdate: asRecord(parsed.antagonistUpdate) as NarrationResult['antagonistUpdate'] | undefined,
     proactiveEvent: asBoolean(parsed.proactiveEvent),
     awaitingRoll,
@@ -1492,6 +1512,7 @@ ${worldState.activeQuests && worldState.activeQuests.filter(q => q.status === 'a
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
 ${worldState.companion ? `companion: ${worldState.companion.name} the ${worldState.companion.species} (bond level ${worldState.companion.bondLevel}) - ${worldState.companion.description}` : ''}
+${worldState.factionStandings && Object.keys(worldState.factionStandings).length > 0 ? `faction standings: ${Object.entries(worldState.factionStandings).map(([f, v]) => `${f} (${v})`).join(', ')}` : ''}
 
 ${charBlock(c1, 'CHARACTER 1')}
 
@@ -1542,6 +1563,7 @@ Respond with JSON:
   "achievementUnlocked": {"title": "string", "description": "string"} | null,
   "newRecipe": {"id": "unique-id", "name": "string", "description": "string", "resultItem": {"name": "string", "description": "string", "type": "weapon|armor|potion|misc|key", "value": 10}, "materials": [{"name": "string", "quantity": 1}]} | null,
   "companion": {"name": "string", "species": "string", "description": "string", "bondLevel": number, "abilityHint": "string"} | null,
+  "factionRepChange": {"faction": "string", "delta": number} | null,
   "comboBonus": boolean,
   "sceneMomentum": "advancing" | "stalling" | "transitioning",
   "pacingMode": "exploration" | "tension" | "climax" | "resolution",

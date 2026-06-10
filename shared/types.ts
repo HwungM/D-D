@@ -448,6 +448,7 @@ export interface ActionResult {
   achievementUnlocked?: { title: string; description: string };
   comboBonus?: boolean;
   newRecipe?: Recipe;
+  factionRepChange?: { faction: string; delta: number };
 }
 
 export interface UnlockedAchievement {

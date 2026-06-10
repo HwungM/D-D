@@ -14,6 +14,11 @@ function appendRecipe(existing: Recipe[] | undefined, recipe: Recipe): Recipe[] 
   if (list.some(r => r.name === recipe.name)) return list;
   return [...list, recipe];
 }
+
+function applyFactionRepChange(existing: Record<string, number> | undefined, change: { faction: string; delta: number }): Record<string, number> {
+  const current = existing?.[change.faction] || 0;
+  return { ...existing, [change.faction]: Math.max(-100, Math.min(100, current + change.delta)) };
+}
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
 
 // Safe array coercion — (value || []) only guards against null/undefined, but the AI
@@ -1122,6 +1127,9 @@ export async function processAction(
     ...(aiResponse.companion !== undefined
       ? { companion: aiResponse.companion }
       : {}),
+    ...(aiResponse.factionRepChange
+      ? { factionStandings: applyFactionRepChange(ws.factionStandings, aiResponse.factionRepChange) }
+      : {}),
   };
 
   // Consumed items: prefer AI's explicit list, fall back to narration regex
@@ -1617,6 +1625,9 @@ export async function processCoopAction(
       : {}),
     ...(aiResponse.companion !== undefined
       ? { companion: aiResponse.companion }
+      : {}),
+    ...(aiResponse.factionRepChange
+      ? { factionStandings: applyFactionRepChange(ws.factionStandings, aiResponse.factionRepChange) }
       : {}),
   };
 
