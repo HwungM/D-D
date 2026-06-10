@@ -1341,6 +1341,65 @@ export async function resolveRollAction(
   };
 }
 
+export async function resolveCoopRollAction(
+  campaignId: string,
+  characterId: string,
+  rollResult: number,
+  rollTotal: number,
+  dc: number,
+  success: boolean,
+  isCritSuccess: boolean,
+  isCritFail: boolean,
+  rollContext: RollContext
+): Promise<ActionResult & { character2Changes?: { hp?: number; gold?: number; inventory?: unknown } }> {
+  const { data: campaign, error: campError } = await supabaseAdmin.from('campaigns').select('*').eq('id', campaignId).single();
+  if (campError || !campaign) throw new Error('Campaign not found');
+
+  const ws = campaign.world_state as WorldState;
+  const pending = ws.coopPendingRoll;
+  if (!pending || pending.actingCharacterId !== characterId) throw new Error('No pending co-op roll for this character');
+
+  const partnerAction = pending.actions.find(pa => pa.characterId !== characterId);
+  if (!partnerAction) throw new Error('Co-op partner action not found');
+
+  // Resolve the roll for the acting character via the standard roll-outcome flow
+  const result = await resolveRollAction(characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, rollContext);
+
+  // Reward the partner with the same XP for the joint turn and clear the pending roll
+  const { data: partnerChar, error: partnerError } = await supabaseAdmin.from('characters').select('*').eq('id', partnerAction.characterId).single();
+  if (partnerError || !partnerChar) throw new Error('Co-op partner character not found');
+
+  const { data: refreshedCampaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaignId).single();
+  const wsAfterRoll = (refreshedCampaign?.world_state || result.worldStateChanges || ws) as WorldState;
+
+  const xpGained = success ? Math.floor(Math.random() * 20) + 10 : 5;
+  const { updatedCharacter: updatedPartner, updatedWorldState } = await applyConsequences(
+    partnerAction.characterId,
+    { xpGained },
+    partnerChar as Character,
+    { id: campaignId, world_state: { ...wsAfterRoll, coopPendingRoll: null }, act: campaign.act, world_bible: campaign.world_bible as WorldBible }
+  );
+
+  // Mirror the roll narration into the partner's feed
+  await supabaseAdmin.from('story_events').insert({
+    campaign_id: campaignId,
+    character_id: partnerAction.characterId,
+    event_type: 'narration',
+    content: result.narration,
+    metadata: { coopRound: true, fromRoll: true, suggestedActions: result.suggestedActions },
+  });
+
+  return {
+    ...result,
+    worldStateChanges: updatedWorldState,
+    character2Changes: {
+      hp: updatedPartner.hp,
+      gold: updatedPartner.gold,
+      inventory: updatedPartner.inventory,
+    },
+  };
+}
+
 export async function getOpeningScene(
   characterId: string,
   campaignId: string
@@ -1460,6 +1519,48 @@ export async function processCoopAction(
     wb,
     recentHistory
   );
+
+  // If the AI wants a roll from one of the players, pause the turn for that roll
+  if (aiResponse.awaitingRoll && aiResponse.rollContext) {
+    const actingCharacterId = aiResponse.actingCharacterId
+      && pendingActions.some(pa => pa.characterId === aiResponse.actingCharacterId)
+      ? aiResponse.actingCharacterId
+      : pendingActions[0].characterId;
+
+    await Promise.all(pendingActions.map(pa =>
+      supabaseAdmin.from('story_events').insert({
+        campaign_id: campaignId,
+        character_id: pa.characterId,
+        event_type: 'action',
+        content: pa.action,
+        metadata: { coopRound: true },
+      })
+    ));
+    await Promise.all(pendingActions.map(pa =>
+      supabaseAdmin.from('story_events').insert({
+        campaign_id: campaignId,
+        character_id: pa.characterId,
+        event_type: 'narration',
+        content: aiResponse.narration,
+        metadata: { coopRound: true, awaitingRoll: true, rollContext: aiResponse.rollContext, actingCharacterId },
+      })
+    ));
+
+    await supabaseAdmin.from('campaigns').update({
+      world_state: { ...ws, pendingTurn: null, coopPendingRoll: { actingCharacterId, rollContext: aiResponse.rollContext, actions: pendingActions } }
+    }).eq('id', campaignId);
+
+    return {
+      narration: aiResponse.narration,
+      awaitingRoll: true,
+      rollContext: aiResponse.rollContext,
+      actingCharacterId,
+      suggestedActions: [],
+      sceneImagePrompt: aiResponse.sceneImagePrompt,
+      isDeath: false,
+      isLevelUp: false,
+    };
+  }
 
   const xpGained = Math.floor(Math.random() * 20) + 10;
 

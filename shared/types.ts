@@ -243,6 +243,11 @@ export interface WorldState {
     createdAt?: string;
     expiresAt?: string;
   } | null;
+  coopPendingRoll?: {
+    actingCharacterId: string;
+    rollContext: RollContext;
+    actions: { characterId: string; userId: string; action: string; characterName: string; submittedAt: string }[];
+  } | null;
 }
 
 export interface WorldBible {
@@ -417,6 +422,8 @@ export interface ActionResult {
   choiceCards?: HighStakesChoice[];
   characterHistoryNote?: CharacterHistoryEntry;
   antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
+  actingCharacterId?: string;
+  character2Changes?: { hp?: number; gold?: number; inventory?: unknown };
 }
 
 export interface PartyMember {

@@ -659,6 +659,7 @@ export type NarrationResult = {
   spotlightCharacterId?: string;
   character1Changes?: { hpChange?: number; loot?: NarrationResult['loot']; statusEffectChanges?: NarrationResult['statusEffectChanges'] };
   character2Changes?: { hpChange?: number; loot?: NarrationResult['loot']; statusEffectChanges?: NarrationResult['statusEffectChanges'] };
+  actingCharacterId?: string;
 };
 
 export type NarrationCampaignContext = {
@@ -1397,10 +1398,15 @@ ${charBlock(c2, 'CHARACTER 2')}
 RECENT HISTORY:
 ${recentHistory.slice(-6).join('\n')}
 
-CHARACTER 1 (${c1.name}) ACTION: ${a1.action}
-CHARACTER 2 (${c2.name}) ACTION: ${a2.action}
+CHARACTER 1 (${c1.name}, id: ${c1.id}) ACTION: ${a1.action}
+CHARACTER 2 (${c2.name}, id: ${c2.id}) ACTION: ${a2.action}
 ${spotlightDirective ? `\n${spotlightDirective}` : ''}
 Write ONE unified narration (200-300 words) weaving both actions together. Apply the CO-OP NARRATION RULES.
+
+DICE ROLLS & COMBAT APPLY HERE TOO - same as solo play:
+- If either character's action requires a skill check (including pickpocketing/theft - this ALWAYS requires a roll), set awaitingRoll: true, populate rollContext, and set actingCharacterId to whichever character (id) is making that roll. Write a tense setup narration that builds to the roll without resolving it - DO NOT resolve either character's action's outcome in this case.
+- If the players provoke or engage a hostile creature, do not narrate combat away - set isCombat: true, isHighStakes appropriately, and populate combatEnemies[] with real stats so the fight actually starts.
+- Follow PICKPOCKETING & THEFT RULES, CO-OP DIVERSION & TEAMWORK THEFT, and MULTI-ENEMY COMBAT RULES exactly as written for solo play.
 
 OPTIONAL SUGGESTIONS:
 - suggestedActions are optional nudges, not required choices.
@@ -1420,13 +1426,28 @@ Respond with JSON:
   "isCombat": boolean,
   "isVictory": boolean,
   "enemyName": "string | null",
-  "advanceAct": false,
-  "isHighStakes": false,
+  "advanceAct": boolean,
+  "isHighStakes": boolean,
   "choiceCards": null,
   "sceneMomentum": "advancing" | "stalling" | "transitioning",
   "pacingMode": "exploration" | "tension" | "climax" | "resolution",
   "scenePurpose": "explore" | "gather_info" | "combat" | "social" | "travel" | "rest" | "climax",
-  "combatEnemies": null,
+  "combatEnemies": [{"name": "string", "archetype": "beast|soldier|mage|boss|minion", "maxHp": number, "condition": "healthy|wounded|critical", "isDefeated": boolean, "specialAbility": "string|null"}] | null,
+  "enemyDefeated": "enemy name if one died this round" | null,
+  "awaitingRoll": boolean,
+  "actingCharacterId": "id of the character making the roll, required if awaitingRoll is true, else null",
+  "rollContext": {
+    "stat": "str|dex|con|int|wis|cha",
+    "dc": number,
+    "diceType": "d20",
+    "description": "string",
+    "successDescription": "string (evocative, vague)",
+    "failDescription": "string (evocative, vague)",
+    "critSuccessDescription": "string | null",
+    "critFailDescription": "string | null",
+    "isDramatic": boolean,
+    "modifier": number
+  } | null,
   "sessionNote": "string | null",
   "character1Changes": {
     "hpChange": number | null,
@@ -1460,6 +1481,7 @@ Respond with JSON:
     ...base,
     character1Changes: (parsed.character1Changes as NarrationResult['character1Changes']) || undefined,
     character2Changes: (parsed.character2Changes as NarrationResult['character2Changes']) || undefined,
+    actingCharacterId: base.awaitingRoll ? asString(parsed.actingCharacterId) || c1.id : undefined,
   };
 }
 

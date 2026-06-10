@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
-import { processAction, getOpeningScene, resolveRollAction, processCoopAction, getStatModifier } from '../services/gameEngine';
+import { processAction, getOpeningScene, resolveRollAction, resolveCoopRollAction, processCoopAction, getStatModifier } from '../services/gameEngine';
 import { generateEpilogue } from '../services/openai';
 import type { WorldState, WorldBible, Character } from '../../../shared/types';
 import { z } from 'zod';
@@ -187,7 +187,17 @@ router.post('/resolve-roll', requireAuth, async (req: AuthRequest, res: Response
     const isCritSuccess = rollResult === 20;
     const isCritFail = rollResult === 1;
     const authoritativeContext = { ...rollContext, modifier };
-    const result = await resolveRollAction(characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext);
+
+    const { data: campaignRow } = await supabaseAdmin
+      .from('campaigns')
+      .select('world_state')
+      .eq('id', campaignId)
+      .single();
+    const pendingCoopRoll = (campaignRow?.world_state as WorldState | undefined)?.coopPendingRoll;
+
+    const result = pendingCoopRoll && pendingCoopRoll.actingCharacterId === characterId
+      ? await resolveCoopRollAction(campaignId, characterId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext)
+      : await resolveRollAction(characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext);
     res.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to resolve roll';

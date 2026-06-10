@@ -299,6 +299,17 @@ export default function Game() {
             setCoopNeededCount(0)
             setCoopExpiresAt(null)
             setLoading(false)
+
+            // If this player is the one who needs to roll, show the dice modal instead of resuming
+            if (newEvent.metadata?.awaitingRoll && newEvent.metadata?.actingCharacterId === characterId && newEvent.metadata?.rollContext) {
+              setDiceModalData({
+                narration: newEvent.content,
+                rollContext: newEvent.metadata.rollContext as RollContext,
+              })
+              setShowDiceModal(true)
+              return
+            }
+
             setIsTyping(true)
             const suggestedActions = Array.isArray(newEvent.metadata?.suggestedActions)
               ? newEvent.metadata.suggestedActions as string[]
