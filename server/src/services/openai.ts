@@ -241,7 +241,7 @@ ACT PROGRESSION RULES:
 - When the act climax event occurs (the one listed in DM ROADMAP), set advanceAct: true.
 - The DM ROADMAP shows exactly what the act climax is. Execute it. Don't invent a different climax.
 - When advancing act, write a dramatic conclusive narration that wraps the chapter - a "things will never be the same" moment.
-- If DM ROADMAP shows Ã¢Å¡Â  ACT OVERDUE or Ã°Å¸â€Â´ CRITICAL, you MUST trigger the climax this turn. Do not stall.
+- If DM ROADMAP shows ACT OVERDUE or CRITICAL, you MUST trigger the climax this turn. Do not stall.
 
 NARRATIVE TIER RULES (based on character level):
 - Level 1-3 (EMERGING): Local threats only. NPCs don't know the character yet. Stakes are personal.
