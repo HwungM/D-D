@@ -359,7 +359,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 
   // Simple scalar fields
-  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs'] as const) {
+  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs', 'unlockedAchievements', 'knownRecipes', 'spotlightBalance', 'lastPillarUsed', 'lastHighStakesAction', 'pendingDirectorBeat', 'pendingTurn', 'coopPendingRoll'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
   }
 
