@@ -1523,6 +1523,8 @@ ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
 ${worldState.companion ? `companion: ${worldState.companion.name} the ${worldState.companion.species} (bond level ${worldState.companion.bondLevel}) - ${worldState.companion.description}` : ''}
 ${worldState.factionStandings && Object.keys(worldState.factionStandings).length > 0 ? `faction standings: ${Object.entries(worldState.factionStandings).map(([f, v]) => `${f} (${v})`).join(', ')}` : ''}
+Scene purpose: ${worldState.sceneState?.purpose || 'explore'} | Exchanges in scene: ${worldState.sceneState?.exchangeCount ?? 0} | Pacing mode: ${worldState.sceneState?.pacingMode || 'exploration'}${worldState.sceneState && worldState.sceneState.stalledCount >= 2 ? ` - STALL DETECTED (${worldState.sceneState.stalledCount} consecutive exchanges without story advancement), consider introducing a complication.` : ''}
+${worldState.activeNPC ? `Currently talking to: ${worldState.activeNPC}` : ''}
 
 ${charBlock(c1, 'CHARACTER 1')}
 
@@ -1544,6 +1546,8 @@ DICE ROLLS & COMBAT APPLY HERE TOO - same as solo play:
 - Boss fights apply here too: follow the MULTI-ENEMY COMBAT RULES boss-fight guidance - set isBossFight: true on combat start, and bossPhaseAdvance: true with a dramatic transformation when a boss reaches "critical".
 - Achievements apply here too: follow ACHIEVEMENT RULES - award achievementUnlocked occasionally for memorable moments by either character.
 - WEATHER & TIME OF DAY RULES apply here too - factor timeOfDay/weather into difficulty, NPC availability, and pacing for both characters.
+- SHOP/MERCHANT RULES apply here too - if either character encounters a merchant, set isMerchant: true and populate shopItems.
+- NPC conversation tracking applies here too - set activeNPC to the name of whichever NPC either character is actively talking to, or null if the conversation ended or the party moved on.
 
 COMBO MOVES:
 - If the two submitted actions are clearly coordinated and complementary (one distracts while the other strikes/steals, one creates an opening the other exploits, one buffs/heals while the other attacks, pincer/flanking, etc.), set comboBonus: true and narrate the synergy paying off with a tangible extra benefit (bonus damage, extra loot, an easier roll, avoided harm).
@@ -1578,6 +1582,9 @@ Respond with JSON:
   "sceneMomentum": "advancing" | "stalling" | "transitioning",
   "pacingMode": "exploration" | "tension" | "climax" | "resolution",
   "scenePurpose": "explore" | "gather_info" | "combat" | "social" | "travel" | "rest" | "climax",
+  "isMerchant": boolean,
+  "shopItems": [{"id": "item-id", "name": "item name", "description": "one sentence", "type": "weapon|armor|potion|misc|key", "price": 10, "quantity": 1}] | null,
+  "activeNPC": "string | null",
   "combatEnemies": [{"name": "string", "archetype": "beast|soldier|mage|boss|minion", "maxHp": number, "condition": "healthy|wounded|critical", "isDefeated": boolean, "specialAbility": "string|null"}] | null,
   "enemyDefeated": "enemy name if one died this round" | null,
   "isBossFight": boolean,

@@ -1611,6 +1611,99 @@ export async function processCoopAction(
     currentBalance[aiResponse.spotlightCharacterId] = (currentBalance[aiResponse.spotlightCharacterId] || 0) + 1;
   }
 
+  // Track per-character location and last seen
+  const newLocation = (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation;
+  const characterLocations = {
+    ...(ws.characterLocations || {}),
+    [characters[0].id]: newLocation || 'Unknown',
+    [characters[1].id]: newLocation || 'Unknown',
+  };
+
+  // Scene summary â€” regenerate every 4 actions
+  const sceneActionCount = (ws.actionsSinceLastSummary || 0) + 1;
+  let currentSceneSummary = ws.currentSceneSummary;
+  let actionsSinceLastSummary = sceneActionCount;
+  if (sceneActionCount >= 4) {
+    try {
+      currentSceneSummary = await generateSceneSummary(recentHistory, ws.currentLocation || 'Unknown', `${characters[0].name} & ${characters[1].name}`, ws.combatState ?? null);
+      actionsSinceLastSummary = 0;
+    } catch { /* non-critical */ }
+  }
+
+  // Update scene state pacing tracker
+  const prevSceneState = ws.sceneState;
+  const aiMomentum = aiResponse.sceneMomentum || 'advancing';
+  const isTransitioning = aiMomentum === 'transitioning';
+  const newSceneState: WorldState['sceneState'] = isTransitioning
+    ? {
+        purpose: aiResponse.scenePurpose || 'explore',
+        exchangeCount: 0,
+        stalledCount: 0,
+        pacingMode: aiResponse.pacingMode || 'exploration',
+      }
+    : {
+        purpose: aiResponse.scenePurpose || prevSceneState?.purpose || 'explore',
+        exchangeCount: (prevSceneState?.exchangeCount ?? 0) + 1,
+        stalledCount: aiMomentum === 'stalling' ? (prevSceneState?.stalledCount ?? 0) + 1 : 0,
+        pacingMode: aiResponse.pacingMode || prevSceneState?.pacingMode || 'exploration',
+      };
+
+  // Track active NPC â€” auto-clear on location change
+  const activeNPCChange: Partial<WorldState> = {};
+  const locationChanged = newLocation && ws.currentLocation && newLocation !== ws.currentLocation;
+  if (locationChanged) {
+    activeNPCChange.activeNPC = null;
+  } else if (aiResponse.activeNPC !== undefined) {
+    activeNPCChange.activeNPC = aiResponse.activeNPC;
+  }
+
+  // If the model sets activeNPC but forgets npcMemory, save a lightweight character card
+  const activeNpcName = typeof activeNPCChange.activeNPC === 'string' ? activeNPCChange.activeNPC.trim() : '';
+  const existingNpcNames = new Set([
+    ...toArr<NpcMemory>(ws.npcMemory).map(npc => npc.name.toLowerCase()),
+    ...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory).map(npc => npc.name.toLowerCase()),
+  ]);
+  const autoNpcMemory: NpcMemory[] = activeNpcName && !existingNpcNames.has(activeNpcName.toLowerCase())
+    ? [{
+        name: activeNpcName,
+        disposition: 'unknown',
+        notes: `Met ${characters[0].name} and ${characters[1].name} near ${newLocation || ws.currentLocation || 'the current scene'}.`,
+        lastMet: newLocation || ws.currentLocation,
+        metCharacters: [characters[0].name, characters[1].name],
+        interactionCount: 1,
+      }]
+    : [];
+
+  // Persist shop inventory per location
+  const shopInventoryChange: Partial<WorldState> = {};
+  if (aiResponse.isMerchant && aiResponse.shopItems && aiResponse.shopItems.length > 0) {
+    const validItemTypes = new Set(['weapon', 'armor', 'potion', 'misc', 'key']);
+    aiResponse.shopItems = aiResponse.shopItems
+      .filter(item => item.name && typeof item.name === 'string')
+      .map(item => ({
+        id: item.id || crypto.randomUUID(),
+        name: item.name,
+        description: item.description || '',
+        type: (validItemTypes.has(item.type) ? item.type : 'misc') as ShopItem['type'],
+        price: typeof item.price === 'number' && !isNaN(item.price) ? Math.max(1, Math.round(item.price)) : 10,
+        quantity: typeof item.quantity === 'number' && !isNaN(item.quantity) ? Math.max(1, Math.round(item.quantity)) : 1,
+      }));
+
+    const location = newLocation || 'unknown';
+    const existingInventory = ws.shopInventory?.[location];
+    const actionsSinceHere = ws.actionsSinceLastSummary || 0;
+    if (existingInventory && actionsSinceHere < 6) {
+      aiResponse.shopItems = existingInventory;
+    } else {
+      const existingShop = ws.shopInventory || {};
+      const keys = Object.keys(existingShop);
+      const pruned = keys.length >= 20
+        ? Object.fromEntries(keys.slice(-19).map(k => [k, existingShop[k]]))
+        : existingShop;
+      shopInventoryChange.shopInventory = { ...pruned, [location]: aiResponse.shopItems as ShopItem[] };
+    }
+  }
+
   // Update combat state
   let combatState = ws.combatState ?? null;
   if (aiResponse.isCombat && aiResponse.enemyName) {
@@ -1669,9 +1762,21 @@ export async function processCoopAction(
 
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
+    ...(autoNpcMemory.length > 0
+      ? { npcMemory: [...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory), ...autoNpcMemory] }
+      : {}),
     actionCount: newActionCount,
     actionsInCurrentAct: newActionsInCurrentAct,
     combatState,
+    characterLocations,
+    currentSceneSummary,
+    actionsSinceLastSummary,
+    sceneState: newSceneState,
+    lastPillarUsed: aiResponse.scenePurpose
+      ? [...(ws.lastPillarUsed || []), aiResponse.scenePurpose].slice(-5)
+      : ws.lastPillarUsed,
+    ...activeNPCChange,
+    ...shopInventoryChange,
     characterLastSeen: {
       ...(ws.characterLastSeen || {}),
       ...Object.fromEntries(pendingActions.map(pa => [pa.characterId, new Date().toISOString()])),
@@ -1807,6 +1912,8 @@ export async function processCoopAction(
     statusEffectChanges: aiResponse.character1Changes?.statusEffectChanges as ActionResult['statusEffectChanges'],
     achievementUnlocked: aiResponse.achievementUnlocked,
     comboBonus: aiResponse.comboBonus,
+    isMerchant: aiResponse.isMerchant,
+    shopItems: aiResponse.shopItems as ShopItem[] | undefined,
     character2Changes: {
       hp: updatedChar2.hp,
       gold: updatedChar2.gold,
