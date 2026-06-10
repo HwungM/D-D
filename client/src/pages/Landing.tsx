@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { authApi } from '../lib/api'
+import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../lib/store'
 import { audioManager } from '../lib/audio'
 
@@ -73,6 +74,7 @@ export default function Landing() {
     try {
       try {
         const { data } = await authApi.login(apiUsername, HARDCODED_PASSWORD)
+        await supabase.auth.setSession({ access_token: data.session.access_token, refresh_token: data.session.refresh_token })
         setSession(data.session)
         setUser({ ...data.user, username: displayName })
         navigate(destination)
@@ -83,6 +85,7 @@ export default function Landing() {
 
       try {
         const { data } = await authApi.register(apiUsername, HARDCODED_PASSWORD, apiUsername)
+        await supabase.auth.setSession({ access_token: data.session.access_token, refresh_token: data.session.refresh_token })
         setSession(data.session)
         setUser({ ...data.user, username: displayName })
         navigate(destination)
