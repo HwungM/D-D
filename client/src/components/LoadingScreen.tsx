@@ -132,14 +132,14 @@ export default function LoadingScreen({ mode = 'generic', message }: LoadingScre
           alt=""
           className="h-full w-full object-cover transition-opacity duration-700"
           style={{
-            opacity: slideVisible ? 0.62 : 0,
-            filter: 'saturate(1.04) contrast(1.08)',
+            opacity: slideVisible ? 0.85 : 0,
+            filter: 'saturate(1.08) contrast(1.05) brightness(1.15)',
             transform: 'scale(1.025)',
           }}
           onError={e => { (e.currentTarget as HTMLImageElement).src = '/media/everrealm-hero-desktop.png' }}
         />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.94)_0%,rgba(0,0,0,0.56)_48%,rgba(0,0,0,0.9)_100%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.34)_0%,rgba(0,0,0,0.1)_42%,rgba(0,0,0,0.94)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.32)_48%,rgba(0,0,0,0.74)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.18)_0%,rgba(0,0,0,0.04)_42%,rgba(0,0,0,0.8)_100%)]" />
       </div>
 
       <main className="relative z-10 flex min-h-screen flex-col px-5 py-5 sm:px-8">
