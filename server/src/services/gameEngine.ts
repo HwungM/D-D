@@ -1,7 +1,13 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks, generateCoopNarration } from './openai';
 import OpenAI from 'openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement } from '../../../shared/types';
+
+function appendAchievement(existing: UnlockedAchievement[] | undefined, achievement: { title: string; description: string }, characterName: string): UnlockedAchievement[] {
+  const list = existing || [];
+  if (list.some(a => a.title === achievement.title)) return list;
+  return [...list, { title: achievement.title, description: achievement.description, characterName, unlockedAt: new Date().toISOString() }];
+}
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
 
 // Safe array coercion — (value || []) only guards against null/undefined, but the AI
@@ -1099,6 +1105,9 @@ export async function processAction(
       : (ws.pendingDirectorBeat && newActionCount <= ws.pendingDirectorBeat.expiresAfter
           ? ws.pendingDirectorBeat
           : null),
+    ...(aiResponse.achievementUnlocked
+      ? { unlockedAchievements: appendAchievement(ws.unlockedAchievements, aiResponse.achievementUnlocked, (character as Character).name) }
+      : {}),
   };
 
   // Consumed items: prefer AI's explicit list, fall back to narration regex
@@ -1247,6 +1256,7 @@ export async function processAction(
     choiceCards: aiResponse.choiceCards,
     characterHistoryNote: aiResponse.characterHistoryNote as ActionResult['characterHistoryNote'],
     antagonistUpdate: aiResponse.antagonistUpdate,
+    achievementUnlocked: aiResponse.achievementUnlocked,
   };
 }
 
@@ -1562,7 +1572,8 @@ export async function processCoopAction(
     };
   }
 
-  const xpGained = Math.floor(Math.random() * 20) + 10;
+  const baseXpGained = Math.floor(Math.random() * 20) + 10;
+  const xpGained = aiResponse.comboBonus ? Math.floor(baseXpGained * 1.5) : baseXpGained;
 
   // Build world state changes (tracking both characters)
   const newActionCount = (ws.actionCount || 0) + 1;
@@ -1584,6 +1595,9 @@ export async function processCoopAction(
     },
     pendingTurn: null,
     spotlightBalance: currentBalance,
+    ...(aiResponse.achievementUnlocked
+      ? { unlockedAchievements: appendAchievement(ws.unlockedAchievements, aiResponse.achievementUnlocked, characters[0].name) }
+      : {}),
   };
 
   // Apply consequences to Character 1
@@ -1676,6 +1690,8 @@ export async function processCoopAction(
     combatEnemies: aiResponse.combatEnemies,
     enemyDefeated: aiResponse.enemyDefeated,
     statusEffectChanges: aiResponse.character1Changes?.statusEffectChanges as ActionResult['statusEffectChanges'],
+    achievementUnlocked: aiResponse.achievementUnlocked,
+    comboBonus: aiResponse.comboBonus,
     character2Changes: {
       hp: updatedChar2.hp,
       gold: updatedChar2.gold,

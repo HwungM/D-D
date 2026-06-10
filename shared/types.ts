@@ -236,6 +236,7 @@ export interface WorldState {
   futureHooks?: { id: string; description: string; source: string; createdAt: string; resolved: boolean }[];
   spotlightBalance?: Record<string, number>;  // characterId -> spotlight moment count
   pendingDirectorBeat?: { beat: string; urgency: 'low' | 'high' | 'critical'; expiresAfter: number } | null;
+  unlockedAchievements?: UnlockedAchievement[];
   lastPillarUsed?: string[];  // last 5 scene pillars used, for three-pillar balance tracking
   pendingTurn?: {
     actions: { characterId: string; userId: string; action: string; characterName: string; submittedAt: string }[];
@@ -424,6 +425,15 @@ export interface ActionResult {
   antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
   actingCharacterId?: string;
   character2Changes?: { hp?: number; gold?: number; inventory?: unknown };
+  achievementUnlocked?: { title: string; description: string };
+  comboBonus?: boolean;
+}
+
+export interface UnlockedAchievement {
+  title: string;
+  description: string;
+  characterName: string;
+  unlockedAt: string;
 }
 
 export interface PartyMember {

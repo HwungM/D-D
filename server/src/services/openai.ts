@@ -287,6 +287,11 @@ OPTIONAL SUGGESTION RULES:
 CHARACTER HISTORY RULES:
 - Set characterHistoryNote when the player makes a significant choice that should echo forward: sparing/killing someone important, making an oath, gaining a powerful enemy, doing something morally significant.
 
+ACHIEVEMENT RULES:
+- Occasionally (a few times per session, not every turn) award a memorable achievement when the player does something noteworthy: first kill, first boss defeat, a clever or daring solution, a major story milestone, surviving a near-death moment, a perfect social outmaneuver, discovering a major secret, completing an act.
+- When you do, set achievementUnlocked to a short punchy title (3-5 words, e.g. "First Blood", "Silver Tongue", "Cheated Death") plus a one-sentence description of what earned it. Otherwise leave it null.
+- Never repeat an achievement title already listed in unlockedAchievements (provided in context).
+
 CAMPAIGN JOURNAL AWARENESS:
 - You have access to the full campaign journal. Reference past events naturally. NPCs remember. The world has changed.
 - If the journal mentions the player burned a village, villagers in new areas have heard. If they saved a lord, his allies are warmer.
@@ -515,6 +520,7 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "isHighStakes": boolean,
   "choiceCards": [{"title": "string", "description": "string", "consequenceHint": "string"}] | null,
   "characterHistoryNote": {"type": "choice|ally|enemy|oath|deed|loss", "description": "string", "impact": "string"} | null,
+  "achievementUnlocked": {"title": "string", "description": "string"} | null,
   "antagonistUpdate": {"name": "string", "newStep": "string|null", "lastAction": "string", "nowKnowsPlayers": boolean} | null,
   "proactiveEvent": boolean,
   "sceneMomentum": "advancing" | "stalling" | "transitioning",
@@ -634,6 +640,8 @@ export type NarrationResult = {
   isHighStakes?: boolean;
   choiceCards?: { title: string; description: string; consequenceHint: string }[];
   characterHistoryNote?: { type: string; description: string; impact: string };
+  achievementUnlocked?: { title: string; description: string };
+  comboBonus?: boolean;
   antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
   proactiveEvent?: boolean;
   awaitingRoll?: boolean;
@@ -892,6 +900,7 @@ BACKSTORY: ${character.backstory || 'Unknown origins'}
 ${character.status_effects && character.status_effects.length > 0 ? `ACTIVE STATUS EFFECTS: ${character.status_effects.map(e => `${e.name} (${e.type})`).join(', ')} - these affect what the character can do.` : ''}
 Notable inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
 STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
+${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
 ${abilitiesBlock}
 ${suggestionContextBlock}
 ${endgameBlock}
@@ -1222,6 +1231,8 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
     isHighStakes,
     choiceCards,
     characterHistoryNote: asRecord(parsed.characterHistoryNote) as NarrationResult['characterHistoryNote'] | undefined,
+    achievementUnlocked: asRecord(parsed.achievementUnlocked) as NarrationResult['achievementUnlocked'] | undefined,
+    comboBonus: asBoolean(parsed.comboBonus),
     antagonistUpdate: asRecord(parsed.antagonistUpdate) as NarrationResult['antagonistUpdate'] | undefined,
     proactiveEvent: asBoolean(parsed.proactiveEvent),
     awaitingRoll,
@@ -1390,6 +1401,7 @@ Central conflict: ${worldBible.centralConflict || ''}
 Visual style: ${worldBible.artBible?.masterPrompt || EVERREALM_ART_BIBLE.masterPrompt}
 ${worldState.combatState?.inCombat ? `IN COMBAT: ${worldState.combatState.enemyName} (${worldState.combatState.enemyCondition}) - Round ${worldState.combatState.roundNumber}` : ''}
 ${worldState.activeQuests && worldState.activeQuests.filter(q => q.status === 'active').length > 0 ? `Active quests: ${worldState.activeQuests.filter(q => q.status === 'active').map(q => q.title).join(', ')}` : ''}
+${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
 
 ${charBlock(c1, 'CHARACTER 1')}
 
@@ -1409,6 +1421,11 @@ DICE ROLLS & COMBAT APPLY HERE TOO - same as solo play:
 - Follow PICKPOCKETING & THEFT RULES, CO-OP DIVERSION & TEAMWORK THEFT, and MULTI-ENEMY COMBAT RULES exactly as written for solo play.
 - HIGH STAKES DETECTION applies here too: follow the HIGH STAKES DETECTION - MANDATORY TRIGGERS rules. When isHighStakes: true, generate 2-3 choiceCards that frame the decision for BOTH characters together (the choice the party makes as a unit), and set suggestedActions: [].
 - Boss fights apply here too: follow the MULTI-ENEMY COMBAT RULES boss-fight guidance - set isBossFight: true on combat start, and bossPhaseAdvance: true with a dramatic transformation when a boss reaches "critical".
+- Achievements apply here too: follow ACHIEVEMENT RULES - award achievementUnlocked occasionally for memorable moments by either character.
+
+COMBO MOVES:
+- If the two submitted actions are clearly coordinated and complementary (one distracts while the other strikes/steals, one creates an opening the other exploits, one buffs/heals while the other attacks, pincer/flanking, etc.), set comboBonus: true and narrate the synergy paying off with a tangible extra benefit (bonus damage, extra loot, an easier roll, avoided harm).
+- If the actions are unrelated or work against each other, set comboBonus: false. Don't force combos that don't fit.
 
 OPTIONAL SUGGESTIONS:
 - suggestedActions are optional nudges, not required choices.
@@ -1431,6 +1448,8 @@ Respond with JSON:
   "advanceAct": boolean,
   "isHighStakes": boolean,
   "choiceCards": [{"title": "string", "description": "string", "consequenceHint": "string"}] | null,
+  "achievementUnlocked": {"title": "string", "description": "string"} | null,
+  "comboBonus": boolean,
   "sceneMomentum": "advancing" | "stalling" | "transitioning",
   "pacingMode": "exploration" | "tension" | "climax" | "resolution",
   "scenePurpose": "explore" | "gather_info" | "combat" | "social" | "travel" | "rest" | "climax",

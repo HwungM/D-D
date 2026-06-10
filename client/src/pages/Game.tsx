@@ -23,6 +23,7 @@ import CombatPanel from '../components/CombatPanel'
 import EpilogueScreen from '../components/EpilogueScreen'
 import ShopModal from '../components/ShopModal'
 import ActTransition from '../components/ActTransition'
+import AchievementToast from '../components/AchievementToast'
 import HighStakesChoice from '../components/HighStakesChoice'
 import SidebarErrorBoundary from '../components/SidebarErrorBoundary'
 import DiceRollModal from '../components/DiceRollModal'
@@ -115,6 +116,7 @@ export default function Game() {
   const [shopItems, setShopItems] = useState<ShopItem[]>([])
   const [showShop, setShowShop] = useState(false)
   const [showActTransition, setShowActTransition] = useState(false)
+  const [achievementToast, setAchievementToast] = useState<{ title: string; description: string } | null>(null)
   const [nextAct, setNextAct] = useState(1)
   const [recentNarrations, setRecentNarrations] = useState<string[]>([])
   const [showHighStakes, setShowHighStakes] = useState(false)
@@ -576,6 +578,10 @@ export default function Game() {
       if (result.advanceAct) {
         setNextAct(prev => prev + 1)
         setTimeout(() => setShowActTransition(true), 600)
+      }
+      if (result.achievementUnlocked) {
+        audioManager.playLevelUp()
+        setAchievementToast(result.achievementUnlocked)
       }
 
       // Epilogue - triggered when endgameResolved fires
@@ -1293,6 +1299,13 @@ export default function Game() {
       )}
       {showActTransition && (
         <ActTransition actNumber={nextAct} onComplete={() => setShowActTransition(false)} />
+      )}
+      {achievementToast && (
+        <AchievementToast
+          title={achievementToast.title}
+          description={achievementToast.description}
+          onComplete={() => setAchievementToast(null)}
+        />
       )}
       {showDiceModal && diceModalData && currentCharacter && (
         <DiceRollModal
