@@ -19,6 +19,29 @@ function applyFactionRepChange(existing: Record<string, number> | undefined, cha
   const current = existing?.[change.faction] || 0;
   return { ...existing, [change.faction]: Math.max(-100, Math.min(100, current + change.delta)) };
 }
+
+// Resolve which inventory items were consumed: prefer AI's explicit list, fall back to narration regex
+function resolveConsumedItems(character: { inventory?: { name: string; type: string }[] }, explicit: string[] | undefined, narration: string | undefined): string[] {
+  if (explicit && explicit.length > 0) {
+    return explicit.filter((name: string) =>
+      (character.inventory || []).some((i: { name: string }) => i.name.toLowerCase() === name.toLowerCase())
+    );
+  }
+  const consumed: string[] = [];
+  if (!narration) return consumed;
+  const consumableNames = (character.inventory || [])
+    .filter((i: { type: string }) => i.type === 'potion' || i.type === 'misc')
+    .map((i: { name: string }) => i.name);
+  for (const itemName of consumableNames) {
+    const escaped = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const usePattern = new RegExp(`\\b(drink|drinks|drank|use|uses|used|consume|consumes|consumed|quaff|quaffs|quaffed)\\b.{0,30}\\b${escaped}\\b`, 'i');
+    const gonePattern = new RegExp(`\\b${escaped}\\b.{0,30}\\b(is consumed|is used|disappears|shatters|crumbles|is gone)\\b`, 'i');
+    if (usePattern.test(narration) || gonePattern.test(narration)) {
+      consumed.push(itemName);
+    }
+  }
+  return consumed;
+}
 import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
 
 // Safe array coercion — (value || []) only guards against null/undefined, but the AI
@@ -1133,26 +1156,7 @@ export async function processAction(
   };
 
   // Consumed items: prefer AI's explicit list, fall back to narration regex
-  let consumedItems: string[] = [];
-  if (aiResponse.consumedItems && aiResponse.consumedItems.length > 0) {
-    // AI explicitly named what was consumed â€” most reliable
-    consumedItems = aiResponse.consumedItems.filter((name: string) =>
-      (character.inventory || []).some((i: { name: string }) => i.name.toLowerCase() === name.toLowerCase())
-    );
-  } else if (aiResponse.narration) {
-    // Fallback: scan narration for consumption verbs
-    const consumableNames = (character.inventory || [])
-      .filter((i: { type: string }) => i.type === 'potion' || i.type === 'misc')
-      .map((i: { name: string }) => i.name);
-    for (const itemName of consumableNames) {
-      const escaped = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const usePattern = new RegExp(`\\b(drink|drinks|drank|use|uses|used|consume|consumes|consumed|quaff|quaffs|quaffed)\\b.{0,30}\\b${escaped}\\b`, 'i');
-      const gonePattern = new RegExp(`\\b${escaped}\\b.{0,30}\\b(is consumed|is used|disappears|shatters|crumbles|is gone)\\b`, 'i');
-      if (usePattern.test(aiResponse.narration) || gonePattern.test(aiResponse.narration)) {
-        consumedItems.push(itemName);
-      }
-    }
-  }
+  const consumedItems = resolveConsumedItems(character, aiResponse.consumedItems, aiResponse.narration);
 
   // Apply consequences
   const prevLevel = (character as Character).level;
@@ -1631,6 +1635,9 @@ export async function processCoopAction(
       : {}),
   };
 
+  const char1ConsumedItems = resolveConsumedItems(characters[0], aiResponse.character1Changes?.consumedItems, aiResponse.narration);
+  const char2ConsumedItems = resolveConsumedItems(characters[1], aiResponse.character2Changes?.consumedItems, aiResponse.narration);
+
   // Apply consequences to Character 1
   const char1Result = await applyConsequences(
     pendingActions[0].characterId,
@@ -1641,6 +1648,12 @@ export async function processCoopAction(
       loot: aiResponse.character1Changes?.loot ?? undefined,
       statusEffectChanges: aiResponse.character1Changes?.statusEffectChanges ?? undefined,
       sessionNote: aiResponse.sessionNote,
+      goldChange: aiResponse.character1Changes?.goldChange,
+      isDeath: aiResponse.character1Changes?.isDeath,
+      deathDescription: aiResponse.character1Changes?.deathDescription,
+      isRest: aiResponse.character1Changes?.isRest,
+      abilityUsed: aiResponse.character1Changes?.abilityUsed,
+      consumedItems: char1ConsumedItems.length > 0 ? char1ConsumedItems : undefined,
     },
     characters[0],
     { id: campaignId, world_state: ws, act: campaign.act, world_bible: wb }
@@ -1654,6 +1667,14 @@ export async function processCoopAction(
       hpChange: aiResponse.character2Changes?.hpChange ?? undefined,
       loot: aiResponse.character2Changes?.loot ?? undefined,
       statusEffectChanges: aiResponse.character2Changes?.statusEffectChanges ?? undefined,
+      goldChange: aiResponse.character2Changes?.goldChange,
+      isDeath: aiResponse.character2Changes?.isDeath,
+      deathDescription: aiResponse.character2Changes?.deathDescription,
+      isRest: aiResponse.character2Changes?.isRest,
+      abilityUsed: aiResponse.character2Changes?.abilityUsed,
+      consumedItems: char2ConsumedItems.length > 0 ? char2ConsumedItems : undefined,
+      characterHistoryNote: aiResponse.characterHistoryNote as CharacterHistoryEntry | undefined,
+      antagonistUpdate: aiResponse.antagonistUpdate,
     },
     characters[1],
     { id: campaignId, world_state: char1Result.updatedWorldState, act: campaign.act, world_bible: wb }

@@ -528,7 +528,8 @@ CO-OP NARRATION RULES (only applies when two characters act simultaneously):
 - Both characters are present in the same scene. Address each by name.
 - Weave their actions together - one's action creates opportunity or complication for the other.
 - Make them feel like a team. Their combined effort should be more interesting than either alone.
-- Apply mechanical changes independently: use character1Changes for Character 1, character2Changes for Character 2.
+- Apply mechanical changes independently: use character1Changes for Character 1, character2Changes for Character 2. This includes hpChange, loot, statusEffectChanges, goldChange, isDeath/deathDescription, isRest, abilityUsed, and consumedItems - each applies ONLY to the named character. Follow ITEM RULES, ABILITY SYSTEM RULES, and FAILURE/death handling exactly as in solo play, just attributed per-character.
+- characterHistoryNote and antagonistUpdate are shared/global (not per-character) - set them at the top level same as solo.
 - Write as if you are a DM running a real table with two players side by side.
 - Narration length: 200-300 words to give both characters adequate presence.
 - If the players' actions describe a coordinated plan (one distracts, one acts; one covers, one advances), follow CO-OP DIVERSION & TEAMWORK THEFT rules where applicable.
@@ -712,8 +713,8 @@ export type NarrationResult = {
   consumedItems?: string[];
   directorBeatExecuted?: boolean;
   spotlightCharacterId?: string;
-  character1Changes?: { hpChange?: number; loot?: NarrationResult['loot']; statusEffectChanges?: NarrationResult['statusEffectChanges'] };
-  character2Changes?: { hpChange?: number; loot?: NarrationResult['loot']; statusEffectChanges?: NarrationResult['statusEffectChanges'] };
+  character1Changes?: { hpChange?: number; loot?: NarrationResult['loot']; statusEffectChanges?: NarrationResult['statusEffectChanges']; goldChange?: number; isDeath?: boolean; deathDescription?: string; isRest?: boolean; abilityUsed?: string; consumedItems?: string[] };
+  character2Changes?: { hpChange?: number; loot?: NarrationResult['loot']; statusEffectChanges?: NarrationResult['statusEffectChanges']; goldChange?: number; isDeath?: boolean; deathDescription?: string; isRest?: boolean; abilityUsed?: string; consumedItems?: string[] };
   actingCharacterId?: string;
 };
 
@@ -1596,15 +1597,30 @@ Respond with JSON:
     "modifier": number
   } | null,
   "sessionNote": "string | null",
+  "spotlightCharacterId": "characterId being spotlighted this turn, or null",
+  "characterHistoryNote": {"type": "string", "description": "string", "impact": "string"} | null,
+  "antagonistUpdate": {"name": "string", "newStep": "string|null", "lastAction": "string|null", "nowKnowsPlayers": boolean} | null,
   "character1Changes": {
     "hpChange": number | null,
     "loot": [{"id": "uid", "name": "string", "description": "string", "quantity": 1, "type": "weapon|armor|potion|misc|key", "value": 10, "setName": "string|null", "setBonus": "string|null"}] | null,
-    "statusEffectChanges": {"add": [], "remove": []} | null
+    "statusEffectChanges": {"add": [], "remove": []} | null,
+    "goldChange": number | null,
+    "isDeath": boolean,
+    "deathDescription": "string | null",
+    "isRest": boolean,
+    "abilityUsed": "string | null",
+    "consumedItems": ["string"] | null
   },
   "character2Changes": {
     "hpChange": number | null,
     "loot": [{"id": "uid", "name": "string", "description": "string", "quantity": 1, "type": "weapon|armor|potion|misc|key", "value": 10, "setName": "string|null", "setBonus": "string|null"}] | null,
-    "statusEffectChanges": {"add": [], "remove": []} | null
+    "statusEffectChanges": {"add": [], "remove": []} | null,
+    "goldChange": number | null,
+    "isDeath": boolean,
+    "deathDescription": "string | null",
+    "isRest": boolean,
+    "abilityUsed": "string | null",
+    "consumedItems": ["string"] | null
   }
 }`;
 
