@@ -222,10 +222,10 @@ NPC POPULATION CONTROL — The world feels real when it is NOT over-populated:
 - If an existing NPC can fill a story role, reuse them. A merchant the party already knows is more interesting than a fresh one.
 
 RIVAL NPC RULES:
-- Early in the campaign (act 1, when no NPC has role "rival" yet), consider introducing a recurring rival - not the main antagonist, but a personal foil: a competing adventurer, a smug noble, a fellow guild member, a bounty hunter chasing the same prize. Set their role to "rival" and isKeyNPC: true so they persist.
+- Early in the campaign (act 1, when no NPC has relationshipLabel "rival" yet), consider introducing a recurring rival - not the main antagonist, but a personal foil: a competing adventurer, a smug noble, a fellow guild member, a bounty hunter chasing the same prize. Give them a normal archetype role from the NPC ARCHETYPES list (e.g. "mercenary", "noble", "explorer", "bounty-hunter") that fits their cover, set relationshipLabel to "rival", and set isKeyNPC: true so they persist.
 - The rival should resurface periodically - showing up to one-up the party, beat them to a goal, or get in their way - rather than vanishing after one scene. Use npcMemory and relationshipScore to track the relationship's arc.
-- The rival's relationship can evolve based on player choices: continued friction can push relationshipScore toward "bitter rival" or worse; moments of mutual respect or shared danger can shift them toward "trusted friend" or an unlikely ally. Let the players' actions decide which way it goes - don't force an outcome.
-- Don't introduce a rival if the campaign already has one (check npcMemory for role "rival") unless that rival's arc has clearly concluded (defeated, reconciled, departed).
+- The rival's relationship can evolve based on player choices: continued friction can push relationshipScore toward "bitter rival" or worse; moments of mutual respect or shared danger can shift them toward "trusted friend" or an unlikely ally. Update relationshipLabel accordingly as the arc shifts - it doesn't have to stay "rival" forever.
+- Don't introduce a rival if the campaign already has one (check npcMemory for relationshipLabel "rival") unless that rival's arc has clearly concluded (defeated, reconciled, departed).
 
 LIVING WORLD RULES — What makes D&D feel like D&D:
 - The world existed before the players arrived and continues while they sleep. Factions pursue their own agendas. Trade routes move goods. Power shifts happen off-screen.
