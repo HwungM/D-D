@@ -1611,10 +1611,67 @@ export async function processCoopAction(
     currentBalance[aiResponse.spotlightCharacterId] = (currentBalance[aiResponse.spotlightCharacterId] || 0) + 1;
   }
 
+  // Update combat state
+  let combatState = ws.combatState ?? null;
+  if (aiResponse.isCombat && aiResponse.enemyName) {
+    if (!combatState?.inCombat) {
+      const initialEnemies: import('../../../shared/types').CombatEnemy[] = aiResponse.combatEnemies
+        ? aiResponse.combatEnemies
+        : [{ name: aiResponse.enemyName, archetype: 'soldier', maxHp: 30, condition: 'healthy' }];
+      const primaryName = initialEnemies[0]?.name || aiResponse.enemyName;
+      combatState = {
+        inCombat: true,
+        enemyName: primaryName,
+        enemyCondition: 'healthy',
+        roundNumber: 1,
+        playerActionsAttempted: pendingActions.map(pa => pa.action),
+        enemies: initialEnemies,
+        isBossFight: aiResponse.isBossFight || false,
+        bossPhase: aiResponse.isBossFight ? 1 : undefined,
+      };
+    } else {
+      const rounds = combatState.roundNumber + 1;
+      const totalDamageDealt = (combatState as unknown as Record<string, number>).totalDamageDealt || 0;
+      const newDamage = (aiResponse.character1Changes?.hpChange && aiResponse.character1Changes.hpChange < 0 ? Math.abs(aiResponse.character1Changes.hpChange) : 0)
+        + (aiResponse.character2Changes?.hpChange && aiResponse.character2Changes.hpChange < 0 ? Math.abs(aiResponse.character2Changes.hpChange) : 0);
+      const cumulativeDamage = totalDamageDealt + newDamage;
+      const enemyCondition: 'healthy' | 'wounded' | 'critical' = cumulativeDamage >= 30
+        ? 'critical' : cumulativeDamage >= 15
+        ? 'wounded' : rounds <= 3
+        ? 'healthy' : rounds <= 6
+        ? 'wounded' : 'critical';
+
+      let enemies = combatState.enemies || [];
+      if (aiResponse.combatEnemies && aiResponse.combatEnemies.length > 0) {
+        enemies = aiResponse.combatEnemies;
+        const firstLiving = enemies.find(e => !e.isDefeated);
+        if (firstLiving) (combatState as Record<string, unknown>).enemyName = firstLiving.name;
+      } else if (aiResponse.enemyDefeated) {
+        enemies = enemies.map(e => e.name === aiResponse.enemyDefeated ? { ...e, isDefeated: true, condition: 'critical' as const } : e);
+      } else {
+        enemies = enemies.map(e => e.name === combatState!.enemyName ? { ...e, condition: enemyCondition } : e);
+      }
+
+      const activeCombatState = combatState!;
+      combatState = {
+        ...activeCombatState,
+        roundNumber: rounds,
+        enemyCondition,
+        enemies,
+        playerActionsAttempted: [...(activeCombatState.playerActionsAttempted || []).slice(-8), ...pendingActions.map(pa => pa.action)],
+        totalDamageDealt: cumulativeDamage,
+        bossPhase: aiResponse.bossPhaseAdvance ? (activeCombatState.bossPhase || 1) + 1 : activeCombatState.bossPhase,
+      } as NonNullable<WorldState['combatState']> & { totalDamageDealt?: number };
+    }
+  } else if (aiResponse.isVictory || (!aiResponse.isCombat && combatState?.inCombat)) {
+    combatState = null;
+  }
+
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
     actionCount: newActionCount,
     actionsInCurrentAct: newActionsInCurrentAct,
+    combatState,
     characterLastSeen: {
       ...(ws.characterLastSeen || {}),
       ...Object.fromEntries(pendingActions.map(pa => [pa.characterId, new Date().toISOString()])),
@@ -1715,6 +1772,11 @@ export async function processCoopAction(
   const updatedChar1 = char1Result.updatedCharacter;
   const updatedChar2 = char2Result.updatedCharacter;
 
+  const char1LevelUp = updatedChar1.level > characters[0].level;
+  const char2LevelUp = updatedChar2.level > characters[1].level;
+  const grantedAbility1 = char1LevelUp ? getAbilityForLevel(characters[0].class, updatedChar1.level) ?? undefined : undefined;
+  const grantedAbility2 = char2LevelUp ? getAbilityForLevel(characters[1].class, updatedChar2.level) ?? undefined : undefined;
+
   return {
     narration: aiResponse.narration,
     worldStateChanges: char2Result.updatedWorldState,
@@ -1728,7 +1790,8 @@ export async function processCoopAction(
     },
     sceneImagePrompt: aiResponse.sceneImagePrompt,
     suggestedActions: aiResponse.suggestedActions,
-    isLevelUp: false,
+    isLevelUp: char1LevelUp,
+    newAbility: grantedAbility1,
     isDeath: false,
     isCombat: aiResponse.isCombat,
     isVictory: aiResponse.isVictory,
@@ -1748,6 +1811,8 @@ export async function processCoopAction(
       hp: updatedChar2.hp,
       gold: updatedChar2.gold,
       inventory: updatedChar2.inventory,
+      isLevelUp: char2LevelUp,
+      newAbility: grantedAbility2,
     },
   };
 }

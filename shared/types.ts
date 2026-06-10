@@ -444,7 +444,7 @@ export interface ActionResult {
   characterHistoryNote?: CharacterHistoryEntry;
   antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
   actingCharacterId?: string;
-  character2Changes?: { hp?: number; gold?: number; inventory?: unknown };
+  character2Changes?: { hp?: number; gold?: number; inventory?: unknown; isLevelUp?: boolean; newAbility?: Ability };
   achievementUnlocked?: { title: string; description: string };
   comboBonus?: boolean;
   newRecipe?: Recipe;
