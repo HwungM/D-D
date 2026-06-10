@@ -449,7 +449,7 @@ export async function applyConsequences(
     xpGained?: number;
     hpChange?: number;
     goldChange?: number;
-    loot?: { id: string; name: string; description: string; quantity: number; type: string; value?: number }[];
+    loot?: { id: string; name: string; description: string; quantity: number; type: string; value?: number; setName?: string; setBonus?: string }[];
     diceResult?: DiceRollResult;
     diceDC?: number;
     statusEffectChanges?: { add?: { name: string; description: string; type: string; duration?: number }[]; remove?: string[] };
@@ -499,6 +499,8 @@ export async function applyConsequences(
         quantity: Math.max(1, Math.round(item.quantity || 1)),
         type: (validItemTypes.has(item.type) ? item.type : 'misc') as 'weapon' | 'armor' | 'potion' | 'misc' | 'key',
         value: typeof item.value === 'number' && !isNaN(item.value) ? item.value : undefined,
+        setName: (item as { setName?: string }).setName,
+        setBonus: (item as { setBonus?: string }).setBonus,
       }));
     // Stack items with same name
     const merged = [...existingInventory];

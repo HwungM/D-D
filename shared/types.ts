@@ -81,6 +81,8 @@ export interface InventoryItem {
   value?: number;
   equipped?: boolean;
   slot?: 'mainhand' | 'offhand' | 'armor' | 'helmet' | 'cloak' | 'accessory';
+  setName?: string;
+  setBonus?: string;
 }
 
 export interface Character {

@@ -123,6 +123,17 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
   const keyItems = sortedInventory.filter(item => item.type === 'key').length
   const carriedValue = sortedInventory.reduce((sum, item) => sum + ((item.value || 0) * Math.max(1, item.quantity || 1)), 0)
 
+  const activeSetBonuses = useMemo(() => {
+    const groups = new Map<string, { setName: string; setBonus: string; count: number }>()
+    for (const item of character.inventory) {
+      if (!item.equipped || !item.setName) continue
+      const existing = groups.get(item.setName)
+      if (existing) existing.count += 1
+      else groups.set(item.setName, { setName: item.setName, setBonus: item.setBonus || '', count: 1 })
+    }
+    return Array.from(groups.values()).filter(g => g.count >= 2)
+  }, [character.inventory])
+
   return (
     <div className="h-full overflow-y-auto text-sm text-parchment-100" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.36) transparent' }}>
       <div className="relative border-b border-white/8">
@@ -271,6 +282,21 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
           </div>
         </section>
 
+        {activeSetBonuses.length > 0 && (
+          <section>
+            <SectionTitle title="Set Bonuses" />
+            <div className="space-y-2">
+              {activeSetBonuses.map(set => (
+                <article key={set.setName} className="border border-violet-200/16 bg-violet-300/[0.04] p-3">
+                  <p className="font-fantasy text-sm text-violet-100">{set.setName}</p>
+                  <p className="mt-1 font-serif text-xs text-parchment-200/70">{set.setBonus}</p>
+                  <p className="mt-1.5 font-fantasy text-[9px] uppercase tracking-[0.14em] text-violet-100/50">{set.count} pieces equipped</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section>
           <button type="button" onClick={() => setInventoryOpen(v => !v)} className="w-full text-left">
             <SectionTitle title="Inventory" right={inventoryOpen ? 'Hide' : `${character.inventory.length} items / ${keyItems} key`} />
@@ -300,6 +326,11 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
                               {TYPE_STYLE[selectedItem.type].label}
                               {selectedItem.quantity > 1 ? ` / x${selectedItem.quantity}` : ''}
                             </p>
+                            {selectedItem.setName && (
+                              <p className="mt-1 font-fantasy text-[9px] uppercase tracking-[0.16em] text-violet-100/70">
+                                {selectedItem.setName} Set{selectedItem.setBonus ? ` — ${selectedItem.setBonus}` : ''}
+                              </p>
+                            )}
                           </div>
                           {selectedItem.value != null && (
                             <span className="border border-amber-200/18 bg-black/22 px-2 py-1 font-serif text-xs text-amber-100/72">{selectedItem.value} gp</span>

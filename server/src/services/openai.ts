@@ -287,6 +287,11 @@ OPTIONAL SUGGESTION RULES:
 CHARACTER HISTORY RULES:
 - Set characterHistoryNote when the player makes a significant choice that should echo forward: sparing/killing someone important, making an oath, gaining a powerful enemy, doing something morally significant.
 
+EQUIPMENT SET RULES:
+- Occasionally, when granting weapon/armor loot that fits a thematic pair or trio (e.g. matching armor pieces from the same forge, a blade and shield bearing the same sigil, robes of a specific order), set setName to a short evocative set name shared across those pieces, and setBonus to a one-sentence description of the bonus granted when 2+ pieces of that set are equipped together.
+- Don't force this - most loot has no set. Reserve sets for special, memorable finds (boss drops, vault rewards, crafted gear).
+- If the player already has one piece of a set (visible in their inventory) and the moment calls for it, you may grant a matching second piece later for a satisfying payoff.
+
 CRAFTING RULES:
 - The player may attempt to craft an item using materials from their inventory (e.g. "craft a healing salve using moonpetal and vial"). If they have a known recipe (listed in knownRecipes) and the required materials in inventory, resolve it: set consumedItems to the exact material names consumed, and add the resulting item via loot.
 - If they don't have a matching recipe but the attempt is plausible given their materials and the world's lore, you may still allow an improvised craft: consume the materials via consumedItems and grant a sensible result via loot.
@@ -522,7 +527,7 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "isCombat": boolean,
   "isVictory": boolean,
   "enemyName": "string | null",
-  "loot": [{"id": "unique-id", "name": "item name", "description": "one sentence", "quantity": 1, "type": "weapon|armor|potion|misc|key", "value": 10}] | null,
+  "loot": [{"id": "unique-id", "name": "item name", "description": "one sentence", "quantity": 1, "type": "weapon|armor|potion|misc|key", "value": 10, "setName": "string|null - set this item belongs to, if any", "setBonus": "string|null - bonus granted when 2+ items of this set are equipped"}] | null,
   "goldChange": number | null,
   "hpChange": number | null,
   "isMerchant": boolean,
@@ -1094,6 +1099,8 @@ function cleanLoot(value: unknown): NarrationResult['loot'] | undefined {
         quantity: clampNumber(item.quantity, 1, 99) || 1,
         type: validTypes.has(type || '') ? type! : 'misc',
         value: clampNumber(item.value, 0, 10000),
+        setName: asString(item.setName),
+        setBonus: asString(item.setBonus),
       };
     })
     .filter((item): item is NonNullable<typeof item> => !!item)
@@ -1530,12 +1537,12 @@ Respond with JSON:
   "sessionNote": "string | null",
   "character1Changes": {
     "hpChange": number | null,
-    "loot": [{"id": "uid", "name": "string", "description": "string", "quantity": 1, "type": "weapon|armor|potion|misc|key", "value": 10}] | null,
+    "loot": [{"id": "uid", "name": "string", "description": "string", "quantity": 1, "type": "weapon|armor|potion|misc|key", "value": 10, "setName": "string|null", "setBonus": "string|null"}] | null,
     "statusEffectChanges": {"add": [], "remove": []} | null
   },
   "character2Changes": {
     "hpChange": number | null,
-    "loot": [{"id": "uid", "name": "string", "description": "string", "quantity": 1, "type": "weapon|armor|potion|misc|key", "value": 10}] | null,
+    "loot": [{"id": "uid", "name": "string", "description": "string", "quantity": 1, "type": "weapon|armor|potion|misc|key", "value": 10, "setName": "string|null", "setBonus": "string|null"}] | null,
     "statusEffectChanges": {"add": [], "remove": []} | null
   }
 }`;
