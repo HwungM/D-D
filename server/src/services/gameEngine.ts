@@ -1670,6 +1670,12 @@ export async function processCoopAction(
     loot: (aiResponse.character1Changes?.loot || aiResponse.loot) as ActionResult['loot'],
     isHighStakes: aiResponse.isHighStakes,
     choiceCards: aiResponse.choiceCards,
+    advanceAct: aiResponse.advanceAct,
+    isBossFight: aiResponse.isBossFight,
+    bossPhaseAdvance: aiResponse.bossPhaseAdvance,
+    combatEnemies: aiResponse.combatEnemies,
+    enemyDefeated: aiResponse.enemyDefeated,
+    statusEffectChanges: aiResponse.character1Changes?.statusEffectChanges as ActionResult['statusEffectChanges'],
     character2Changes: {
       hp: updatedChar2.hp,
       gold: updatedChar2.gold,

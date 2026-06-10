@@ -1407,6 +1407,8 @@ DICE ROLLS & COMBAT APPLY HERE TOO - same as solo play:
 - If either character's action requires a skill check (including pickpocketing/theft - this ALWAYS requires a roll), set awaitingRoll: true, populate rollContext, and set actingCharacterId to whichever character (id) is making that roll. Write a tense setup narration that builds to the roll without resolving it - DO NOT resolve either character's action's outcome in this case.
 - If the players provoke or engage a hostile creature, do not narrate combat away - set isCombat: true, isHighStakes appropriately, and populate combatEnemies[] with real stats so the fight actually starts.
 - Follow PICKPOCKETING & THEFT RULES, CO-OP DIVERSION & TEAMWORK THEFT, and MULTI-ENEMY COMBAT RULES exactly as written for solo play.
+- HIGH STAKES DETECTION applies here too: follow the HIGH STAKES DETECTION - MANDATORY TRIGGERS rules. When isHighStakes: true, generate 2-3 choiceCards that frame the decision for BOTH characters together (the choice the party makes as a unit), and set suggestedActions: [].
+- Boss fights apply here too: follow the MULTI-ENEMY COMBAT RULES boss-fight guidance - set isBossFight: true on combat start, and bossPhaseAdvance: true with a dramatic transformation when a boss reaches "critical".
 
 OPTIONAL SUGGESTIONS:
 - suggestedActions are optional nudges, not required choices.
@@ -1428,12 +1430,14 @@ Respond with JSON:
   "enemyName": "string | null",
   "advanceAct": boolean,
   "isHighStakes": boolean,
-  "choiceCards": null,
+  "choiceCards": [{"title": "string", "description": "string", "consequenceHint": "string"}] | null,
   "sceneMomentum": "advancing" | "stalling" | "transitioning",
   "pacingMode": "exploration" | "tension" | "climax" | "resolution",
   "scenePurpose": "explore" | "gather_info" | "combat" | "social" | "travel" | "rest" | "climax",
   "combatEnemies": [{"name": "string", "archetype": "beast|soldier|mage|boss|minion", "maxHp": number, "condition": "healthy|wounded|critical", "isDefeated": boolean, "specialAbility": "string|null"}] | null,
   "enemyDefeated": "enemy name if one died this round" | null,
+  "isBossFight": boolean,
+  "bossPhaseAdvance": boolean,
   "awaitingRoll": boolean,
   "actingCharacterId": "id of the character making the roll, required if awaitingRoll is true, else null",
   "rollContext": {
