@@ -298,6 +298,14 @@ ACHIEVEMENT RULES:
 - When you do, set achievementUnlocked to a short punchy title (3-5 words, e.g. "First Blood", "Silver Tongue", "Cheated Death") plus a one-sentence description of what earned it. Otherwise leave it null.
 - Never repeat an achievement title already listed in unlockedAchievements (provided in context).
 
+WEATHER & TIME OF DAY RULES:
+- Treat timeOfDay and weather as real mechanical and narrative factors, not decoration.
+- Night (dusk/night): stealth/sneaking checks should be easier (lower DC or favorable framing), perception/spotting checks harder. Most shops, markets, and commoner NPCs are closed or unavailable; taverns, guards, and unsavory characters are more prominent. Combat encounters at night can be more dangerous (nocturnal predators, ambushes).
+- Day/dawn: shops and NPCs are active and available, travel is safer, social/commerce actions flow normally.
+- Rain/storm: tracking and ranged attacks are harder, fire-based abilities may be hampered, travel is slower, some areas may flood or become impassable. Fog/mist: perception and ranged checks harder, stealth easier.
+- Let time naturally advance (set timeOfDay) over the course of travel, rest, or many actions - don't leave it static for an entire session. Weather can shift periodically for variety and atmosphere.
+- When time or weather meaningfully changes the situation, mention it in the narration so players can adapt their plans.
+
 CAMPAIGN JOURNAL AWARENESS:
 - You have access to the full campaign journal. Reference past events naturally. NPCs remember. The world has changed.
 - If the journal mentions the player burned a village, villagers in new areas have heard. If they saved a lord, his allies are warmer.
@@ -1468,6 +1476,7 @@ DICE ROLLS & COMBAT APPLY HERE TOO - same as solo play:
 - HIGH STAKES DETECTION applies here too: follow the HIGH STAKES DETECTION - MANDATORY TRIGGERS rules. When isHighStakes: true, generate 2-3 choiceCards that frame the decision for BOTH characters together (the choice the party makes as a unit), and set suggestedActions: [].
 - Boss fights apply here too: follow the MULTI-ENEMY COMBAT RULES boss-fight guidance - set isBossFight: true on combat start, and bossPhaseAdvance: true with a dramatic transformation when a boss reaches "critical".
 - Achievements apply here too: follow ACHIEVEMENT RULES - award achievementUnlocked occasionally for memorable moments by either character.
+- WEATHER & TIME OF DAY RULES apply here too - factor timeOfDay/weather into difficulty, NPC availability, and pacing for both characters.
 
 COMBO MOVES:
 - If the two submitted actions are clearly coordinated and complementary (one distracts while the other strikes/steals, one creates an opening the other exploits, one buffs/heals while the other attacks, pincer/flanking, etc.), set comboBonus: true and narrate the synergy paying off with a tangible extra benefit (bonus damage, extra loot, an easier roll, avoided harm).
