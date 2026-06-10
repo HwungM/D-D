@@ -197,6 +197,7 @@ SHOP/MERCHANT RULES:
 - shopItems: array of {id, name, description, type, price, quantity} - 4-8 items appropriate to the setting.
 - IMPORTANT: A merchant's inventory does NOT change between visits. If the player has visited this merchant before (check npcMemory), use the SAME items they had before. Only generate new items for a brand new merchant never seen before.
 - The player can then choose to buy items (handled separately). Do not auto-deduct gold.
+- If the merchant belongs to a faction the party has standing with (provided in faction standings context), adjust prices accordingly: strongly favored (60+) gives noticeably discounted prices, favored (20+) gives modest discounts, hostile (-20 or below) gives markups, hated (-60 or below) may mean the merchant refuses to deal at all (don't set isMerchant in that case, narrate the refusal instead).
 
 NPC NAMING RULES:
 - Every NPC must have a proper name. NEVER refer to an NPC as "the merchant", "a guard", "an old woman", "the innkeeper", or any unnamed generic. Give them a name immediately upon introduction (e.g. "Varen, a grizzled merchant", "Sister Ileth, the gate guard").
