@@ -1598,8 +1598,28 @@ export async function processCoopAction(
     };
   }
 
-  const baseXpGained = Math.floor(Math.random() * 20) + 10;
-  const xpGained = aiResponse.comboBonus ? Math.floor(baseXpGained * 1.5) : baseXpGained;
+  // Handle auto-resolved dice roll if required
+  let diceResult: DiceRollResult | undefined;
+  let success = true;
+  if (aiResponse.diceRequired && aiResponse.diceType) {
+    const rollingCharacter = (aiResponse.actingCharacterId && characters.find(c => c.id === aiResponse.actingCharacterId)) || characters[0];
+    const sides = parseInt(aiResponse.diceType.replace('d', ''), 10) || 20;
+    const rollingAction = pendingActions.find(pa => pa.characterId === rollingCharacter.id)?.action || pendingActions[0].action;
+    const statKey = rollingAction.toLowerCase().includes('sneak') || rollingAction.toLowerCase().includes('hide') ? 'dex'
+      : rollingAction.toLowerCase().includes('know') || rollingAction.toLowerCase().includes('lore') ? 'int'
+      : rollingAction.toLowerCase().includes('persuad') || rollingAction.toLowerCase().includes('charm') ? 'cha'
+      : rollingAction.toLowerCase().includes('percei') || rollingAction.toLowerCase().includes('notice') ? 'wis'
+      : rollingAction.toLowerCase().includes('lift') || rollingAction.toLowerCase().includes('attack') ? 'str'
+      : 'dex';
+
+    const modifier = getStatModifier(rollingCharacter.stats[statKey as keyof typeof rollingCharacter.stats] as number);
+    diceResult = rollDice(sides, modifier);
+    diceResult.description = aiResponse.diceDescription;
+    success = diceResult.total >= (aiResponse.diceDC ?? 12);
+  }
+
+  const baseXpGained = success ? (aiResponse.comboBonus ? Math.floor((Math.floor(Math.random() * 20) + 10) * 1.5) : Math.floor(Math.random() * 20) + 10) : 5;
+  const xpGained = baseXpGained;
 
   // Build world state changes (tracking both characters)
   const newActionCount = (ws.actionCount || 0) + 1;
@@ -1998,6 +2018,7 @@ export async function processCoopAction(
 
   return {
     narration: aiResponse.narration,
+    diceRoll: diceResult,
     worldStateChanges: char2Result.updatedWorldState,
     characterChanges: {
       hp: updatedChar1.hp,

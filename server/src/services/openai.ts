@@ -1540,6 +1540,7 @@ Write ONE unified narration (200-300 words) weaving both actions together. Apply
 
 DICE ROLLS & COMBAT APPLY HERE TOO - same as solo play:
 - If either character's action requires a skill check (including pickpocketing/theft - this ALWAYS requires a roll), set awaitingRoll: true, populate rollContext, and set actingCharacterId to whichever character (id) is making that roll. Write a tense setup narration that builds to the roll without resolving it - DO NOT resolve either character's action's outcome in this case.
+- For minor/incidental checks where you'd rather resolve the outcome immediately rather than pause for a player roll, set diceRequired: true with diceType/diceDC/diceDescription instead of awaitingRoll - the engine rolls for whichever character is acting (actingCharacterId, or Character 1 if ambiguous) and folds the result into this turn's narration.
 - If the players provoke or engage a hostile creature, do not narrate combat away - set isCombat: true, isHighStakes appropriately, and populate combatEnemies[] with real stats so the fight actually starts.
 - Follow PICKPOCKETING & THEFT RULES, CO-OP DIVERSION & TEAMWORK THEFT, and MULTI-ENEMY COMBAT RULES exactly as written for solo play.
 - HIGH STAKES DETECTION applies here too: follow the HIGH STAKES DETECTION - MANDATORY TRIGGERS rules. When isHighStakes: true, generate 2-3 choiceCards that frame the decision for BOTH characters together (the choice the party makes as a unit), and set suggestedActions: [].
@@ -1571,6 +1572,10 @@ Respond with JSON:
   "isCombat": boolean,
   "isVictory": boolean,
   "enemyName": "string | null",
+  "diceRequired": false,
+  "diceType": null,
+  "diceDC": null,
+  "diceDescription": null,
   "advanceAct": boolean,
   "isHighStakes": boolean,
   "choiceCards": [{"title": "string", "description": "string", "consequenceHint": "string"}] | null,
