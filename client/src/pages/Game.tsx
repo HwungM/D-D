@@ -1194,6 +1194,8 @@ export default function Game() {
                     }}
                     knownRecipes={worldState?.knownRecipes}
                     companion={worldState?.companion}
+                    achievementCount={worldState?.unlockedAchievements?.length}
+                    factionStandings={worldState?.factionStandings}
                     crafting={isLoading}
                     onCraft={(recipe) => {
                       const materials = recipe.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')
@@ -1246,6 +1248,8 @@ export default function Game() {
                     }}
                     knownRecipes={worldState?.knownRecipes}
                     companion={worldState?.companion}
+                    achievementCount={worldState?.unlockedAchievements?.length}
+                    factionStandings={worldState?.factionStandings}
                     crafting={isLoading}
                     onCraft={(recipe) => {
                       const materials = recipe.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')

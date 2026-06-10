@@ -96,7 +96,7 @@ function inferSlot(item: InventoryItem): InventoryItem['slot'] | null {
   return null
 }
 
-export default function CharacterSheet({ character, onEquipToggle, knownRecipes, onCraft, crafting, companion }: { character: Character; onEquipToggle?: (itemId: string, equipped: boolean) => void; knownRecipes?: Recipe[]; onCraft?: (recipe: Recipe) => void; crafting?: boolean; companion?: Companion | null }) {
+export default function CharacterSheet({ character, onEquipToggle, knownRecipes, onCraft, crafting, companion, achievementCount, factionStandings }: { character: Character; onEquipToggle?: (itemId: string, equipped: boolean) => void; knownRecipes?: Recipe[]; onCraft?: (recipe: Recipe) => void; crafting?: boolean; companion?: Companion | null; achievementCount?: number; factionStandings?: Record<string, number> }) {
   const [inventoryOpen, setInventoryOpen] = useState(true)
   const [craftingOpen, setCraftingOpen] = useState(true)
   const [abilitiesOpen, setAbilitiesOpen] = useState(true)
@@ -106,6 +106,18 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
     const id = item.id || item.name
     onEquipToggle?.(id, !item.equipped)
   }, [onEquipToggle])
+
+  const title = useMemo(() => {
+    const standings = Object.entries(factionStandings || {})
+    const best = standings.reduce((acc, [f, v]) => (v > acc.v ? { f, v } : acc), { f: '', v: -Infinity })
+    const worst = standings.reduce((acc, [f, v]) => (v < acc.v ? { f, v } : acc), { f: '', v: Infinity })
+    const parts: string[] = []
+    if (best.v >= 50) parts.push(`Friend of the ${best.f}`)
+    if (worst.v <= -50 && worst.f !== best.f) parts.push(`Feared by the ${worst.f}`)
+    if (parts.length === 0 && (achievementCount || 0) >= 5) parts.push('Renowned Adventurer')
+    if (parts.length === 0 && (achievementCount || 0) >= 1) parts.push('Adventurer')
+    return parts.join(', ')
+  }, [factionStandings, achievementCount])
 
   const hpPercent = Math.max(0, Math.min(100, (character.hp / character.max_hp) * 100))
   const hpColor = hpPercent > 60 ? '#22c55e' : hpPercent > 30 ? '#eab308' : '#ef4444'
@@ -150,6 +162,7 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
         <div className="absolute bottom-4 left-4 right-4">
           <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/64">Adventurer</p>
           <h3 className="mt-1 font-fantasy text-3xl text-parchment-100">{character.name}</h3>
+          {title && <p className="font-fantasy text-[10px] uppercase tracking-[0.18em] text-amber-300/65">{title}</p>}
           <p className="mt-1 font-serif text-sm text-amber-200/76">
             {character.race} {character.class}{character.subclass ? ` / ${character.subclass}` : ''} / Level {character.level}
           </p>

@@ -221,6 +221,12 @@ NPC POPULATION CONTROL — The world feels real when it is NOT over-populated:
 - One to two new named NPCs per act is usually correct. A single act shouldn't introduce more than four unless it is a major social event (a court, a festival, a ship's crew).
 - If an existing NPC can fill a story role, reuse them. A merchant the party already knows is more interesting than a fresh one.
 
+RIVAL NPC RULES:
+- Early in the campaign (act 1, when no NPC has role "rival" yet), consider introducing a recurring rival - not the main antagonist, but a personal foil: a competing adventurer, a smug noble, a fellow guild member, a bounty hunter chasing the same prize. Set their role to "rival" and isKeyNPC: true so they persist.
+- The rival should resurface periodically - showing up to one-up the party, beat them to a goal, or get in their way - rather than vanishing after one scene. Use npcMemory and relationshipScore to track the relationship's arc.
+- The rival's relationship can evolve based on player choices: continued friction can push relationshipScore toward "bitter rival" or worse; moments of mutual respect or shared danger can shift them toward "trusted friend" or an unlikely ally. Let the players' actions decide which way it goes - don't force an outcome.
+- Don't introduce a rival if the campaign already has one (check npcMemory for role "rival") unless that rival's arc has clearly concluded (defeated, reconciled, departed).
+
 LIVING WORLD RULES — What makes D&D feel like D&D:
 - The world existed before the players arrived and continues while they sleep. Factions pursue their own agendas. Trade routes move goods. Power shifts happen off-screen.
 - NPCs have lives outside of the party. A blacksmith has a backlog of orders. An innkeeper has a landlord breathing down her neck. A guard has a sick kid at home. Let these surface in small moments.
@@ -370,6 +376,7 @@ MULTI-ENEMY COMBAT RULES:
 - Each archetype fights differently: soldiers shield each other, mages hang back, minions rush in waves, beasts go for killing blows.
 - Boss fights: set isBossFight: true on combat start. When boss condition reaches "critical", set bossPhaseAdvance: true and describe a dramatic transformation - the boss gets more dangerous, not less.
 - Suggest actions that are class-appropriate and reference available abilities.
+- If the party has a companion (provided in context), let it act in combat: at bondLevel 1-2 it might distract an enemy or create a small opening (narrative only); at bondLevel 3-4 it can land minor hits or interpose to soak a hit (small hpChange, occasional minor heal/damage in the 1-3 range); at bondLevel 5 it can pull off a meaningful assist (a bigger hpChange, helping defeat a minion, or saving a character from a killing blow). Don't make the companion a second full combatant - it supports, it doesn't replace player agency.
 
 DICE ROLLING RULES:
 - When an action requires a skill check or attack, set awaitingRoll: true instead of narrating the outcome.
@@ -441,6 +448,7 @@ SAFE HAVEN RULES:
 - When characters rest or need a quiet moment, scenes at the safe haven are where relationships develop naturally.
 - The safe haven's key NPC should have a running personality - familiar, slightly odd, genuinely fond of the characters.
 - If the safe haven is ever threatened, players will feel it personally.
+- DOWNTIME ACTIVITIES: When the party is at the safe haven with no immediate pressure, offer concrete downtime options in suggestedActions instead of generic "rest" - e.g. "Train with [NPC] to hone your skills", "Spend time at the workbench experimenting with materials", "Run an errand for [faction] to build trust", "Catch up with [companion]". Resolve these using existing mechanics: training/rest can reset ability cooldowns (isRest: true), workbench time fits CRAFTING RULES, faction errands can resolve via factionRepChange, and companion time can raise bondLevel. Keep downtime brief (1-2 exchanges) unless the player wants to linger.
 
 TONAL CONTRAST RULES:
 - After 2+ consecutive tense/climax/combat scenes, you MUST inject a moment of lighter tone.
