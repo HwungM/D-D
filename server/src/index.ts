@@ -21,7 +21,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.some(o => origin.startsWith(o)) || origin.endsWith('.vercel.app')) {
+    if (!origin || allowedOrigins.some(o => origin.startsWith(o)) || origin.endsWith('.vercel.app') || origin.endsWith('.everrealm.app') || origin === 'https://everrealm.app') {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
