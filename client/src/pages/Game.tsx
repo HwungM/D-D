@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import SceneDisplay from '../components/SceneDisplay'
 import ActionPanel from '../components/ActionPanel'
 import CharacterSheet from '../components/CharacterSheet'
+import AchievementGallery from '../components/AchievementGallery'
 import NarratorBox, { pickNarratorPortrait } from '../components/NarratorBox'
 import DiceRoll from '../components/DiceRoll'
 import AudioControls from '../components/AudioControls'
@@ -92,7 +93,7 @@ export default function Game() {
   const [started, setStarted] = useState(false)
   const [showDice, setShowDice] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
-  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'map' | 'world' | 'people' | 'journal'>('character')
+  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'map' | 'world' | 'people' | 'journal' | 'achievements'>('character')
   const narratorRef = useRef<HTMLDivElement>(null)
   const historicalIds = useRef<Set<string>>(new Set())
   const coopWaitingRef = useRef(false)
@@ -799,7 +800,7 @@ export default function Game() {
     currentCharacter?.name,
     ...partyMembersHere.map(member => member.character?.name),
   ].filter(Boolean) as string[]
-  const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', map: 'Realm Map', world: 'World', people: 'People & Relations', journal: 'Journal' } as const
+  const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', map: 'Realm Map', world: 'World', people: 'People & Relations', journal: 'Journal', achievements: 'Achievements' } as const
   const sceneArtUrl = visibleSceneArt(currentSceneImage)
 
   // -- Main game layout ------------------------------------------------------
@@ -871,8 +872,8 @@ export default function Game() {
               Invite
             </button>
           )}
-          {(['character', 'quests', 'people', 'map', 'world', 'journal'] as const).map(tab => {
-            const labels = { character: 'Sheet', quests: 'Quests', map: 'Map', world: 'World', people: 'People', journal: 'Log' }
+          {(['character', 'quests', 'people', 'map', 'world', 'journal', 'achievements'] as const).map(tab => {
+            const labels = { character: 'Sheet', quests: 'Quests', map: 'Map', world: 'World', people: 'People', journal: 'Log', achievements: 'Awards' }
             const isActive = showSidebar && sidebarTab === tab
             return (
               <button
@@ -1204,6 +1205,7 @@ export default function Game() {
                 {sidebarTab === 'map' && <MapPanel worldState={worldState} />}
                 {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
                 {sidebarTab === 'journal' && <JournalPanel worldState={worldState} />}
+                {sidebarTab === 'achievements' && <AchievementGallery achievements={worldState?.unlockedAchievements} />}
               </SidebarErrorBoundary>
             </div>
           </aside>
@@ -1254,6 +1256,7 @@ export default function Game() {
                 {sidebarTab === 'map' && <MapPanel worldState={worldState} />}
                 {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
                 {sidebarTab === 'journal' && <JournalPanel worldState={worldState} />}
+                {sidebarTab === 'achievements' && <AchievementGallery achievements={worldState?.unlockedAchievements} />}
               </SidebarErrorBoundary>
             </div>
           </div>
