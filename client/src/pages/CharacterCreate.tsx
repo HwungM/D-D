@@ -803,11 +803,11 @@ export default function CharacterCreate() {
                       : { borderColor: 'rgba(255,255,255,0.12)' }
                     }
                   >
-                    <div className="relative h-32 bg-black overflow-hidden">
+                    <div className="relative h-44 bg-black overflow-hidden">
                       <img
                         src={imgUrl}
                         alt={race}
-                        className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110"
+                        className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-110"
                         onError={e => {
                           const img = e.target as HTMLImageElement
                           img.src = `/assets/races/${key}.png`
