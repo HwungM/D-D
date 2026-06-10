@@ -444,7 +444,23 @@ export interface ActionResult {
   characterHistoryNote?: CharacterHistoryEntry;
   antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
   actingCharacterId?: string;
-  character2Changes?: { hp?: number; gold?: number; inventory?: unknown; isLevelUp?: boolean; newAbility?: Ability };
+  character1Id?: string;
+  character2Id?: string;
+  deathDescription?: string;
+  character2Changes?: {
+    hp?: number;
+    gold?: number;
+    inventory?: unknown;
+    xp?: number;
+    level?: number;
+    status_effects?: StatusEffect[];
+    isLevelUp?: boolean;
+    newAbility?: Ability;
+    isDeath?: boolean;
+    deathDescription?: string;
+    loot?: InventoryItem[];
+    statusEffectChanges?: { add?: StatusEffect[]; remove?: string[] };
+  };
   achievementUnlocked?: { title: string; description: string };
   comboBonus?: boolean;
   newRecipe?: Recipe;

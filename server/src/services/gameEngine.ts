@@ -1,7 +1,7 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks, generateCoopNarration } from './openai';
 import OpenAI from 'openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe, InventoryItem } from '../../../shared/types';
 
 function appendAchievement(existing: UnlockedAchievement[] | undefined, achievement: { title: string; description: string }, characterName: string): UnlockedAchievement[] {
   const list = existing || [];
@@ -1548,12 +1548,48 @@ export async function processCoopAction(
   // Get recent history (use first character as reference)
   const recentHistory = await getRecentHistory(campaignId, pendingActions[0].characterId);
 
+  // Compute campaign context (mirrors processAction's solo logic)
+  const currentAct = campaign.act || 1;
+  const roadmap = wb.dmRoadmap;
+  const mustIntroduce = currentAct === 1 ? (roadmap?.act1MustIntroduce || []) : [];
+  const mustIntroduceStatus: Record<string, boolean> = {};
+  if (mustIntroduce.length > 0) {
+    const allNpcNamesLower = toArr<NpcMemory>(ws.npcMemory).map(n => n.name.toLowerCase());
+    const allLocationsLower = toArr<string>(ws.discoveredLocations).map(l => l.toLowerCase());
+    for (const item of mustIntroduce) {
+      const itemLower = item.toLowerCase();
+      mustIntroduceStatus[item] =
+        allNpcNamesLower.some(n => itemLower.includes(n) || n.includes(itemLower.split(' ')[0])) ||
+        allLocationsLower.some(l => itemLower.includes(l) || l.includes(itemLower.split(' ')[0]));
+    }
+  }
+
+  const campaignContext = {
+    journal: ws.campaignJournal || [],
+    characterHistory: ws.characterHistory || [],
+    antagonists: wb.antagonistRoster || (wb.primaryAntagonist ? [wb.primaryAntagonist] : []),
+    centralConflict: wb.centralConflict || '',
+    act: currentAct,
+    sessionCount: ws.sessionCount || 1,
+    roadmap,
+    foreshadowingLedger: ws.foreshadowingLedger,
+    backstoryHooks: ws.backstoryHooks,
+    actGoalsAchieved: ws.actGoalsAchieved,
+    forceComplication: (ws.sceneState?.stalledCount ?? 0) >= 3,
+    actionsInCurrentAct: ws.actionsInCurrentAct || 0,
+    keyNPCs: ws.keyNPCs,
+    mustIntroduceStatus: mustIntroduce.length > 0 ? mustIntroduceStatus : undefined,
+    pendingDirectorBeat: ws.pendingDirectorBeat || null,
+    futureHooks: (ws.futureHooks || []).filter(h => !h.resolved).slice(-10),
+  };
+
   // Call generateCoopNarration
   const aiResponse = await generateCoopNarration(
     pendingActions.map((pa, i) => ({ character: characters[i], action: pa.action })),
     ws,
     wb,
-    recentHistory
+    recentHistory,
+    campaignContext
   );
 
   // If the AI wants a roll from one of the players, pause the turn for that roll
@@ -1869,7 +1905,12 @@ export async function processCoopAction(
     ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
     ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
     ...(endgamePhase !== ws.endgamePhase ? { endgamePhase } : {}),
-    pendingDirectorBeat: aiResponse.directorBeatExecuted ? null : ws.pendingDirectorBeat,
+    ...(aiResponse.isHighStakes ? { lastHighStakesAction: newActionCount } : {}),
+    pendingDirectorBeat: aiResponse.directorBeatExecuted
+      ? null
+      : (ws.pendingDirectorBeat && newActionCount <= ws.pendingDirectorBeat.expiresAfter
+          ? ws.pendingDirectorBeat
+          : null),
     actionCount: newActionCount,
     actionsInCurrentAct: newActionsInCurrentAct,
     combatState,
@@ -2020,6 +2061,8 @@ export async function processCoopAction(
     narration: aiResponse.narration,
     diceRoll: diceResult,
     worldStateChanges: char2Result.updatedWorldState,
+    character1Id: characters[0].id,
+    character2Id: characters[1].id,
     characterChanges: {
       hp: updatedChar1.hp,
       xp: updatedChar1.xp,
@@ -2032,7 +2075,8 @@ export async function processCoopAction(
     suggestedActions: aiResponse.suggestedActions,
     isLevelUp: char1LevelUp,
     newAbility: grantedAbility1,
-    isDeath: false,
+    isDeath: aiResponse.character1Changes?.isDeath ?? false,
+    deathDescription: aiResponse.character1Changes?.deathDescription,
     isCombat: aiResponse.isCombat,
     isVictory: aiResponse.isVictory,
     enemyName: aiResponse.enemyName,
@@ -2053,8 +2097,15 @@ export async function processCoopAction(
       hp: updatedChar2.hp,
       gold: updatedChar2.gold,
       inventory: updatedChar2.inventory,
+      xp: updatedChar2.xp,
+      level: updatedChar2.level,
+      status_effects: updatedChar2.status_effects,
       isLevelUp: char2LevelUp,
       newAbility: grantedAbility2,
+      isDeath: aiResponse.character2Changes?.isDeath ?? false,
+      deathDescription: aiResponse.character2Changes?.deathDescription,
+      loot: aiResponse.character2Changes?.loot as InventoryItem[] | undefined,
+      statusEffectChanges: aiResponse.character2Changes?.statusEffectChanges as ActionResult['statusEffectChanges'],
     },
   };
 }

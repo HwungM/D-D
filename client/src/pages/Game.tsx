@@ -506,13 +506,22 @@ export default function Game() {
         return
       }
 
+      // In co-op, the result carries data for both characters - figure out which is "mine"
+      const isChar2 = !!(result.character2Id && currentCharacter?.id === result.character2Id)
+      const myChanges = isChar2 ? result.character2Changes : result.characterChanges
+      const myLoot = isChar2 ? result.character2Changes?.loot : result.loot
+      const myIsLevelUp = isChar2 ? result.character2Changes?.isLevelUp : result.isLevelUp
+      const myNewAbility = isChar2 ? result.character2Changes?.newAbility : result.newAbility
+      const myIsDeath = isChar2 ? result.character2Changes?.isDeath : result.isDeath
+      const myDeathDescription = isChar2 ? result.character2Changes?.deathDescription : result.deathDescription
+
       if (result.diceRoll) setShowDice(true)
       if (result.isCombat) audioManager.playCombat()
       if (result.isVictory) audioManager.playVictory()
       // If we were in combat but this action is neither combat nor victory, combat ended (escape/retreat)
       if (inCombat && !result.isCombat && !result.isVictory) audioManager.stopMusic()
-      if (result.isLevelUp) audioManager.playLevelUp()
-      if (result.loot?.length) audioManager.playItemPickup()
+      if (myIsLevelUp) audioManager.playLevelUp()
+      if (myLoot?.length) audioManager.playItemPickup()
       if (result.isMerchant) audioManager.playGold()
       if (result.worldStateChanges?.currentLocation) audioManager.playDoorOpen()
       if (/cast|spell|magic|enchant|summon/i.test(result.narration || '')) audioManager.playMagic()
@@ -524,22 +533,22 @@ export default function Game() {
       }
       if (result.isVictory) setInCombat(false)
 
-      if ((result.loot && result.loot.length > 0) || (result.characterChanges?.gold && currentCharacter && (result.characterChanges.gold as number) > currentCharacter.gold)) {
-        const goldGained = result.characterChanges?.gold !== undefined && currentCharacter
-          ? (result.characterChanges.gold as number) - currentCharacter.gold
+      if ((myLoot && myLoot.length > 0) || (myChanges?.gold !== undefined && currentCharacter && (myChanges.gold as number) > currentCharacter.gold)) {
+        const goldGained = myChanges?.gold !== undefined && currentCharacter
+          ? (myChanges.gold as number) - currentCharacter.gold
           : undefined
-        setLootItems((result.loot as InventoryItem[]) || [])
+        setLootItems((myLoot as InventoryItem[]) || [])
         setLootGold(goldGained && goldGained > 0 ? goldGained : undefined)
         setShowLoot(true)
       }
 
-      if (result.isLevelUp && result.characterChanges?.level && currentCharacter) {
-        const newLevel = result.characterChanges.level as number
-        const newMaxHp = (result.characterChanges as Partial<Character>).max_hp ?? currentCharacter.max_hp
+      if (myIsLevelUp && myChanges?.level && currentCharacter) {
+        const newLevel = myChanges.level as number
+        const newMaxHp = (myChanges as Partial<Character>).max_hp ?? currentCharacter.max_hp
         setLevelUpData({
           level: newLevel,
           hpGained: Math.max(1, newMaxHp - currentCharacter.max_hp),
-          newAbility: result.newAbility ?? null,
+          newAbility: myNewAbility ?? null,
           characterName: currentCharacter.name,
         })
         setShowLevelUp(true)
@@ -556,7 +565,7 @@ export default function Game() {
         created_at: new Date().toISOString(),
       })
 
-      if (result.characterChanges) setCharacter({ ...currentCharacter!, ...result.characterChanges } as Character)
+      if (myChanges) setCharacter({ ...currentCharacter!, ...myChanges } as Character)
       if (result.worldStateChanges) {
         mergeWorldState(result.worldStateChanges)
         if (result.worldStateChanges.currentLocation) audioManager.setLocation(result.worldStateChanges.currentLocation)
@@ -569,7 +578,8 @@ export default function Game() {
         setSceneImage(matchSceneImage(result.worldStateChanges.currentLocation, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay))
       }
 
-      if (result.isDeath) {
+      if (myIsDeath) {
+        if (myDeathDescription) setLastActionResult({ ...result, deathDescription: myDeathDescription })
         setTimeout(() => setShowDeathScreen(true), 1200)
       }
       if (result.isMerchant && result.shopItems && result.shopItems.length > 0) {
