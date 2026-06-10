@@ -648,10 +648,10 @@ export default function CharacterCreate() {
       <div className="fixed inset-0 pointer-events-none">
         <picture>
           <source media="(max-width: 767px)" srcSet="/media/everrealm-hero-mobile.png" />
-          <img src="/media/everrealm-hero-desktop.png" alt="" className="h-full w-full object-cover opacity-[0.42]" />
+          <img src="/media/everrealm-hero-desktop.png" alt="" className="h-full w-full object-cover opacity-[0.65]" style={{ filter: 'brightness(1.15)' }} />
         </picture>
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.94)_0%,rgba(0,0,0,0.62)_52%,rgba(0,0,0,0.9)_100%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.18)_0%,rgba(0,0,0,0.58)_58%,rgba(0,0,0,0.96)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.4)_52%,rgba(0,0,0,0.74)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.1)_0%,rgba(0,0,0,0.4)_58%,rgba(0,0,0,0.85)_100%)]" />
       </div>
 
       <header className="relative z-10 border-b border-parchment-100/22 bg-black/36 px-5 py-4 backdrop-blur-md">
