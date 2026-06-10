@@ -10,7 +10,8 @@
     "start": "cd server && npx tsx src/index.ts"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "playwright": "^1.60.0"
   },
   "main": "index.js",
   "repository": {
