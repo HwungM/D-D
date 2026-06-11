@@ -1534,6 +1534,10 @@ export async function processCoopAction(
     return r.data as Character;
   });
 
+  if (!characters[0].is_alive || !characters[1].is_alive) {
+    throw new Error('Your character has perished. Their story is over.');
+  }
+
   // Load campaign
   const { data: campaign, error: campError } = await supabaseAdmin
     .from('campaigns')
@@ -1961,7 +1965,7 @@ export async function processCoopAction(
     {
       worldStateChanges: worldStateChangesWithTracking,
       xpGained,
-      hpChange: aiResponse.character1Changes?.hpChange ?? aiResponse.hpChange,
+      hpChange: aiResponse.character1Changes?.isDeath ? -characters[0].max_hp : (aiResponse.character1Changes?.hpChange ?? aiResponse.hpChange),
       loot: aiResponse.character1Changes?.loot ?? undefined,
       statusEffectChanges: aiResponse.character1Changes?.statusEffectChanges ?? undefined,
       sessionNote: villainMoveNote
@@ -1983,7 +1987,7 @@ export async function processCoopAction(
     pendingActions[1].characterId,
     {
       xpGained,
-      hpChange: aiResponse.character2Changes?.hpChange ?? undefined,
+      hpChange: aiResponse.character2Changes?.isDeath ? -characters[1].max_hp : (aiResponse.character2Changes?.hpChange ?? aiResponse.hpChange),
       loot: aiResponse.character2Changes?.loot ?? undefined,
       statusEffectChanges: aiResponse.character2Changes?.statusEffectChanges ?? undefined,
       goldChange: aiResponse.character2Changes?.goldChange,

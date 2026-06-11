@@ -352,9 +352,18 @@ export default function Game() {
       const result = data as ActionResult
       setLastActionResult(result)
 
+      const isChar2 = !!(result.character2Id && currentCharacter?.id === result.character2Id)
+      const myChanges = isChar2 ? result.character2Changes : result.characterChanges
+      const myLoot = isChar2 ? result.character2Changes?.loot : result.loot
+      const myIsDeath = isChar2 ? result.character2Changes?.isDeath : result.isDeath
+      const myDeathDescription = isChar2 ? result.character2Changes?.deathDescription : result.deathDescription
+      const myIsLevelUp = isChar2 ? result.character2Changes?.isLevelUp : result.isLevelUp
+      const myNewAbility = isChar2 ? result.character2Changes?.newAbility : result.newAbility
+
       if (result.isCombat) audioManager.playCombat()
       if (result.isVictory) audioManager.playVictory()
-      if (result.loot?.length) audioManager.playItemPickup()
+      if (myLoot?.length) audioManager.playItemPickup()
+      if (myIsLevelUp) audioManager.playLevelUp()
 
       if (result.isCombat && result.enemyName) {
         setInCombat(true)
@@ -363,13 +372,25 @@ export default function Game() {
       }
       if (result.isVictory) setInCombat(false)
 
-      if ((result.loot && result.loot.length > 0) || (result.characterChanges?.gold && currentCharacter && (result.characterChanges.gold as number) > currentCharacter.gold)) {
-        const goldGained = result.characterChanges?.gold !== undefined && currentCharacter
-          ? (result.characterChanges.gold as number) - currentCharacter.gold
+      if ((myLoot && myLoot.length > 0) || (myChanges?.gold !== undefined && currentCharacter && (myChanges.gold as number) > currentCharacter.gold)) {
+        const goldGained = myChanges?.gold !== undefined && currentCharacter
+          ? (myChanges.gold as number) - currentCharacter.gold
           : undefined
-        setLootItems((result.loot as InventoryItem[]) || [])
+        setLootItems((myLoot as InventoryItem[]) || [])
         setLootGold(goldGained && goldGained > 0 ? goldGained : undefined)
         setShowLoot(true)
+      }
+
+      if (myIsLevelUp && myChanges?.level && currentCharacter) {
+        const newLevel = myChanges.level as number
+        const newMaxHp = (myChanges as Partial<Character>).max_hp ?? currentCharacter.max_hp
+        setLevelUpData({
+          level: newLevel,
+          hpGained: Math.max(1, newMaxHp - currentCharacter.max_hp),
+          newAbility: myNewAbility ?? null,
+          characterName: currentCharacter.name,
+        })
+        setShowLevelUp(true)
       }
 
       setIsTyping(true)
@@ -383,14 +404,15 @@ export default function Game() {
         created_at: new Date().toISOString(),
       })
 
-      if (result.characterChanges) setCharacter({ ...currentCharacter!, ...result.characterChanges } as Character)
+      if (myChanges) setCharacter({ ...currentCharacter!, ...myChanges } as Character)
       if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
 
       if (result.sceneImagePrompt) {
         setSceneImage(matchSceneImage(result.sceneImagePrompt, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay))
       }
 
-      if (result.isDeath) {
+      if (myIsDeath) {
+        if (myDeathDescription) setLastActionResult({ ...result, deathDescription: myDeathDescription })
         setTimeout(() => setShowDeathScreen(true), 1200)
       }
 
