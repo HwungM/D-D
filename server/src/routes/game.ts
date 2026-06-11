@@ -195,6 +195,14 @@ router.post('/resolve-roll', requireAuth, async (req: AuthRequest, res: Response
       .single();
     const pendingCoopRoll = (campaignRow?.world_state as WorldState | undefined)?.coopPendingRoll;
 
+    // While a co-op roll is pending, only the acting character may resolve it.
+    // Anyone else (e.g. a partner whose client restored a stale dice modal)
+    // must wait - resolving through the solo path here would double-apply the turn.
+    if (pendingCoopRoll && pendingCoopRoll.actingCharacterId !== characterId) {
+      res.status(409).json({ error: 'Your partner holds the dice for this turn. Wait for their roll.' });
+      return;
+    }
+
     const result = pendingCoopRoll && pendingCoopRoll.actingCharacterId === characterId
       ? await resolveCoopRollAction(campaignId, characterId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext)
       : await resolveRollAction(characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext);
@@ -252,11 +260,14 @@ router.get('/history/:campaignId/:characterId', requireAuth, async (req: AuthReq
     return;
   }
 
+  // Fetch the NEWEST events (descending + limit), then reverse so the response
+  // stays oldest-first for the client. Ascending + limit returned the oldest N
+  // rows, so any campaign longer than the limit reloaded into its opening scenes.
   let query = supabaseAdmin
     .from('story_events')
     .select('*')
     .eq('campaign_id', campaignId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
     .limit(limit);
 
   // In solo mode only return this character's events; in party mode return all
@@ -271,7 +282,7 @@ router.get('/history/:campaignId/:characterId', requireAuth, async (req: AuthReq
     return;
   }
 
-  res.json({ events: data || [] });
+  res.json({ events: (data || []).reverse() });
 });
 
 router.get('/scene/:campaignId/:characterId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {

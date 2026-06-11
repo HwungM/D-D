@@ -1461,20 +1461,40 @@ export async function resolveCoopRollAction(
   const wsAfterRoll = (refreshedCampaign?.world_state || result.worldStateChanges || ws) as WorldState;
 
   const xpGained = success ? Math.floor(Math.random() * 20) + 10 : 5;
+  // worldStateChanges (not the passed-in snapshot) is what actually persists:
+  // applyConsequences re-fetches the latest world state before writing, so the
+  // pending roll must be cleared via the merge path or it lives in the DB forever.
   const { updatedCharacter: updatedPartner, updatedWorldState } = await applyConsequences(
     partnerAction.characterId,
-    { xpGained },
+    { xpGained, worldStateChanges: { coopPendingRoll: null } },
     partnerChar as Character,
     { id: campaignId, world_state: { ...wsAfterRoll, coopPendingRoll: null }, act: campaign.act, world_bible: campaign.world_bible as WorldBible }
   );
 
-  // Mirror the roll narration into the partner's feed
+  const partnerLeveledUp = updatedPartner.level > (partnerChar as Character).level;
+  const partnerAbility = partnerLeveledUp ? getAbilityForLevel((partnerChar as Character).class, updatedPartner.level) ?? null : null;
+
+  // Mirror the roll narration into the partner's feed, carrying enough metadata
+  // for their client to show the same turn effects the roller sees.
   await supabaseAdmin.from('story_events').insert({
     campaign_id: campaignId,
     character_id: partnerAction.characterId,
     event_type: 'narration',
     content: result.narration,
-    metadata: { coopRound: true, fromRoll: true, suggestedActions: result.suggestedActions },
+    metadata: {
+      coopRound: true,
+      fromRoll: true,
+      suggestedActions: result.suggestedActions,
+      isCombat: result.isCombat ?? false,
+      isVictory: result.isVictory ?? false,
+      enemyName: result.enemyName ?? null,
+      personal: {
+        isLevelUp: partnerLeveledUp,
+        level: updatedPartner.level,
+        maxHp: updatedPartner.max_hp,
+        newAbility: partnerAbility,
+      },
+    },
   });
 
   return {
@@ -1482,6 +1502,7 @@ export async function resolveCoopRollAction(
     worldStateChanges: updatedWorldState,
     character2Changes: {
       hp: updatedPartner.hp,
+      max_hp: updatedPartner.max_hp,
       gold: updatedPartner.gold,
       inventory: updatedPartner.inventory,
     },
@@ -1952,6 +1973,7 @@ export async function processCoopAction(
       ...Object.fromEntries(pendingActions.map(pa => [pa.characterId, new Date().toISOString()])),
     },
     pendingTurn: null,
+    coopPendingRoll: null,
     spotlightBalance: currentBalance,
     ...(aiResponse.achievementUnlocked
       ? { unlockedAchievements: appendAchievement(ws.unlockedAchievements, aiResponse.achievementUnlocked, characters[0].name) }
@@ -2062,6 +2084,45 @@ export async function processCoopAction(
       .catch(() => {});
   }
 
+  const updatedChar1 = char1Result.updatedCharacter;
+  const updatedChar2 = char2Result.updatedCharacter;
+
+  const char1LevelUp = updatedChar1.level > characters[0].level;
+  const char2LevelUp = updatedChar2.level > characters[1].level;
+  const grantedAbility1 = char1LevelUp ? getAbilityForLevel(characters[0].class, updatedChar1.level) ?? undefined : undefined;
+  const grantedAbility2 = char2LevelUp ? getAbilityForLevel(characters[1].class, updatedChar2.level) ?? undefined : undefined;
+  const isCombatNow = !!aiResponse.isCombat && combatState != null;
+  const isVictoryNow = !!aiResponse.isVictory || forcedVictory;
+
+  // Turn-effect metadata rides on each player's narration event so the partner
+  // who submitted first (and receives this round via realtime, not the API
+  // response) gets the same popups - loot, level-up, choice cards, shop - as
+  // the player who submitted last.
+  const sharedTurnMeta = {
+    coopRound: true,
+    suggestedActions: aiResponse.suggestedActions,
+    isCombat: isCombatNow,
+    isVictory: isVictoryNow,
+    enemyName: aiResponse.enemyName ?? null,
+    isHighStakes: !!aiResponse.isHighStakes,
+    choiceCards: aiResponse.choiceCards ?? null,
+    isMerchant: !!aiResponse.isMerchant,
+    shopItems: aiResponse.isMerchant ? aiResponse.shopItems ?? null : null,
+    advanceAct: !!aiResponse.advanceAct,
+    bossPhaseAdvance: !!aiResponse.bossPhaseAdvance,
+    achievementUnlocked: aiResponse.achievementUnlocked ?? null,
+  };
+  const personalTurnMeta = (updated: Character, original: Character, changes: typeof aiResponse.character1Changes, leveledUp: boolean, ability: ReturnType<typeof getAbilityForLevel> | undefined) => ({
+    isLevelUp: leveledUp,
+    level: updated.level,
+    maxHp: updated.max_hp,
+    newAbility: ability ?? null,
+    loot: changes?.loot ?? null,
+    goldGained: Math.max(0, (updated.gold ?? 0) - (original.gold ?? 0)) || null,
+    isDeath: changes?.isDeath ?? false,
+    deathDescription: changes?.deathDescription ?? null,
+  });
+
   // Save story events for both characters
   await Promise.all([
     supabaseAdmin.from('story_events').insert({
@@ -2083,24 +2144,16 @@ export async function processCoopAction(
       character_id: pendingActions[0].characterId,
       event_type: 'narration',
       content: aiResponse.narration,
-      metadata: { coopRound: true, suggestedActions: aiResponse.suggestedActions },
+      metadata: { ...sharedTurnMeta, personal: personalTurnMeta(updatedChar1, characters[0], aiResponse.character1Changes, char1LevelUp, grantedAbility1) },
     }),
     supabaseAdmin.from('story_events').insert({
       campaign_id: campaignId,
       character_id: pendingActions[1].characterId,
       event_type: 'narration',
       content: aiResponse.narration,
-      metadata: { coopRound: true, suggestedActions: aiResponse.suggestedActions },
+      metadata: { ...sharedTurnMeta, personal: personalTurnMeta(updatedChar2, characters[1], aiResponse.character2Changes, char2LevelUp, grantedAbility2) },
     }),
   ]);
-
-  const updatedChar1 = char1Result.updatedCharacter;
-  const updatedChar2 = char2Result.updatedCharacter;
-
-  const char1LevelUp = updatedChar1.level > characters[0].level;
-  const char2LevelUp = updatedChar2.level > characters[1].level;
-  const grantedAbility1 = char1LevelUp ? getAbilityForLevel(characters[0].class, updatedChar1.level) ?? undefined : undefined;
-  const grantedAbility2 = char2LevelUp ? getAbilityForLevel(characters[1].class, updatedChar2.level) ?? undefined : undefined;
 
   return {
     narration: aiResponse.narration,
@@ -2123,8 +2176,8 @@ export async function processCoopAction(
     newAbility: grantedAbility1,
     isDeath: aiResponse.character1Changes?.isDeath ?? false,
     deathDescription: aiResponse.character1Changes?.deathDescription,
-    isCombat: !!aiResponse.isCombat && combatState != null,
-    isVictory: !!aiResponse.isVictory || forcedVictory,
+    isCombat: isCombatNow,
+    isVictory: isVictoryNow,
     enemyName: aiResponse.enemyName,
     loot: (aiResponse.character1Changes?.loot || aiResponse.loot) as ActionResult['loot'],
     isHighStakes: aiResponse.isHighStakes,
