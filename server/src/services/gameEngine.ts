@@ -841,6 +841,11 @@ export async function processAction(
       metadata: { awaitingRoll: true, rollContext: aiResponse.rollContext },
     });
 
+    if (aiResponse.worldStateChanges) {
+      const wsWithChanges = mergeWorldStateChanges(ws, aiResponse.worldStateChanges);
+      await supabaseAdmin.from('campaigns').update({ world_state: wsWithChanges }).eq('id', campaignId);
+    }
+
     return {
       narration: aiResponse.narration,
       awaitingRoll: true,
@@ -1648,8 +1653,10 @@ export async function processCoopAction(
       })
     ));
 
+    const wsWithChanges = aiResponse.worldStateChanges ? mergeWorldStateChanges(ws, aiResponse.worldStateChanges) : ws;
+
     await supabaseAdmin.from('campaigns').update({
-      world_state: { ...ws, pendingTurn: null, coopPendingRoll: { actingCharacterId, rollContext: aiResponse.rollContext, actions: pendingActions } }
+      world_state: { ...wsWithChanges, pendingTurn: null, coopPendingRoll: { actingCharacterId, rollContext: aiResponse.rollContext, actions: pendingActions } }
     }).eq('id', campaignId);
 
     return {
