@@ -1,17 +1,21 @@
 import { useState } from 'react'
-import { characterApi } from '../lib/api'
-import type { Character } from '../../../shared/types'
+import { characterApi, gameApi } from '../lib/api'
+import type { Character, WorldState } from '../../../shared/types'
 
 interface DevPanelProps {
   campaignId: string
   character: Character
   inCombat: boolean
+  worldState: WorldState | null
+  act: number
   onKill: () => void
   onClearCombat: () => void
   onCharacterUpdate: (updates: Partial<Character>) => void
+  onWorldStateUpdate: (changes: Partial<WorldState>) => void
+  onActUpdate: (act: number) => void
 }
 
-export default function DevPanel({ character, inCombat, onKill, onClearCombat, onCharacterUpdate }: DevPanelProps) {
+export default function DevPanel({ character, inCombat, worldState, act, onKill, onClearCombat, onCharacterUpdate, onWorldStateUpdate, onActUpdate, campaignId }: DevPanelProps) {
   const [expanded, setExpanded] = useState(false)
   const [hpInput, setHpInput] = useState('')
   const [goldInput, setGoldInput] = useState('')
@@ -48,6 +52,68 @@ export default function DevPanel({ character, inCombat, onKill, onClearCombat, o
     try {
       await characterApi.update(character.id, { hp: character.max_hp })
       onCharacterUpdate({ hp: character.max_hp })
+    } catch (err) { console.error(err) }
+    finally { setBusy(null) }
+  }
+
+  async function setEndgamePhase(phase: WorldState['endgamePhase']) {
+    setBusy(`endgame-${phase}`)
+    try {
+      await gameApi.devPatch(campaignId, { worldState: { endgamePhase: phase } })
+      onWorldStateUpdate({ endgamePhase: phase })
+    } catch (err) { console.error(err) }
+    finally { setBusy(null) }
+  }
+
+  async function fastForwardActions(n: number) {
+    setBusy('fastforward')
+    try {
+      const actionCount = (worldState?.actionCount || 0) + n
+      const actionsInCurrentAct = (worldState?.actionsInCurrentAct || 0) + n
+      await gameApi.devPatch(campaignId, { worldState: { actionCount, actionsInCurrentAct } })
+      onWorldStateUpdate({ actionCount, actionsInCurrentAct })
+    } catch (err) { console.error(err) }
+    finally { setBusy(null) }
+  }
+
+  async function addDummyLocations(n: number) {
+    setBusy('locations')
+    try {
+      const existing = worldState?.discoveredLocations || []
+      const start = existing.length + 1
+      const added = Array.from({ length: n }, (_, i) => `Test Locale ${start + i}`)
+      const discoveredLocations = [...existing, ...added]
+      await gameApi.devPatch(campaignId, { worldState: { discoveredLocations } })
+      onWorldStateUpdate({ discoveredLocations })
+    } catch (err) { console.error(err) }
+    finally { setBusy(null) }
+  }
+
+  async function seedFutureHook() {
+    setBusy('hook')
+    try {
+      const existing = worldState?.futureHooks || []
+      const hook = {
+        id: crypto.randomUUID(),
+        description: `[DEV TEST] A debt comes due from a past dev-seeded choice (#${existing.length + 1}).`,
+        source: 'dev-panel',
+        createdAt: new Date().toISOString(),
+        resolved: false,
+      }
+      const futureHooks = [...existing, hook]
+      await gameApi.devPatch(campaignId, { worldState: { futureHooks } })
+      onWorldStateUpdate({ futureHooks })
+    } catch (err) { console.error(err) }
+    finally { setBusy(null) }
+  }
+
+  async function advanceAct() {
+    setBusy('act')
+    try {
+      const newAct = act + 1
+      await gameApi.devPatch(campaignId, { act: newAct, worldState: { actionsInCurrentAct: 0 } })
+      onActUpdate(newAct)
+      onWorldStateUpdate({ actionsInCurrentAct: 0 })
     } catch (err) { console.error(err) }
     finally { setBusy(null) }
   }
@@ -126,6 +192,68 @@ export default function DevPanel({ character, inCombat, onKill, onClearCombat, o
 
           <span className="ml-1 font-mono text-xs text-violet-100/30">
             HP: {character.hp}/{character.max_hp} / Gold: {character.gold}g
+          </span>
+
+          <div className="basis-full" />
+
+          <button
+            onClick={advanceAct}
+            disabled={busy === 'act'}
+            className="border border-fuchsia-300/40 bg-fuchsia-500/8 px-3 py-1.5 font-mono text-xs text-fuchsia-100/80 transition-all disabled:opacity-40"
+          >
+            {busy === 'act' ? '...' : `Advance to Act ${act + 1}`}
+          </button>
+
+          <button
+            onClick={() => setEndgamePhase('approaching')}
+            disabled={busy === 'endgame-approaching' || worldState?.endgamePhase === 'approaching'}
+            className="border border-orange-300/40 bg-orange-500/8 px-3 py-1.5 font-mono text-xs text-orange-100/80 transition-all disabled:opacity-40"
+          >
+            {busy === 'endgame-approaching' ? '...' : 'Set Endgame: Approaching'}
+          </button>
+
+          <button
+            onClick={() => setEndgamePhase('confrontation')}
+            disabled={busy === 'endgame-confrontation' || worldState?.endgamePhase === 'confrontation'}
+            className="border border-orange-300/40 bg-orange-500/8 px-3 py-1.5 font-mono text-xs text-orange-100/80 transition-all disabled:opacity-40"
+          >
+            {busy === 'endgame-confrontation' ? '...' : 'Set Endgame: Confrontation'}
+          </button>
+
+          <button
+            onClick={() => setEndgamePhase('none')}
+            disabled={busy === 'endgame-none' || !worldState?.endgamePhase || worldState.endgamePhase === 'none'}
+            className="border border-orange-300/40 bg-orange-500/8 px-3 py-1.5 font-mono text-xs text-orange-100/80 transition-all disabled:opacity-40"
+          >
+            {busy === 'endgame-none' ? '...' : 'Reset Endgame'}
+          </button>
+
+          <button
+            onClick={() => fastForwardActions(20)}
+            disabled={busy === 'fastforward'}
+            className="border border-cyan-300/40 bg-cyan-500/8 px-3 py-1.5 font-mono text-xs text-cyan-100/80 transition-all disabled:opacity-40"
+          >
+            {busy === 'fastforward' ? '...' : '+20 Action Count'}
+          </button>
+
+          <button
+            onClick={() => addDummyLocations(10)}
+            disabled={busy === 'locations'}
+            className="border border-cyan-300/40 bg-cyan-500/8 px-3 py-1.5 font-mono text-xs text-cyan-100/80 transition-all disabled:opacity-40"
+          >
+            {busy === 'locations' ? '...' : '+10 Discovered Locations'}
+          </button>
+
+          <button
+            onClick={seedFutureHook}
+            disabled={busy === 'hook'}
+            className="border border-cyan-300/40 bg-cyan-500/8 px-3 py-1.5 font-mono text-xs text-cyan-100/80 transition-all disabled:opacity-40"
+          >
+            {busy === 'hook' ? '...' : 'Seed Future Hook'}
+          </button>
+
+          <span className="ml-1 font-mono text-xs text-violet-100/30">
+            Act {act} | Actions: {worldState?.actionCount ?? 0} ({worldState?.actionsInCurrentAct ?? 0} this act) | Locations: {worldState?.discoveredLocations?.length ?? 0} | Endgame: {worldState?.endgamePhase || 'none'} | Future hooks: {worldState?.futureHooks?.filter(h => !h.resolved).length ?? 0} unresolved
           </span>
         </div>
       )}

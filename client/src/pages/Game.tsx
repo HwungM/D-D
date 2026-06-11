@@ -954,9 +954,13 @@ export default function Game() {
           campaignId={campaignId}
           character={currentCharacter}
           inCombat={inCombat}
+          worldState={worldState}
+          act={nextAct}
           onKill={handleDevKill}
           onClearCombat={handleDevClearCombat}
           onCharacterUpdate={(updates) => setCharacter({ ...currentCharacter, ...updates } as Character)}
+          onWorldStateUpdate={mergeWorldState}
+          onActUpdate={setNextAct}
         />
       )}
 

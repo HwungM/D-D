@@ -388,6 +388,46 @@ router.post('/dev-clear-combat/:campaignId', requireAuth, async (req: AuthReques
   res.json({ success: true });
 });
 
+// DEV ONLY: patch world_state/act fields directly to fast-forward a testing campaign
+// to a specific state (e.g. near endgame, large map, pending future hooks). The patch
+// is merged into world_state and read by the normal game loop on the next action -
+// no special-cased AI behavior is introduced.
+router.post('/dev-patch/:campaignId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_DEV_ENDPOINTS) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+
+  const { campaignId } = req.params;
+  const { worldState, act } = req.body as { worldState?: Record<string, unknown>; act?: number };
+
+  const { data: campaign } = await supabaseAdmin
+    .from('campaigns')
+    .select('world_state, campaign_type')
+    .eq('id', campaignId)
+    .single();
+
+  if (!campaign) { res.status(404).json({ error: 'Campaign not found' }); return; }
+  if (campaign.campaign_type !== 'testing') { res.status(403).json({ error: 'Dev patches are only allowed on testing campaigns' }); return; }
+
+  const updates: Record<string, unknown> = {};
+  if (worldState) {
+    updates.world_state = { ...(campaign.world_state as Record<string, unknown>), ...worldState };
+  }
+  if (typeof act === 'number' && act >= 1) {
+    updates.act = act;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: 'No patch fields provided' });
+    return;
+  }
+
+  await supabaseAdmin.from('campaigns').update(updates).eq('id', campaignId);
+  const { data: updated } = await supabaseAdmin.from('campaigns').select('world_state, act').eq('id', campaignId).single();
+  res.json({ success: true, worldState: updated?.world_state, act: updated?.act });
+});
+
 router.post('/epilogue/:campaignId/:characterId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { campaignId, characterId } = req.params;
   const { victory } = req.body;
