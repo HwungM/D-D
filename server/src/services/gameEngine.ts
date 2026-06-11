@@ -972,6 +972,14 @@ export async function processAction(
       if (entry) ledgerChanges.push({ ...entry, payoffStatus: 'paid_off', payoffDescription: 'Resolved in story' });
     }
   }
+  let futureHooksChanges: WorldState['futureHooks'] | undefined;
+  if (aiResponse.resolvedFutureHookIds && aiResponse.resolvedFutureHookIds.length > 0) {
+    const resolvedIds = new Set(aiResponse.resolvedFutureHookIds);
+    const existing = ws.futureHooks || [];
+    if (existing.some(h => resolvedIds.has(h.id))) {
+      futureHooksChanges = existing.map(h => resolvedIds.has(h.id) ? { ...h, resolved: true } : h);
+    }
+  }
 
   // Update backstory hooks
   const hookChanges: import('../../../shared/types').BackstoryHook[] = [];
@@ -1106,7 +1114,8 @@ export async function processAction(
     if (primaryAntagonist) {
       const progress = antagonistProgress[primaryAntagonist.name];
       const totalSteps = primaryAntagonist.planSteps?.length || 5;
-      if (progress && progress.stepIndex >= totalSteps - 1) {
+      const targetActions = campaignLengthTargetActions(wb);
+      if (progress && progress.stepIndex >= totalSteps - 1 && newActionCount >= targetActions * 0.5) {
         endgamePhase = 'approaching';
       }
     }
@@ -1133,6 +1142,7 @@ export async function processAction(
       : ws.lastPillarUsed,
     ...(endgamePhase !== ws.endgamePhase ? { endgamePhase } : {}),
     ...(ledgerChanges.length > 0 ? { foreshadowingLedger: ledgerChanges } : {}),
+    ...(futureHooksChanges ? { futureHooks: futureHooksChanges } : {}),
     ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
     ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
     ...(aiResponse.isHighStakes ? { lastHighStakesAction: newActionCount } : {}),
@@ -1850,6 +1860,14 @@ export async function processCoopAction(
       if (entry) ledgerChanges.push({ ...entry, payoffStatus: 'paid_off', payoffDescription: 'Resolved in story' });
     }
   }
+  let futureHooksChanges: WorldState['futureHooks'] | undefined;
+  if (aiResponse.resolvedFutureHookIds && aiResponse.resolvedFutureHookIds.length > 0) {
+    const resolvedIds = new Set(aiResponse.resolvedFutureHookIds);
+    const existing = ws.futureHooks || [];
+    if (existing.some(h => resolvedIds.has(h.id))) {
+      futureHooksChanges = existing.map(h => resolvedIds.has(h.id) ? { ...h, resolved: true } : h);
+    }
+  }
 
   // Update backstory hooks for either character
   const hookChanges: BackstoryHook[] = [];
@@ -1903,7 +1921,8 @@ export async function processCoopAction(
     if (primaryAntagonist) {
       const progress = antagonistProgress[primaryAntagonist.name];
       const totalSteps = primaryAntagonist.planSteps?.length || 5;
-      if (progress && progress.stepIndex >= totalSteps - 1) {
+      const targetActions = campaignLengthTargetActions(wb);
+      if (progress && progress.stepIndex >= totalSteps - 1 && newActionCount >= targetActions * 0.5) {
         endgamePhase = 'approaching';
       }
     }
@@ -1915,6 +1934,7 @@ export async function processCoopAction(
       ? { npcMemory: [...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory), ...autoNpcMemory] }
       : {}),
     ...(ledgerChanges.length > 0 ? { foreshadowingLedger: ledgerChanges } : {}),
+    ...(futureHooksChanges ? { futureHooks: futureHooksChanges } : {}),
     ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
     ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
     ...(endgamePhase !== ws.endgamePhase ? { endgamePhase } : {}),
