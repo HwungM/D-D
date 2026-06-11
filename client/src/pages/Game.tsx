@@ -341,6 +341,13 @@ export default function Game() {
     if (narratorRef.current) narratorRef.current.scrollTop = narratorRef.current.scrollHeight
   }, [events])
 
+  // Combat UI follows the authoritative world state, so it survives a reload,
+  // shows for the co-op partner who's waiting, and clears the moment a fight
+  // ends (victory or escape) instead of relying on the last action's flags.
+  useEffect(() => {
+    setInCombat(!!worldState?.combatState?.inCombat)
+  }, [worldState?.combatState?.inCombat])
+
 
   async function handleRollComplete() {
     if (!campaignId || !characterId || !diceModalData) throw new Error('Roll context missing')

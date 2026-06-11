@@ -449,6 +449,7 @@ export interface ActionResult {
   deathDescription?: string;
   character2Changes?: {
     hp?: number;
+    max_hp?: number;
     gold?: number;
     inventory?: unknown;
     xp?: number;
