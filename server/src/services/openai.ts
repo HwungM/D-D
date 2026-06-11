@@ -642,6 +642,89 @@ export type NarrationCampaignContext = {
   futureHooks?: { id: string; description: string; source: string }[];
 };
 
+function buildCampaignContextBlock(campaignContext: NarrationCampaignContext | null | undefined, worldBible: WorldBible, characterLevel: number): string {
+  return `${campaignContext ? `CAMPAIGN: Act ${campaignContext.act} | ${campaignContext.centralConflict}
+JOURNAL: ${campaignContext.journal.slice(-3).map(j => `[Act ${j.actNumber}] ${j.summary}`).join(' | ') || 'none yet'}
+HISTORY: ${campaignContext.characterHistory.slice(-5).map(h => `${h.description} Ã¢â€ â€™ ${h.impact}`).join(' | ') || 'none'}
+ANTAGONISTS: ${campaignContext.antagonists.map(a => `${a.isRevealed ? a.name : '[UNKNOWN]'}: ${a.agenda}`).join(' | ') || 'none'}
+NARRATIVE TIER: ${campaignContext.act <= 1 && characterLevel <= 3 ? 'EMERGING - local stakes' : characterLevel <= 6 ? 'KNOWN - regional threats' : characterLevel <= 10 ? 'FEARED - major powers react' : 'LEGENDARY'}` : ''}
+
+${campaignContext?.roadmap ? (() => {
+  const actNum = campaignContext.act;
+  const goals = actNum === 1 ? campaignContext.roadmap.act1Goals : actNum === 2 ? campaignContext.roadmap.act2Goals : campaignContext.roadmap.act3ConvergenceThreads;
+  const climaxEvent = actNum === 1 ? campaignContext.roadmap.act1ClimaxEvent : actNum === 2 ? campaignContext.roadmap.act2ClimaxEvent : campaignContext.roadmap.act3ClimaxEvent;
+  const actionsInAct = campaignContext.actionsInCurrentAct || 0;
+  const campaignLength = getCampaignLength(worldBible.playerPreferences?.campaignLength);
+  const pacing = getCampaignPacingThresholds(campaignLength);
+  const lengthGuidance = CAMPAIGN_LENGTH_GUIDANCE[campaignLength];
+
+  // Must-introduce status for act 1
+  const mustIntro = actNum === 1 && campaignContext.roadmap.act1MustIntroduce?.length
+    ? `MUST INTRODUCE before act 1 ends:\n${campaignContext.roadmap.act1MustIntroduce.map(item => {
+        const appeared = campaignContext.mustIntroduceStatus?.[item] ?? false;
+        return `  ${appeared ? '[Ã¢Å“â€œ appeared]' : '[Ã¢Å“- NOT YET]'} ${item}`;
+      }).join('\n')}\n`
+    : '';
+
+  // Escalating urgency based on actions in current act
+  let urgency = '';
+  if (actionsInAct >= pacing.critical) {
+    urgency = `\nCRITICAL ACT OVERRUN: Act ${actNum} has run ${actionsInAct} actions for a ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. The act climax must happen THIS turn or the next. Do not delay. Execute: "${climaxEvent}" NOW.`;
+  } else if (actionsInAct >= pacing.overdue) {
+    urgency = `\nACT OVERDUE: ${actionsInAct} actions in Act ${actNum} for a ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. Begin converging all threads toward: "${climaxEvent}" within the next 3 actions.`;
+  } else if (actionsInAct >= pacing.mature) {
+    urgency = `\nACT MATURING: Act ${actNum} has run ${actionsInAct} actions. Start steering toward the climax: "${climaxEvent}". Unresolved goals and hooks should begin paying off.`;
+  }
+  const endgameRule = campaignLength === 'open_ended'
+    ? '\nOpen-ended pacing: do not force finality. Resolve the current local arc cleanly, then open new fronts unless endgamePhase calls for a final confrontation.'
+    : campaignLength === 'one_shot'
+      ? '\nOne-shot pacing: compress scenes, pay off hooks fast, and avoid dangling mysteries except a deliberate sequel hook.'
+      : '';
+
+  return `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â DM ROADMAP Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
+Campaign length: ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. ${lengthGuidance}
+Act pacing thresholds: mature at ${pacing.mature} actions, overdue at ${pacing.overdue}, critical at ${pacing.critical}.${endgameRule}
+Act ${actNum} goals (steer the story toward these):
+${goals.map(g => `  ${(campaignContext.actGoalsAchieved || []).includes(g) ? '[Ã¢Å“â€œ DONE]' : '[ ]'} ${g}`).join('\n')}
+${mustIntro}Act ${actNum} climax (this MUST happen before act ends): ${climaxEvent}${actNum === 2 && campaignContext.roadmap.act2VillainEscalation ? `\nAct 2 villain escalation (make this real): ${campaignContext.roadmap.act2VillainEscalation}` : ''}${urgency}
+Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
+})() : ''}
+
+${campaignContext?.foreshadowingLedger && campaignContext.foreshadowingLedger.filter(f => f.payoffStatus !== 'paid_off').length > 0 ? `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â FORESHADOWING LEDGER Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
+PLANTED - pay these off when dramatically right:
+${campaignContext.foreshadowingLedger.filter(f => f.payoffStatus !== 'paid_off').slice(0, 8).map(f => `  [${f.type.toUpperCase()}] ${f.description}`).join('\n')}
+When you introduce something new that should echo later, include it in newForeshadowing[].
+When you pay off a planted item, include its id in paidOffForeshadowing[].
+Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â` : ''}
+
+${campaignContext?.backstoryHooks && campaignContext.backstoryHooks.filter(h => h.status !== 'resolved').length > 0 ? (() => {
+  const actNum = campaignContext.act;
+  const actionsInAct = campaignContext.actionsInCurrentAct || 0;
+  const dormant = campaignContext.backstoryHooks!.filter(h => h.status === 'dormant');
+  const active = campaignContext.backstoryHooks!.filter(h => h.status === 'active');
+  const activeUrgency = active.length > 0 && actionsInAct >= 8
+    ? `\nÃ°Å¸Å½Â¯ ACTIVE hooks MUST be developed this act - they've been seeded, now escalate them toward payoff.`
+    : '';
+  const dormantUrgency = dormant.length > 0 && actionsInAct >= 15
+    ? `\nÃ¢Å¡Â  DORMANT hooks are overdue - seed at least one of them into the story NOW.`
+    : '';
+  return `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â BACKSTORY HOOKS Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
+${active.length > 0 ? `ACTIVE (seeded - escalate toward payoff):\n${active.map(h => `  Ã¢â€“Â¶ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}${dormant.length > 0 ? `DORMANT (not yet introduced - seed these):\n${dormant.map(h => `  Ã¢-â€¹ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}Dormant = not yet seeded. Set backstoryHookActivated to characterId when seeding one. When an ACTIVE hook reaches its narrative payoff (resolved, paid off, laid to rest), set backstoryHookResolved to that characterId so the thread can close.${activeUrgency}${dormantUrgency}
+Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
+})() : ''}
+
+${campaignContext?.futureHooks && campaignContext.futureHooks.length > 0 ? `
+FUTURE HOOKS TO HONOR (past choices with pending repercussions - bring these back):
+${campaignContext.futureHooks.slice(-5).map(h => `- ${h.description}`).join('\n')}` : ''}
+
+${campaignContext?.pendingDirectorBeat ? `
+Ã¢â€ÂÃ¢â€ÂÃ¢â€Â PENDING DIRECTOR BEAT Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
+URGENCY: ${campaignContext.pendingDirectorBeat.urgency.toUpperCase()}
+MANDATORY BEAT: ${campaignContext.pendingDirectorBeat.beat}
+You MUST execute this beat this turn or next turn. Set directorBeatExecuted:true when done.
+Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â` : ''}`;
+}
+
 function buildNarrationMessages(
   action: string,
   worldState: WorldState,
@@ -856,89 +939,10 @@ ${abilitiesBlock}
 ${suggestionContextBlock}
 ${endgameBlock}
 
-${campaignContext ? `CAMPAIGN: Act ${campaignContext.act} | ${campaignContext.centralConflict}
-JOURNAL: ${campaignContext.journal.slice(-3).map(j => `[Act ${j.actNumber}] ${j.summary}`).join(' | ') || 'none yet'}
-HISTORY: ${campaignContext.characterHistory.slice(-5).map(h => `${h.description} Ã¢â€ â€™ ${h.impact}`).join(' | ') || 'none'}
-ANTAGONISTS: ${campaignContext.antagonists.map(a => `${a.isRevealed ? a.name : '[UNKNOWN]'}: ${a.agenda}`).join(' | ') || 'none'}
-NARRATIVE TIER: ${campaignContext.act <= 1 && character.level <= 3 ? 'EMERGING - local stakes' : character.level <= 6 ? 'KNOWN - regional threats' : character.level <= 10 ? 'FEARED - major powers react' : 'LEGENDARY'}` : ''}
+${buildCampaignContextBlock(campaignContext, worldBible, character.level)}
 
 RECENT HISTORY:
 ${recentHistory.slice(-8).join('\n')}
-
-${campaignContext?.roadmap ? (() => {
-  const actNum = campaignContext.act;
-  const goals = actNum === 1 ? campaignContext.roadmap.act1Goals : actNum === 2 ? campaignContext.roadmap.act2Goals : campaignContext.roadmap.act3ConvergenceThreads;
-  const climaxEvent = actNum === 1 ? campaignContext.roadmap.act1ClimaxEvent : actNum === 2 ? campaignContext.roadmap.act2ClimaxEvent : campaignContext.roadmap.act3ClimaxEvent;
-  const actionsInAct = campaignContext.actionsInCurrentAct || 0;
-  const campaignLength = getCampaignLength(worldBible.playerPreferences?.campaignLength);
-  const pacing = getCampaignPacingThresholds(campaignLength);
-  const lengthGuidance = CAMPAIGN_LENGTH_GUIDANCE[campaignLength];
-
-  // Must-introduce status for act 1
-  const mustIntro = actNum === 1 && campaignContext.roadmap.act1MustIntroduce?.length
-    ? `MUST INTRODUCE before act 1 ends:\n${campaignContext.roadmap.act1MustIntroduce.map(item => {
-        const appeared = campaignContext.mustIntroduceStatus?.[item] ?? false;
-        return `  ${appeared ? '[Ã¢Å“â€œ appeared]' : '[Ã¢Å“- NOT YET]'} ${item}`;
-      }).join('\n')}\n`
-    : '';
-
-  // Escalating urgency based on actions in current act
-  let urgency = '';
-  if (actionsInAct >= pacing.critical) {
-    urgency = `\nCRITICAL ACT OVERRUN: Act ${actNum} has run ${actionsInAct} actions for a ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. The act climax must happen THIS turn or the next. Do not delay. Execute: "${climaxEvent}" NOW.`;
-  } else if (actionsInAct >= pacing.overdue) {
-    urgency = `\nACT OVERDUE: ${actionsInAct} actions in Act ${actNum} for a ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. Begin converging all threads toward: "${climaxEvent}" within the next 3 actions.`;
-  } else if (actionsInAct >= pacing.mature) {
-    urgency = `\nACT MATURING: Act ${actNum} has run ${actionsInAct} actions. Start steering toward the climax: "${climaxEvent}". Unresolved goals and hooks should begin paying off.`;
-  }
-  const endgameRule = campaignLength === 'open_ended'
-    ? '\nOpen-ended pacing: do not force finality. Resolve the current local arc cleanly, then open new fronts unless endgamePhase calls for a final confrontation.'
-    : campaignLength === 'one_shot'
-      ? '\nOne-shot pacing: compress scenes, pay off hooks fast, and avoid dangling mysteries except a deliberate sequel hook.'
-      : '';
-
-  return `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â DM ROADMAP Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
-Campaign length: ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. ${lengthGuidance}
-Act pacing thresholds: mature at ${pacing.mature} actions, overdue at ${pacing.overdue}, critical at ${pacing.critical}.${endgameRule}
-Act ${actNum} goals (steer the story toward these):
-${goals.map(g => `  ${(campaignContext.actGoalsAchieved || []).includes(g) ? '[Ã¢Å“â€œ DONE]' : '[ ]'} ${g}`).join('\n')}
-${mustIntro}Act ${actNum} climax (this MUST happen before act ends): ${climaxEvent}${actNum === 2 && campaignContext.roadmap.act2VillainEscalation ? `\nAct 2 villain escalation (make this real): ${campaignContext.roadmap.act2VillainEscalation}` : ''}${urgency}
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
-})() : ''}
-
-${campaignContext?.foreshadowingLedger && campaignContext.foreshadowingLedger.filter(f => f.payoffStatus !== 'paid_off').length > 0 ? `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â FORESHADOWING LEDGER Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
-PLANTED - pay these off when dramatically right:
-${campaignContext.foreshadowingLedger.filter(f => f.payoffStatus !== 'paid_off').slice(0, 8).map(f => `  [${f.type.toUpperCase()}] ${f.description}`).join('\n')}
-When you introduce something new that should echo later, include it in newForeshadowing[].
-When you pay off a planted item, include its id in paidOffForeshadowing[].
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â` : ''}
-
-${campaignContext?.backstoryHooks && campaignContext.backstoryHooks.filter(h => h.status !== 'resolved').length > 0 ? (() => {
-  const actNum = campaignContext.act;
-  const actionsInAct = campaignContext.actionsInCurrentAct || 0;
-  const dormant = campaignContext.backstoryHooks!.filter(h => h.status === 'dormant');
-  const active = campaignContext.backstoryHooks!.filter(h => h.status === 'active');
-  const activeUrgency = active.length > 0 && actionsInAct >= 8
-    ? `\nÃ°Å¸Å½Â¯ ACTIVE hooks MUST be developed this act - they've been seeded, now escalate them toward payoff.`
-    : '';
-  const dormantUrgency = dormant.length > 0 && actionsInAct >= 15
-    ? `\nÃ¢Å¡Â  DORMANT hooks are overdue - seed at least one of them into the story NOW.`
-    : '';
-  return `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â BACKSTORY HOOKS Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
-${active.length > 0 ? `ACTIVE (seeded - escalate toward payoff):\n${active.map(h => `  Ã¢â€“Â¶ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}${dormant.length > 0 ? `DORMANT (not yet introduced - seed these):\n${dormant.map(h => `  Ã¢-â€¹ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}Dormant = not yet seeded. Set backstoryHookActivated to characterId when seeding one. When an ACTIVE hook reaches its narrative payoff (resolved, paid off, laid to rest), set backstoryHookResolved to that characterId so the thread can close.${activeUrgency}${dormantUrgency}
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
-})() : ''}
-
-${campaignContext?.futureHooks && campaignContext.futureHooks.length > 0 ? `
-FUTURE HOOKS TO HONOR (past choices with pending repercussions - bring these back):
-${campaignContext.futureHooks.slice(-5).map(h => `- ${h.description}`).join('\n')}` : ''}
-
-${campaignContext?.pendingDirectorBeat ? `
-Ã¢â€ÂÃ¢â€ÂÃ¢â€Â PENDING DIRECTOR BEAT Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
-URGENCY: ${campaignContext.pendingDirectorBeat.urgency.toUpperCase()}
-MANDATORY BEAT: ${campaignContext.pendingDirectorBeat.beat}
-You MUST execute this beat this turn or next turn. Set directorBeatExecuted:true when done.
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â` : ''}
 
 ${campaignContext?.otherCharacters && campaignContext.otherCharacters.length > 0 ? `PARTY:
 ${campaignContext.otherCharacters.map(c => {
@@ -1313,7 +1317,8 @@ export async function generateCoopNarration(
   actions: { character: Character; action: string }[],
   worldState: WorldState,
   worldBible: WorldBible,
-  recentHistory: string[]
+  recentHistory: string[],
+  campaignContext?: NarrationCampaignContext | null
 ): Promise<NarrationResult & { character1Changes?: NarrationResult['character1Changes']; character2Changes?: NarrationResult['character2Changes'] }> {
   if (actions.length < 2) throw new Error('generateCoopNarration requires exactly 2 actions');
 
@@ -1350,6 +1355,8 @@ Central conflict: ${worldBible.centralConflict || ''}
 Visual style: ${worldBible.artBible?.masterPrompt || EVERREALM_ART_BIBLE.masterPrompt}
 ${worldState.combatState?.inCombat ? `IN COMBAT: ${worldState.combatState.enemyName} (${worldState.combatState.enemyCondition}) - Round ${worldState.combatState.roundNumber}` : ''}
 ${worldState.activeQuests && worldState.activeQuests.filter(q => q.status === 'active').length > 0 ? `Active quests: ${worldState.activeQuests.filter(q => q.status === 'active').map(q => q.title).join(', ')}` : ''}
+
+${buildCampaignContextBlock(campaignContext, worldBible, Math.max(c1.level, c2.level))}
 
 ${charBlock(c1, 'CHARACTER 1')}
 

@@ -1453,12 +1453,48 @@ export async function processCoopAction(
   // Get recent history (use first character as reference)
   const recentHistory = await getRecentHistory(campaignId, pendingActions[0].characterId);
 
+  // Compute campaign context (mirrors processAction's solo logic)
+  const currentAct = campaign.act || 1;
+  const roadmap = wb.dmRoadmap;
+  const mustIntroduce = currentAct === 1 ? (roadmap?.act1MustIntroduce || []) : [];
+  const mustIntroduceStatus: Record<string, boolean> = {};
+  if (mustIntroduce.length > 0) {
+    const allNpcNamesLower = toArr<NpcMemory>(ws.npcMemory).map(n => n.name.toLowerCase());
+    const allLocationsLower = toArr<string>(ws.discoveredLocations).map(l => l.toLowerCase());
+    for (const item of mustIntroduce) {
+      const itemLower = item.toLowerCase();
+      mustIntroduceStatus[item] =
+        allNpcNamesLower.some(n => itemLower.includes(n) || n.includes(itemLower.split(' ')[0])) ||
+        allLocationsLower.some(l => itemLower.includes(l) || l.includes(itemLower.split(' ')[0]));
+    }
+  }
+
+  const campaignContext = {
+    journal: ws.campaignJournal || [],
+    characterHistory: ws.characterHistory || [],
+    antagonists: wb.antagonistRoster || (wb.primaryAntagonist ? [wb.primaryAntagonist] : []),
+    centralConflict: wb.centralConflict || '',
+    act: currentAct,
+    sessionCount: ws.sessionCount || 1,
+    roadmap,
+    foreshadowingLedger: ws.foreshadowingLedger,
+    backstoryHooks: ws.backstoryHooks,
+    actGoalsAchieved: ws.actGoalsAchieved,
+    forceComplication: (ws.sceneState?.stalledCount ?? 0) >= 3,
+    actionsInCurrentAct: ws.actionsInCurrentAct || 0,
+    keyNPCs: ws.keyNPCs,
+    mustIntroduceStatus: mustIntroduce.length > 0 ? mustIntroduceStatus : undefined,
+    pendingDirectorBeat: ws.pendingDirectorBeat || null,
+    futureHooks: (ws.futureHooks || []).filter(h => !h.resolved).slice(-10),
+  };
+
   // Call generateCoopNarration
   const aiResponse = await generateCoopNarration(
     pendingActions.map((pa, i) => ({ character: characters[i], action: pa.action })),
     ws,
     wb,
-    recentHistory
+    recentHistory,
+    campaignContext
   );
 
   const xpGained = Math.floor(Math.random() * 20) + 10;
