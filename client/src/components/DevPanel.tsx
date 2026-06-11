@@ -80,8 +80,14 @@ export default function DevPanel({ character, inCombat, worldState, act, onKill,
     setBusy('locations')
     try {
       const existing = worldState?.discoveredLocations || []
-      const start = existing.length + 1
-      const added = Array.from({ length: n }, (_, i) => `Test Locale ${start + i}`)
+      const target = existing.length + n
+      const added: string[] = []
+      let i = existing.length + 1
+      while (existing.length + added.length < target) {
+        const name = `Test Locale ${i}`
+        if (!existing.includes(name) && !added.includes(name)) added.push(name)
+        i++
+      }
       const discoveredLocations = [...existing, ...added]
       await gameApi.devPatch(campaignId, { worldState: { discoveredLocations } })
       onWorldStateUpdate({ discoveredLocations })
