@@ -1592,6 +1592,16 @@ export async function processCoopAction(
     campaignContext
   );
 
+  // Explicit rest detection - override AI per character if they clearly stated rest intent (but not negations)
+  const isNegatedRest = (action: string) => /\b(not|don'?t|won'?t|can'?t|no|never|stop|avoid|refuse)\b.{0,20}\b(rest|sleep|camp|recover)\b/i.test(action);
+  const isExplicitRest = (action: string) => !isNegatedRest(action) && /\b(rest|sleep|camp|make camp|short rest|long rest|take a rest|take a break|set up camp|meditate|recover)\b/i.test(action);
+  if (isExplicitRest(pendingActions[0].action)) {
+    aiResponse.character1Changes = { ...(aiResponse.character1Changes || {}), isRest: true };
+  }
+  if (isExplicitRest(pendingActions[1].action)) {
+    aiResponse.character2Changes = { ...(aiResponse.character2Changes || {}), isRest: true };
+  }
+
   // If the AI wants a roll from one of the players, pause the turn for that roll
   if (aiResponse.awaitingRoll && aiResponse.rollContext) {
     const actingCharacterId = aiResponse.actingCharacterId
