@@ -383,6 +383,14 @@ MULTI-ENEMY COMBAT RULES:
 - Suggest actions that are class-appropriate and reference available abilities.
 - If the party has a companion (provided in context), let it act in combat: at bondLevel 1-2 it might distract an enemy or create a small opening (narrative only); at bondLevel 3-4 it can land minor hits or interpose to soak a hit (small hpChange, occasional minor heal/damage in the 1-3 range); at bondLevel 5 it can pull off a meaningful assist (a bigger hpChange, helping defeat a minion, or saving a character from a killing blow). Don't make the companion a second full combatant - it supports, it doesn't replace player agency.
 
+COMBAT STAKES & DAMAGE RULES:
+- Combat must cost something. Every round that an enemy is still standing and able to act, it ACTS - it attacks, grapples, corners, or wounds. A round where the players take no damage must be EARNED (strong defense, clever positioning, a good roll, a spent resource or ability) - never the default. A whole fight with zero damage taken against a real enemy group is a failure of stakes.
+- Calibrate damage to the character's max HP (both values are in context): a minion's hit costs roughly 5-10% of max HP, a soldier or beast 10-20%, an elite or mage 15-25%, a boss 20-35%. Glancing blows can be smaller, but make hits land.
+- Mechanics and narration must match: every narrated hit, burn, gash, or fall sets hpChange (solo) or character1Changes/character2Changes.hpChange (co-op). Never narrate a wound without applying it, and never apply damage you didn't narrate.
+- In co-op, spread the threat across rounds: enemies target whoever is exposed, isolated, or most dangerous - not always the same character. One partner seeing the other bloodied is a story beat; use it (see PARTY BOND & ROMANCE BEATS).
+- Fights have duration: a group of soldiers or a boss takes multiple rounds to bring down. Only trivially weaker foes (a couple of minions against a clearly stronger party - use NARRATIVE TIER) die to a single action.
+- Stakes, not grind: reward defense, cover, terrain, and clever play with reduced or avoided damage. When a character falls below ~30% HP, telegraph mortal danger clearly - death (isDeath) is on the table, but it should arrive as the consequence of choices the players made, never an ambush from nowhere.
+
 DICE ROLLING RULES:
 - When an action requires a skill check or attack, set awaitingRoll: true instead of narrating the outcome.
 - Populate rollContext with: stat (str/dex/con/int/wis/cha), dc (difficulty 8-25), diceType (almost always "d20"), description (what the player is attempting), successDescription (evocative hint at success, not a spoiler), failDescription (evocative hint at failure), isDramatic (true for high-stakes moments: saving throws vs death, critical attacks, unlocking the final door).
@@ -929,6 +937,26 @@ If the player's action this turn defeats, kills, or decisively triumphs over the
   return '';
 }
 
+function buildCombatBlock(combatState: WorldState['combatState'], partyHpLine: string): string {
+  if (!combatState?.inCombat) return '';
+  const enemyLines = combatState.enemies && combatState.enemies.length > 0
+    ? combatState.enemies.map(e =>
+        `  ${e.isDefeated ? '✗ DEFEATED' : '▶'} ${e.name} [${e.archetype.toUpperCase()}] - ${e.condition.toUpperCase()}${e.specialAbility ? ` | ${e.specialAbility}` : ''}`
+      ).join('\n')
+    : `  ${combatState.enemyName} - ${combatState.enemyCondition.toUpperCase()}`;
+  const bossLine = combatState.isBossFight
+    ? `\nBOSS FIGHT - Phase ${combatState.bossPhase || 1}. When boss reaches critical, advance to next phase (set bossPhaseAdvance: true). Each phase changes the boss's tactics and appearance dramatically.`
+    : '';
+  return `
+═══ ACTIVE COMBAT ═══
+Round: ${combatState.roundNumber} | ${partyHpLine}
+ENEMIES:
+${enemyLines}${bossLine}
+ACTIONS ALREADY TRIED: ${(combatState.playerActionsAttempted || []).slice(-5).join(', ') || 'none yet'}
+RULES: Maintain enemy continuity - they remember every action. When an enemy is defeated, set enemyDefeated to their name. Set combatEnemies[] in every response to reflect current state. Every enemy still standing ACTS this round - apply its cost per COMBAT STAKES & DAMAGE RULES.
+═════════════════════`;
+}
+
 function buildStatHints(s: Character['stats']): string {
   return [
     s.str >= 15 ? `STR ${s.str} → can force doors, break obstacles, intimidate physically` : s.str <= 8 ? `STR ${s.str} → avoid purely physical brute-force options` : null,
@@ -991,25 +1019,8 @@ ${onCooldown.length > 0 ? onCooldown.map(a => `- ${a.name} [ON COOLDOWN]`).join(
   const npcQuestMapBlock = buildNpcQuestMapBlock(worldState, campaignContext);
 
   const combatState = worldState.combatState;
-  let combatBlock = '';
-  if (combatState?.inCombat) {
-    const enemyLines = combatState.enemies && combatState.enemies.length > 0
-      ? combatState.enemies.map(e =>
-          `  ${e.isDefeated ? '✗ DEFEATED' : '▶'} ${e.name} [${e.archetype.toUpperCase()}] - ${e.condition.toUpperCase()}${e.specialAbility ? ` | ${e.specialAbility}` : ''}`
-        ).join('\n')
-      : `  ${combatState.enemyName} - ${combatState.enemyCondition.toUpperCase()}`;
-    const bossLine = combatState.isBossFight
-      ? `\nBOSS FIGHT - Phase ${combatState.bossPhase || 1}. When boss reaches critical, advance to next phase (set bossPhaseAdvance: true). Each phase changes the boss's tactics and appearance dramatically.`
-      : '';
-    combatBlock = `
-═══ ACTIVE COMBAT ═══
-Round: ${combatState.roundNumber} | Player HP: ${character.hp}/${character.max_hp}
-ENEMIES:
-${enemyLines}${bossLine}
-ACTIONS ALREADY TRIED: ${combatState.playerActionsAttempted.slice(-5).join(', ') || 'none yet'}
-RULES: Maintain enemy continuity - they remember every action. When an enemy is defeated, set enemyDefeated to their name. Set combatEnemies[] in every response to reflect current state.
-═════════════════════`;
-  }
+  // Combat context - shared with the co-op path
+  const combatBlock = buildCombatBlock(combatState, `Player HP: ${character.hp}/${character.max_hp}`);
 
   const sceneSummaryBlock = worldState.currentSceneSummary ? `
 CURRENT SITUATION (summary of what is happening RIGHT NOW):
@@ -1571,7 +1582,7 @@ Visual style: ${worldBible.artBible?.masterPrompt || EVERREALM_ART_BIBLE.masterP
 ${buildLoreContextBlock(worldBible)}
 ${buildNpcQuestMapBlock(worldState, campaignContext)}
 ${buildEndgameDirectiveBlock(worldState)}
-${worldState.combatState?.inCombat ? `IN COMBAT: ${worldState.combatState.enemyName} (${worldState.combatState.enemyCondition}) - Round ${worldState.combatState.roundNumber}` : ''}
+${buildCombatBlock(worldState.combatState, `Party HP: ${c1.name} ${c1.hp}/${c1.max_hp} | ${c2.name} ${c2.hp}/${c2.max_hp}`)}
 ${worldState.activeQuests && worldState.activeQuests.filter(q => q.status === 'active').length > 0 ? `Active quests: ${worldState.activeQuests.filter(q => q.status === 'active').map(q => q.title).join(', ')}` : ''}
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
@@ -1598,7 +1609,8 @@ DICE ROLLS & COMBAT APPLY HERE TOO - same as solo play:
 - If either character's action requires a skill check (including pickpocketing/theft - this ALWAYS requires a roll), set awaitingRoll: true, populate rollContext, and set actingCharacterId to whichever character (id) is making that roll. Write a tense setup narration that builds to the roll without resolving it - DO NOT resolve either character's action's outcome in this case.
 - For minor/incidental checks where you'd rather resolve the outcome immediately rather than pause for a player roll, set diceRequired: true with diceType/diceDC/diceDescription instead of awaitingRoll - the engine rolls for whichever character is acting (actingCharacterId, or Character 1 if ambiguous) and folds the result into this turn's narration.
 - If the players provoke or engage a hostile creature, do not narrate combat away - set isCombat: true, isHighStakes appropriately, and populate combatEnemies[] with real stats so the fight actually starts.
-- Follow PICKPOCKETING & THEFT RULES, CO-OP DIVERSION & TEAMWORK THEFT, and MULTI-ENEMY COMBAT RULES exactly as written for solo play.
+- Follow PICKPOCKETING & THEFT RULES, CO-OP DIVERSION & TEAMWORK THEFT, MULTI-ENEMY COMBAT RULES, and COMBAT STAKES & DAMAGE RULES exactly as written for solo play.
+- COMBAT STAKES are per character here: enemy damage lands via character1Changes.hpChange / character2Changes.hpChange. Spread the threat between both characters across rounds - don't always hit the same one, and don't let both walk through a real fight untouched.
 - HIGH STAKES DETECTION applies here too: follow the HIGH STAKES DETECTION - MANDATORY TRIGGERS rules. When isHighStakes: true, generate 2-3 choiceCards that frame the decision for BOTH characters together (the choice the party makes as a unit), and set suggestedActions: [].
 - Boss fights apply here too: follow the MULTI-ENEMY COMBAT RULES boss-fight guidance - set isBossFight: true on combat start, and bossPhaseAdvance: true with a dramatic transformation when a boss reaches "critical".
 - Achievements apply here too: follow ACHIEVEMENT RULES - award achievementUnlocked occasionally for memorable moments by either character.
@@ -1783,13 +1795,20 @@ export async function generateRollOutcome(
     crit_success: 'CRITICAL SUCCESS: Exceed expectations dramatically. The task is accomplished AND something extra happens - an enemy is off-balance, a new opportunity appears, an ally is inspired, a bonus is earned. This is a highlight moment.',
   };
 
+  const combatState = worldState.combatState;
+  const combatStakesBlock = combatState?.inCombat
+    ? `
+ACTIVE COMBAT - Round ${combatState.roundNumber}. Enemies: ${(combatState.enemies || []).filter(e => !e.isDefeated).map(e => `${e.name} (${e.condition})`).join(', ') || `${combatState.enemyName} (${combatState.enemyCondition})`}.
+COMBAT STAKES: the enemies act on this outcome too. On near_miss, clear_fail, or crit_fail, an enemy's counterattack usually LANDS - apply it via hpChange (a typical hit costs ~10-20% of the character's max HP; bosses hit harder). On partial_success the attack succeeds but usually costs something - often a hit taken in exchange. Only clean_success and crit_success normally escape unscathed. Never narrate a wound without setting hpChange, and never set hpChange without narrating the hit.`
+    : '';
+
   const prompt = `You are a DM resolving the outcome of a dice roll.
 The player attempted: ${rollContext.description}
 They rolled ${rollResult} + ${rollTotal - rollResult} (${rollContext.stat.toUpperCase()} modifier) = ${rollTotal} vs DC ${dc} - ${resultLabel}.
 Flavor hint for this outcome: "${flavorHint}"
 
 DEGREE OF SUCCESS DIRECTIVE:
-${degreeGuidance[degree]}
+${degreeGuidance[degree]}${combatStakesBlock}
 
 Character: ${character.name} (${character.race} ${character.class}, Level ${character.level})
 HP: ${character.hp}/${character.max_hp} | Location: ${worldState.currentLocation || 'unknown'}
