@@ -846,6 +846,15 @@ function buildEndgameDirectiveBlock(worldState: WorldState): string {
   return endgameBlock;
 }
 
+function buildStatHints(s: Character['stats']): string {
+  return [
+    s.str >= 15 ? `STR ${s.str} Ã¢â€ â€™ can force doors, break obstacles, intimidate physically` : s.str <= 8 ? `STR ${s.str} Ã¢â€ â€™ avoid purely physical brute-force options` : null,
+    s.dex >= 15 ? `DEX ${s.dex} Ã¢â€ â€™ can sneak, pick locks, acrobatics` : null,
+    s.int >= 15 ? `INT ${s.int} Ã¢â€ â€™ can recall lore, solve puzzles, identify magic` : s.int <= 8 ? `INT ${s.int} Ã¢â€ â€™ avoid complex lore options in suggestedActions` : null,
+    s.wis >= 15 ? `WIS ${s.wis} Ã¢â€ â€™ perceptive, reads people well` : null,
+  ].filter(Boolean).join('; ');
+}
+
 function buildNarrationMessages(
   action: string,
   worldState: WorldState,
@@ -1529,7 +1538,8 @@ Stats: STR ${s.str} DEX ${s.dex} CON ${s.con} INT ${s.int} WIS ${s.wis} CHA ${s.
 BACKSTORY: ${c.backstory || 'Unknown origins'}
 ${c.status_effects && c.status_effects.length > 0 ? `Status Effects: ${c.status_effects.map(e => e.name).join(', ')}` : ''}
 Abilities available: ${abilities.length > 0 ? abilities.map(a => `${a.name}${a.mechanic ? ` (${a.mechanic})` : ''}`).join('; ') : 'none'}
-Notable inventory: ${c.inventory.slice(0, 4).map(i => i.name).join(', ') || 'nothing special'}`;
+Notable inventory: ${c.inventory.slice(0, 4).map(i => i.name).join(', ') || 'nothing special'}
+STAT CONTEXT (factor into suggestedActions): ${buildStatHints(s) || 'balanced stats'}`;
   }
 
   const spotlightBalance = worldState.spotlightBalance || {}
