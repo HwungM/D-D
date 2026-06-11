@@ -637,9 +637,15 @@ export async function applyConsequences(
 
   if (actionResult.antagonistUpdate) {
     const au = actionResult.antagonistUpdate;
+    let antagonistName = au.name;
+    if (antagonistName === '[UNKNOWN]') {
+      const roster = campaign.world_bible?.antagonistRoster;
+      const unrevealed = roster?.find(a => !a.isRevealed);
+      antagonistName = unrevealed?.name || campaign.world_bible?.primaryAntagonist?.name || antagonistName;
+    }
     const progress = { ...(newWorldState.antagonistProgress || {}) };
-    const existing = progress[au.name] || { stepIndex: 0, lastAction: '', knowsPlayers: false };
-    progress[au.name] = {
+    const existing = progress[antagonistName] || { stepIndex: 0, lastAction: '', knowsPlayers: false };
+    progress[antagonistName] = {
       stepIndex: au.newStep ? existing.stepIndex + 1 : existing.stepIndex,
       lastAction: au.lastAction || existing.lastAction,
       knowsPlayers: au.nowKnowsPlayers ?? existing.knowsPlayers,
