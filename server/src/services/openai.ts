@@ -413,7 +413,7 @@ ABILITY SYSTEM RULES:
 
 ENDGAME RULES:
 - When endgamePhase is "approaching": the villain's plan is nearly complete. Start converging all plotlines. Urgency increases. Begin weaving backstory hooks toward their payoff. Set pacing to "tension" or "climax". Suggest actions that drive toward the final confrontation.
-- When endgamePhase is "confrontation": THIS IS THE FINAL BATTLE. No escape. Every action has ultimate weight. Make the villain feel overwhelming but beatable. After the player wins (isVictory: true), set "endgameResolved": true.
+- When endgamePhase is "confrontation": THIS IS THE FINAL BATTLE. No escape. Every action has ultimate weight. Make the villain feel overwhelming but beatable. If the player defeats the villain this turn, you MUST set BOTH "isVictory": true AND "endgameResolved": true - both are required fields on a victory turn.
 - When the story naturally builds to the final confrontation (villain is revealed, final location reached, all threads converging), set "triggerFinalConfrontation": true.
 
 BACKSTORY INTEGRATION:
@@ -814,7 +814,7 @@ ${active.length > 0 ? `ACTIVE (seeded - escalate toward payoff):\n${active.map(h
 ${campaignContext?.futureHooks && campaignContext.futureHooks.length > 0 ? `
 FUTURE HOOKS TO HONOR (past choices with pending repercussions - bring these back):
 ${campaignContext.futureHooks.slice(-5).map(h => `- (id: ${h.id}) ${h.description}`).join('\n')}
-When one of these hooks is paid off / resurfaces and gets resolved this turn, include its id in resolvedFutureHookIds.` : ''}
+CRITICAL: If the player's action this turn directly addresses, confronts, pays off, or settles ANY of the hooks above, you MUST set resolvedFutureHookIds to an array containing that hook's exact id string (e.g. "resolvedFutureHookIds": ["${campaignContext.futureHooks[campaignContext.futureHooks.length - 1].id}"]). Do not leave it null when a hook is clearly being paid off - this is a required field, not optional flavor.` : ''}
 
 ${campaignContext?.pendingDirectorBeat ? `
 Ã¢â€ÂÃ¢â€ÂÃ¢â€Â PENDING DIRECTOR BEAT Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
@@ -845,7 +845,7 @@ function buildNpcQuestMapBlock(worldState: WorldState, campaignContext?: Narrati
 }
 
 function buildEndgameDirectiveBlock(worldState: WorldState): string {
-  const endgamePhase = worldState.endgamePhase;  let endgameBlock = '';  if (endgamePhase && endgamePhase !== 'none') {    if (endgamePhase === 'approaching') {      endgameBlock = `\nÃ¢â€ÂÃ¢â€ÂÃ¢â€Â ENDGAME PHASE: APPROACHING Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂThe villain's plan is nearly complete. All plotlines must converge NOW. Urgency is maximal.Weave backstory hooks toward their payoff. Set pacingMode to "tension" or "climax".Every suggested action should drive toward the final confrontation.Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;    } else if (endgamePhase === 'confrontation') {      endgameBlock = `\nÃ¢â€ÂÃ¢â€ÂÃ¢â€Â ENDGAME PHASE: CONFRONTATION Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂTHIS IS THE FINAL BATTLE. No escape. No retreat. Every action carries ultimate weight.Make the villain feel overwhelming but beatable. The fate of everything hangs here.After the player achieves victory (isVictory: true), set "endgameResolved": true.Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;    }  }
+  const endgamePhase = worldState.endgamePhase;  let endgameBlock = '';  if (endgamePhase && endgamePhase !== 'none') {    if (endgamePhase === 'approaching') {      endgameBlock = `\nÃ¢â€ÂÃ¢â€ÂÃ¢â€Â ENDGAME PHASE: APPROACHING Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂThe villain's plan is nearly complete. All plotlines must converge NOW. Urgency is maximal.Weave backstory hooks toward their payoff. Set pacingMode to "tension" or "climax".Every suggested action should drive toward the final confrontation.Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;    } else if (endgamePhase === 'confrontation') {      endgameBlock = `\nÃ¢â€ÂÃ¢â€ÂÃ¢â€Â ENDGAME PHASE: CONFRONTATION Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂTHIS IS THE FINAL BATTLE. No escape. No retreat. Every action carries ultimate weight.Make the villain feel overwhelming but beatable. The fate of everything hangs here.If the player's action this turn defeats, kills, or decisively triumphs over the primary villain, you MUST set BOTH "isVictory": true AND "endgameResolved": true in your response - these are required fields when victory occurs, do not leave endgameResolved as false/null when the villain is defeated.Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;    }  }
   return endgameBlock;
 }
 
@@ -1030,7 +1030,7 @@ Every suggested action should drive toward the final confrontation.
       endgameBlock = `\nÃ¢â€ÂÃ¢â€ÂÃ¢â€Â ENDGAME PHASE: CONFRONTATION Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
 THIS IS THE FINAL BATTLE. No escape. No retreat. Every action carries ultimate weight.
 Make the villain feel overwhelming but beatable. The fate of everything hangs here.
-After the player achieves victory (isVictory: true), set "endgameResolved": true.
+If the player's action this turn defeats, kills, or decisively triumphs over the primary villain, you MUST set BOTH "isVictory": true AND "endgameResolved": true in your response - these are required fields when victory occurs, do not leave endgameResolved as false/null when the villain is defeated.
 Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
     }
   }
