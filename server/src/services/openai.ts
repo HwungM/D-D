@@ -821,6 +821,31 @@ You MUST execute this beat this turn or next turn. Set directorBeatExecuted:true
 Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â` : ''}`;
 }
 
+function buildLoreContextBlock(worldBible: WorldBible): string {
+  return `${worldBible.mysteryLayer ? `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â THE CENTRAL MYSTERY Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂQuestion players are investigating: ${worldBible.mysteryLayer.centralQuestion}Clues (drop ONE per 3-4 actions, in order):${worldBible.mysteryLayer.clues.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}Red herrings (feel real, lead nowhere):${worldBible.mysteryLayer.redHerrings.map(r => `  - ${r}`).join('\n')}Revelation (DO NOT reveal directly - build to it in Act 3): ${worldBible.mysteryLayer.revelation}Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â` : ''}${worldBible.safeHaven ? `SAFE HAVEN: ${worldBible.safeHaven.name} - ${worldBible.safeHaven.flavor}. Kept by ${worldBible.safeHaven.keyNPC}.` : ''}${worldBible.toneBreaks && worldBible.toneBreaks.length > 0 ? `TONAL CONTRAST MOMENTS: ${worldBible.toneBreaks.join(' | ')}` : ''}`;
+}
+
+function buildNpcQuestMapBlock(worldState: WorldState, campaignContext?: NarrationCampaignContext | null): string {
+  const keyNPCs = campaignContext?.keyNPCs || [];
+  const keyNpcNames = new Set(keyNPCs.map(n => n.name));
+  const rollingNPCs = (worldState.npcMemory || []).filter(n => !keyNpcNames.has(n.name));
+
+  function fmtNpc(n: { name: string; disposition: string; notes: string; role?: string; relationshipScore?: number; relationshipLabel?: string }) {
+    const rel = n.relationshipLabel ? ` | ${n.relationshipLabel}` : n.relationshipScore != null ? ` | score ${n.relationshipScore}` : ''
+    const role = n.role ? ` (${n.role})` : ''
+    return `- ${n.name}${role} [${n.disposition}${rel}]: ${n.notes}`
+  }
+
+  const keyNpcContext = keyNPCs.length > 0    ? `\n⭐ KEY NPCs ⭐\n${keyNPCs.map(fmtNpc).join('\n')}`    : '';  const npcContext = rollingNPCs.length > 0    ? `\nRECENT NPCs:\n${rollingNPCs.slice(-6).map(fmtNpc).join('\n')}`    : '';  const questContext = worldState.activeQuests && worldState.activeQuests.length > 0    ? `\nACTIVE QUESTS:\n${worldState.activeQuests.filter(q => q.status === 'active').map(q => `- ${q.title}: ${q.description}`).join('\n')}`    : '';
+  const locationGraph = worldState.locationGraph;  const currentMapNode = locationGraph?.nodes?.find(node => node.name === (locationGraph.currentLocation || worldState.currentLocation));  const knownLocationCount = worldState.discoveredLocations?.length || locationGraph?.nodes?.length || 0;  const worldSizeGuidance = knownLocationCount >= 70    ? `The world map is now large (${knownLocationCount} known places). Stop inventing new locations unless the story truly demands it — instead deepen, revisit, and complicate the places that already exist (new NPCs, quests, or twists at known locations).`    : knownLocationCount >= 35      ? `The world map is filling out (${knownLocationCount} known places). Lean toward sending the party back to places they've already been rather than introducing new ones — only add a new location when it's genuinely earned by the story.`      : '';  const mapContextBlock = locationGraph ? `LOCATION MAP:- Current location: ${locationGraph.currentLocation || worldState.currentLocation || 'unknown'}- Nearby roads: ${locationGraph.nearby?.join(', ') || 'none mapped yet'}- Current markers: ${[    currentMapNode?.npcsPresent?.length ? `NPCs: ${currentMapNode.npcsPresent.join(', ')}` : null,    currentMapNode?.questHooks?.length ? `Quests: ${currentMapNode.questHooks.join(', ')}` : null,    currentMapNode?.connectedTo?.length ? `Paths: ${currentMapNode.connectedTo.join(', ')}` : null,  ].filter(Boolean).join(' | ') || 'none'}- Known regions: ${locationGraph.regions?.slice(0, 5).map(region => `${region.name} (${region.locations.slice(0, 4).join(', ')})`).join(' | ') || 'none'}Use nearby mapped places when travel, investigation, or pursuit is relevant. If a new named place is discovered, moved to, or becomes important, include it in worldStateChanges.discoveredLocations and set worldStateChanges.currentLocation when the party actually changes location.${worldSizeGuidance ? `\n${worldSizeGuidance}` : ''}` : '';
+  return `${keyNpcContext}${npcContext}${questContext}\n${mapContextBlock}`;
+}
+
+function buildEndgameDirectiveBlock(worldState: WorldState): string {
+  const endgamePhase = worldState.endgamePhase;  let endgameBlock = '';  if (endgamePhase && endgamePhase !== 'none') {    if (endgamePhase === 'approaching') {      endgameBlock = `\nÃ¢â€ÂÃ¢â€ÂÃ¢â€Â ENDGAME PHASE: APPROACHING Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂThe villain's plan is nearly complete. All plotlines must converge NOW. Urgency is maximal.Weave backstory hooks toward their payoff. Set pacingMode to "tension" or "climax".Every suggested action should drive toward the final confrontation.Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;    } else if (endgamePhase === 'confrontation') {      endgameBlock = `\nÃ¢â€ÂÃ¢â€ÂÃ¢â€Â ENDGAME PHASE: CONFRONTATION Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂTHIS IS THE FINAL BATTLE. No escape. No retreat. Every action carries ultimate weight.Make the villain feel overwhelming but beatable. The fate of everything hangs here.After the player achieves victory (isVictory: true), set "endgameResolved": true.Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;    }  }
+  return endgameBlock;
+}
+
 function buildNarrationMessages(
   action: string,
   worldState: WorldState,
@@ -1522,6 +1547,9 @@ Notable inventory: ${c.inventory.slice(0, 4).map(i => i.name).join(', ') || 'not
 Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
 Central conflict: ${worldBible.centralConflict || ''}
 Visual style: ${worldBible.artBible?.masterPrompt || EVERREALM_ART_BIBLE.masterPrompt}
+${buildLoreContextBlock(worldBible)}
+${buildNpcQuestMapBlock(worldState, campaignContext)}
+${buildEndgameDirectiveBlock(worldState)}
 ${worldState.combatState?.inCombat ? `IN COMBAT: ${worldState.combatState.enemyName} (${worldState.combatState.enemyCondition}) - Round ${worldState.combatState.roundNumber}` : ''}
 ${worldState.activeQuests && worldState.activeQuests.filter(q => q.status === 'active').length > 0 ? `Active quests: ${worldState.activeQuests.filter(q => q.status === 'active').map(q => q.title).join(', ')}` : ''}
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}

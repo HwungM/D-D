@@ -2016,6 +2016,27 @@ export async function processCoopAction(
     }
   }
 
+  // Extract future hooks from what just happened (fire-and-forget, non-blocking)
+  if (newActionCount % 3 === 0) {
+    const finalWorldState = char2Result.updatedWorldState;
+    extractFutureHooks(
+      `${characters[0].name}: ${pendingActions[0].action} | ${characters[1].name}: ${pendingActions[1].action}`,
+      aiResponse.narration,
+      finalWorldState,
+      `${characters[0].name} & ${characters[1].name}`
+    )
+      .then(hooks => {
+        if (hooks.length > 0) {
+          const existing = finalWorldState.futureHooks || [];
+          const merged = [...existing, ...hooks].slice(-30);
+          supabaseAdmin.from('campaigns').update({
+            world_state: { ...finalWorldState, futureHooks: merged }
+          }).eq('id', campaignId).then(() => {}, () => {});
+        }
+      })
+      .catch(() => {});
+  }
+
   // Save story events for both characters
   await Promise.all([
     supabaseAdmin.from('story_events').insert({
