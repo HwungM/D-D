@@ -1387,7 +1387,7 @@ export async function resolveCoopRollAction(
   isCritSuccess: boolean,
   isCritFail: boolean,
   rollContext: RollContext
-): Promise<ActionResult & { character2Changes?: { hp?: number; gold?: number; inventory?: unknown } }> {
+): Promise<ActionResult> {
   const { data: campaign, error: campError } = await supabaseAdmin.from('campaigns').select('*').eq('id', campaignId).single();
   if (campError || !campaign) throw new Error('Campaign not found');
 
@@ -1521,7 +1521,7 @@ export async function getOpeningScene(
 export async function processCoopAction(
   campaignId: string,
   pendingActions: { characterId: string; userId: string; action: string; characterName: string }[]
-): Promise<ActionResult & { character2Changes?: { hp?: number; gold?: number; inventory?: unknown } }> {
+): Promise<ActionResult> {
   // Load both characters
   const charResults = await Promise.all(
     pendingActions.map(pa =>
@@ -1654,8 +1654,7 @@ export async function processCoopAction(
     success = diceResult.total >= (aiResponse.diceDC ?? 12);
   }
 
-  const baseXpGained = success ? (aiResponse.comboBonus ? Math.floor((Math.floor(Math.random() * 20) + 10) * 1.5) : Math.floor(Math.random() * 20) + 10) : 5;
-  const xpGained = baseXpGained;
+  const xpGained = success ? (aiResponse.comboBonus ? Math.floor((Math.floor(Math.random() * 20) + 10) * 1.5) : Math.floor(Math.random() * 20) + 10) : 5;
 
   // Build world state changes (tracking both characters)
   const newActionCount = (ws.actionCount || 0) + 1;
