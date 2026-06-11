@@ -114,6 +114,7 @@ export default function Game() {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [campaignName, setCampaignName] = useState('')
   const [showDeathScreen, setShowDeathScreen] = useState(false)
+  const [recap, setRecap] = useState<{ summary: string; keyDecisions: string[]; sessionNumber: number; gapHours: number } | null>(null)
   const [shopItems, setShopItems] = useState<ShopItem[]>([])
   const [showShop, setShowShop] = useState(false)
   const [showActTransition, setShowActTransition] = useState(false)
@@ -228,6 +229,7 @@ export default function Game() {
       } else if (!currentSceneImage) {
         setSceneImage(DEFAULT_SCENES[Math.floor(Math.random() * DEFAULT_SCENES.length)])
       }
+      if (data.recap) setRecap(data.recap)
     })
     gameApi.getHistory(campaignId, characterId, 50, true).then(({ data }) => {
       const loaded: StoryEvent[] = data.events || []
@@ -1326,6 +1328,32 @@ export default function Game() {
           onRiseAgain={() => navigate(`/campaign/${campaignId}/create-character`)}
           onReturnToHall={() => navigate('/dashboard')}
         />
+      )}
+      {recap && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="max-w-lg border border-violet-200/25 bg-zinc-950/95 p-6 shadow-xl">
+            <h2 className="font-fantasy text-sm uppercase tracking-[0.25em] text-violet-100/70">
+              Previously, Session {recap.sessionNumber}...
+            </h2>
+            <p className="mt-3 font-serif text-sm leading-relaxed text-violet-50/85">
+              {recap.summary}
+            </p>
+            {recap.keyDecisions.length > 0 && (
+              <ul className="mt-3 list-disc space-y-1 pl-5 font-serif text-xs text-violet-100/60">
+                {recap.keyDecisions.map((d, i) => <li key={i}>{d}</li>)}
+              </ul>
+            )}
+            <p className="mt-4 font-mono text-[10px] uppercase tracking-widest text-violet-100/30">
+              {recap.gapHours < 24 ? `${recap.gapHours}h` : `${Math.round(recap.gapHours / 24)}d`} since last session
+            </p>
+            <button
+              onClick={() => setRecap(null)}
+              className="mt-4 w-full border border-violet-200/30 bg-violet-300/8 px-4 py-2 font-fantasy text-xs uppercase tracking-[0.2em] text-violet-100/80 transition-all hover:bg-violet-300/15"
+            >
+              Continue the Adventure
+            </button>
+          </div>
+        </div>
       )}
       {showShop && shopItems.length > 0 && currentCharacter && (
         <ShopModal

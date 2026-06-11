@@ -310,10 +310,29 @@ router.get('/scene/:campaignId/:characterId', requireAuth, async (req: AuthReque
     return;
   }
 
+  // "Previously on..." recap when returning after a long break
+  let recap: { summary: string; keyDecisions: string[]; sessionNumber: number; gapHours: number } | null = null;
+  const ws = (campaign.world_state || {}) as WorldState;
+  if (lastEvent?.created_at) {
+    const gapHours = (Date.now() - new Date(lastEvent.created_at).getTime()) / (1000 * 60 * 60);
+    if (gapHours >= 3) {
+      const lastJournalEntry = (ws.campaignJournal || [])[((ws.campaignJournal || []).length || 1) - 1];
+      if (lastJournalEntry) {
+        recap = {
+          summary: lastJournalEntry.summary,
+          keyDecisions: lastJournalEntry.keyDecisions || [],
+          sessionNumber: lastJournalEntry.sessionNumber,
+          gapHours: Math.round(gapHours),
+        };
+      }
+    }
+  }
+
   res.json({
     lastEvent,
     worldState: campaign.world_state,
     character,
+    recap,
   });
 });
 
