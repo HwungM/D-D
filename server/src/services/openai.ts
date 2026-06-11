@@ -573,7 +573,7 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "scenePurpose": "explore" | "gather_info" | "combat" | "social" | "travel" | "rest" | "climax",
   "newForeshadowing": [{"id": "unique-id", "description": "what was planted", "type": "npc|rumor|object|event|place"}] | null,
   "paidOffForeshadowing": ["foreshadowing-id-being-resolved"] | null,
-  "resolvedFutureHookIds": ["future hook id paid off this turn"] | null,
+  "resolvedFutureHooks": ["a short exact phrase (3-8 words) copied from one of the FUTURE HOOKS TO HONOR descriptions that was resolved this turn"] | null,
   "backstoryHookActivated": "characterId if seeding a dormant hook this turn" | null,
   "backstoryHookResolved": "characterId if one of their ACTIVE backstory hooks reached its narrative payoff this turn" | null,
   "actGoalAchieved": "exact text of an act goal from the roadmap if one was fulfilled this turn" | null,
@@ -700,7 +700,7 @@ export type NarrationResult = {
   scenePurpose?: 'explore' | 'gather_info' | 'combat' | 'social' | 'travel' | 'rest' | 'climax';
   newForeshadowing?: { id: string; description: string; type: string }[];
   paidOffForeshadowing?: string[];
-  resolvedFutureHookIds?: string[];
+  resolvedFutureHooks?: string[];
   backstoryHookActivated?: string;
   backstoryHookResolved?: string;
   actGoalAchieved?: string;
@@ -814,7 +814,7 @@ ${active.length > 0 ? `ACTIVE (seeded - escalate toward payoff):\n${active.map(h
 ${campaignContext?.futureHooks && campaignContext.futureHooks.length > 0 ? `
 FUTURE HOOKS TO HONOR (past choices with pending repercussions - bring these back):
 ${campaignContext.futureHooks.slice(-5).map(h => `- (id: ${h.id}) ${h.description}`).join('\n')}
-CRITICAL: If the player's action this turn directly addresses, confronts, pays off, or settles ANY of the hooks above, you MUST set resolvedFutureHookIds to an array containing that hook's exact id string (e.g. "resolvedFutureHookIds": ["${campaignContext.futureHooks[campaignContext.futureHooks.length - 1].id}"]). Do not leave it null when a hook is clearly being paid off - this is a required field, not optional flavor.` : ''}
+CRITICAL: If the player's action this turn directly addresses, confronts, pays off, or settles ANY of the hooks above, you MUST set resolvedFutureHooks to an array containing a short exact phrase (3-8 words) copied verbatim from that hook's description (e.g. "resolvedFutureHooks": ["a debt comes due"]). Do not leave it null when a hook is clearly being paid off - this is a required field, not optional flavor.` : ''}
 
 ${campaignContext?.pendingDirectorBeat ? `
 Ã¢â€ÂÃ¢â€ÂÃ¢â€Â PENDING DIRECTOR BEAT Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
@@ -1401,7 +1401,7 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
     scenePurpose: ['explore', 'gather_info', 'combat', 'social', 'travel', 'rest', 'climax'].includes(asString(parsed.scenePurpose) || '') ? parsed.scenePurpose as NarrationResult['scenePurpose'] : 'explore',
     newForeshadowing: cleanForeshadowing(parsed.newForeshadowing),
     paidOffForeshadowing: cleanStringArray(parsed.paidOffForeshadowing, 5),
-    resolvedFutureHookIds: cleanStringArray(parsed.resolvedFutureHookIds, 5),
+    resolvedFutureHooks: cleanStringArray(parsed.resolvedFutureHooks, 5),
     backstoryHookActivated: asString(parsed.backstoryHookActivated),
     backstoryHookResolved: asString(parsed.backstoryHookResolved),
     actGoalAchieved: asString(parsed.actGoalAchieved),
@@ -1662,7 +1662,7 @@ Respond with JSON:
   "spotlightCharacterId": "characterId being spotlighted this turn, or null",
   "newForeshadowing": [{"id": "unique-id", "description": "string", "type": "plot|character|item|location"}] | null,
   "paidOffForeshadowing": ["foreshadowing id"] | null,
-  "resolvedFutureHookIds": ["future hook id paid off this turn"] | null,
+  "resolvedFutureHooks": ["a short exact phrase (3-8 words) copied from one of the FUTURE HOOKS TO HONOR descriptions that was resolved this turn"] | null,
   "backstoryHookActivated": "characterId whose dormant backstory hook just became active, or null",
   "backstoryHookResolved": "characterId whose active backstory hook just got resolved, or null",
   "actGoalAchieved": "string | null",

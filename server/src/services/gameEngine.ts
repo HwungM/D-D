@@ -984,11 +984,11 @@ export async function processAction(
     }
   }
   let futureHooksChanges: WorldState['futureHooks'] | undefined;
-  if (aiResponse.resolvedFutureHookIds && aiResponse.resolvedFutureHookIds.length > 0) {
-    const resolvedIds = new Set(aiResponse.resolvedFutureHookIds);
+  if (aiResponse.resolvedFutureHooks && aiResponse.resolvedFutureHooks.length > 0) {
+    const phrases = aiResponse.resolvedFutureHooks.map(p => p.toLowerCase().trim()).filter(p => p.length >= 3);
     const existing = ws.futureHooks || [];
-    if (existing.some(h => resolvedIds.has(h.id))) {
-      futureHooksChanges = existing.map(h => resolvedIds.has(h.id) ? { ...h, resolved: true } : h);
+    if (phrases.length > 0 && existing.some(h => !h.resolved && phrases.some(p => h.description.toLowerCase().includes(p)))) {
+      futureHooksChanges = existing.map(h => (!h.resolved && phrases.some(p => h.description.toLowerCase().includes(p))) ? { ...h, resolved: true } : h);
     }
   }
 
@@ -1874,11 +1874,11 @@ export async function processCoopAction(
     }
   }
   let futureHooksChanges: WorldState['futureHooks'] | undefined;
-  if (aiResponse.resolvedFutureHookIds && aiResponse.resolvedFutureHookIds.length > 0) {
-    const resolvedIds = new Set(aiResponse.resolvedFutureHookIds);
+  if (aiResponse.resolvedFutureHooks && aiResponse.resolvedFutureHooks.length > 0) {
+    const phrases = aiResponse.resolvedFutureHooks.map(p => p.toLowerCase().trim()).filter(p => p.length >= 3);
     const existing = ws.futureHooks || [];
-    if (existing.some(h => resolvedIds.has(h.id))) {
-      futureHooksChanges = existing.map(h => resolvedIds.has(h.id) ? { ...h, resolved: true } : h);
+    if (phrases.length > 0 && existing.some(h => !h.resolved && phrases.some(p => h.description.toLowerCase().includes(p)))) {
+      futureHooksChanges = existing.map(h => (!h.resolved && phrases.some(p => h.description.toLowerCase().includes(p))) ? { ...h, resolved: true } : h);
     }
   }
 
