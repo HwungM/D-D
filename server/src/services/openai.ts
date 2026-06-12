@@ -196,7 +196,7 @@ STATUS EFFECTS RULES:
 
 SHOP/MERCHANT RULES:
 - When the character encounters a merchant, trader, or shop, set isMerchant: true and populate shopItems.
-- shopItems: array of {id, name, description, type, price, quantity} - 4-8 items appropriate to the setting.
+- shopItems: array of {id, name, description, type, price, quantity} - ALWAYS 4-8 items appropriate to the setting (varied types: weapons, armor, potions, curiosities). Never a single item.
 - IMPORTANT: A merchant's inventory does NOT change between visits. If the player has visited this merchant before (check npcMemory), use the SAME items they had before. Only generate new items for a brand new merchant never seen before.
 - The player can then choose to buy items (handled separately). Do not auto-deduct gold.
 - If the merchant belongs to a faction the party has standing with (provided in faction standings context), adjust prices accordingly: strongly favored (60+) gives noticeably discounted prices, favored (20+) gives modest discounts, hostile (-20 or below) gives markups, hated (-60 or below) may mean the merchant refuses to deal at all (don't set isMerchant in that case, narrate the refusal instead).
@@ -1622,7 +1622,7 @@ DICE ROLLS & COMBAT APPLY HERE TOO - same as solo play:
 - Boss fights apply here too: follow the MULTI-ENEMY COMBAT RULES boss-fight guidance - set isBossFight: true on combat start, and bossPhaseAdvance: true with a dramatic transformation when a boss reaches "critical".
 - Achievements apply here too: follow ACHIEVEMENT RULES - award achievementUnlocked occasionally for memorable moments by either character.
 - WEATHER & TIME OF DAY RULES apply here too - factor timeOfDay/weather into difficulty, NPC availability, and pacing for both characters.
-- SHOP/MERCHANT RULES apply here too - if either character encounters a merchant, set isMerchant: true and populate shopItems.
+- SHOP/MERCHANT RULES apply here too - if either character encounters a merchant, set isMerchant: true and populate shopItems with 4-8 items appropriate to the setting (varied types: weapons, armor, potions, curiosities). Never stock a merchant with a single item.
 - NPC conversation tracking applies here too - set activeNPC to the name of whichever NPC either character is actively talking to, or null if the conversation ended or the party moved on.
 - QUIET CHARACTER MOMENTS and PARTY BOND & ROMANCE BEATS apply here too. If the moment is calm and the players are engaging with each other (talking, teasing, planning, an affectionate gesture), let that BE the scene - weave it warmly, give the world one small reaction, and do not interrupt it with a manufactured threat. Both characters must have concrete presence in every narration.
 - IMPORTANT: If any named NPC appears, speaks, is referenced as a contact, gives information, changes disposition, or becomes the active conversation partner, update worldStateChanges.npcMemory with that NPC's name, disposition, notes, lastMet, metCharacters, interactionCount, role, gender, relationshipScore, and relationshipLabel. Adjust relationshipScore based on the interaction (+/- 5 to 50 depending on impact). When updating a known NPC, carry their established notes forward and append what changed (notes REPLACE the old ones). Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.

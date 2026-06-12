@@ -207,6 +207,11 @@ export default function Game() {
               created_at: new Date().toISOString(),
             })
           }
+        } else if (coopWaitingRef.current && Date.now() - coopResolvedAtRef.current >= 8000) {
+          // Our action is locked in and the pending turn is gone from world
+          // state — the DM is narrating the round right now. Show the thinking
+          // indicator on this screen too; the narration event clears it.
+          setLoading(true)
         } else {
           coopResolvedAtRef.current = 0
           setCoopSubmittedCount(0)
@@ -386,6 +391,9 @@ export default function Game() {
     if (isPartnerEvent && newEvent.event_type === 'action') {
       processedEventIds.current.add(newEvent.id)
       addEvent(newEvent)
+      // If our action was already locked in, the partner's arriving action
+      // completes the round — the DM is generating now, show the indicator.
+      if (coopWaitingRef.current) setLoading(true)
       return
     }
 
