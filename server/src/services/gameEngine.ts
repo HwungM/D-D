@@ -1,7 +1,7 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks, generateCoopNarration } from './openai';
 import OpenAI from 'openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe, InventoryItem } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe, InventoryItem, CombatEnemy } from '../../../shared/types';
 
 function appendAchievement(existing: UnlockedAchievement[] | undefined, achievement: { title: string; description: string }, characterName: string): UnlockedAchievement[] {
   const list = existing || [];
@@ -410,6 +410,91 @@ export function rollDice(sides: number, modifier: number = 0, count: number = 1)
 
 export function getStatModifier(statValue: number): number {
   return Math.floor((statValue - 10) / 2);
+}
+
+// Advance the combat tracker from one turn to the next. Shared by the solo and
+// co-op paths so they stay in parity. The AI's combatEnemies[] (with per-enemy
+// condition + isDefeated) is the source of truth; the round-based condition is
+// only a fallback when the AI omits it. Two safety nets keep a fight from
+// getting stuck: when every enemy is flagged defeated, or when the AI signals
+// victory, combat ends and forcedVictory is reported so the caller can mark the
+// turn a win even if the AI forgot to set isVictory itself.
+type CombatAiSignals = {
+  isCombat?: boolean;
+  enemyName?: string;
+  combatEnemies?: CombatEnemy[];
+  enemyDefeated?: string;
+  isVictory?: boolean;
+  isBossFight?: boolean;
+  bossPhaseAdvance?: boolean;
+};
+
+export function advanceCombatState(
+  prev: NonNullable<WorldState['combatState']> | null,
+  ai: CombatAiSignals,
+  newActions: string[],
+): { combatState: NonNullable<WorldState['combatState']> | null; forcedVictory: boolean } {
+  // Starting a new fight
+  if (ai.isCombat && ai.enemyName && !prev?.inCombat) {
+    const initialEnemies: CombatEnemy[] = ai.combatEnemies && ai.combatEnemies.length > 0
+      ? ai.combatEnemies
+      : [{ name: ai.enemyName, archetype: 'soldier', maxHp: 30, condition: 'healthy' }];
+    return {
+      combatState: {
+        inCombat: true,
+        enemyName: initialEnemies.find(e => !e.isDefeated)?.name || initialEnemies[0]?.name || ai.enemyName,
+        enemyCondition: 'healthy',
+        roundNumber: 1,
+        playerActionsAttempted: newActions,
+        enemies: initialEnemies,
+        isBossFight: ai.isBossFight || false,
+        bossPhase: ai.isBossFight ? 1 : undefined,
+      },
+      forcedVictory: false,
+    };
+  }
+
+  // Continuing an existing fight
+  if (ai.isCombat && ai.enemyName && prev?.inCombat) {
+    const rounds = prev.roundNumber + 1;
+    // Fallback condition tied to how long the fight has run — never to how hurt
+    // the player is (that was inverted). Real per-enemy state comes from the AI.
+    const roundCondition: 'healthy' | 'wounded' | 'critical' = rounds <= 2 ? 'healthy' : rounds <= 5 ? 'wounded' : 'critical';
+
+    let enemies = prev.enemies || [];
+    if (ai.combatEnemies && ai.combatEnemies.length > 0) {
+      enemies = ai.combatEnemies;
+    } else if (ai.enemyDefeated) {
+      enemies = enemies.map(e => e.name === ai.enemyDefeated ? { ...e, isDefeated: true, condition: 'critical' as const } : e);
+    } else {
+      enemies = enemies.map(e => e.name === prev.enemyName ? { ...e, condition: roundCondition } : e);
+    }
+
+    const living = enemies.filter(e => !e.isDefeated);
+    const allDefeated = enemies.length > 0 && living.length === 0;
+    if (ai.isVictory || allDefeated) {
+      return { combatState: null, forcedVictory: allDefeated && !ai.isVictory };
+    }
+
+    return {
+      combatState: {
+        ...prev,
+        enemyName: living[0]?.name || prev.enemyName,
+        enemyCondition: living[0]?.condition || roundCondition,
+        roundNumber: rounds,
+        enemies,
+        playerActionsAttempted: [...(prev.playerActionsAttempted || []).slice(-8), ...newActions],
+        bossPhase: ai.bossPhaseAdvance ? (prev.bossPhase || 1) + 1 : prev.bossPhase,
+      },
+      forcedVictory: false,
+    };
+  }
+
+  // Not a combat turn — close out any fight that was running (victory or escape)
+  if (ai.isVictory || prev?.inCombat) {
+    return { combatState: null, forcedVictory: false };
+  }
+  return { combatState: prev, forcedVictory: false };
 }
 
 export function checkLevelUp(character: Character): { leveledUp: boolean; newLevel?: number; hpGain?: number } {
@@ -893,63 +978,7 @@ export async function processAction(
   };
 
   // Update combat state
-  let combatState = ws.combatState ?? null;
-  if (aiResponse.isCombat && aiResponse.enemyName) {
-    if (!combatState?.inCombat) {
-      // Combat just started â€” build initial enemy list; sync legacy enemyName from enemies[0] if provided
-      const initialEnemies: import('../../../shared/types').CombatEnemy[] = aiResponse.combatEnemies
-        ? aiResponse.combatEnemies
-        : [{ name: aiResponse.enemyName, archetype: 'soldier', maxHp: 30, condition: 'healthy' }];
-      const primaryName = initialEnemies[0]?.name || aiResponse.enemyName;
-      combatState = {
-        inCombat: true,
-        enemyName: primaryName,
-        enemyCondition: 'healthy',
-        roundNumber: 1,
-        playerActionsAttempted: [action],
-        enemies: initialEnemies,
-        isBossFight: aiResponse.isBossFight || false,
-        bossPhase: aiResponse.isBossFight ? 1 : undefined,
-      };
-    } else {
-      const rounds = combatState.roundNumber + 1;
-      const totalDamageDealt = (combatState as unknown as Record<string, number>).totalDamageDealt || 0;
-      const newDamage = aiResponse.hpChange && aiResponse.hpChange < 0 ? Math.abs(aiResponse.hpChange) : 0;
-      const cumulativeDamage = totalDamageDealt + newDamage;
-      const enemyCondition: 'healthy' | 'wounded' | 'critical' = cumulativeDamage >= 30
-        ? 'critical' : cumulativeDamage >= 15
-        ? 'wounded' : rounds <= 3
-        ? 'healthy' : rounds <= 6
-        ? 'wounded' : 'critical';
-
-      // Update enemy list if AI provided updated state
-      let enemies = combatState.enemies || [];
-      if (aiResponse.combatEnemies && aiResponse.combatEnemies.length > 0) {
-        enemies = aiResponse.combatEnemies;
-        // Sync legacy enemyName to first living enemy (backward compat)
-        const firstLiving = enemies.find(e => !e.isDefeated);
-        if (firstLiving) (combatState as Record<string, unknown>).enemyName = firstLiving.name;
-      } else if (aiResponse.enemyDefeated) {
-        enemies = enemies.map(e => e.name === aiResponse.enemyDefeated ? { ...e, isDefeated: true, condition: 'critical' as const } : e);
-      } else {
-        // Auto-degrade primary enemy condition
-        enemies = enemies.map(e => e.name === combatState!.enemyName ? { ...e, condition: enemyCondition } : e);
-      }
-
-      const activeCombatState = combatState!;
-      combatState = {
-        ...activeCombatState,
-        roundNumber: rounds,
-        enemyCondition,
-        enemies,
-        playerActionsAttempted: [...(activeCombatState.playerActionsAttempted || []).slice(-8), action],
-        totalDamageDealt: cumulativeDamage,
-        bossPhase: aiResponse.bossPhaseAdvance ? (activeCombatState.bossPhase || 1) + 1 : activeCombatState.bossPhase,
-      } as NonNullable<WorldState['combatState']> & { totalDamageDealt?: number };
-    }
-  } else if (aiResponse.isVictory || (!aiResponse.isCombat && combatState?.inCombat)) {
-    combatState = null; // combat ended
-  }
+  const { combatState, forcedVictory } = advanceCombatState(ws.combatState ?? null, aiResponse, [action]);
 
   // Scene summary â€” regenerate every 4 actions (cheap GPT-4o-mini call)
   const actionCount = (ws.actionsSinceLastSummary || 0) + 1;
@@ -1280,6 +1309,7 @@ export async function processAction(
     worldStateChanges: updatedWorldState,
     characterChanges: {
       hp: updatedCharacter.hp,
+      max_hp: updatedCharacter.max_hp,
       xp: updatedCharacter.xp,
       level: updatedCharacter.level,
       gold: updatedCharacter.gold,
@@ -1288,10 +1318,11 @@ export async function processAction(
     },
     sceneImagePrompt: aiResponse.sceneImagePrompt,
     suggestedActions: aiResponse.suggestedActions,
-    isLevelUp: aiResponse.isLevelUp,
+    // Drive the level-up celebration off the real XP system, not the AI's guess
+    isLevelUp: newLevelAfter > prevLevel,
     isDeath: aiResponse.isDeath,
-    isCombat: aiResponse.isCombat,
-    isVictory: aiResponse.isVictory,
+    isCombat: !!aiResponse.isCombat && combatState != null,
+    isVictory: !!aiResponse.isVictory || forcedVictory,
     enemyName: aiResponse.enemyName,
     newAbility: grantedAbility,
     loot: aiResponse.loot as ActionResult['loot'],
@@ -1430,20 +1461,40 @@ export async function resolveCoopRollAction(
   const wsAfterRoll = (refreshedCampaign?.world_state || result.worldStateChanges || ws) as WorldState;
 
   const xpGained = success ? Math.floor(Math.random() * 20) + 10 : 5;
+  // worldStateChanges (not the passed-in snapshot) is what actually persists:
+  // applyConsequences re-fetches the latest world state before writing, so the
+  // pending roll must be cleared via the merge path or it lives in the DB forever.
   const { updatedCharacter: updatedPartner, updatedWorldState } = await applyConsequences(
     partnerAction.characterId,
-    { xpGained },
+    { xpGained, worldStateChanges: { coopPendingRoll: null } },
     partnerChar as Character,
     { id: campaignId, world_state: { ...wsAfterRoll, coopPendingRoll: null }, act: campaign.act, world_bible: campaign.world_bible as WorldBible }
   );
 
-  // Mirror the roll narration into the partner's feed
+  const partnerLeveledUp = updatedPartner.level > (partnerChar as Character).level;
+  const partnerAbility = partnerLeveledUp ? getAbilityForLevel((partnerChar as Character).class, updatedPartner.level) ?? null : null;
+
+  // Mirror the roll narration into the partner's feed, carrying enough metadata
+  // for their client to show the same turn effects the roller sees.
   await supabaseAdmin.from('story_events').insert({
     campaign_id: campaignId,
     character_id: partnerAction.characterId,
     event_type: 'narration',
     content: result.narration,
-    metadata: { coopRound: true, fromRoll: true, suggestedActions: result.suggestedActions },
+    metadata: {
+      coopRound: true,
+      fromRoll: true,
+      suggestedActions: result.suggestedActions,
+      isCombat: result.isCombat ?? false,
+      isVictory: result.isVictory ?? false,
+      enemyName: result.enemyName ?? null,
+      personal: {
+        isLevelUp: partnerLeveledUp,
+        level: updatedPartner.level,
+        maxHp: updatedPartner.max_hp,
+        newAbility: partnerAbility,
+      },
+    },
   });
 
   return {
@@ -1451,6 +1502,7 @@ export async function resolveCoopRollAction(
     worldStateChanges: updatedWorldState,
     character2Changes: {
       hp: updatedPartner.hp,
+      max_hp: updatedPartner.max_hp,
       gold: updatedPartner.gold,
       inventory: updatedPartner.inventory,
     },
@@ -1796,61 +1848,8 @@ export async function processCoopAction(
     }
   }
 
-  // Update combat state
-  let combatState = ws.combatState ?? null;
-  if (aiResponse.isCombat && aiResponse.enemyName) {
-    if (!combatState?.inCombat) {
-      const initialEnemies: import('../../../shared/types').CombatEnemy[] = aiResponse.combatEnemies
-        ? aiResponse.combatEnemies
-        : [{ name: aiResponse.enemyName, archetype: 'soldier', maxHp: 30, condition: 'healthy' }];
-      const primaryName = initialEnemies[0]?.name || aiResponse.enemyName;
-      combatState = {
-        inCombat: true,
-        enemyName: primaryName,
-        enemyCondition: 'healthy',
-        roundNumber: 1,
-        playerActionsAttempted: pendingActions.map(pa => pa.action),
-        enemies: initialEnemies,
-        isBossFight: aiResponse.isBossFight || false,
-        bossPhase: aiResponse.isBossFight ? 1 : undefined,
-      };
-    } else {
-      const rounds = combatState.roundNumber + 1;
-      const totalDamageDealt = (combatState as unknown as Record<string, number>).totalDamageDealt || 0;
-      const newDamage = (aiResponse.character1Changes?.hpChange && aiResponse.character1Changes.hpChange < 0 ? Math.abs(aiResponse.character1Changes.hpChange) : 0)
-        + (aiResponse.character2Changes?.hpChange && aiResponse.character2Changes.hpChange < 0 ? Math.abs(aiResponse.character2Changes.hpChange) : 0);
-      const cumulativeDamage = totalDamageDealt + newDamage;
-      const enemyCondition: 'healthy' | 'wounded' | 'critical' = cumulativeDamage >= 30
-        ? 'critical' : cumulativeDamage >= 15
-        ? 'wounded' : rounds <= 3
-        ? 'healthy' : rounds <= 6
-        ? 'wounded' : 'critical';
-
-      let enemies = combatState.enemies || [];
-      if (aiResponse.combatEnemies && aiResponse.combatEnemies.length > 0) {
-        enemies = aiResponse.combatEnemies;
-        const firstLiving = enemies.find(e => !e.isDefeated);
-        if (firstLiving) (combatState as Record<string, unknown>).enemyName = firstLiving.name;
-      } else if (aiResponse.enemyDefeated) {
-        enemies = enemies.map(e => e.name === aiResponse.enemyDefeated ? { ...e, isDefeated: true, condition: 'critical' as const } : e);
-      } else {
-        enemies = enemies.map(e => e.name === combatState!.enemyName ? { ...e, condition: enemyCondition } : e);
-      }
-
-      const activeCombatState = combatState!;
-      combatState = {
-        ...activeCombatState,
-        roundNumber: rounds,
-        enemyCondition,
-        enemies,
-        playerActionsAttempted: [...(activeCombatState.playerActionsAttempted || []).slice(-8), ...pendingActions.map(pa => pa.action)],
-        totalDamageDealt: cumulativeDamage,
-        bossPhase: aiResponse.bossPhaseAdvance ? (activeCombatState.bossPhase || 1) + 1 : activeCombatState.bossPhase,
-      } as NonNullable<WorldState['combatState']> & { totalDamageDealt?: number };
-    }
-  } else if (aiResponse.isVictory || (!aiResponse.isCombat && combatState?.inCombat)) {
-    combatState = null;
-  }
+  // Update combat state (shared with the solo path)
+  const { combatState, forcedVictory } = advanceCombatState(ws.combatState ?? null, aiResponse, pendingActions.map(pa => pa.action));
 
   // Update foreshadowing ledger from AI response
   const ledgerChanges: ForeshadowingEntry[] = [];
@@ -1974,6 +1973,7 @@ export async function processCoopAction(
       ...Object.fromEntries(pendingActions.map(pa => [pa.characterId, new Date().toISOString()])),
     },
     pendingTurn: null,
+    coopPendingRoll: null,
     spotlightBalance: currentBalance,
     ...(aiResponse.achievementUnlocked
       ? { unlockedAchievements: appendAchievement(ws.unlockedAchievements, aiResponse.achievementUnlocked, characters[0].name) }
@@ -2084,6 +2084,45 @@ export async function processCoopAction(
       .catch(() => {});
   }
 
+  const updatedChar1 = char1Result.updatedCharacter;
+  const updatedChar2 = char2Result.updatedCharacter;
+
+  const char1LevelUp = updatedChar1.level > characters[0].level;
+  const char2LevelUp = updatedChar2.level > characters[1].level;
+  const grantedAbility1 = char1LevelUp ? getAbilityForLevel(characters[0].class, updatedChar1.level) ?? undefined : undefined;
+  const grantedAbility2 = char2LevelUp ? getAbilityForLevel(characters[1].class, updatedChar2.level) ?? undefined : undefined;
+  const isCombatNow = !!aiResponse.isCombat && combatState != null;
+  const isVictoryNow = !!aiResponse.isVictory || forcedVictory;
+
+  // Turn-effect metadata rides on each player's narration event so the partner
+  // who submitted first (and receives this round via realtime, not the API
+  // response) gets the same popups - loot, level-up, choice cards, shop - as
+  // the player who submitted last.
+  const sharedTurnMeta = {
+    coopRound: true,
+    suggestedActions: aiResponse.suggestedActions,
+    isCombat: isCombatNow,
+    isVictory: isVictoryNow,
+    enemyName: aiResponse.enemyName ?? null,
+    isHighStakes: !!aiResponse.isHighStakes,
+    choiceCards: aiResponse.choiceCards ?? null,
+    isMerchant: !!aiResponse.isMerchant,
+    shopItems: aiResponse.isMerchant ? aiResponse.shopItems ?? null : null,
+    advanceAct: !!aiResponse.advanceAct,
+    bossPhaseAdvance: !!aiResponse.bossPhaseAdvance,
+    achievementUnlocked: aiResponse.achievementUnlocked ?? null,
+  };
+  const personalTurnMeta = (updated: Character, original: Character, changes: typeof aiResponse.character1Changes, leveledUp: boolean, ability: ReturnType<typeof getAbilityForLevel> | undefined) => ({
+    isLevelUp: leveledUp,
+    level: updated.level,
+    maxHp: updated.max_hp,
+    newAbility: ability ?? null,
+    loot: changes?.loot ?? null,
+    goldGained: Math.max(0, (updated.gold ?? 0) - (original.gold ?? 0)) || null,
+    isDeath: changes?.isDeath ?? false,
+    deathDescription: changes?.deathDescription ?? null,
+  });
+
   // Save story events for both characters
   await Promise.all([
     supabaseAdmin.from('story_events').insert({
@@ -2105,24 +2144,16 @@ export async function processCoopAction(
       character_id: pendingActions[0].characterId,
       event_type: 'narration',
       content: aiResponse.narration,
-      metadata: { coopRound: true, suggestedActions: aiResponse.suggestedActions },
+      metadata: { ...sharedTurnMeta, personal: personalTurnMeta(updatedChar1, characters[0], aiResponse.character1Changes, char1LevelUp, grantedAbility1) },
     }),
     supabaseAdmin.from('story_events').insert({
       campaign_id: campaignId,
       character_id: pendingActions[1].characterId,
       event_type: 'narration',
       content: aiResponse.narration,
-      metadata: { coopRound: true, suggestedActions: aiResponse.suggestedActions },
+      metadata: { ...sharedTurnMeta, personal: personalTurnMeta(updatedChar2, characters[1], aiResponse.character2Changes, char2LevelUp, grantedAbility2) },
     }),
   ]);
-
-  const updatedChar1 = char1Result.updatedCharacter;
-  const updatedChar2 = char2Result.updatedCharacter;
-
-  const char1LevelUp = updatedChar1.level > characters[0].level;
-  const char2LevelUp = updatedChar2.level > characters[1].level;
-  const grantedAbility1 = char1LevelUp ? getAbilityForLevel(characters[0].class, updatedChar1.level) ?? undefined : undefined;
-  const grantedAbility2 = char2LevelUp ? getAbilityForLevel(characters[1].class, updatedChar2.level) ?? undefined : undefined;
 
   return {
     narration: aiResponse.narration,
@@ -2132,6 +2163,7 @@ export async function processCoopAction(
     character2Id: characters[1].id,
     characterChanges: {
       hp: updatedChar1.hp,
+      max_hp: updatedChar1.max_hp,
       xp: updatedChar1.xp,
       level: updatedChar1.level,
       gold: updatedChar1.gold,
@@ -2144,8 +2176,8 @@ export async function processCoopAction(
     newAbility: grantedAbility1,
     isDeath: aiResponse.character1Changes?.isDeath ?? false,
     deathDescription: aiResponse.character1Changes?.deathDescription,
-    isCombat: aiResponse.isCombat,
-    isVictory: aiResponse.isVictory,
+    isCombat: isCombatNow,
+    isVictory: isVictoryNow,
     enemyName: aiResponse.enemyName,
     loot: (aiResponse.character1Changes?.loot || aiResponse.loot) as ActionResult['loot'],
     isHighStakes: aiResponse.isHighStakes,
@@ -2162,6 +2194,7 @@ export async function processCoopAction(
     shopItems: aiResponse.shopItems as ShopItem[] | undefined,
     character2Changes: {
       hp: updatedChar2.hp,
+      max_hp: updatedChar2.max_hp,
       gold: updatedChar2.gold,
       inventory: updatedChar2.inventory,
       xp: updatedChar2.xp,

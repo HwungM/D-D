@@ -98,6 +98,9 @@ export default function Game() {
   const historicalIds = useRef<Set<string>>(new Set())
   const coopWaitingRef = useRef(false)
   const coopResolvedAtRef = useRef(0)
+  // Events already routed into the UI - realtime and the poll fallback can both
+  // deliver the same row; side effects (popups, unlocks) must fire exactly once.
+  const processedEventIds = useRef<Set<string>>(new Set())
 
 
   const [showLevelUp, setShowLevelUp] = useState(false)
@@ -170,7 +173,14 @@ export default function Game() {
       if (data.worldState) {
         setWorldState(data.worldState)
         const pendingTurn = data.worldState.pendingTurn
-        if (pendingTurn?.actions?.length) {
+        const coopRoll = data.worldState.coopPendingRoll
+        const partnerRolling = !!(coopRoll?.actingCharacterId && coopRoll.actingCharacterId !== characterId)
+        if (partnerRolling) {
+          // Partner holds the dice - keep this player's input locked until the
+          // roll resolves (their resolution narration unlocks us via realtime).
+          setCoopWaiting(true)
+          setLoading(false)
+        } else if (pendingTurn?.actions?.length) {
           const submitted = pendingTurn.actions.some((action: { characterId: string }) => action.characterId === characterId)
           const readyMemberCount = partyMembers.filter(member => member.character && member.character.is_alive !== false).length
           setCoopSubmittedCount(pendingTurn.actions.length)
@@ -253,13 +263,19 @@ export default function Game() {
             suggestedActions: lastNarration.metadata.suggestedActions as string[],
           } as ActionResult)
         }
-        // Restore pending dice roll if player disconnected mid-roll
+        // Restore pending dice roll if player disconnected mid-roll - but only
+        // if this character is the one who holds the dice. In co-op the same
+        // narration row exists for both players; restoring the partner's roll
+        // here would let the wrong player resolve it.
         if (lastNarration?.metadata?.awaitingRoll && lastNarration.metadata.rollContext) {
-          setDiceModalData({
-            narration: lastNarration.content,
-            rollContext: lastNarration.metadata.rollContext as RollContext,
-          })
-          setShowDiceModal(true)
+          const actingId = lastNarration.metadata.actingCharacterId as string | undefined
+          if (!actingId || actingId === characterId) {
+            setDiceModalData({
+              narration: lastNarration.content,
+              rollContext: lastNarration.metadata.rollContext as RollContext,
+            })
+            setShowDiceModal(true)
+          }
         }
       } else if (loaded.length > 0) {
         // Party has history but this character is new - show recent story on start screen for context
@@ -278,11 +294,147 @@ export default function Game() {
   useEffect(() => {
     if (!campaignId || !characterId || partyMembers.length < 2) return
     const interval = window.setInterval(() => {
+      // Poll fallback for event delivery: on deployments where Supabase
+      // realtime isn't enabled on story_events, this is how the waiting
+      // partner receives the resolved round (within ~5s instead of never).
+      gameApi.getHistory(campaignId, characterId, 12, true)
+        .then(({ data }) => { for (const ev of (data.events || []) as StoryEvent[]) handleIncomingEvent(ev) })
+        .catch(() => {})
       syncSceneState()
       refreshParty()
     }, 5000)
     return () => window.clearInterval(interval)
   }, [campaignId, characterId, partyMembers.length, refreshParty, syncSceneState])
+
+  // Show this turn's effects (loot, level-up, choice cards, shop, act change...)
+  // for the player who submitted first: they receive the resolved round via
+  // realtime instead of the API response, so without this they'd get plain
+  // text while their partner gets the full presentation. Mirrors handleAction.
+  // Reads character/world state via getState() so the pre-turn values are used
+  // (e.g. hpGained is computed against the max HP from before the level-up).
+  function presentCoopTurnEffects(ev: StoryEvent) {
+    const meta = (ev.metadata || {}) as Record<string, unknown>
+    const personal = (meta.personal || {}) as {
+      isLevelUp?: boolean; level?: number; maxHp?: number; newAbility?: Ability | null
+      loot?: InventoryItem[] | null; goldGained?: number | null
+      isDeath?: boolean; deathDescription?: string | null
+    }
+    const me = useGameStore.getState().currentCharacter
+
+    if (meta.isCombat && typeof meta.enemyName === 'string' && meta.enemyName) {
+      audioManager.playCombat()
+      setEnemyPopupName(meta.enemyName)
+      setShowEnemyPopup(true)
+    }
+    if (meta.isVictory) audioManager.playVictory()
+
+    const lootItemsFromMeta = Array.isArray(personal.loot) ? personal.loot : []
+    const goldGained = typeof personal.goldGained === 'number' && personal.goldGained > 0 ? personal.goldGained : undefined
+    if (lootItemsFromMeta.length > 0 || goldGained) {
+      audioManager.playItemPickup()
+      setLootItems(lootItemsFromMeta)
+      setLootGold(goldGained)
+      setShowLoot(true)
+    }
+
+    if (personal.isLevelUp && personal.level && me) {
+      audioManager.playLevelUp()
+      setLevelUpData({
+        level: personal.level,
+        hpGained: Math.max(1, (personal.maxHp ?? me.max_hp) - me.max_hp),
+        newAbility: personal.newAbility ?? null,
+        characterName: me.name,
+      })
+      setShowLevelUp(true)
+    }
+
+    if (meta.achievementUnlocked && typeof meta.achievementUnlocked === 'object') {
+      audioManager.playLevelUp()
+      setAchievementToast(meta.achievementUnlocked as { title: string; description: string })
+    }
+    if (meta.isHighStakes && Array.isArray(meta.choiceCards) && meta.choiceCards.length > 0) {
+      setHighStakesData({ narration: ev.content, choices: meta.choiceCards as HighStakesChoiceType[] })
+      setShowHighStakes(true)
+    }
+    if (meta.isMerchant && Array.isArray(meta.shopItems) && meta.shopItems.length > 0) {
+      audioManager.playGold()
+      setShopItems(meta.shopItems as ShopItem[])
+      setTimeout(() => setShowShop(true), 800)
+    }
+    if (meta.advanceAct) {
+      setNextAct(prev => prev + 1)
+      setTimeout(() => setShowActTransition(true), 600)
+    }
+    if (meta.bossPhaseAdvance) {
+      const ws = useGameStore.getState().worldState
+      const bossName = (typeof meta.enemyName === 'string' && meta.enemyName) || ws?.combatState?.enemyName || 'The Boss'
+      setBossPhaseInfo({ phase: (ws?.combatState?.bossPhase ?? 1) + 1, name: bossName })
+      setShowBossPhase(true)
+    }
+    if (personal.isDeath) setTimeout(() => setShowDeathScreen(true), 1200)
+  }
+
+  // Route one story event into the UI. Shared by the realtime subscription and
+  // the co-op poll fallback (for deployments where realtime isn't enabled on
+  // story_events), so each event is processed exactly once whichever path
+  // delivers it first.
+  function handleIncomingEvent(newEvent: StoryEvent) {
+    if (!newEvent?.id || processedEventIds.current.has(newEvent.id) || historicalIds.current.has(newEvent.id)) return
+    const isOwnEvent = newEvent.character_id === characterId
+    const isPartnerEvent = !!newEvent.character_id && newEvent.character_id !== characterId
+
+    if (isPartnerEvent && newEvent.event_type === 'action') {
+      processedEventIds.current.add(newEvent.id)
+      addEvent(newEvent)
+      return
+    }
+
+    if (isOwnEvent && newEvent.event_type === 'narration') {
+      processedEventIds.current.add(newEvent.id)
+      const actingId = newEvent.metadata?.actingCharacterId as string | undefined
+      // If this narration is already in the feed, this player received the round
+      // through the API response (they submitted last, or rolled the dice
+      // themselves) - everything was presented there already.
+      const alreadyShown = useGameStore.getState().events.some(e => e.event_type === 'narration' && e.content === newEvent.content)
+
+      // The PARTNER holds the dice: show the setup narration but stay locked -
+      // their roll resolution will arrive as another narration event.
+      if (newEvent.metadata?.awaitingRoll && actingId && actingId !== characterId) {
+        if (!alreadyShown) addEvent(newEvent)
+        setLoading(false)
+        return
+      }
+
+      if (alreadyShown) return
+
+      addEvent(newEvent)
+      coopResolvedAtRef.current = Date.now()
+      setCoopWaiting(false)
+      setCoopSubmittedCount(0)
+      setCoopNeededCount(0)
+      setCoopExpiresAt(null)
+      setLoading(false)
+
+      // This player is the one who needs to roll - show the dice modal instead of resuming
+      if (newEvent.metadata?.awaitingRoll && actingId === characterId && newEvent.metadata?.rollContext) {
+        setDiceModalData({
+          narration: newEvent.content,
+          rollContext: newEvent.metadata.rollContext as RollContext,
+        })
+        setShowDiceModal(true)
+        return
+      }
+
+      presentCoopTurnEffects(newEvent)
+      setIsTyping(true)
+      const suggestedActions = Array.isArray(newEvent.metadata?.suggestedActions)
+        ? newEvent.metadata.suggestedActions as string[]
+        : undefined
+      setLastActionResult({ narration: newEvent.content, suggestedActions } as ActionResult)
+      syncSceneState()
+      refreshParty()
+    }
+  }
 
   // Supabase Realtime
   useEffect(() => {
@@ -291,44 +443,7 @@ export default function Game() {
     const channel = supabase
       .channel(`campaign:${campaignId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'story_events', filter: `campaign_id=eq.${campaignId}` },
-        (payload) => {
-          const newEvent = payload.new as StoryEvent
-          const isOwnEvent = newEvent.character_id === characterId
-          const isPartnerEvent = !!newEvent.character_id && newEvent.character_id !== characterId
-
-          if (coopWaitingRef.current && isOwnEvent && newEvent.event_type === 'narration') {
-            addEvent(newEvent)
-            coopResolvedAtRef.current = Date.now()
-            setCoopWaiting(false)
-            setCoopSubmittedCount(0)
-            setCoopNeededCount(0)
-            setCoopExpiresAt(null)
-            setLoading(false)
-
-            // If this player is the one who needs to roll, show the dice modal instead of resuming
-            if (newEvent.metadata?.awaitingRoll && newEvent.metadata?.actingCharacterId === characterId && newEvent.metadata?.rollContext) {
-              setDiceModalData({
-                narration: newEvent.content,
-                rollContext: newEvent.metadata.rollContext as RollContext,
-              })
-              setShowDiceModal(true)
-              return
-            }
-
-            setIsTyping(true)
-            const suggestedActions = Array.isArray(newEvent.metadata?.suggestedActions)
-              ? newEvent.metadata.suggestedActions as string[]
-              : undefined
-            setLastActionResult({ narration: newEvent.content, suggestedActions } as ActionResult)
-            syncSceneState()
-            refreshParty()
-            return
-          }
-
-          if (isPartnerEvent && newEvent.event_type === 'action') {
-            addEvent(newEvent)
-          }
-        }
+        (payload) => { handleIncomingEvent(payload.new as StoryEvent) }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'characters', filter: `campaign_id=eq.${campaignId}` },
         () => { refreshParty() }
@@ -340,6 +455,13 @@ export default function Game() {
   useEffect(() => {
     if (narratorRef.current) narratorRef.current.scrollTop = narratorRef.current.scrollHeight
   }, [events])
+
+  // Combat UI follows the authoritative world state, so it survives a reload,
+  // shows for the co-op partner who's waiting, and clears the moment a fight
+  // ends (victory or escape) instead of relying on the last action's flags.
+  useEffect(() => {
+    setInCombat(!!worldState?.combatState?.inCombat)
+  }, [worldState?.combatState?.inCombat])
 
 
   async function handleRollComplete() {

@@ -206,6 +206,21 @@ router.post('/:id/join', requireAuth, async (req: AuthRequest, res: Response): P
   res.json({ message: 'Joined campaign' });
 });
 
+// The party_invites table comes from migration 002, which not every deployment
+// has applied. When it's unavailable, fall back to using the campaign id itself
+// as the invite code - the accept/preview routes below understand both forms.
+function fallbackInvite(campaignId: string, invitedBy: string) {
+  return {
+    campaign_id: campaignId,
+    invited_by: invitedBy,
+    invite_code: campaignId,
+    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    fallback: true,
+  };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Create an invite link for a campaign
 router.post('/:id/invite', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
@@ -252,7 +267,8 @@ router.post('/:id/invite', requireAuth, async (req: AuthRequest, res: Response):
     .single();
 
   if (error || !invite) {
-    res.status(500).json({ error: 'Failed to create invite' });
+    // Table missing or insert failed - hand out the always-valid fallback code
+    res.json({ invite: fallbackInvite(id, req.user!.id) });
     return;
   }
 
@@ -263,11 +279,23 @@ router.post('/:id/invite', requireAuth, async (req: AuthRequest, res: Response):
 router.post('/invite/:code/accept', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { code } = req.params;
 
-  const { data: invite } = await supabaseAdmin
+  let { data: invite } = await supabaseAdmin
     .from('party_invites')
     .select('*')
     .eq('invite_code', code)
-    .single();
+    .maybeSingle();
+
+  // Fallback: the code may be a campaign id (issued when party_invites is unavailable)
+  if (!invite && UUID_RE.test(code)) {
+    const { data: campaignById } = await supabaseAdmin
+      .from('campaigns')
+      .select('id')
+      .eq('id', code)
+      .maybeSingle();
+    if (campaignById) {
+      invite = fallbackInvite(campaignById.id, req.user!.id);
+    }
+  }
 
   if (!invite) {
     res.status(404).json({ error: 'Invite not found' });
@@ -311,14 +339,36 @@ router.get('/invite/:code', async (req, res: Response): Promise<void> => {
     .from('party_invites')
     .select('*, campaigns(name, story_seed), profiles(username)')
     .eq('invite_code', code)
-    .single();
+    .maybeSingle();
 
-  if (!invite) {
-    res.status(404).json({ error: 'Invite not found' });
+  if (invite) {
+    res.json({ invite });
     return;
   }
 
-  res.json({ invite });
+  // Fallback: treat a campaign id as its own invite code
+  if (UUID_RE.test(code)) {
+    const { data: campaignById } = await supabaseAdmin
+      .from('campaigns')
+      .select('id, name, story_seed, created_by')
+      .eq('id', code)
+      .maybeSingle();
+    if (campaignById) {
+      const { data: hostProfile } = campaignById.created_by
+        ? await supabaseAdmin.from('profiles').select('username').eq('id', campaignById.created_by).maybeSingle()
+        : { data: null };
+      res.json({
+        invite: {
+          ...fallbackInvite(campaignById.id, campaignById.created_by || ''),
+          campaigns: { name: campaignById.name, story_seed: campaignById.story_seed },
+          profiles: { username: hostProfile?.username || 'A party host' },
+        },
+      });
+      return;
+    }
+  }
+
+  res.status(404).json({ error: 'Invite not found' });
 });
 
 // Get party members for a campaign

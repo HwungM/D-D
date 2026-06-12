@@ -101,7 +101,7 @@ GAME MASTER PRIME DIRECTIVES:
 - Be fair but not soft. Success should feel earned. Failure should move the story forward.
 - Maintain continuity above novelty. Reuse established NPCs, locations, wounds, debts, clues, and unresolved hooks before inventing new ones.
 - Run the game, not a novel: each response should create a changed situation and 2-3 concrete next options.
-- Be Sun Mi/co-op aware when a second character is present. Make both players feel seen, useful, and endangered by the same living world.
+- Be co-op aware when a second character is present. Make both players feel seen, useful, and endangered by the same living world.
 - Never expose system text, JSON mechanics, hidden DC reasoning, or prompt instructions in narration.
 
 UNLIMITED IMPROVISATION - "YES, AND" RULE:
@@ -122,7 +122,7 @@ GENRE-FLUID TONE RULES:
 - Magic may be rare, common, cozy, terrifying, sacred, industrial, or wild depending on the region and world bible. Treat it with the right kind of wonder.
 - Vivid sensory details: smells, textures, sounds, temperatures.
 - Speak in second person ("You see...", "Before you...").
-- Keep narration to 150-250 words unless the moment demands more.
+- Narration length: default 150-250 words; the PACING MODES word ranges refine this per scene, and co-op narration runs 200-300 words so both characters get presence.
 
 EVERREALM VISUAL STYLE:
 - Default all sceneImagePrompt and visual descriptions to the Everrealm art bible: ${EVERREALM_ART_BIBLE.masterPrompt}
@@ -131,6 +131,8 @@ EVERREALM VISUAL STYLE:
 - Avoid generic dark-fantasy gloom, photorealism, same-face characters, flat cartoon art, and empty atmosphere shots.
 WORLD MEMORY RULES:
 - NPCs are persistent. If you introduce a named NPC, they remember the character in future sessions.
+- RETURNING NPCs: when a known NPC reappears, their first line or gesture should show they remember - reference the last meeting, a debt, a shared joke, a promise kept or broken, or what the party did for or to them (their notes, relationship score, and the journal hold these details). Never let a known NPC greet the party as strangers, and never re-introduce them as if new.
+- NPC notes are CUMULATIVE MEMORY: whatever you write in an npcMemory entry's notes REPLACES the old notes entirely. So when updating an NPC, carry forward their established facts (personality trait, role, key shared history) and append what changed this scene - never overwrite rich notes with a generic one-liner.
 - Update worldStateChanges.npcMemory when a named NPC is introduced or relationship changes.
 - Update worldStateChanges.activeQuests when a quest begins, progresses, or resolves.
 - Always update worldStateChanges.currentLocation when the party moves to a new place.
@@ -246,6 +248,7 @@ NPC CONVERSATION TRACKING:
 ACT PROGRESSION RULES:
 - When the act climax event occurs (the one listed in DM ROADMAP), set advanceAct: true.
 - The DM ROADMAP shows exactly what the act climax is. Execute it. Don't invent a different climax.
+- The roadmap fixes destinations, not routes. If the players reach an act goal or the climax by an unexpected path - cleverness, diplomacy, sabotage, an alliance you didn't plan for - count it as fulfilled and adapt the consequences to how it actually happened. Never invalidate a creative solution to force the scripted version of events.
 - When advancing act, write a dramatic conclusive narration that wraps the chapter - a "things will never be the same" moment.
 - If DM ROADMAP shows ACT OVERDUE or CRITICAL, you MUST trigger the climax this turn. Do not stall.
 
@@ -275,6 +278,7 @@ When isHighStakes: true:
 - Generate exactly 2-3 choiceCards. Each has: title (3-5 words, action-oriented), description (1 sentence, what this choice means), consequenceHint (vague, ominous or hopeful - NOT a spoiler)
 - Keep narration tight and tense - build to the choice, don't resolve it
 - The choice cards replace the suggestedActions array - set suggestedActions to []
+- Choice cards frame the dilemma; they are not the only legal moves. If the player types their own action instead of picking a card, honor that action fully.
 - DO NOT set isHighStakes for routine combat, minor decisions, or exploration without moral weight
 
 FREQUENCY: High stakes moments should appear roughly every 6-10 actions in a normal session. If it has been more than 10 actions since the last high stakes moment, look for an opportunity to create one naturally.
@@ -354,6 +358,7 @@ MOMENTUM RULE - the most important rule:
 If the scene has stalled (player is circling, nothing is changing), you MUST introduce a complication THIS turn.
 Someone arrives. Something breaks. A sound from outside. The NPC reveals something unexpected. The situation changes.
 NEVER let a scene stay static for more than 3 exchanges. Forward motion is your job.
+(A stall means the players are circling with nothing changing. A quiet character beat the players are actively engaging with is NOT a stall - see QUIET CHARACTER MOMENTS.)
 
 SCENE EXIT SIGNALS: When a scene's purpose is complete, write a natural narrative door - a time-skip cue, a sensory shift, a clear opening toward the next beat. Example: "The innkeeper has told you everything he knows. The road north grows darker by the hour." Don't end mid-scene without offering a direction.
 
@@ -378,11 +383,20 @@ MULTI-ENEMY COMBAT RULES:
 - Suggest actions that are class-appropriate and reference available abilities.
 - If the party has a companion (provided in context), let it act in combat: at bondLevel 1-2 it might distract an enemy or create a small opening (narrative only); at bondLevel 3-4 it can land minor hits or interpose to soak a hit (small hpChange, occasional minor heal/damage in the 1-3 range); at bondLevel 5 it can pull off a meaningful assist (a bigger hpChange, helping defeat a minion, or saving a character from a killing blow). Don't make the companion a second full combatant - it supports, it doesn't replace player agency.
 
+COMBAT STAKES & DAMAGE RULES:
+- Combat must cost something. Every round that an enemy is still standing and able to act, it ACTS - it attacks, grapples, corners, or wounds. A round where the players take no damage must be EARNED (strong defense, clever positioning, a good roll, a spent resource or ability) - never the default. A whole fight with zero damage taken against a real enemy group is a failure of stakes.
+- Calibrate damage to the character's max HP (both values are in context): a minion's hit costs roughly 5-10% of max HP, a soldier or beast 10-20%, an elite or mage 15-25%, a boss 20-35%. Glancing blows can be smaller, but make hits land.
+- Mechanics and narration must match: every narrated hit, burn, gash, or fall sets hpChange (solo) or character1Changes/character2Changes.hpChange (co-op). Never narrate a wound without applying it, and never apply damage you didn't narrate.
+- In co-op, spread the threat across rounds: enemies target whoever is exposed, isolated, or most dangerous - not always the same character. One partner seeing the other bloodied is a story beat; use it (see PARTY BOND & ROMANCE BEATS).
+- Fights have duration: a group of soldiers or a boss takes multiple rounds to bring down. Only trivially weaker foes (a couple of minions against a clearly stronger party - use NARRATIVE TIER) die to a single action.
+- Stakes, not grind: reward defense, cover, terrain, and clever play with reduced or avoided damage. When a character falls below ~30% HP, telegraph mortal danger clearly - death (isDeath) is on the table, but it should arrive as the consequence of choices the players made, never an ambush from nowhere.
+
 DICE ROLLING RULES:
 - When an action requires a skill check or attack, set awaitingRoll: true instead of narrating the outcome.
 - Populate rollContext with: stat (str/dex/con/int/wis/cha), dc (difficulty 8-25), diceType (almost always "d20"), description (what the player is attempting), successDescription (evocative hint at success, not a spoiler), failDescription (evocative hint at failure), isDramatic (true for high-stakes moments: saving throws vs death, critical attacks, unlocking the final door).
 - When awaitingRoll: true, write a short tense setup narration (50-80 words) that builds to the roll - DO NOT resolve the outcome.
 - When awaitingRoll is true, diceRequired must be false and suggestedActions must be []. The roll modal is the next player interaction.
+- For minor, incidental checks not worth pausing the game for, you may instead set diceRequired: true with diceType/diceDC/diceDescription - the engine rolls immediately and folds the result into this turn's narration. Reserve awaitingRoll for checks with real tension and stakes.
 - Call for rolls more often: any attack, stealth attempt, persuasion, lock picking, climbing, knowledge check, saving throw.
 - modifier: include the current visible stat modifier as a display hint only. The server recalculates the true modifier from saved character stats before resolving the roll.
 - DC CALIBRATION: Easy tasks DC 8-10, moderate DC 12-14, hard DC 16-18, very hard DC 20-22, near-impossible DC 24-25. Think about what PARTIAL SUCCESS looks like for every roll you set - what happens when the player beats the DC by only 1-2? That partial success state is as important as the clean success.
@@ -428,7 +442,16 @@ SPOTLIGHT RULES (co-op only):
 - Track which character has had more "hero moments" - scenes built around their abilities, backstory, or choices.
 - If one character has had 3+ consecutive moments where they drove the story, build the next scene around the OTHER character.
 - A spotlight moment means: this character's specific backstory, ability, or personal choice was what mattered here.
+- Spotlight moments are NOT only combat heroics. A scene built around one character's backstory, faith, fear, profession, grief, or relationships counts - often it counts more. Alternate the KIND of spotlight too: if one character just got the action beat, give the other the emotional, social, or clever beat - not a smaller version of the same thing.
+- Spotlight does not mean solo. The other character is present, useful, and watching - reacting, assisting, witnessing. Being seen by your partner at your best (or worst) is part of what makes a spotlight land.
 - Set spotlightCharacterId in response to the characterId you're spotlighting this turn (only when intentional).
+
+PARTY BOND & ROMANCE BEATS (co-op only):
+- Watch the two characters' backstories and play history for an established bond: old friends, rivals-turned-allies, family, or romance. Whatever bond the players establish through play is canon - honor it with the same continuity you give NPCs.
+- If the players write affection, teasing, or romance between their characters, weave it in warmly and matter-of-factly - it is part of the story, not a detour. Keep intimate moments tasteful and implied (a kiss, a hand held, a door closing); fade to black beyond that.
+- Let the world notice the pair: an innkeeper assumes one room, an elder smiles knowingly, a rival needles them, an NPC asks one about the other when they are apart. Small touches, occasionally - not constant commentary.
+- Put the bond under pressure sometimes: a choice that protects one at a cost to the other, an enemy who threatens one to move the other, a door only one can pass through. Earned fear for each other is the strongest spotlight there is.
+- NEVER author either character's feelings, confessions, or relationship milestones - build the moment, then hand it to the players. Their relationship belongs to them.
 
 MYSTERY LAYER RULES:
 - The campaign has a CENTRAL MYSTERY defined in the world bible. Players should feel like investigators.
@@ -455,6 +478,19 @@ TONAL CONTRAST RULES:
 - This can be: an absurd NPC, a plan going comically wrong, an unexpected moment of warmth, dark humor.
 - Tonal contrast is powerful: wonder feels brighter beside danger, dread lands harder beside warmth, and humor can make the world feel alive.
 - When using toneBreaks NPCs from the world bible, lean into their quirks.
+
+SCENE VARIETY & ANTI-REPETITION:
+- Do not reuse the same scene skeleton twice in a row. If the last scene opened with a stranger bringing trouble, the next must start differently. "A mysterious stranger approaches with a quest" is a once-per-act device, not a default.
+- Rotate how hooks arrive: an NPC the party already knows asks for help, an overheard argument, a found object or letter, a change in weather or crowd mood, a consequence of the party's own past actions catching up with them, a festival or funeral or market day, a rumor with a deadline, an animal or child behaving strangely.
+- Not every scene needs a threat. Social intrigue, exploration wonder, humor, and quiet character moments are first-class scenes - not filler between fights.
+- Vary NPC motives: not everyone wants something FROM the party. Some want to give, warn, gossip, flirt, recruit, apologize, test, or simply share a meal.
+- Vary stakes too: alternate world-sized stakes with small personal ones - a lost heirloom, a wounded animal, an NPC's wedding - so the big moments have something to tower over.
+
+QUIET CHARACTER MOMENTS:
+- Every few scenes, when there is no immediate pressure (travel, camp, tavern, safe haven), offer a quiet beat where the world slows enough for character to surface: a night watch, a shared meal, tending wounds, an NPC's small kindness, a view worth stopping for.
+- In these moments, ask rather than answer: give the characters something to react to (an NPC's question, a backstory echo, a quiet view) and let the players fill the silence. These beats earn the emotional payoffs later.
+- In co-op, quiet beats are where the two characters' relationship lives. Create the opening ("the fire burns low; the city sleeps below you") and include one suggestedAction that invites the pair to talk, reminisce, tease, or plan together - then let the players write that conversation themselves.
+- If the players engage with a quiet moment, let it breathe - do NOT cut it short with a forced interruption or treat it as a stall. A quiet scene the players are actively playing IS the story advancing; set sceneMomentum accordingly. If they skim past it, move on within 1-2 exchanges.
 
 VISIBLE CONSEQUENCE RULES:
 - Past choices must come back. Check character history and futureHooks regularly.
@@ -528,6 +564,8 @@ CO-OP NARRATION RULES (only applies when two characters act simultaneously):
 - Both characters are present in the same scene. Address each by name.
 - Weave their actions together - one's action creates opportunity or complication for the other.
 - Make them feel like a team. Their combined effort should be more interesting than either alone.
+- Give each character at least one concrete moment of presence every turn - an action, a reaction, a sensory detail, a line of body language. Never reduce one character to "X follows along" or let one player's action erase the other's.
+- Their bond is story material: leave openings for banter, shared glances, and callbacks to scenes the two shared - but their actual words and feelings belong to the players (see PARTY BOND & ROMANCE BEATS).
 - Apply mechanical changes independently: use character1Changes for Character 1, character2Changes for Character 2. This includes hpChange, loot, statusEffectChanges, goldChange, isDeath/deathDescription, isRest, abilityUsed, and consumedItems - each applies ONLY to the named character. Follow ITEM RULES, ABILITY SYSTEM RULES, and FAILURE/death handling exactly as in solo play, just attributed per-character.
 - characterHistoryNote and antagonistUpdate are shared/global (not per-character) - set them at the top level same as solo.
 - Write as if you are a DM running a real table with two players side by side.
@@ -537,10 +575,10 @@ CO-OP NARRATION RULES (only applies when two characters act simultaneously):
 RESPONSE FORMAT: Always respond with valid JSON matching this schema:
 {
   "narration": "string - the story text the player sees",
-  "diceRequired": false,
-  "diceType": null,
-  "diceDC": null,
-  "diceDescription": null,
+  "diceRequired": "boolean - true only for a minor auto-resolved check (see DICE ROLLING RULES); must be false when awaitingRoll is true",
+  "diceType": "d20" | null,
+  "diceDC": number | null,
+  "diceDescription": "string" | null,
   "worldStateChanges": object | null,
   "suggestedActions": ["3-4 optional action ideas; use [] if awaitingRoll or isHighStakes"],
   "sceneImagePrompt": "brief scene description for image generation",
@@ -743,7 +781,7 @@ export type NarrationCampaignContext = {
 function buildCampaignContextBlock(campaignContext: NarrationCampaignContext | null | undefined, worldBible: WorldBible, characterLevel: number): string {
   return `${campaignContext ? `CAMPAIGN: Act ${campaignContext.act} | ${campaignContext.centralConflict}
 JOURNAL: ${campaignContext.journal.slice(-3).map(j => `[Act ${j.actNumber}] ${j.summary}`).join(' | ') || 'none yet'}
-HISTORY: ${campaignContext.characterHistory.slice(-5).map(h => `${h.description} Ã¢â€ â€™ ${h.impact}`).join(' | ') || 'none'}
+HISTORY: ${campaignContext.characterHistory.slice(-5).map(h => `${h.description} → ${h.impact}`).join(' | ') || 'none'}
 ANTAGONISTS: ${campaignContext.antagonists.map(a => `${a.isRevealed ? a.name : '[UNKNOWN]'}: ${a.agenda}`).join(' | ') || 'none'}
 NARRATIVE TIER: ${campaignContext.act <= 1 && characterLevel <= 3 ? 'EMERGING - local stakes' : characterLevel <= 6 ? 'KNOWN - regional threats' : characterLevel <= 10 ? 'FEARED - major powers react' : 'LEGENDARY'}` : ''}
 
@@ -760,7 +798,7 @@ ${campaignContext?.roadmap ? (() => {
   const mustIntro = actNum === 1 && campaignContext.roadmap.act1MustIntroduce?.length
     ? `MUST INTRODUCE before act 1 ends:\n${campaignContext.roadmap.act1MustIntroduce.map(item => {
         const appeared = campaignContext.mustIntroduceStatus?.[item] ?? false;
-        return `  ${appeared ? '[Ã¢Å“â€œ appeared]' : '[Ã¢Å“- NOT YET]'} ${item}`;
+        return `  ${appeared ? '[✓ appeared]' : '[✗ NOT YET]'} ${item}`;
       }).join('\n')}\n`
     : '';
 
@@ -779,21 +817,21 @@ ${campaignContext?.roadmap ? (() => {
       ? '\nOne-shot pacing: compress scenes, pay off hooks fast, and avoid dangling mysteries except a deliberate sequel hook.'
       : '';
 
-  return `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â DM ROADMAP Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
+  return `═══ DM ROADMAP ═══
 Campaign length: ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. ${lengthGuidance}
 Act pacing thresholds: mature at ${pacing.mature} actions, overdue at ${pacing.overdue}, critical at ${pacing.critical}.${endgameRule}
 Act ${actNum} goals (steer the story toward these):
-${goals.map(g => `  ${(campaignContext.actGoalsAchieved || []).includes(g) ? '[Ã¢Å“â€œ DONE]' : '[ ]'} ${g}`).join('\n')}
+${goals.map(g => `  ${(campaignContext.actGoalsAchieved || []).includes(g) ? '[✓ DONE]' : '[ ]'} ${g}`).join('\n')}
 ${mustIntro}Act ${actNum} climax (this MUST happen before act ends): ${climaxEvent}${actNum === 2 && campaignContext.roadmap.act2VillainEscalation ? `\nAct 2 villain escalation (make this real): ${campaignContext.roadmap.act2VillainEscalation}` : ''}${urgency}
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
+══════════════════`;
 })() : ''}
 
-${campaignContext?.foreshadowingLedger && campaignContext.foreshadowingLedger.filter(f => f.payoffStatus !== 'paid_off').length > 0 ? `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â FORESHADOWING LEDGER Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
+${campaignContext?.foreshadowingLedger && campaignContext.foreshadowingLedger.filter(f => f.payoffStatus !== 'paid_off').length > 0 ? `═══ FORESHADOWING LEDGER ═══
 PLANTED - pay these off when dramatically right:
 ${campaignContext.foreshadowingLedger.filter(f => f.payoffStatus !== 'paid_off').slice(0, 8).map(f => `  [${f.type.toUpperCase()}] ${f.description}`).join('\n')}
 When you introduce something new that should echo later, include it in newForeshadowing[].
 When you pay off a planted item, include its id in paidOffForeshadowing[].
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â` : ''}
+═══════════════════════════` : ''}
 
 ${campaignContext?.backstoryHooks && campaignContext.backstoryHooks.filter(h => h.status !== 'resolved').length > 0 ? (() => {
   const actNum = campaignContext.act;
@@ -801,14 +839,14 @@ ${campaignContext?.backstoryHooks && campaignContext.backstoryHooks.filter(h => 
   const dormant = campaignContext.backstoryHooks!.filter(h => h.status === 'dormant');
   const active = campaignContext.backstoryHooks!.filter(h => h.status === 'active');
   const activeUrgency = active.length > 0 && actionsInAct >= 8
-    ? `\nÃ°Å¸Å½Â¯ ACTIVE hooks MUST be developed this act - they've been seeded, now escalate them toward payoff.`
+    ? `\nACTIVE hooks MUST be developed this act - they've been seeded, now escalate them toward payoff.`
     : '';
   const dormantUrgency = dormant.length > 0 && actionsInAct >= 15
-    ? `\nÃ¢Å¡Â  DORMANT hooks are overdue - seed at least one of them into the story NOW.`
+    ? `\n⚠ DORMANT hooks are overdue - seed at least one of them into the story NOW.`
     : '';
-  return `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â BACKSTORY HOOKS Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
-${active.length > 0 ? `ACTIVE (seeded - escalate toward payoff):\n${active.map(h => `  Ã¢â€“Â¶ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}${dormant.length > 0 ? `DORMANT (not yet introduced - seed these):\n${dormant.map(h => `  Ã¢-â€¹ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}Dormant = not yet seeded. Set backstoryHookActivated to characterId when seeding one. When an ACTIVE hook reaches its narrative payoff (resolved, paid off, laid to rest), set backstoryHookResolved to that characterId so the thread can close.${activeUrgency}${dormantUrgency}
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
+  return `═══ BACKSTORY HOOKS ═══
+${active.length > 0 ? `ACTIVE (seeded - escalate toward payoff):\n${active.map(h => `  ▶ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}${dormant.length > 0 ? `DORMANT (not yet introduced - seed these):\n${dormant.map(h => `  ○ [${h.characterName}] ${h.hook}`).join('\n')}\n` : ''}Dormant = not yet seeded. Set backstoryHookActivated to characterId when seeding one. When an ACTIVE hook reaches its narrative payoff (resolved, paid off, laid to rest), set backstoryHookResolved to that characterId so the thread can close.${activeUrgency}${dormantUrgency}
+══════════════════════`;
 })() : ''}
 
 ${campaignContext?.futureHooks && campaignContext.futureHooks.length > 0 ? `
@@ -817,103 +855,28 @@ ${campaignContext.futureHooks.slice(-5).map(h => `- (id: ${h.id}) ${h.descriptio
 CRITICAL: If the player's action this turn directly addresses, confronts, pays off, or settles ANY of the hooks above, you MUST set resolvedFutureHooks to an array containing a short exact phrase (3-8 words) copied verbatim from that hook's description (e.g. "resolvedFutureHooks": ["a debt comes due"]). Do not leave it null when a hook is clearly being paid off - this is a required field, not optional flavor.` : ''}
 
 ${campaignContext?.pendingDirectorBeat ? `
-Ã¢â€ÂÃ¢â€ÂÃ¢â€Â PENDING DIRECTOR BEAT Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
+═══ PENDING DIRECTOR BEAT ═══
 URGENCY: ${campaignContext.pendingDirectorBeat.urgency.toUpperCase()}
 MANDATORY BEAT: ${campaignContext.pendingDirectorBeat.beat}
 You MUST execute this beat this turn or next turn. Set directorBeatExecuted:true when done.
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â` : ''}`;
+═════════════════════════════` : ''}`;
 }
 
 function buildLoreContextBlock(worldBible: WorldBible): string {
-  return `${worldBible.mysteryLayer ? `Ã¢â€ÂÃ¢â€ÂÃ¢â€Â THE CENTRAL MYSTERY Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂQuestion players are investigating: ${worldBible.mysteryLayer.centralQuestion}Clues (drop ONE per 3-4 actions, in order):${worldBible.mysteryLayer.clues.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}Red herrings (feel real, lead nowhere):${worldBible.mysteryLayer.redHerrings.map(r => `  - ${r}`).join('\n')}Revelation (DO NOT reveal directly - build to it in Act 3): ${worldBible.mysteryLayer.revelation}Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â` : ''}${worldBible.safeHaven ? `SAFE HAVEN: ${worldBible.safeHaven.name} - ${worldBible.safeHaven.flavor}. Kept by ${worldBible.safeHaven.keyNPC}.` : ''}${worldBible.toneBreaks && worldBible.toneBreaks.length > 0 ? `TONAL CONTRAST MOMENTS: ${worldBible.toneBreaks.join(' | ')}` : ''}`;
+  return `${worldBible.mysteryLayer ? `
+═══ THE CENTRAL MYSTERY ═══
+Question players are investigating: ${worldBible.mysteryLayer.centralQuestion}
+Clues (drop ONE per 3-4 actions, in order):
+${worldBible.mysteryLayer.clues.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}
+Red herrings (feel real, lead nowhere):
+${worldBible.mysteryLayer.redHerrings.map(r => `  - ${r}`).join('\n')}
+Revelation (DO NOT reveal directly - build to it in Act 3): ${worldBible.mysteryLayer.revelation}
+═════════════════════════` : ''}
+${worldBible.safeHaven ? `SAFE HAVEN: ${worldBible.safeHaven.name} - ${worldBible.safeHaven.flavor}. Kept by ${worldBible.safeHaven.keyNPC}.` : ''}
+${worldBible.toneBreaks && worldBible.toneBreaks.length > 0 ? `TONAL CONTRAST MOMENTS: ${worldBible.toneBreaks.join(' | ')}` : ''}`;
 }
 
 function buildNpcQuestMapBlock(worldState: WorldState, campaignContext?: NarrationCampaignContext | null): string {
-  const keyNPCs = campaignContext?.keyNPCs || [];
-  const keyNpcNames = new Set(keyNPCs.map(n => n.name));
-  const rollingNPCs = (worldState.npcMemory || []).filter(n => !keyNpcNames.has(n.name));
-
-  function fmtNpc(n: { name: string; disposition: string; notes: string; role?: string; relationshipScore?: number; relationshipLabel?: string }) {
-    const rel = n.relationshipLabel ? ` | ${n.relationshipLabel}` : n.relationshipScore != null ? ` | score ${n.relationshipScore}` : ''
-    const role = n.role ? ` (${n.role})` : ''
-    return `- ${n.name}${role} [${n.disposition}${rel}]: ${n.notes}`
-  }
-
-  const keyNpcContext = keyNPCs.length > 0    ? `\n⭐ KEY NPCs ⭐\n${keyNPCs.map(fmtNpc).join('\n')}`    : '';  const npcContext = rollingNPCs.length > 0    ? `\nRECENT NPCs:\n${rollingNPCs.slice(-6).map(fmtNpc).join('\n')}`    : '';  const questContext = worldState.activeQuests && worldState.activeQuests.length > 0    ? `\nACTIVE QUESTS:\n${worldState.activeQuests.filter(q => q.status === 'active').map(q => `- ${q.title}: ${q.description}`).join('\n')}`    : '';
-  const locationGraph = worldState.locationGraph;  const currentMapNode = locationGraph?.nodes?.find(node => node.name === (locationGraph.currentLocation || worldState.currentLocation));  const knownLocationCount = worldState.discoveredLocations?.length || locationGraph?.nodes?.length || 0;  const worldSizeGuidance = knownLocationCount >= 70    ? `The world map is now large (${knownLocationCount} known places). Stop inventing new locations unless the story truly demands it — instead deepen, revisit, and complicate the places that already exist (new NPCs, quests, or twists at known locations).`    : knownLocationCount >= 35      ? `The world map is filling out (${knownLocationCount} known places). Lean toward sending the party back to places they've already been rather than introducing new ones — only add a new location when it's genuinely earned by the story.`      : '';  const mapContextBlock = locationGraph ? `LOCATION MAP:- Current location: ${locationGraph.currentLocation || worldState.currentLocation || 'unknown'}- Nearby roads: ${locationGraph.nearby?.join(', ') || 'none mapped yet'}- Current markers: ${[    currentMapNode?.npcsPresent?.length ? `NPCs: ${currentMapNode.npcsPresent.join(', ')}` : null,    currentMapNode?.questHooks?.length ? `Quests: ${currentMapNode.questHooks.join(', ')}` : null,    currentMapNode?.connectedTo?.length ? `Paths: ${currentMapNode.connectedTo.join(', ')}` : null,  ].filter(Boolean).join(' | ') || 'none'}- Known regions: ${locationGraph.regions?.slice(0, 5).map(region => `${region.name} (${region.locations.slice(0, 4).join(', ')})`).join(' | ') || 'none'}Use nearby mapped places when travel, investigation, or pursuit is relevant. If a new named place is discovered, moved to, or becomes important, include it in worldStateChanges.discoveredLocations and set worldStateChanges.currentLocation when the party actually changes location.${worldSizeGuidance ? `\n${worldSizeGuidance}` : ''}` : '';
-  return `${keyNpcContext}${npcContext}${questContext}\n${mapContextBlock}`;
-}
-
-function buildEndgameDirectiveBlock(worldState: WorldState): string {
-  const endgamePhase = worldState.endgamePhase;  let endgameBlock = '';  if (endgamePhase && endgamePhase !== 'none') {    if (endgamePhase === 'approaching') {      endgameBlock = `\nÃ¢â€ÂÃ¢â€ÂÃ¢â€Â ENDGAME PHASE: APPROACHING Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂThe villain's plan is nearly complete. All plotlines must converge NOW. Urgency is maximal.Weave backstory hooks toward their payoff. Set pacingMode to "tension" or "climax".Every suggested action should drive toward the final confrontation.Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;    } else if (endgamePhase === 'confrontation') {      endgameBlock = `\nÃ¢â€ÂÃ¢â€ÂÃ¢â€Â ENDGAME PHASE: CONFRONTATION Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂTHIS IS THE FINAL BATTLE. No escape. No retreat. Every action carries ultimate weight.Make the villain feel overwhelming but beatable. The fate of everything hangs here.If the player's action this turn defeats, kills, or decisively triumphs over the primary villain, you MUST set BOTH "isVictory": true AND "endgameResolved": true in your response - these are required fields when victory occurs, do not leave endgameResolved as false/null when the villain is defeated.Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;    }  }
-  return endgameBlock;
-}
-
-function buildStatHints(s: Character['stats']): string {
-  return [
-    s.str >= 15 ? `STR ${s.str} Ã¢â€ â€™ can force doors, break obstacles, intimidate physically` : s.str <= 8 ? `STR ${s.str} Ã¢â€ â€™ avoid purely physical brute-force options` : null,
-    s.dex >= 15 ? `DEX ${s.dex} Ã¢â€ â€™ can sneak, pick locks, acrobatics` : null,
-    s.int >= 15 ? `INT ${s.int} Ã¢â€ â€™ can recall lore, solve puzzles, identify magic` : s.int <= 8 ? `INT ${s.int} Ã¢â€ â€™ avoid complex lore options in suggestedActions` : null,
-    s.wis >= 15 ? `WIS ${s.wis} Ã¢â€ â€™ perceptive, reads people well` : null,
-  ].filter(Boolean).join('; ');
-}
-
-function buildNarrationMessages(
-  action: string,
-  worldState: WorldState,
-  worldBible: WorldBible,
-  character: Character,
-  recentHistory: string[],
-  campaignContext?: NarrationCampaignContext | null
-): { role: 'system' | 'user'; content: string }[] {
-  const unusualCombos: Record<string, string[]> = {
-    Barbarian: ['Gnome', 'Elf'],
-    Wizard: ['Half-Orc', 'Dragonborn'],
-    Paladin: ['Tiefling', 'Half-Orc'],
-    Bard: ['Dwarf', 'Half-Orc'],
-    Monk: ['Half-Orc', 'Dragonborn'],
-  };
-  const unusualNote = unusualCombos[character.class]?.includes(character.race)
-    ? `\nÃ¢Å¡Â  UNUSUAL COMBO: ${character.race} ${character.class} - the DM may acknowledge this in-world with subtle reactions from NPCs.`
-    : '';
-
-  // Build abilities block - include mechanic so AI enforces actual numbers.
-  // Dice notation in the mechanic (e.g. "1d6", "2d8") is pre-rolled by the engine
-  // here rather than left for the AI to estimate, so damage/healing numbers are
-  // deterministic and fair instead of "AI vibes" each time an ability is used.
-  const knownAbilities = character.abilities || [];
-  let abilitiesBlock = '';
-  if (knownAbilities.length > 0) {
-    const available = knownAbilities.filter(a => !a.currentCooldown || a.currentCooldown <= 0);
-    const onCooldown = knownAbilities.filter(a => a.currentCooldown && a.currentCooldown > 0);
-    const renderAbility = (a: typeof available[number]) => {
-      const rolled = a.mechanic ? preRollAbilityDice(a.mechanic) : null;
-      return `- ${a.name}: ${a.description}${a.mechanic ? `\n  MECHANIC: ${a.mechanic}` : ''}${rolled ? `\n  ENGINE ROLL FOR THIS TURN (use these exact numbers, do not invent your own): ${rolled}` : ''}`;
-    };
-    abilitiesBlock = `
-Ã¢â€ÂÃ¢â€ÂÃ¢â€Â CHARACTER ABILITIES Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
-AVAILABLE (apply mechanic exactly when used):
-${available.length > 0 ? available.map(renderAbility).join('\n') : '(none available)'}
-ON COOLDOWN (cannot use):
-${onCooldown.length > 0 ? onCooldown.map(a => `- ${a.name} [ON COOLDOWN]`).join('\n') : '(none on cooldown)'}
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
-  } else {
-    const classAbilityMap = CLASS_ABILITIES[character.class] || {};
-    const allAbilityNames = Object.values(classAbilityMap).map(a => a.name);
-    abilitiesBlock = `No special abilities yet (class abilities to come: ${allAbilityNames.slice(0, 2).join(', ')}, ...)`;
-  }
-
-  // Build stat context
-  const s = character.stats;
-  const statHints = [
-    s.str >= 15 ? `STR ${s.str} Ã¢â€ â€™ can force doors, break obstacles, intimidate physically` : s.str <= 8 ? `STR ${s.str} Ã¢â€ â€™ avoid purely physical brute-force options` : null,
-    s.dex >= 15 ? `DEX ${s.dex} Ã¢â€ â€™ can sneak, pick locks, acrobatics` : null,
-    s.int >= 15 ? `INT ${s.int} Ã¢â€ â€™ can recall lore, solve puzzles, identify magic` : s.int <= 8 ? `INT ${s.int} Ã¢â€ â€™ avoid complex lore options in suggestedActions` : null,
-    s.wis >= 15 ? `WIS ${s.wis} Ã¢â€ â€™ perceptive, reads people well` : null,
-    s.cha >= 15 ? `CHA ${s.cha} Ã¢â€ â€™ can persuade, deceive, perform, intimidate socially` : s.cha <= 8 ? `CHA ${s.cha} Ã¢â€ â€™ avoid diplomacy/charm options in suggestedActions` : null,
-  ].filter(Boolean).join('; ');
-
-  // Build NPC memory context - key NPCs always shown, then rolling recent NPCs
   const keyNPCs = campaignContext?.keyNPCs || [];
   const keyNpcNames = new Set(keyNPCs.map(n => n.name));
   const rollingNPCs = (worldState.npcMemory || []).filter(n => !keyNpcNames.has(n.name));
@@ -930,39 +893,9 @@ ${onCooldown.length > 0 ? onCooldown.map(a => `- ${a.name} [ON COOLDOWN]`).join(
   const npcContext = rollingNPCs.length > 0
     ? `\nRECENT NPCs:\n${rollingNPCs.slice(-6).map(fmtNpc).join('\n')}`
     : '';
-
-
-
-  // Build quest context
   const questContext = worldState.activeQuests && worldState.activeQuests.length > 0
     ? `\nACTIVE QUESTS:\n${worldState.activeQuests.filter(q => q.status === 'active').map(q => `- ${q.title}: ${q.description}`).join('\n')}`
     : '';
-
-  const combatState = worldState.combatState;
-  let combatBlock = '';
-  if (combatState?.inCombat) {
-    const enemyLines = combatState.enemies && combatState.enemies.length > 0
-      ? combatState.enemies.map(e =>
-          `  ${e.isDefeated ? 'Ã¢Å“- DEFEATED' : 'Ã¢â€“Â¶'} ${e.name} [${e.archetype.toUpperCase()}] - ${e.condition.toUpperCase()}${e.specialAbility ? ` | ${e.specialAbility}` : ''}`
-        ).join('\n')
-      : `  ${combatState.enemyName} - ${combatState.enemyCondition.toUpperCase()}`;
-    const bossLine = combatState.isBossFight
-      ? `\nBOSS FIGHT - Phase ${combatState.bossPhase || 1}. When boss reaches critical, advance to next phase (set bossPhaseAdvance: true). Each phase changes the boss's tactics and appearance dramatically.`
-      : '';
-    combatBlock = `
-Ã¢â€ÂÃ¢â€ÂÃ¢â€Â ACTIVE COMBAT Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
-Round: ${combatState.roundNumber} | Player HP: ${character.hp}/${character.max_hp}
-ENEMIES:
-${enemyLines}${bossLine}
-ACTIONS ALREADY TRIED: ${combatState.playerActionsAttempted.slice(-5).join(', ') || 'none yet'}
-RULES: Maintain enemy continuity - they remember every action. When an enemy is defeated, set enemyDefeated to their name. Set combatEnemies[] in every response to reflect current state.
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
-  }
-
-  const sceneSummaryBlock = worldState.currentSceneSummary ? `
-CURRENT SITUATION (summary of what is happening RIGHT NOW):
-${worldState.currentSceneSummary}` : '';
-
   const locationGraph = worldState.locationGraph;
   const currentMapNode = locationGraph?.nodes?.find(node => node.name === (locationGraph.currentLocation || worldState.currentLocation));
   const knownLocationCount = worldState.discoveredLocations?.length || locationGraph?.nodes?.length || 0;
@@ -982,6 +915,116 @@ LOCATION MAP:
   ].filter(Boolean).join(' | ') || 'none'}
 - Known regions: ${locationGraph.regions?.slice(0, 5).map(region => `${region.name} (${region.locations.slice(0, 4).join(', ')})`).join(' | ') || 'none'}
 Use nearby mapped places when travel, investigation, or pursuit is relevant. If a new named place is discovered, moved to, or becomes important, include it in worldStateChanges.discoveredLocations and set worldStateChanges.currentLocation when the party actually changes location.${worldSizeGuidance ? `\n${worldSizeGuidance}` : ''}` : '';
+  return `${keyNpcContext}${npcContext}${questContext}\n${mapContextBlock}`;
+}
+
+function buildEndgameDirectiveBlock(worldState: WorldState): string {
+  const endgamePhase = worldState.endgamePhase;
+  if (endgamePhase === 'approaching') {
+    return `\n═══ ENDGAME PHASE: APPROACHING ═══
+The villain's plan is nearly complete. All plotlines must converge NOW. Urgency is maximal.
+Weave backstory hooks toward their payoff. Set pacingMode to "tension" or "climax".
+Every suggested action should drive toward the final confrontation.
+════════════════════════════════════`;
+  }
+  if (endgamePhase === 'confrontation') {
+    return `\n═══ ENDGAME PHASE: CONFRONTATION ═══
+THIS IS THE FINAL BATTLE. No escape. No retreat. Every action carries ultimate weight.
+Make the villain feel overwhelming but beatable. The fate of everything hangs here.
+If the player's action this turn defeats, kills, or decisively triumphs over the primary villain, you MUST set BOTH "isVictory": true AND "endgameResolved": true in your response - these are required fields when victory occurs, do not leave endgameResolved as false/null when the villain is defeated.
+════════════════════════════════════`;
+  }
+  return '';
+}
+
+function buildCombatBlock(combatState: WorldState['combatState'], partyHpLine: string): string {
+  if (!combatState?.inCombat) return '';
+  const enemyLines = combatState.enemies && combatState.enemies.length > 0
+    ? combatState.enemies.map(e =>
+        `  ${e.isDefeated ? '✗ DEFEATED' : '▶'} ${e.name} [${e.archetype.toUpperCase()}] - ${e.condition.toUpperCase()}${e.specialAbility ? ` | ${e.specialAbility}` : ''}`
+      ).join('\n')
+    : `  ${combatState.enemyName} - ${combatState.enemyCondition.toUpperCase()}`;
+  const bossLine = combatState.isBossFight
+    ? `\nBOSS FIGHT - Phase ${combatState.bossPhase || 1}. When boss reaches critical, advance to next phase (set bossPhaseAdvance: true). Each phase changes the boss's tactics and appearance dramatically.`
+    : '';
+  return `
+═══ ACTIVE COMBAT ═══
+Round: ${combatState.roundNumber} | ${partyHpLine}
+ENEMIES:
+${enemyLines}${bossLine}
+ACTIONS ALREADY TRIED: ${(combatState.playerActionsAttempted || []).slice(-5).join(', ') || 'none yet'}
+RULES: Maintain enemy continuity - they remember every action. When an enemy is defeated, set enemyDefeated to their name. Set combatEnemies[] in every response to reflect current state. Every enemy still standing ACTS this round - apply its cost per COMBAT STAKES & DAMAGE RULES.
+═════════════════════`;
+}
+
+function buildStatHints(s: Character['stats']): string {
+  return [
+    s.str >= 15 ? `STR ${s.str} → can force doors, break obstacles, intimidate physically` : s.str <= 8 ? `STR ${s.str} → avoid purely physical brute-force options` : null,
+    s.dex >= 15 ? `DEX ${s.dex} → can sneak, pick locks, acrobatics` : null,
+    s.int >= 15 ? `INT ${s.int} → can recall lore, solve puzzles, identify magic` : s.int <= 8 ? `INT ${s.int} → avoid complex lore options in suggestedActions` : null,
+    s.wis >= 15 ? `WIS ${s.wis} → perceptive, reads people well` : null,
+    s.cha >= 15 ? `CHA ${s.cha} → can persuade, deceive, perform, intimidate socially` : s.cha <= 8 ? `CHA ${s.cha} → avoid diplomacy/charm options in suggestedActions` : null,
+  ].filter(Boolean).join('; ');
+}
+
+function buildNarrationMessages(
+  action: string,
+  worldState: WorldState,
+  worldBible: WorldBible,
+  character: Character,
+  recentHistory: string[],
+  campaignContext?: NarrationCampaignContext | null
+): { role: 'system' | 'user'; content: string }[] {
+  const unusualCombos: Record<string, string[]> = {
+    Barbarian: ['Gnome', 'Elf'],
+    Wizard: ['Half-Orc', 'Dragonborn'],
+    Paladin: ['Tiefling', 'Half-Orc'],
+    Bard: ['Dwarf', 'Half-Orc'],
+    Monk: ['Half-Orc', 'Dragonborn'],
+  };
+  const unusualNote = unusualCombos[character.class]?.includes(character.race)
+    ? `\n⚠ UNUSUAL COMBO: ${character.race} ${character.class} - the DM may acknowledge this in-world with subtle reactions from NPCs.`
+    : '';
+
+  // Build abilities block - include mechanic so AI enforces actual numbers.
+  // Dice notation in the mechanic (e.g. "1d6", "2d8") is pre-rolled by the engine
+  // here rather than left for the AI to estimate, so damage/healing numbers are
+  // deterministic and fair instead of "AI vibes" each time an ability is used.
+  const knownAbilities = character.abilities || [];
+  let abilitiesBlock = '';
+  if (knownAbilities.length > 0) {
+    const available = knownAbilities.filter(a => !a.currentCooldown || a.currentCooldown <= 0);
+    const onCooldown = knownAbilities.filter(a => a.currentCooldown && a.currentCooldown > 0);
+    const renderAbility = (a: typeof available[number]) => {
+      const rolled = a.mechanic ? preRollAbilityDice(a.mechanic) : null;
+      return `- ${a.name}: ${a.description}${a.mechanic ? `\n  MECHANIC: ${a.mechanic}` : ''}${rolled ? `\n  ENGINE ROLL FOR THIS TURN (use these exact numbers, do not invent your own): ${rolled}` : ''}`;
+    };
+    abilitiesBlock = `
+═══ CHARACTER ABILITIES ═══
+AVAILABLE (apply mechanic exactly when used):
+${available.length > 0 ? available.map(renderAbility).join('\n') : '(none available)'}
+ON COOLDOWN (cannot use):
+${onCooldown.length > 0 ? onCooldown.map(a => `- ${a.name} [ON COOLDOWN]`).join('\n') : '(none on cooldown)'}
+═════════════════════════`;
+  } else {
+    const classAbilityMap = CLASS_ABILITIES[character.class] || {};
+    const allAbilityNames = Object.values(classAbilityMap).map(a => a.name);
+    abilitiesBlock = `No special abilities yet (class abilities to come: ${allAbilityNames.slice(0, 2).join(', ')}, ...)`;
+  }
+
+  // Stat context - shared with the co-op path so both prompts hint identically
+  const statHints = buildStatHints(character.stats);
+
+  // NPC memory, quests, and location map - shared with the co-op path
+  const npcQuestMapBlock = buildNpcQuestMapBlock(worldState, campaignContext);
+
+  const combatState = worldState.combatState;
+  // Combat context - shared with the co-op path
+  const combatBlock = buildCombatBlock(combatState, `Player HP: ${character.hp}/${character.max_hp}`);
+
+  const sceneSummaryBlock = worldState.currentSceneSummary ? `
+CURRENT SITUATION (summary of what is happening RIGHT NOW):
+${worldState.currentSceneSummary}` : '';
 
   const visibleSceneInputs = [
     worldState.currentLocation ? `location: ${worldState.currentLocation}` : null,
@@ -1011,29 +1054,13 @@ SUGGESTION INPUTS:
     'exploration'
   );
   const pacingBlock = `
-Ã¢â€ÂÃ¢â€ÂÃ¢â€Â PACING DIRECTIVE Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
+═══ PACING DIRECTIVE ═══
 Scene purpose: ${sceneState?.purpose || 'explore'} | Exchanges in scene: ${sceneState?.exchangeCount ?? 0} | Pacing mode: ${autoPackingMode.toUpperCase()}${sceneState && sceneState.stalledCount >= 2 ? `
-Ã¢Å¡Â  STALL DETECTED (${sceneState.stalledCount} consecutive exchanges without story advancement)${forceComplication ? '\nÃ°Å¸â€Â´ FORCE COMPLICATION THIS TURN - something must change RIGHT NOW. Introduce an interruption, revelation, or threat. Do not let the scene continue as-is.' : ' - consider introducing a complication.'}` : ''}
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
+⚠ STALL DETECTED (${sceneState.stalledCount} consecutive exchanges without story advancement)${forceComplication ? '\nFORCE COMPLICATION THIS TURN - something must change RIGHT NOW. Introduce an interruption, revelation, or threat. Do not let the scene continue as-is.' : ' - consider introducing a complication.'}` : ''}
+═══════════════════════`;
 
-  // Endgame block
-  const endgamePhase = worldState.endgamePhase;
-  let endgameBlock = '';
-  if (endgamePhase && endgamePhase !== 'none') {
-    if (endgamePhase === 'approaching') {
-      endgameBlock = `\nÃ¢â€ÂÃ¢â€ÂÃ¢â€Â ENDGAME PHASE: APPROACHING Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
-The villain's plan is nearly complete. All plotlines must converge NOW. Urgency is maximal.
-Weave backstory hooks toward their payoff. Set pacingMode to "tension" or "climax".
-Every suggested action should drive toward the final confrontation.
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
-    } else if (endgamePhase === 'confrontation') {
-      endgameBlock = `\nÃ¢â€ÂÃ¢â€ÂÃ¢â€Â ENDGAME PHASE: CONFRONTATION Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
-THIS IS THE FINAL BATTLE. No escape. No retreat. Every action carries ultimate weight.
-Make the villain feel overwhelming but beatable. The fate of everything hangs here.
-If the player's action this turn defeats, kills, or decisively triumphs over the primary villain, you MUST set BOTH "isVictory": true AND "endgameResolved": true in your response - these are required fields when victory occurs, do not leave endgameResolved as false/null when the villain is defeated.
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â`;
-    }
-  }
+  // Endgame block - shared with the co-op path
+  const endgameBlock = buildEndgameDirectiveBlock(worldState);
 
   const worldContext = `
 WORLD BIBLE:
@@ -1041,25 +1068,14 @@ WORLD BIBLE:
 - Factions: ${worldBible.factions.map(f => f.name).join(', ')}
 - Tone: ${worldBible.toneRules.slice(0, 2).join('; ')}
 - Visual style: ${worldBible.artBible?.masterPrompt || EVERREALM_ART_BIBLE.masterPrompt}
-${worldBible.mysteryLayer ? `
-Ã¢â€ÂÃ¢â€ÂÃ¢â€Â THE CENTRAL MYSTERY Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
-Question players are investigating: ${worldBible.mysteryLayer.centralQuestion}
-Clues (drop ONE per 3-4 actions, in order):
-${worldBible.mysteryLayer.clues.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}
-Red herrings (feel real, lead nowhere):
-${worldBible.mysteryLayer.redHerrings.map(r => `  - ${r}`).join('\n')}
-Revelation (DO NOT reveal directly - build to it in Act 3): ${worldBible.mysteryLayer.revelation}
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â` : ''}
-${worldBible.safeHaven ? `SAFE HAVEN: ${worldBible.safeHaven.name} - ${worldBible.safeHaven.flavor}. Kept by ${worldBible.safeHaven.keyNPC}.` : ''}
-${worldBible.toneBreaks && worldBible.toneBreaks.length > 0 ? `TONAL CONTRAST MOMENTS: ${worldBible.toneBreaks.join(' | ')}` : ''}
+${buildLoreContextBlock(worldBible)}
 
 WORLD STATE:
 - Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
 - Discovered: ${(worldState.discoveredLocations || []).slice(0, 5).join(', ') || 'none yet'}
 - ACTIVE NPC: ${worldState.activeNPC || 'none - character is not in conversation with anyone specific'}
 - Actions since last high-stakes moment: ${worldState.actionCount ? (worldState.actionCount - (worldState.lastHighStakesAction || 0)) : 'unknown'}
-${keyNpcContext}${npcContext}${questContext}
-${mapContextBlock}
+${npcQuestMapBlock}
 
 CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATION: ${worldState.currentLocation || 'Unknown'}
 CLASS: ${character.class} | RACE: ${character.race} | LEVEL: ${character.level}${unusualNote}
@@ -1096,16 +1112,18 @@ NPC CROSS-MEMORY: Check npcMemory.metCharacters for NPCs who met other party mem
 ${sceneSummaryBlock}
 ${combatBlock}
 ${pacingBlock}
-Ã¢â€ÂÃ¢â€ÂÃ¢â€Â PLAYER ACTION NOW Ã¢â€ÂÃ¢â€ÂÃ¢â€Â
+═══ PLAYER ACTION NOW ═══
 CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATION: ${worldState.currentLocation || 'Unknown'}
 ACTION: ${action}
-Ã¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€ÂÃ¢â€Â
+════════════════════════
 
 IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older context. If any named NPC appears, speaks, is referenced as a contact, gives information, changes disposition, or becomes the active conversation partner, update worldStateChanges.npcMemory with that NPC's name, disposition, notes, lastMet, metCharacters, interactionCount, role, gender, relationshipScore, and relationshipLabel. Adjust relationshipScore based on the interaction (+/- 5 to 50 depending on impact). Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.
 
 QUALITY BAR BEFORE YOU ANSWER:
 - Does the narration change the situation in a concrete way?
 - Did you preserve player agency and avoid deciding what the player feels?
+- If a known NPC appears, does their dialogue show they remember the party - and did you carry their notes forward instead of overwriting them?
+- Does this scene open differently from the last one (no repeated scene skeletons)?
 - Are suggestedActions specific verbs the player could actually choose next?
 - If awaitingRoll is true, did you stop before the outcome and avoid suggestedActions?
 - Did you update memory/state only for things that actually changed?`;
@@ -1552,10 +1570,10 @@ STAT CONTEXT (factor into suggestedActions): ${buildStatHints(s) || 'balanced st
   const spotlightDiff = char1Spotlights - char2Spotlights
 
   const spotlightDirective = spotlightDiff > 2
-    ? `SPOTLIGHT NOTE: ${c1.name} has had significantly more spotlight moments (${char1Spotlights} vs ${char2Spotlights}). This scene should lean toward ${c2.name}'s action being the one that drives the outcome. Make their contribution feel more decisive.`
+    ? `SPOTLIGHT NOTE: ${c1.name} has had significantly more spotlight moments (${char1Spotlights} vs ${char2Spotlights}). This scene should lean toward ${c2.name} - their action drives the outcome, or the scene's emotional center lands on their backstory, expertise, or relationships. A quiet beat built around ${c2.name} counts as much as a heroic one. Make their contribution feel decisive.`
     : spotlightDiff < -2
-    ? `SPOTLIGHT NOTE: ${c2.name} has had significantly more spotlight moments (${char2Spotlights} vs ${char1Spotlights}). This scene should lean toward ${c1.name}'s action being the one that drives the outcome. Make their contribution feel more decisive.`
-    : ''
+    ? `SPOTLIGHT NOTE: ${c2.name} has had significantly more spotlight moments (${char2Spotlights} vs ${char1Spotlights}). This scene should lean toward ${c1.name} - their action drives the outcome, or the scene's emotional center lands on their backstory, expertise, or relationships. A quiet beat built around ${c1.name} counts as much as a heroic one. Make their contribution feel decisive.`
+    : `SPOTLIGHT NOTE: Spotlight balance is even (${char1Spotlights} vs ${char2Spotlights}). Keep it that way: give each character a distinct, personal contribution this scene - if one gets the decisive action beat, give the other the emotional, social, or clever beat.`
 
   const worldContext = `WORLD: ${worldBible.era} | ${worldBible.magicSystem}
 Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
@@ -1564,7 +1582,7 @@ Visual style: ${worldBible.artBible?.masterPrompt || EVERREALM_ART_BIBLE.masterP
 ${buildLoreContextBlock(worldBible)}
 ${buildNpcQuestMapBlock(worldState, campaignContext)}
 ${buildEndgameDirectiveBlock(worldState)}
-${worldState.combatState?.inCombat ? `IN COMBAT: ${worldState.combatState.enemyName} (${worldState.combatState.enemyCondition}) - Round ${worldState.combatState.roundNumber}` : ''}
+${buildCombatBlock(worldState.combatState, `Party HP: ${c1.name} ${c1.hp}/${c1.max_hp} | ${c2.name} ${c2.hp}/${c2.max_hp}`)}
 ${worldState.activeQuests && worldState.activeQuests.filter(q => q.status === 'active').length > 0 ? `Active quests: ${worldState.activeQuests.filter(q => q.status === 'active').map(q => q.title).join(', ')}` : ''}
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
@@ -1591,14 +1609,16 @@ DICE ROLLS & COMBAT APPLY HERE TOO - same as solo play:
 - If either character's action requires a skill check (including pickpocketing/theft - this ALWAYS requires a roll), set awaitingRoll: true, populate rollContext, and set actingCharacterId to whichever character (id) is making that roll. Write a tense setup narration that builds to the roll without resolving it - DO NOT resolve either character's action's outcome in this case.
 - For minor/incidental checks where you'd rather resolve the outcome immediately rather than pause for a player roll, set diceRequired: true with diceType/diceDC/diceDescription instead of awaitingRoll - the engine rolls for whichever character is acting (actingCharacterId, or Character 1 if ambiguous) and folds the result into this turn's narration.
 - If the players provoke or engage a hostile creature, do not narrate combat away - set isCombat: true, isHighStakes appropriately, and populate combatEnemies[] with real stats so the fight actually starts.
-- Follow PICKPOCKETING & THEFT RULES, CO-OP DIVERSION & TEAMWORK THEFT, and MULTI-ENEMY COMBAT RULES exactly as written for solo play.
+- Follow PICKPOCKETING & THEFT RULES, CO-OP DIVERSION & TEAMWORK THEFT, MULTI-ENEMY COMBAT RULES, and COMBAT STAKES & DAMAGE RULES exactly as written for solo play.
+- COMBAT STAKES are per character here: enemy damage lands via character1Changes.hpChange / character2Changes.hpChange. Spread the threat between both characters across rounds - don't always hit the same one, and don't let both walk through a real fight untouched.
 - HIGH STAKES DETECTION applies here too: follow the HIGH STAKES DETECTION - MANDATORY TRIGGERS rules. When isHighStakes: true, generate 2-3 choiceCards that frame the decision for BOTH characters together (the choice the party makes as a unit), and set suggestedActions: [].
 - Boss fights apply here too: follow the MULTI-ENEMY COMBAT RULES boss-fight guidance - set isBossFight: true on combat start, and bossPhaseAdvance: true with a dramatic transformation when a boss reaches "critical".
 - Achievements apply here too: follow ACHIEVEMENT RULES - award achievementUnlocked occasionally for memorable moments by either character.
 - WEATHER & TIME OF DAY RULES apply here too - factor timeOfDay/weather into difficulty, NPC availability, and pacing for both characters.
 - SHOP/MERCHANT RULES apply here too - if either character encounters a merchant, set isMerchant: true and populate shopItems.
 - NPC conversation tracking applies here too - set activeNPC to the name of whichever NPC either character is actively talking to, or null if the conversation ended or the party moved on.
-- IMPORTANT: If any named NPC appears, speaks, is referenced as a contact, gives information, changes disposition, or becomes the active conversation partner, update worldStateChanges.npcMemory with that NPC's name, disposition, notes, lastMet, metCharacters, interactionCount, role, gender, relationshipScore, and relationshipLabel. Adjust relationshipScore based on the interaction (+/- 5 to 50 depending on impact). Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.
+- QUIET CHARACTER MOMENTS and PARTY BOND & ROMANCE BEATS apply here too. If the moment is calm and the players are engaging with each other (talking, teasing, planning, an affectionate gesture), let that BE the scene - weave it warmly, give the world one small reaction, and do not interrupt it with a manufactured threat. Both characters must have concrete presence in every narration.
+- IMPORTANT: If any named NPC appears, speaks, is referenced as a contact, gives information, changes disposition, or becomes the active conversation partner, update worldStateChanges.npcMemory with that NPC's name, disposition, notes, lastMet, metCharacters, interactionCount, role, gender, relationshipScore, and relationshipLabel. Adjust relationshipScore based on the interaction (+/- 5 to 50 depending on impact). When updating a known NPC, carry their established notes forward and append what changed (notes REPLACE the old ones). Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.
 
 COMBO MOVES:
 - If the two submitted actions are clearly coordinated and complementary (one distracts while the other strikes/steals, one creates an opening the other exploits, one buffs/heals while the other attacks, pincer/flanking, etc.), set comboBonus: true and narrate the synergy paying off with a tangible extra benefit (bonus damage, extra loot, an easier roll, avoided harm).
@@ -1608,8 +1628,18 @@ OPTIONAL SUGGESTIONS:
 - suggestedActions are optional nudges, not required choices.
 - Return 3-4 ideas grounded in this exact scene, location, party state, active quest, inventory, abilities, and both submitted actions.
 - Include at least one teamwork idea that uses both characters or lets one cover/follow up on the other.
+- In a calm scene, one idea may invite a character beat between the two of them (a conversation by the fire, a shared memory, checking on each other after danger) instead of pushing plot.
 - If combat is active, every idea must name a target, tactic, terrain feature, ally, or escape route.
 - Do not offer generic ideas like "continue", "look around", or "move forward".
+
+QUALITY BAR BEFORE YOU ANSWER:
+- Does the narration change the situation in a concrete way?
+- Do BOTH characters have concrete presence and a distinct contribution - neither reduced to "follows along"?
+- Did you preserve both players' agency and avoid deciding what either character feels?
+- If a known NPC appears, does their dialogue show they remember the party - and did you carry their notes forward instead of overwriting them?
+- Does this scene open differently from the last one (no repeated scene skeletons)?
+- If awaitingRoll is true, did you stop before the outcome, set actingCharacterId, and use suggestedActions: []?
+- Did you update memory/state only for things that actually changed?
 
 Respond with JSON:
 {
@@ -1622,10 +1652,10 @@ Respond with JSON:
   "isCombat": boolean,
   "isVictory": boolean,
   "enemyName": "string | null",
-  "diceRequired": false,
-  "diceType": null,
-  "diceDC": null,
-  "diceDescription": null,
+  "diceRequired": "boolean - true only for a minor auto-resolved check (see DICE ROLLS above); must be false when awaitingRoll is true",
+  "diceType": "d20" | null,
+  "diceDC": number | null,
+  "diceDescription": "string" | null,
   "advanceAct": boolean,
   "isHighStakes": boolean,
   "choiceCards": [{"title": "string", "description": "string", "consequenceHint": "string"}] | null,
@@ -1660,7 +1690,7 @@ Respond with JSON:
   } | null,
   "sessionNote": "string | null",
   "spotlightCharacterId": "characterId being spotlighted this turn, or null",
-  "newForeshadowing": [{"id": "unique-id", "description": "string", "type": "plot|character|item|location"}] | null,
+  "newForeshadowing": [{"id": "unique-id", "description": "string", "type": "npc|rumor|object|event|place"}] | null,
   "paidOffForeshadowing": ["foreshadowing id"] | null,
   "resolvedFutureHooks": ["a short exact phrase (3-8 words) copied from one of the FUTURE HOOKS TO HONOR descriptions that was resolved this turn"] | null,
   "backstoryHookActivated": "characterId whose dormant backstory hook just became active, or null",
@@ -1765,13 +1795,20 @@ export async function generateRollOutcome(
     crit_success: 'CRITICAL SUCCESS: Exceed expectations dramatically. The task is accomplished AND something extra happens - an enemy is off-balance, a new opportunity appears, an ally is inspired, a bonus is earned. This is a highlight moment.',
   };
 
+  const combatState = worldState.combatState;
+  const combatStakesBlock = combatState?.inCombat
+    ? `
+ACTIVE COMBAT - Round ${combatState.roundNumber}. Enemies: ${(combatState.enemies || []).filter(e => !e.isDefeated).map(e => `${e.name} (${e.condition})`).join(', ') || `${combatState.enemyName} (${combatState.enemyCondition})`}.
+COMBAT STAKES: the enemies act on this outcome too. On near_miss, clear_fail, or crit_fail, an enemy's counterattack usually LANDS - apply it via hpChange (a typical hit costs ~10-20% of the character's max HP; bosses hit harder). On partial_success the attack succeeds but usually costs something - often a hit taken in exchange. Only clean_success and crit_success normally escape unscathed. Never narrate a wound without setting hpChange, and never set hpChange without narrating the hit.`
+    : '';
+
   const prompt = `You are a DM resolving the outcome of a dice roll.
 The player attempted: ${rollContext.description}
 They rolled ${rollResult} + ${rollTotal - rollResult} (${rollContext.stat.toUpperCase()} modifier) = ${rollTotal} vs DC ${dc} - ${resultLabel}.
 Flavor hint for this outcome: "${flavorHint}"
 
 DEGREE OF SUCCESS DIRECTIVE:
-${degreeGuidance[degree]}
+${degreeGuidance[degree]}${combatStakesBlock}
 
 Character: ${character.name} (${character.race} ${character.class}, Level ${character.level})
 HP: ${character.hp}/${character.max_hp} | Location: ${worldState.currentLocation || 'unknown'}
@@ -2231,7 +2268,7 @@ Return JSON matching this exact schema. Every field must be substantive and spec
       "A moment where the characters must choose between individual goals and party loyalty - what is the specific dilemma?",
       "A scene designed to create an inside joke or shared reference - something absurd that only works in this world"
     ],
-    "encounterCurve": "Describe the encounter difficulty curve for this campaign: Easy Ã¢â€ â€™ Medium Ã¢â€ â€™ Easy Ã¢â€ â€™ Hard Ã¢â€ â€™ Medium Ã¢â€ â€™ Hard Ã¢â€ â€™ DEADLY (boss). For each difficulty tier, describe what it represents in THIS campaign's specific context."
+    "encounterCurve": "Describe the encounter difficulty curve for this campaign: Easy → Medium → Easy → Hard → Medium → Hard → DEADLY (boss). For each difficulty tier, describe what it represents in THIS campaign's specific context."
   },
   "dmRoadmap": {
     "act1Goals": [
