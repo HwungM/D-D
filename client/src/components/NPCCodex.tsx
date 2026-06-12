@@ -103,6 +103,17 @@ const PORTRAIT_GENDER: Record<string, 'm' | 'f' | 'n'> = {
   'undertaker-01': 'm', 'undertaker-02': 'f', 'undertaker-03': 'm', 'undertaker-04': 'f',
 }
 
+// Fallback gender guess from common fantasy name endings, used only when the
+// AI hasn't set npc.gender (older campaign data / not yet introduced with it).
+const FEMALE_NAME_ENDINGS = ['a', 'ia', 'na', 'la', 'ra', 'ys', 'elle', 'ette', 'ina']
+const MALE_NAME_ENDINGS = ['o', 'os', 'in', 'on', 'an', 'ar', 'us', 'or', 'ic']
+function guessGenderFromName(name: string): 'm' | 'f' | null {
+  const first = name.trim().split(/\s+/)[0].toLowerCase()
+  for (const suffix of FEMALE_NAME_ENDINGS) if (first.endsWith(suffix)) return 'f'
+  for (const suffix of MALE_NAME_ENDINGS) if (first.endsWith(suffix)) return 'm'
+  return null
+}
+
 // Hash an NPC name to a stable 0-based index within a filtered candidate list
 function nameHash(name: string, count: number): number {
   let h = 0
@@ -117,7 +128,7 @@ function stockPortrait(npc: NpcMemory): string | null {
   for (const { keywords, archetype, count } of ARCHETYPE_MAP) {
     if (!keywords.some(k => text.includes(k))) continue
 
-    const genderCode = npc.gender === 'male' ? 'm' : npc.gender === 'female' ? 'f' : npc.gender === 'nonbinary' ? 'n' : null
+    const genderCode = npc.gender === 'male' ? 'm' : npc.gender === 'female' ? 'f' : npc.gender === 'nonbinary' ? 'n' : guessGenderFromName(npc.name)
 
     // Build candidate list filtered by gender (fall back to all if no gender or no matches)
     const all = Array.from({ length: count }, (_, i) => i + 1)
@@ -130,6 +141,16 @@ function stockPortrait(npc: NpcMemory): string | null {
     return `/assets/npcs/${archetype}-${String(idx).padStart(2, '0')}.png`
   }
   return null
+}
+
+// Generic placeholder while a custom portrait generates - 'mysterious-stranger'
+// has both gendered and ambiguous variants.
+function genericStockPortrait(npc: NpcMemory): string {
+  const genderCode = npc.gender === 'male' ? 'm' : npc.gender === 'female' ? 'f' : npc.gender === 'nonbinary' ? 'n' : guessGenderFromName(npc.name)
+  const candidates = [1, 2, 3, 4].filter(i => !genderCode || PORTRAIT_GENDER[`mysterious-stranger-${String(i).padStart(2, '0')}`] === genderCode)
+  const pool = candidates.length > 0 ? candidates : [1, 2, 3, 4]
+  const idx = pool[nameHash(npc.name, pool.length)]
+  return `/assets/npcs/mysterious-stranger-${String(idx).padStart(2, '0')}.png`
 }
 
 function slugify(name: string): string {
@@ -188,9 +209,12 @@ function NPCCard({ npc, campaignId }: { npc: NpcMemory; campaignId: string }) {
     // 1. Use cached portrait_url if present
     if (npc.portrait_url) { setPortrait(npc.portrait_url); return }
 
-    // 2. Try stock archetype
+    // 2. Try stock archetype (falls back to a generic stranger portrait by
+    // gender/name so a wave of new NPCs doesn't render as bare letters while
+    // generation queues up)
     const stock = stockPortrait(npc)
     if (stock) { setPortrait(stock); return }
+    setPortrait(genericStockPortrait(npc))
 
     // 3. Check campaign-specific cache then generate
     const cacheKey = `npc-${campaignId}-${slugify(npc.name)}`
