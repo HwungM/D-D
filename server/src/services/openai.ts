@@ -1551,7 +1551,7 @@ export async function generateCoopNarration(
   worldBible: WorldBible,
   recentHistory: string[],
   campaignContext?: NarrationCampaignContext | null
-): Promise<NarrationResult & { character1Changes?: NarrationResult['character1Changes']; character2Changes?: NarrationResult['character2Changes'] }> {
+): Promise<NarrationResult & { character1Changes?: NarrationResult['character1Changes']; character2Changes?: NarrationResult['character2Changes']; character1SuggestedActions?: string[]; character2SuggestedActions?: string[] }> {
   if (actions.length < 2) throw new Error('generateCoopNarration requires exactly 2 actions');
 
   const [a1, a2] = actions;
@@ -1633,7 +1633,8 @@ COMBO MOVES:
 
 OPTIONAL SUGGESTIONS:
 - suggestedActions are optional nudges, not required choices.
-- Return 3-4 ideas grounded in this exact scene, location, party state, active quest, inventory, abilities, and both submitted actions.
+- PER-CHARACTER: each player sees their OWN list. character1SuggestedActions must fit Character 1's class, abilities, and stats; character2SuggestedActions must fit Character 2's. Never suggest the Bard's lute tricks to the Wizard or the Wizard's spells to the Bard.
+- Return 3-4 ideas per character grounded in this exact scene, location, party state, active quest, inventory, abilities, and both submitted actions.
 - Include at least one teamwork idea that uses both characters or lets one cover/follow up on the other.
 - In a calm scene, one idea may invite a character beat between the two of them (a conversation by the fire, a shared memory, checking on each other after danger) instead of pushing plot.
 - If combat is active, every idea must name a target, tactic, terrain feature, ally, or escape route.
@@ -1653,6 +1654,8 @@ Respond with JSON:
   "narration": "string - unified narration addressing both characters",
   "worldStateChanges": object | null,
   "suggestedActions": ["3-4 optional action ideas; use [] if awaitingRoll or isHighStakes"],
+  "character1SuggestedActions": ["3-4 ideas tailored to Character 1's class/abilities; [] if awaitingRoll or isHighStakes"],
+  "character2SuggestedActions": ["3-4 ideas tailored to Character 2's class/abilities; [] if awaitingRoll or isHighStakes"],
   "sceneImagePrompt": "string",
   "isLevelUp": false,
   "isDeath": false,
@@ -1752,6 +1755,8 @@ Respond with JSON:
     ...base,
     character1Changes: (parsed.character1Changes as NarrationResult['character1Changes']) || undefined,
     character2Changes: (parsed.character2Changes as NarrationResult['character2Changes']) || undefined,
+    character1SuggestedActions: base.awaitingRoll || base.isHighStakes ? [] : cleanSuggestedActions(parsed.character1SuggestedActions, base.suggestedActions),
+    character2SuggestedActions: base.awaitingRoll || base.isHighStakes ? [] : cleanSuggestedActions(parsed.character2SuggestedActions, base.suggestedActions),
     actingCharacterId: base.awaitingRoll ? asString(parsed.actingCharacterId) || c1.id : undefined,
   };
 }

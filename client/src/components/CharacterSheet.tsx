@@ -239,9 +239,6 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
                       )}
                     </div>
                     <p className="mt-1 font-serif text-sm leading-relaxed text-parchment-200/72">{ability.description}</p>
-                    {ability.mechanic && (
-                      <p className="mt-2 border-l border-amber-200/24 pl-3 font-serif text-xs italic leading-relaxed text-amber-100/62">{ability.mechanic}</p>
-                    )}
                   </article>
                 ))}
               </div>

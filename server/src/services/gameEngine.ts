@@ -2099,9 +2099,10 @@ export async function processCoopAction(
   // who submitted first (and receives this round via realtime, not the API
   // response) gets the same popups - loot, level-up, choice cards, shop - as
   // the player who submitted last.
+  const char1Suggestions = aiResponse.character1SuggestedActions?.length ? aiResponse.character1SuggestedActions : aiResponse.suggestedActions;
+  const char2Suggestions = aiResponse.character2SuggestedActions?.length ? aiResponse.character2SuggestedActions : aiResponse.suggestedActions;
   const sharedTurnMeta = {
     coopRound: true,
-    suggestedActions: aiResponse.suggestedActions,
     sceneImagePrompt: aiResponse.sceneImagePrompt || null,
     isCombat: isCombatNow,
     isVictory: isVictoryNow,
@@ -2146,14 +2147,14 @@ export async function processCoopAction(
       character_id: pendingActions[0].characterId,
       event_type: 'narration',
       content: aiResponse.narration,
-      metadata: { ...sharedTurnMeta, personal: personalTurnMeta(updatedChar1, characters[0], aiResponse.character1Changes, char1LevelUp, grantedAbility1) },
+      metadata: { ...sharedTurnMeta, suggestedActions: char1Suggestions, personal: personalTurnMeta(updatedChar1, characters[0], aiResponse.character1Changes, char1LevelUp, grantedAbility1) },
     }),
     supabaseAdmin.from('story_events').insert({
       campaign_id: campaignId,
       character_id: pendingActions[1].characterId,
       event_type: 'narration',
       content: aiResponse.narration,
-      metadata: { ...sharedTurnMeta, personal: personalTurnMeta(updatedChar2, characters[1], aiResponse.character2Changes, char2LevelUp, grantedAbility2) },
+      metadata: { ...sharedTurnMeta, suggestedActions: char2Suggestions, personal: personalTurnMeta(updatedChar2, characters[1], aiResponse.character2Changes, char2LevelUp, grantedAbility2) },
     }),
   ]);
 
@@ -2173,7 +2174,8 @@ export async function processCoopAction(
       status_effects: updatedChar1.status_effects,
     },
     sceneImagePrompt: aiResponse.sceneImagePrompt,
-    suggestedActions: aiResponse.suggestedActions,
+    // The API response goes to the player who submitted last (pendingActions[1])
+    suggestedActions: char2Suggestions,
     isLevelUp: char1LevelUp,
     newAbility: grantedAbility1,
     isDeath: aiResponse.character1Changes?.isDeath ?? false,
