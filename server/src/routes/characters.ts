@@ -22,6 +22,7 @@ const createSchema = z.object({
   ]),
   class: z.enum(['Fighter', 'Wizard', 'Rogue', 'Cleric', 'Ranger', 'Paladin', 'Barbarian', 'Bard', 'Druid', 'Monk', 'Sorcerer', 'Warlock']),
   backstory: z.string().max(1000).optional(),
+  gender: z.enum(['male', 'female']).optional(),
   generatePortrait: z.boolean().optional().default(false),
   portraitUrl: z.string().optional(),
   stats: z.object({
@@ -56,7 +57,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
     res.status(400).json({ error: parse.error.errors });
     return;
   }
-  const { campaignId, name, race, class: characterClass, backstory, generatePortrait, portraitUrl: clientPortraitUrl, stats: submittedStats } = parse.data;
+  const { campaignId, name, race, class: characterClass, backstory, gender, generatePortrait, portraitUrl: clientPortraitUrl, stats: submittedStats } = parse.data;
 
   // Verify membership
   const { data: membership } = await supabaseAdmin
@@ -104,28 +105,39 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
   const level1Ability = getAbilityForLevel(characterClass, 1);
   const startingAbilities = level1Ability ? [level1Ability] : [];
 
-  const { data: character, error } = await supabaseAdmin
+  const baseRow = {
+    user_id: req.user!.id,
+    campaign_id: campaignId,
+    name,
+    race,
+    class: characterClass,
+    backstory,
+    stats: finalStats,
+    hp: maxHp,
+    max_hp: maxHp,
+    portrait_url: portraitUrl,
+    abilities: startingAbilities,
+    inventory: [
+      { id: '1', name: 'Traveler\'s Pack', description: 'Basic supplies for adventure', quantity: 1, type: 'misc' },
+    ],
+    gold: 50,
+    reputation: {},
+  };
+
+  let { data: character, error } = await supabaseAdmin
     .from('characters')
-    .insert({
-      user_id: req.user!.id,
-      campaign_id: campaignId,
-      name,
-      race,
-      class: characterClass,
-      backstory,
-      stats: finalStats,
-      hp: maxHp,
-      max_hp: maxHp,
-      portrait_url: portraitUrl,
-      abilities: startingAbilities,
-      inventory: [
-        { id: '1', name: 'Traveler\'s Pack', description: 'Basic supplies for adventure', quantity: 1, type: 'misc' },
-      ],
-      gold: 50,
-      reputation: {},
-    })
+    .insert((gender ? { ...baseRow, gender } : baseRow) as typeof baseRow)
     .select()
     .single();
+
+  // Tolerate deployments where the gender column migration hasn't run yet
+  if (error && gender) {
+    ({ data: character, error } = await supabaseAdmin
+      .from('characters')
+      .insert(baseRow)
+      .select()
+      .single());
+  }
 
   if (error || !character) {
     res.status(500).json({ error: 'Failed to create character' });

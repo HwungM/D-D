@@ -401,6 +401,10 @@ export default function Game() {
       // their roll resolution will arrive as another narration event.
       if (newEvent.metadata?.awaitingRoll && actingId && actingId !== characterId) {
         if (!alreadyShown) addEvent(newEvent)
+        if (typeof newEvent.metadata?.sceneImagePrompt === 'string' && newEvent.metadata.sceneImagePrompt) {
+          const matched = matchSceneImage(newEvent.metadata.sceneImagePrompt, useGameStore.getState().worldState?.timeOfDay)
+          if (matched) setSceneImage(matched)
+        }
         setLoading(false)
         return
       }
@@ -408,6 +412,12 @@ export default function Game() {
       if (alreadyShown) return
 
       addEvent(newEvent)
+      // Match the scene art the other player resolved from the API response,
+      // so both screens show the same image for the same round.
+      if (typeof newEvent.metadata?.sceneImagePrompt === 'string' && newEvent.metadata.sceneImagePrompt) {
+        const matched = matchSceneImage(newEvent.metadata.sceneImagePrompt, useGameStore.getState().worldState?.timeOfDay)
+        if (matched) setSceneImage(matched)
+      }
       coopResolvedAtRef.current = Date.now()
       setCoopWaiting(false)
       setCoopSubmittedCount(0)

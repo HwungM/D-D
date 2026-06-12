@@ -71,6 +71,7 @@ export const characterApi = {
     race: string
     class: string
     backstory?: string
+    gender?: 'male' | 'female'
     generatePortrait?: boolean
     portraitUrl?: string
     stats?: { str: number; dex: number; con: number; int: number; wis: number; cha: number }

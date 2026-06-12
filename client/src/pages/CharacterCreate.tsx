@@ -549,6 +549,7 @@ export default function CharacterCreate() {
         race: selectedRace,
         class: selectedClass,
         backstory,
+        gender: gender || undefined,
         portraitUrl: generateAiPortrait ? undefined : (selectedPortrait || undefined),
         generatePortrait: generateAiPortrait,
         stats: finalStats,

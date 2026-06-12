@@ -111,6 +111,7 @@ export interface Character {
   inventory: InventoryItem[];
   gold: number;
   backstory?: string;
+  gender?: 'male' | 'female';
   portrait_url?: string;
   reputation: Record<string, number>;
   status_effects?: StatusEffect[];

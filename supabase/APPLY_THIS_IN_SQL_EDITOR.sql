@@ -42,3 +42,6 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   alter publication supabase_realtime add table characters;
 exception when duplicate_object then null; end $$;
+
+-- Character gender, so the DM uses the right pronouns.
+alter table characters add column if not exists gender text;

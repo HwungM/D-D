@@ -1398,7 +1398,7 @@ export async function resolveRollAction(
     character_id: characterId,
     event_type: 'narration',
     content: aiResponse.narration,
-    metadata: { suggestedActions: aiResponse.suggestedActions, fromRoll: true },
+    metadata: { suggestedActions: aiResponse.suggestedActions, fromRoll: true, sceneImagePrompt: aiResponse.sceneImagePrompt || null },
   });
 
   return {
@@ -1485,6 +1485,7 @@ export async function resolveCoopRollAction(
       coopRound: true,
       fromRoll: true,
       suggestedActions: result.suggestedActions,
+      sceneImagePrompt: result.sceneImagePrompt || null,
       isCombat: result.isCombat ?? false,
       isVictory: result.isVictory ?? false,
       enemyName: result.enemyName ?? null,
@@ -1701,7 +1702,7 @@ export async function processCoopAction(
         character_id: pa.characterId,
         event_type: 'narration',
         content: aiResponse.narration,
-        metadata: { coopRound: true, awaitingRoll: true, rollContext: aiResponse.rollContext, actingCharacterId },
+        metadata: { coopRound: true, awaitingRoll: true, rollContext: aiResponse.rollContext, actingCharacterId, sceneImagePrompt: aiResponse.sceneImagePrompt || null },
       })
     ));
 
@@ -2101,6 +2102,7 @@ export async function processCoopAction(
   const sharedTurnMeta = {
     coopRound: true,
     suggestedActions: aiResponse.suggestedActions,
+    sceneImagePrompt: aiResponse.sceneImagePrompt || null,
     isCombat: isCombatNow,
     isVictory: isVictoryNow,
     enemyName: aiResponse.enemyName ?? null,

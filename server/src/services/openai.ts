@@ -957,6 +957,13 @@ RULES: Maintain enemy continuity - they remember every action. When an enemy is 
 ═════════════════════`;
 }
 
+function characterGenderLine(c: Character): string {
+  const gender = c.gender || (c.portrait_url && /-f\.png$/.test(c.portrait_url) ? 'female' : undefined);
+  if (!gender) return '';
+  const pronouns = gender === 'female' ? 'she/her' : 'he/him';
+  return `\nGENDER: ${gender} — always use ${pronouns} pronouns when referring to ${c.name}.`;
+}
+
 function buildStatHints(s: Character['stats']): string {
   return [
     s.str >= 15 ? `STR ${s.str} → can force doors, break obstacles, intimidate physically` : s.str <= 8 ? `STR ${s.str} → avoid purely physical brute-force options` : null,
@@ -1078,7 +1085,7 @@ WORLD STATE:
 ${npcQuestMapBlock}
 
 CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATION: ${worldState.currentLocation || 'Unknown'}
-CLASS: ${character.class} | RACE: ${character.race} | LEVEL: ${character.level}${unusualNote}
+CLASS: ${character.class} | RACE: ${character.race} | LEVEL: ${character.level}${characterGenderLine(character)}${unusualNote}
 Gold: ${character.gold}
 BACKSTORY: ${character.backstory || 'Unknown origins'}
 ${character.status_effects && character.status_effects.length > 0 ? `ACTIVE STATUS EFFECTS: ${character.status_effects.map(e => `${e.name} (${e.type})`).join(', ')} - these affect what the character can do.` : ''}
@@ -1554,7 +1561,7 @@ export async function generateCoopNarration(
   function charBlock(c: Character, label: string): string {
     const s = c.stats;
     const abilities = (c.abilities || []).filter(a => !a.currentCooldown || a.currentCooldown <= 0);
-    return `${label}: ${c.name} (${c.race} ${c.class}, Level ${c.level})
+    return `${label}: ${c.name} (${c.race} ${c.class}, Level ${c.level})${characterGenderLine(c)}
 HP: ${c.hp}/${c.max_hp} | Gold: ${c.gold}
 Stats: STR ${s.str} DEX ${s.dex} CON ${s.con} INT ${s.int} WIS ${s.wis} CHA ${s.cha}
 BACKSTORY: ${c.backstory || 'Unknown origins'}
@@ -1810,7 +1817,7 @@ Flavor hint for this outcome: "${flavorHint}"
 DEGREE OF SUCCESS DIRECTIVE:
 ${degreeGuidance[degree]}${combatStakesBlock}
 
-Character: ${character.name} (${character.race} ${character.class}, Level ${character.level})
+Character: ${character.name} (${character.race} ${character.class}, Level ${character.level})${characterGenderLine(character)}
 HP: ${character.hp}/${character.max_hp} | Location: ${worldState.currentLocation || 'unknown'}
 Inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
 Available abilities: ${(character.abilities || []).filter(a => !a.currentCooldown || a.currentCooldown <= 0).slice(0, 5).map(a => a.name).join(', ') || 'none'}

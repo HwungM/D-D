@@ -68,7 +68,19 @@ export const useGameStore = create<GameState>()((set) => ({
   setCharacter: (character) => set({ currentCharacter: character }),
   addEvent: (event) => set((state) => {
     if (state.events.some(existing => existing.id === event.id)) return state;
-    return { events: [...state.events, event] };
+    // Insert in chronological order: in co-op a partner's action can arrive
+    // (via realtime/poll) after the round's narration was already shown, and
+    // appending would display it below the DM response instead of beside ours.
+    const events = [...state.events, event];
+    events.sort((a, b) => {
+      const ta = Date.parse(a.created_at) || 0;
+      const tb = Date.parse(b.created_at) || 0;
+      if (ta !== tb) return ta - tb;
+      // Same timestamp: actions read before the narration they produced
+      if (a.event_type !== b.event_type) return a.event_type === 'action' ? -1 : 1;
+      return 0;
+    });
+    return { events };
   }),
   setEvents: (events) => set({ events }),
   setLoading: (loading) => set({ isLoading: loading }),
