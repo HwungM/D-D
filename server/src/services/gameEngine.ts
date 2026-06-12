@@ -233,8 +233,14 @@ function buildCampaignSpineSnapshot(worldState: WorldState, worldBible: WorldBib
       .filter(entry => entry.payoffStatus !== 'paid_off')
       .slice(-3)
       .map(entry => `Foreshadowing: ${entry.description}`),
-    ...(worldBible?.primaryAntagonist ? [`Antagonist: ${worldBible.primaryAntagonist.name} wants ${worldBible.primaryAntagonist.agenda}`] : []),
-  ].slice(0, 8);
+    // Only name the antagonist once the story has revealed them — this spine
+    // is shown to players in the journal, not just fed to the DM.
+    ...(worldBible?.primaryAntagonist?.isRevealed
+      ? [`Antagonist: ${worldBible.primaryAntagonist.name} wants ${worldBible.primaryAntagonist.agenda}`]
+      : []),
+  ]
+    .filter((thread, index, all) => all.indexOf(thread) === index)
+    .slice(0, 8);
 
   const relationshipMap = new Map<string, NpcMemory>();
   for (const npc of [...(worldState.npcMemory || []), ...(worldState.keyNPCs || [])]) {
