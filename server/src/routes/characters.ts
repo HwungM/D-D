@@ -13,7 +13,13 @@ const router = Router();
 const createSchema = z.object({
   campaignId: z.string().uuid(),
   name: z.string().min(1).max(50),
-  race: z.enum(['Human', 'Elf', 'Dwarf', 'Halfling', 'Gnome', 'Half-Orc', 'Tiefling', 'Dragonborn']),
+  race: z.enum([
+    'Human', 'Elf', 'Dwarf', 'Halfling', 'Gnome', 'Half-Orc', 'Tiefling', 'Dragonborn',
+    'Aasimar', 'Fire Genasi', 'Water Genasi', 'Earth Genasi', 'Air Genasi',
+    'Warforged', 'Tabaxi', 'Goliath', 'Firbolg', 'Changeling', 'Kenku', 'Dhampir', 'Owlin',
+    'Lizardfolk', 'Satyr', 'Harengon', 'Yuan-Ti', 'Triton', 'Leonin',
+    'Minotaur', 'Bugbear', 'Hobgoblin', 'Goblin', 'Tortle',
+  ]),
   class: z.enum(['Fighter', 'Wizard', 'Rogue', 'Cleric', 'Ranger', 'Paladin', 'Barbarian', 'Bard', 'Druid', 'Monk', 'Sorcerer', 'Warlock']),
   backstory: z.string().max(1000).optional(),
   generatePortrait: z.boolean().optional().default(false),

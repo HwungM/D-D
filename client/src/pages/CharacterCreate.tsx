@@ -584,7 +584,14 @@ export default function CharacterCreate() {
 
       navigate(`/campaign/${campaignId}/play/${data.character.id}`)
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to create character')
+      const respError = (err as { response?: { data?: { error?: unknown } } })?.response?.data?.error
+      let message = 'Failed to create character'
+      if (typeof respError === 'string') {
+        message = respError
+      } else if (Array.isArray(respError)) {
+        message = respError.map((e: { message?: string }) => e?.message).filter(Boolean).join(', ') || message
+      }
+      setError(message)
       setLoading(false)
     }
   }
