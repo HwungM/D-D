@@ -313,7 +313,7 @@ export default function CampaignWizard() {
     <div key="party" className="grid gap-4">
       {state.isCollaborative ? (
         [
-          { intent: 'collab_wait_for_party' as const, title: 'Wait for Sun Mi', meta: '2 players', description: 'Create the campaign brief, generate an invite, then hold at the party gate until both characters exist.', playerCount: 2 as const, targetPlayerCount: 2 as const, waitForParty: true },
+          { intent: 'collab_wait_for_party' as const, title: 'Wait for your partner', meta: '2 players', description: 'Create the campaign brief, generate an invite, then hold at the party gate until both characters exist.', playerCount: 2 as const, targetPlayerCount: 2 as const, waitForParty: true },
           { intent: 'collab_start_now' as const, title: 'Start now, invite later', meta: 'Host first', description: 'Create your character and begin. The invite stays ready so another player can join when they arrive.', playerCount: 1 as const, targetPlayerCount: 2 as const, waitForParty: false },
           { intent: 'collab_wait_for_party' as const, title: 'Wait for a larger party', meta: '3 players', description: 'Plan around three real players sharing spotlight, danger, scenes, and turn resolution.', playerCount: 3 as const, targetPlayerCount: 3 as const, waitForParty: true },
         ].map(option => (

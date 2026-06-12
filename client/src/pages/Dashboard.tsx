@@ -338,7 +338,7 @@ export default function Dashboard() {
                 The next door is waiting.
               </h1>
               <p className="mt-4 max-w-xl font-serif text-base leading-relaxed text-parchment-200/78 sm:text-lg">
-                Pick up the campaign, gather Sun Mi with an invite code, or spin up a test world without disturbing the real legend.
+                Pick up the campaign, gather your partner with an invite code, or spin up a test world without disturbing the real legend.
               </p>
 
               <div className="mt-7 flex flex-wrap gap-3">
@@ -504,7 +504,7 @@ function PartyGate({ joinCode, setJoinCode, joinError, joiningByCode, onJoin }: 
     <section className="relative overflow-hidden border border-amber-200/18 bg-black/48 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.38)] backdrop-blur-md">
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400/0 via-amber-300/75 to-cyan-300/0" />
       <p className="font-fantasy text-[11px] uppercase tracking-[0.3em] text-amber-200/72">Party Gate</p>
-      <h2 className="mt-3 font-fantasy text-3xl text-parchment-100">Join Sun Mi</h2>
+      <h2 className="mt-3 font-fantasy text-3xl text-parchment-100">Join the Party</h2>
       <p className="mt-3 font-serif text-sm leading-relaxed text-parchment-200/68">
         Enter the shared invite code and step into the same campaign timeline.
       </p>

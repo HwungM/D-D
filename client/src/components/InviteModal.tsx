@@ -56,7 +56,7 @@ export default function InviteModal({ campaignId, campaignName, onClose }: Invit
 
           <div className="px-5 py-5">
             <p className="font-serif text-sm leading-relaxed text-parchment-200/68">
-              Share this gate with Sun Mi to join <span className="text-amber-100">{campaignName}</span>. The link expires in 7 days.
+              Share this gate with your partner to join <span className="text-amber-100">{campaignName}</span>. The link expires in 7 days.
             </p>
 
             {loading ? (
