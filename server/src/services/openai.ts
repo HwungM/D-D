@@ -1465,6 +1465,40 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
     spotlightCharacterId: asString(parsed.spotlightCharacterId),
   };
 }
+// Detects the prose/structure violations the model keeps committing despite the
+// system-prompt rules. Returns a list of corrective instructions (empty = clean).
+// This is the enforcement layer: soft prompt directives are demonstrably ignored,
+// so we catch the bad draft and force a targeted rewrite.
+const STALL_PHRASES = [
+  'just within reach', 'turning point', 'synergy', 'atmosphere is ripe',
+  'promises revelations', 'lead worth pursuing', 'potential for discovery',
+  'more than meets the eye', 'weight of what looms', 'echoes of ancient',
+  'the weave of', 'promise of secrets', 'sowing more questions',
+  'might be unlocked', 'sowing the seeds', 'pursuing the echoes',
+  'hangs in the air', 'ripe with the potential', 'what the future holds',
+];
+
+export function detectNarrationIssues(narration: string, isCoop: boolean): string[] {
+  const issues: string[] = [];
+  const lower = narration.toLowerCase();
+
+  if (isCoop && /\bmeanwhile\b/.test(lower)) {
+    issues.push('You split the party into parallel threads with "Meanwhile". Rewrite as ONE shared scene: both characters are in the same place at the same moment, talking to the same NPCs and reacting to each other. Never cut away to a second, separate conversation.');
+  }
+
+  const opener = lower.slice(0, 170);
+  if (/(overcast|clouded (?:sky|heaven)|grey sk|gray sk|the air (?:seems|is|hangs|grows|was|filled|thick)|muted (?:glow|light|filter)|sunlight (?:filter|stream|dappl)|sky (?:casts|adds|looms|offers)|skies loom|beneath the .{0,20}sky|under the .{0,20}sky)/.test(opener)) {
+    issues.push('You opened on the weather/sky/air again. Open instead on a character doing something, an NPC speaking, a concrete object, or a sound. Do NOT mention the sky, weather, or "the air" in the first two sentences.');
+  }
+
+  const hitStall = STALL_PHRASES.find(p => lower.includes(p));
+  if (hitStall) {
+    issues.push(`You ended on stalling atmosphere ("${hitStall}") instead of a concrete outcome. Make something actually happen this turn: an NPC gives a specific NEW fact (a name, place, number, or motive), gold or an item changes hands, a door opens, a roll is called for (awaitingRoll), or the party physically moves. Cut every vague "promise"/"potential"/"sense of" line.`);
+  }
+
+  return issues;
+}
+
 export async function generateNarration(
   action: string,
   worldState: WorldState,
@@ -1483,11 +1517,29 @@ export async function generateNarration(
   });
 
   const content = response.choices[0].message.content || '{}';
-  try {
-    return parseNarrationResponse(JSON.parse(content));
-  } catch {
-    return parseNarrationResponse({});
+  let parsed: Record<string, unknown>;
+  try { parsed = JSON.parse(content); } catch { return parseNarrationResponse({}); }
+
+  // Enforcement pass (solo): same corrective rewrite as co-op, minus the
+  // shared-scene rule which only applies with two characters.
+  const issues = detectNarrationIssues(asString(parsed.narration) || '', false);
+  if (issues.length > 0) {
+    try {
+      const retry = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          ...messages,
+          { role: 'assistant', content },
+          { role: 'user', content: `Your draft broke hard DM rules:\n- ${issues.join('\n- ')}\n\nReturn the SAME JSON object with the same fields and mechanical values (hpChange, loot, goldChange, awaitingRoll, etc.), changing ONLY the narration (and suggestedActions if needed) to fix these issues.` }],
+        temperature: 0.7,
+        response_format: { type: 'json_object' },
+      });
+      const reparsed = JSON.parse(retry.choices[0].message.content || '') as Record<string, unknown>;
+      if (asString(reparsed.narration)) parsed = reparsed;
+    } catch { /* keep original draft if the retry fails */ }
   }
+
+  return parseNarrationResponse(parsed);
 }
 
 export async function* generateNarrationStreaming(
@@ -1770,6 +1822,27 @@ Respond with JSON:
   const content = response.choices[0].message.content || '{}';
   let parsed: Record<string, unknown> = {};
   try { parsed = JSON.parse(content); } catch { /* use empty defaults */ }
+
+  // Enforcement pass: if the draft broke the hard prose/structure rules the model
+  // routinely ignores, send one corrective rewrite with the violations spelled out.
+  const issues = detectNarrationIssues(asString(parsed.narration) || '', true);
+  if (issues.length > 0) {
+    try {
+      const retry = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: DM_SYSTEM_PROMPT },
+          { role: 'user', content: worldContext },
+          { role: 'assistant', content },
+          { role: 'user', content: `Your draft broke hard DM rules:\n- ${issues.join('\n- ')}\n\nReturn the SAME JSON object with the same fields and mechanical values (hpChange, loot, goldChange, awaitingRoll, etc.), changing ONLY the narration (and suggestedActions if needed) to fix these issues. Keep both characters in one shared scene.` }],
+        temperature: 0.7,
+        response_format: { type: 'json_object' },
+      });
+      const retryContent = retry.choices[0].message.content || '';
+      const reparsed = JSON.parse(retryContent) as Record<string, unknown>;
+      if (asString(reparsed.narration)) parsed = reparsed;
+    } catch { /* keep original draft if the retry fails */ }
+  }
 
   const base = parseNarrationResponse(parsed);
 
