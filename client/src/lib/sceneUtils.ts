@@ -94,7 +94,7 @@ const SCENE_MAP: [string[], SceneEntry][] = [
   [['graveyard', 'cemetery'], { day: 'graveyard-day', night: 'graveyard-night' }],
   [['camp', 'campsite', 'campfire', 'bedroll', 'rest stop', 'bivouac'], { day: 'campsite-day', night: 'campsite-night' }],
   [['bridge', 'chasm', 'ravine', 'gorge', 'span crossing'], { day: 'bridge-day', night: 'bridge-night' }],
-  [['clearing', 'glade', 'forest meadow', 'open field'], { day: 'forest-clearing-day', night: 'forest-clearing-night' }],
+  [['clearing', 'glade', 'forest meadow', 'open field', 'meadow', 'orchard', 'vineyard', 'apple trees', 'fruit trees'], { day: 'forest-clearing-day', night: 'forest-clearing-night' }],
   [['fey', 'faerie', 'enchanted forest', 'feywild', 'fairy wood', 'arcane wood', 'glowing forest'], { day: 'fey-forest-day', night: 'fey-forest-night' }],
   [['jungle', 'rainforest', 'tropical', 'dense canopy', 'vine jungle'], { day: 'jungle-day', night: 'jungle-night' }],
   [['forest', 'wood', 'tree', 'grove', 'thicket', 'forest road', 'wooded road'], { day: 'forest-road-day', night: 'forest-road-night' }],
