@@ -135,7 +135,6 @@ export default function Game() {
 
   const [showDiceModal, setShowDiceModal] = useState(false)
   const [diceModalData, setDiceModalData] = useState<{ narration: string; rollContext: RollContext } | null>(null)
-  const [partyActionMode, setPartyActionMode] = useState(false)
   const [isNewCharacter, setIsNewCharacter] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const [campaignType, setCampaignType] = useState<'adventure' | 'testing'>('adventure')
@@ -162,6 +161,17 @@ export default function Game() {
       if (partner?.character?.name) setCoopPartnerName(partner.character.name)
     }).catch(() => {})
   }, [campaignId, user?.id])
+
+  // Keep the open shop's stock in sync with shared world state, so a purchase
+  // by one player decrements the merchant's stock on the other player's screen too.
+  useEffect(() => {
+    if (!showShop) return
+    const location = worldState?.currentLocation || ''
+    const shared = worldState?.shopInventory?.[location]
+    if (!shared) return
+    setShopItems(shared)
+    if (shared.length === 0) setShowShop(false)
+  }, [worldState?.shopInventory, worldState?.currentLocation, showShop])
 
   const syncSceneState = useCallback(() => {
     if (!campaignId || !characterId) return
@@ -627,10 +637,7 @@ export default function Game() {
     setLastActionResult(null)
     setHighStakesData(null)
 
-    // Prefix with [PARTY ACTION] if party action mode is enabled and party members are present
-    const finalAction = partyActionMode && partyMembersHere.length > 0
-      ? `[PARTY ACTION] ${action}`
-      : action
+    const finalAction = action
 
     // Only switch scene immediately based on location - not action text (avoids wrong images)
     const immediateScene = matchSceneImage(worldState?.currentLocation || '', worldState?.timeOfDay)
@@ -1282,28 +1289,6 @@ export default function Game() {
             </div>
           )}
 
-          {/* Party Action toggle - only shown when co-op members share same location */}
-          {partyMembersHere.length > 0 && (
-            <div className="px-4 pt-2 pb-0 flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setPartyActionMode(p => !p)}
-                className="flex items-center gap-1.5 border px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all"
-                style={partyActionMode
-                  ? { border: '1px solid rgba(34,211,238,0.42)', color: 'rgba(191,244,255,0.9)', background: 'rgba(34,211,238,0.08)' }
-                  : { border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(232,212,168,0.56)', background: 'rgba(255,255,255,0.025)' }
-                }
-              >
-                <span style={{ fontSize: 10 }}>+</span>
-                Coordinate Action
-                {partyActionMode && <span style={{ color: 'rgba(200,146,42,0.7)', fontSize: 10 }}>ON</span>}
-              </button>
-              {partyActionMode && (
-                <span className="font-serif text-xs text-parchment-200/54">
-                  Locks this round until everyone present acts: {partyMembersHere.map(m => m.character?.name).filter(Boolean).join(', ')}
-                </span>
-              )}
-            </div>
-          )}
           {coopWaiting && (
             <div className="flex shrink-0 items-center gap-2 border-t border-amber-200/18 bg-[linear-gradient(90deg,rgba(245,158,11,0.08),rgba(34,211,238,0.05))] px-4 py-2">
               <div className="h-2 w-2 shrink-0 border border-amber-100/40 bg-amber-300" style={{ animation: 'pulse 1.5s ease-in-out infinite' }} />
@@ -1520,6 +1505,7 @@ export default function Game() {
             try {
               const res = await characterApi.purchase(currentCharacter.id, item, campaignId!)
               setCharacter(res.data.character)
+              if (Array.isArray(res.data.shopItems)) setShopItems(res.data.shopItems as ShopItem[])
             } catch (e: unknown) {
               const err = e as { response?: { data?: { error?: string } } }
               alert(err?.response?.data?.error || 'Purchase failed')

@@ -263,17 +263,25 @@ router.post('/:id/purchase', requireAuth, async (req: AuthRequest, res: Response
     .single();
 
   let purchasePrice = item.price;
+  type ShopEntry = { id: string; name: string; price: number; quantity?: number };
+  let ws: { shopInventory?: Record<string, ShopEntry[]>; currentLocation?: string } | null = null;
+  let currentLocation = '';
+  let shopItem: ShopEntry | undefined;
   if (campaign?.world_state) {
-    const ws = campaign.world_state as { shopInventory?: Record<string, { id: string; name: string; price: number }[]>; currentLocation?: string };
-    const currentLocation = ws.currentLocation || '';
+    ws = campaign.world_state as { shopInventory?: Record<string, ShopEntry[]>; currentLocation?: string };
+    currentLocation = ws.currentLocation || '';
     const shopItems = ws.shopInventory?.[currentLocation] || [];
-    const shopItem = shopItems.find((s: { id: string; name: string; price: number }) => s.name.toLowerCase() === item.name.toLowerCase());
+    shopItem = shopItems.find((s: ShopEntry) => s.name.toLowerCase() === item.name.toLowerCase());
     if (shopItems.length > 0 && !shopItem) {
       res.status(400).json({ error: 'Item is not available in this shop' });
       return;
     }
     if (shopItem) {
       purchasePrice = shopItem.price;
+      if (typeof shopItem.quantity === 'number' && shopItem.quantity <= 0) {
+        res.status(400).json({ error: 'Item is out of stock' });
+        return;
+      }
     }
     if (shopItem && shopItem.price !== item.price) {
       res.status(400).json({ error: 'Item price mismatch' });
@@ -317,7 +325,21 @@ router.post('/:id/purchase', requireAuth, async (req: AuthRequest, res: Response
     return;
   }
 
-  res.json({ character: updated });
+  // Decrement shared shop stock so other players see the same depleted inventory
+  let updatedShopItems: ShopEntry[] | undefined;
+  if (ws && shopItem && typeof shopItem.quantity === 'number') {
+    const shopItems = ws.shopInventory?.[currentLocation] || [];
+    updatedShopItems = shopItems
+      .map(s => s.id === shopItem!.id ? { ...s, quantity: s.quantity! - 1 } : s)
+      .filter(s => (s.quantity ?? 1) > 0);
+    const newWorldState = { ...ws, shopInventory: { ...ws.shopInventory, [currentLocation]: updatedShopItems } };
+    await supabaseAdmin
+      .from('campaigns')
+      .update({ world_state: newWorldState })
+      .eq('id', targetCampaignId);
+  }
+
+  res.json({ character: updated, shopItems: updatedShopItems });
 });
 
 // Validated sell — server verifies item exists before applying
