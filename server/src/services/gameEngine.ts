@@ -79,11 +79,10 @@ function campaignLengthTargetActions(worldBible?: WorldBible): number {
   return 35;
 }
 
-function getActLabel(worldBible: WorldBible | undefined, act: number): string {
-  if (!worldBible?.dmRoadmap) return act === 1 ? 'Opening Arc' : act === 2 ? 'Rising Arc' : 'Endgame Arc';
-  if (act === 1) return worldBible.dmRoadmap.act1ClimaxEvent || 'Opening Arc';
-  if (act === 2) return worldBible.dmRoadmap.act2ClimaxEvent || 'Rising Arc';
-  return worldBible.dmRoadmap.act3ClimaxEvent || 'Endgame Arc';
+function getActLabel(_worldBible: WorldBible | undefined, act: number): string {
+  // Short, non-spoiler arc title. The detailed climax lives in the DM roadmap
+  // (fed to the AI) and must NOT surface to players in the journal/world codex.
+  return act === 1 ? 'The Call' : act === 2 ? 'The Trial' : 'The Reckoning';
 }
 
 function normalizeLocationName(value: unknown): string {
@@ -1306,6 +1305,7 @@ export async function processAction(
       success,
       xpGained,
       suggestedActions: aiResponse.suggestedActions,
+      sceneImagePrompt: aiResponse.sceneImagePrompt || null,
     },
   });
 
@@ -1586,7 +1586,7 @@ export async function getOpeningScene(
     character_id: characterId,
     event_type: 'narration',
     content: aiResponse.narration,
-    metadata: { suggestedActions: aiResponse.suggestedActions, isOpening: true },
+    metadata: { suggestedActions: aiResponse.suggestedActions, isOpening: true, sceneImagePrompt: aiResponse.sceneImagePrompt || null },
   });
 
   return {

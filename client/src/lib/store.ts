@@ -7,6 +7,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
+// Chronological order with a stable tiebreaker: when an action and the
+// narration it produced share a timestamp, the action reads first.
+function sortEvents(events: StoryEvent[]): StoryEvent[] {
+  return [...events].sort((a, b) => {
+    const ta = Date.parse(a.created_at) || 0
+    const tb = Date.parse(b.created_at) || 0
+    if (ta !== tb) return ta - tb
+    if (a.event_type !== b.event_type) return a.event_type === 'action' ? -1 : 1
+    return 0
+  })
+}
+
 function isNpcMemory(value: unknown): value is NpcMemory {
   return isRecord(value) && typeof value.name === 'string' && typeof value.notes === 'string'
 }
@@ -47,6 +59,7 @@ interface GameState {
   setCampaign: (campaign: Campaign | null) => void
   setCharacter: (character: Character | null) => void
   addEvent: (event: StoryEvent) => void
+  reconcileEvent: (realEvent: StoryEvent) => void
   setEvents: (events: StoryEvent[]) => void
   setLoading: (loading: boolean) => void
   setLastActionResult: (result: ActionResult | null) => void
@@ -68,19 +81,20 @@ export const useGameStore = create<GameState>()((set) => ({
   setCharacter: (character) => set({ currentCharacter: character }),
   addEvent: (event) => set((state) => {
     if (state.events.some(existing => existing.id === event.id)) return state;
-    // Insert in chronological order: in co-op a partner's action can arrive
-    // (via realtime/poll) after the round's narration was already shown, and
-    // appending would display it below the DM response instead of beside ours.
-    const events = [...state.events, event];
-    events.sort((a, b) => {
-      const ta = Date.parse(a.created_at) || 0;
-      const tb = Date.parse(b.created_at) || 0;
-      if (ta !== tb) return ta - tb;
-      // Same timestamp: actions read before the narration they produced
-      if (a.event_type !== b.event_type) return a.event_type === 'action' ? -1 : 1;
-      return 0;
-    });
-    return { events };
+    return { events: sortEvents([...state.events, event]) };
+  }),
+  // Replace an optimistic (client-timestamped) action with its authoritative
+  // server row. Mixing client and server clocks in the sort scrambles co-op
+  // turns when the two devices' clocks drift; once both actions carry server
+  // timestamps the chronological sort is reliable.
+  reconcileEvent: (realEvent) => set((state) => {
+    if (state.events.some(existing => existing.id === realEvent.id)) return state;
+    const withoutOptimistic = state.events.filter(e =>
+      !(e.metadata?.optimistic
+        && e.character_id === realEvent.character_id
+        && e.event_type === realEvent.event_type
+        && e.content === realEvent.content));
+    return { events: sortEvents([...withoutOptimistic, realEvent]) };
   }),
   setEvents: (events) => set({ events }),
   setLoading: (loading) => set({ isLoading: loading }),

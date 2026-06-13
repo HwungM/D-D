@@ -86,7 +86,7 @@ export default function Game() {
   const { user } = useAuthStore()
   const {
     currentCharacter, setCharacter, setLastActionResult, lastActionResult,
-    isLoading, setLoading, currentSceneImage, setSceneImage, events, setEvents, addEvent,
+    isLoading, setLoading, currentSceneImage, setSceneImage, events, setEvents, addEvent, reconcileEvent,
     worldState, setWorldState, mergeWorldState,
   } = useGameStore()
 
@@ -250,6 +250,14 @@ export default function Game() {
       const loaded: StoryEvent[] = data.events || []
       historicalIds.current = new Set(loaded.map(e => e.id))
       setEvents(loaded)
+      // Restore the exact scene art from the last narration's image prompt, so
+      // returning to a session shows where the story actually left off rather
+      // than a generic guess from the current location.
+      const lastSceneNarration = [...loaded].reverse().find(e => e.event_type === 'narration' && typeof e.metadata?.sceneImagePrompt === 'string' && e.metadata.sceneImagePrompt)
+      if (lastSceneNarration) {
+        const restored = matchSceneImage(lastSceneNarration.metadata!.sceneImagePrompt as string, useGameStore.getState().worldState?.timeOfDay)
+        if (restored) setSceneImage(restored)
+      }
       // Only auto-start if THIS character has their own history - not just party members'
       const myEvents = loaded.filter(e => e.character_id === characterId)
       if (myEvents.length === 0) setIsNewCharacter(true)
@@ -387,6 +395,14 @@ export default function Game() {
     if (!newEvent?.id || processedEventIds.current.has(newEvent.id) || historicalIds.current.has(newEvent.id)) return
     const isOwnEvent = newEvent.character_id === characterId
     const isPartnerEvent = !!newEvent.character_id && newEvent.character_id !== characterId
+
+    // Our own action's authoritative server row: swap it in for the optimistic
+    // one so every displayed action carries a server timestamp (reliable sort).
+    if (isOwnEvent && newEvent.event_type === 'action') {
+      processedEventIds.current.add(newEvent.id)
+      reconcileEvent(newEvent)
+      return
+    }
 
     if (isPartnerEvent && newEvent.event_type === 'action') {
       processedEventIds.current.add(newEvent.id)

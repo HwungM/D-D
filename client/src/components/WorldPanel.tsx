@@ -94,7 +94,6 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
   const factionEntries = worldState.factionStandings && typeof worldState.factionStandings === 'object'
     ? Object.entries(worldState.factionStandings)
     : []
-  const sessionNotes = Array.isArray(worldState.sessionNotes) ? worldState.sessionNotes : []
   const journal = Array.isArray((worldState as Record<string, unknown>).campaignJournal)
     ? ((worldState as Record<string, unknown>).campaignJournal as unknown[])
     : []
@@ -275,16 +274,6 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
         </section>
       )}
 
-      {sessionNotes.length > 0 && (
-        <section>
-          <p className="mb-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/52">Recent DM Notes</p>
-          <div className="space-y-1">
-            {sessionNotes.slice(-4).reverse().map((note, index) => (
-              <p key={`${note}-${index}`} className="font-serif text-xs italic leading-relaxed text-parchment-200/54">- {note}</p>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   )
 }
