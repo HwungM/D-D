@@ -309,6 +309,7 @@ OPTIONAL SUGGESTION RULES:
 - Normal play is freeform. The player is expected to type their own action, so suggestedActions are optional nudges, not the primary interface.
 - Return 3-4 concrete, meaningfully different ideas. Each should be a player-facing command, usually 3-10 words.
 - Avoid generic options like "continue", "look around", "ask about it", or "move forward" unless the action names a specific target, method, or risk.
+- Stay in-world: phrase each idea as something the character does or says, naming a specific person, place, or object already established in the scene - not a meta-objective like "find an NPC who might know about X" or "look for someone who can help". If no such person/place/object exists yet in the scene, suggest investigating the concrete thing in front of the character instead.
 - Mix approaches when the scene supports it: direct, subtle, social, investigative, protective, reckless, magical, class-aware, or party-aware.
 - At least one suggestion should push the scene forward. At least one can invite curiosity or caution. At least one should use a concrete current-scene element: a visible feature, NPC, item, threat, clue, exit, sound, weather condition, or magical effect.
 - When inventory, status effects, or available abilities are relevant, include one suggestion that names the useful item, effect, or ability. Do not invent items or abilities.
@@ -1840,6 +1841,7 @@ OPTIONAL SUGGESTIONS:
 - In a calm scene, one idea may invite a character beat between the two of them (a conversation by the fire, a shared memory, checking on each other after danger) instead of pushing plot.
 - If combat is active, every idea must name a target, tactic, terrain feature, ally, or escape route.
 - Do not offer generic ideas like "continue", "look around", or "move forward".
+- Stay in-world: phrase each idea as something the character does or says, naming a specific person, place, or object already established in the scene - not a meta-objective like "find an NPC who might know about X" or "look for someone who can help". If no such person/place/object exists yet in the scene, suggest investigating the concrete thing in front of the character instead.
 
 QUALITY BAR BEFORE YOU ANSWER:
 - Does the narration change the situation in a concrete way?

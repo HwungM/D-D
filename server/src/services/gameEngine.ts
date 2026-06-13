@@ -2292,7 +2292,10 @@ export async function processCoopAction(
     deathDescription: changes?.deathDescription ?? null,
   });
 
-  // Save story events for both characters
+  // Save story events for both characters. Insert both player actions FIRST and
+  // await them before the narration rows, so created_at ordering is guaranteed -
+  // the log always shows both decisions before the shared outcome, even though
+  // both players submitted near-simultaneously.
   await Promise.all([
     supabaseAdmin.from('story_events').insert({
       campaign_id: campaignId,
@@ -2308,6 +2311,8 @@ export async function processCoopAction(
       content: pendingActions[1].action,
       metadata: { coopRound: true },
     }),
+  ]);
+  await Promise.all([
     supabaseAdmin.from('story_events').insert({
       campaign_id: campaignId,
       character_id: pendingActions[0].characterId,
