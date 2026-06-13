@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
-import { processAction, getOpeningScene, resolveRollAction, resolveCoopRollAction, processCoopAction, getStatModifier } from '../services/gameEngine';
+import { processAction, getOpeningScene, getCoopOpeningScene, resolveRollAction, resolveCoopRollAction, processCoopAction, getStatModifier } from '../services/gameEngine';
 import { generateEpilogue } from '../services/openai';
 import type { WorldState, WorldBible, Character } from '../../../shared/types';
 import { z } from 'zod';
@@ -234,6 +234,22 @@ router.post('/start', requireAuth, async (req: AuthRequest, res: Response): Prom
   }
 
   try {
+    // Co-op detection mirrors /action: more than one distinct living player means
+    // the opening must be ONE shared single-camera scene, not a per-character solo
+    // opening (which produced near-identical openings from the same world bible).
+    const { data: activeCharacters } = await supabaseAdmin
+      .from('characters')
+      .select('id, user_id')
+      .eq('campaign_id', campaignId)
+      .eq('is_alive', true);
+    const activePlayerCount = new Set((activeCharacters || []).map(c => c.user_id)).size;
+
+    if (activePlayerCount > 1) {
+      const result = await withCampaignLock(campaignId, () => getCoopOpeningScene(campaignId, characterId));
+      res.json(result);
+      return;
+    }
+
     const result = await getOpeningScene(characterId, campaignId);
     res.json(result);
   } catch (err) {
