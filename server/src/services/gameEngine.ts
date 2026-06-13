@@ -383,6 +383,13 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
     merged.actGoalsAchieved = Array.from(new Set([...(current.actGoalsAchieved || []), ...toArr<string>(changes.actGoalsAchieved)]));
   }
 
+  // mysteryClues: upsert by id (future-friendly clue ledger stub)
+  if (changes.mysteryClues) {
+    const existing = new Map((current.mysteryClues || []).map(c => [c.id, c]));
+    for (const clue of changes.mysteryClues) existing.set(clue.id, { ...existing.get(clue.id), ...clue });
+    merged.mysteryClues = Array.from(existing.values()).slice(-50);
+  }
+
   // shopInventory: merge by location key
   if (changes.shopInventory) {
     merged.shopInventory = { ...(current.shopInventory || {}), ...changes.shopInventory };

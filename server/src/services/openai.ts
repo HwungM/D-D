@@ -1,5 +1,7 @@
 ﻿import OpenAI from 'openai';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 import { supabaseAdmin } from './supabase';
 import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext, CharacterOnlineStatus, NpcMemory, CombatEnemy, Recipe, Companion } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
@@ -604,6 +606,15 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "worldStateChanges": object | null,
   "suggestedActions": ["3-4 optional action ideas; use [] if awaitingRoll or isHighStakes"],
   "sceneImagePrompt": "brief scene description for image generation",
+  "turnOutcome": {
+    "playerIntent": "what the player was trying to do this turn",
+    "concreteResult": "the concrete thing that happened because of the action (NOT atmosphere)",
+    "informationRevealed": ["specific facts/clues/names/places learned this turn; [] only if a roll is pending or no info was sought"],
+    "situationChanged": "boolean - did the scene, NPC, quest, combat, position, task progress, or available options change",
+    "unresolvedQuestion": "string | null - a thread deliberately left open",
+    "whyNoRoll": "string | null - if no roll happened, why none was needed",
+    "whyRollNeeded": "string | null - if awaitingRoll/diceRequired is true, why"
+  },
   "isLevelUp": boolean,
   "isDeath": boolean,
   "deathDescription": "string" | null,
@@ -719,8 +730,21 @@ function timeAgo(isoTimestamp: string): string {
   return `${Math.floor(diffHr / 24)}d ago`;
 }
 
+// Validation/debug-facing proof that the turn actually resolved the action.
+// Not shown prominently to the player; consumed by the bad-turn validator.
+export type TurnOutcome = {
+  playerIntent: string;
+  concreteResult: string;
+  informationRevealed: string[];
+  situationChanged: boolean;
+  unresolvedQuestion: string | null;
+  whyNoRoll: string | null;
+  whyRollNeeded: string | null;
+};
+
 export type NarrationResult = {
   narration: string;
+  turnOutcome?: TurnOutcome;
   diceRequired: boolean;
   diceType?: string;
   diceDC?: number;
@@ -996,6 +1020,40 @@ function buildStatHints(s: Character['stats']): string {
   ].filter(Boolean).join('; ');
 }
 
+// ── Hard turn-quality prompt blocks (appended at the END of context for recency,
+// because the same rules buried in the system prompt are demonstrably skimmed past).
+const TURN_RESOLUTION_CONTRACT = `
+═══ ABSOLUTE TURN RESOLUTION CONTRACT ═══
+The player's latest action MUST produce a concrete game result. A response is INVALID if it only adds atmosphere, vague dread, implication, foreshadowing, or emotional weight without resolving the declared action.
+
+Every turn must do at least ONE of:
+- Reveal a SPECIFIC fact, name, place, clue, price, route, motive, danger, weakness, or opportunity.
+- Call for a roll with clear stakes (awaitingRoll, or diceRequired for a minor check).
+- Change an NPC's attitude, relationship, promise, suspicion, or demand.
+- Change the physical situation: movement, damage, discovery, obstacle, arrival, threat, item, or an opened/closed path.
+- Advance a quest, clue, combat state, faction move, or scene exit.
+
+If the player asks an NPC a question:
+- NPC plausibly knows → answer with at least one specific fact.
+- NPC might know but is guarded/uncertain/afraid/deceptive → call for a roll (awaitingRoll).
+- NPC does not know → say what they DO know and give ONE concrete lead (a name, a place, who to ask next).
+
+If the player helps someone with a task:
+- Make measurable progress, OR call for a roll, OR reveal the next concrete obstacle. Never cut away into parallel narration instead of resolving the shared task.
+
+Before returning JSON, answer internally: "What concretely changed because of this action?" If the honest answer is "nothing", REWRITE before returning. Fill turnOutcome truthfully — it is checked.`;
+
+const STYLE_ANTI_REPETITION = `
+═══ STYLE ANTI-REPETITION ═══
+Do NOT open the narration with weather, sky, clouds, wind, rain, mist, fog, storm, "the air", or generic market/crowd bustle UNLESS the action directly concerns it or the weather just mechanically changed.
+Open instead with: the acting character, the NPC's response, the object being handled, the enemy's move, the clue being revealed, or the immediate consequence of the action.
+Banned vague-mystery filler unless paired with a SPECIFIC fact/name/place/symbol/consequence in the same breath: "not just for show", "deeper significance", "the weight of what looms", "a lead worth pursuing", "something ancient stirs", "all is not as it seems", "secrets just within reach".`;
+
+const CO_OP_SINGLE_CAMERA_RULE = `
+═══ CO-OP SINGLE CAMERA RULE ═══
+Use ONE shared camera. Both characters occupy the same physical space and moment unless worldState says they are separated. NEVER use "Meanwhile", "Elsewhere", "in another part", "across town", or parallel scene headers.
+Structure the co-op turn as: (1) one sentence framing the shared scene; (2) Character A's action changes the shared situation; (3) Character B's action reacts to / supports / complicates / benefits from that SAME situation; (4) the world responds to both together; (5) end on one shared situation both players can act from next.`;
+
 function buildNarrationMessages(
   action: string,
   worldState: WorldState,
@@ -1160,6 +1218,7 @@ QUALITY BAR BEFORE YOU ANSWER:
   return [
     { role: 'system', content: DM_SYSTEM_PROMPT },
     { role: 'user', content: worldContext },
+    { role: 'system', content: TURN_RESOLUTION_CONTRACT + '\n' + STYLE_ANTI_REPETITION },
   ];
 }
 
@@ -1409,6 +1468,7 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
 
   return {
     narration: asString(parsed.narration) || 'The world holds its breath...',
+    turnOutcome: cleanTurnOutcome(parsed.turnOutcome),
     diceRequired: awaitingRoll ? false : asBoolean(parsed.diceRequired),
     diceType: awaitingRoll ? undefined : asString(parsed.diceType),
     diceDC: awaitingRoll ? undefined : clampNumber(parsed.diceDC, 5, 30),
@@ -1465,6 +1525,36 @@ function parseNarrationResponse(parsed: Record<string, unknown>): NarrationResul
     spotlightCharacterId: asString(parsed.spotlightCharacterId),
   };
 }
+// Sanitize the model's self-reported turn outcome (used by the validator + debug).
+function cleanTurnOutcome(raw: unknown): TurnOutcome | undefined {
+  const r = asRecord(raw);
+  if (!r) return undefined;
+  return {
+    playerIntent: asString(r.playerIntent) || '',
+    concreteResult: asString(r.concreteResult) || '',
+    informationRevealed: cleanStringArray(r.informationRevealed, 10),
+    situationChanged: asBoolean(r.situationChanged),
+    unresolvedQuestion: r.unresolvedQuestion == null ? null : (asString(r.unresolvedQuestion) || null),
+    whyNoRoll: r.whyNoRoll == null ? null : (asString(r.whyNoRoll) || null),
+    whyRollNeeded: r.whyRollNeeded == null ? null : (asString(r.whyRollNeeded) || null),
+  };
+}
+
+// Debug logger gated on AI_DEBUG_LOGS=true. Appends one JSON line per AI call to
+// server/logs/ai-debug.log so we can see whether the model ignored context or
+// never received it. Never enabled by default; the log dir is gitignored.
+function logAiCall(fn: string, data: Record<string, unknown>): void {
+  if (process.env.AI_DEBUG_LOGS !== 'true') return;
+  try {
+    const dir = path.join(process.cwd(), 'logs');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(
+      path.join(dir, 'ai-debug.log'),
+      JSON.stringify({ ts: new Date().toISOString(), fn, ...data }) + '\n',
+    );
+  } catch { /* logging must never break gameplay */ }
+}
+
 // Detects the prose/structure violations the model keeps committing despite the
 // system-prompt rules. Returns a list of corrective instructions (empty = clean).
 // This is the enforcement layer: soft prompt directives are demonstrably ignored,
@@ -1478,22 +1568,49 @@ const STALL_PHRASES = [
   'hangs in the air', 'ripe with the potential', 'what the future holds',
 ];
 
-export function detectNarrationIssues(narration: string, isCoop: boolean): string[] {
+// Verbs that signal the player sought INFORMATION (must yield a fact or a roll).
+const INFO_INTENT_RE = /\b(ask|asks|asked|asking|question|inquire|inquir|discuss|talk to|speak|inspect|examine|investigat|read|study|search for (?:info|clues|answers)|look into|remember|recall|learn|find out|interrogat|press (?:him|her|them|the)|probe)\b/i;
+// Verbs that signal an ACTION on the world (must change the situation or roll).
+const TASK_INTENT_RE = /\b(help|repair|fix|build|carry|open|search|convince|persuade|sneak|pick|climb|attack|strike|fight|follow|steal|pickpocket|disarm|push|pull|lift|break|force|cast|cross|jump|hide|free|rescue|untie|stabilize|heal)\b/i;
+
+export function detectNarrationIssues(
+  narration: string,
+  isCoop: boolean,
+  opts?: { action?: string; turnOutcome?: TurnOutcome },
+): string[] {
   const issues: string[] = [];
   const lower = narration.toLowerCase();
+  const action = opts?.action || '';
+  const outcome = opts?.turnOutcome;
+  const rollPending = /\bawaitingroll\b|\bdicerequired\b/i.test(narration); // narration text rarely says this; rely on outcome below
+  const rollAsked = !!(outcome && (outcome.whyRollNeeded || rollPending));
 
-  if (isCoop && /\bmeanwhile\b/.test(lower)) {
-    issues.push('You split the party into parallel threads with "Meanwhile". Rewrite as ONE shared scene: both characters are in the same place at the same moment, talking to the same NPCs and reacting to each other. Never cut away to a second, separate conversation.');
+  // A. Co-op split-camera failure
+  if (isCoop && /\b(meanwhile|elsewhere|in another part|across town|on the other side of)\b/.test(lower)) {
+    issues.push('You split the party with parallel narration ("Meanwhile"/"Elsewhere"). Rewrite as ONE shared scene: both characters in the same place and moment, reacting to each other and the same NPCs. Never cut away to a separate conversation.');
   }
 
+  // B. Weather / atmosphere opener crutch
   const opener = lower.slice(0, 170);
-  if (/(overcast|clouded (?:sky|heaven)|grey sk|gray sk|the air (?:seems|is|hangs|grows|was|filled|thick)|muted (?:glow|light|filter)|sunlight (?:filter|stream|dappl)|sky (?:casts|adds|looms|offers)|skies loom|beneath the .{0,20}sky|under the .{0,20}sky)/.test(opener)) {
-    issues.push('You opened on the weather/sky/air again. Open instead on a character doing something, an NPC speaking, a concrete object, or a sound. Do NOT mention the sky, weather, or "the air" in the first two sentences.');
+  if (/(overcast|clouded (?:sky|heaven)|grey sk|gray sk|the air (?:seems|is|hangs|grows|was|filled|thick)|muted (?:glow|light|filter)|sunlight (?:filter|stream|dappl)|sky (?:casts|adds|looms|offers)|skies loom|beneath the .{0,20}sky|under the .{0,20}sky|the (?:market|crowd|square) (?:buzz|bustl|hum))/.test(opener)) {
+    issues.push('You opened on weather/sky/air/ambient bustle again. Open instead on the acting character, an NPC speaking, a concrete object, the enemy\'s move, or the clue revealed. Do NOT mention sky/weather/"the air"/market bustle in the first two sentences.');
   }
 
+  // E. Fake-mystery language with no concrete payoff
   const hitStall = STALL_PHRASES.find(p => lower.includes(p));
-  if (hitStall) {
-    issues.push(`You ended on stalling atmosphere ("${hitStall}") instead of a concrete outcome. Make something actually happen this turn: an NPC gives a specific NEW fact (a name, place, number, or motive), gold or an item changes hands, a door opens, a roll is called for (awaitingRoll), or the party physically moves. Cut every vague "promise"/"potential"/"sense of" line.`);
+  const noInfo = !outcome || outcome.informationRevealed.length === 0;
+  if (hitStall && noInfo && !rollAsked) {
+    issues.push(`You used vague mystery filler ("${hitStall}") without revealing anything concrete. Replace it with a specific NEW fact (a name, place, number, motive, or symbol), call for a roll, or change the situation.`);
+  }
+
+  // C. Information request that revealed nothing and asked for no roll
+  if (action && INFO_INTENT_RE.test(action) && noInfo && !rollAsked) {
+    issues.push(`The player sought information but the turn revealed no specific fact and called for no roll. If the NPC/source plausibly knows, give at least one concrete fact; if guarded/uncertain, call for a roll; if they don't know, state what they DO know and name one concrete lead. Update turnOutcome.informationRevealed accordingly.`);
+  }
+
+  // D. Task/help action with no situation change and no roll
+  if (action && TASK_INTENT_RE.test(action) && outcome && !outcome.situationChanged && !rollAsked) {
+    issues.push(`The player attempted a concrete action ("${action.slice(0, 80)}") but nothing changed and no roll was called. Make measurable progress, reveal the next concrete obstacle, or call for a roll. Set turnOutcome.situationChanged truthfully.`);
   }
 
   return issues;
@@ -1512,7 +1629,7 @@ export async function generateNarration(
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages,
-    temperature: 0.85,
+    temperature: 0.7,
     response_format: { type: 'json_object' },
   });
 
@@ -1522,15 +1639,20 @@ export async function generateNarration(
 
   // Enforcement pass (solo): same corrective rewrite as co-op, minus the
   // shared-scene rule which only applies with two characters.
-  const issues = detectNarrationIssues(asString(parsed.narration) || '', false);
+  let retried = false;
+  const issues = detectNarrationIssues(asString(parsed.narration) || '', false, {
+    action,
+    turnOutcome: cleanTurnOutcome(parsed.turnOutcome),
+  });
   if (issues.length > 0) {
+    retried = true;
     try {
       const retry = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
           ...messages,
           { role: 'assistant', content },
-          { role: 'user', content: `Your draft broke hard DM rules:\n- ${issues.join('\n- ')}\n\nReturn the SAME JSON object with the same fields and mechanical values (hpChange, loot, goldChange, awaitingRoll, etc.), changing ONLY the narration (and suggestedActions if needed) to fix these issues.` }],
+          { role: 'user', content: `The previous response failed quality validation because it did not concretely resolve the player's action:\n- ${issues.join('\n- ')}\n\nRewrite while preserving continuity. Do not add vague mystery language. Do not open with weather or ambient atmosphere. The player's action was: "${action}". You MUST reveal a specific fact OR call for a roll OR change the situation. Return the SAME JSON object with the same mechanical values (hpChange, loot, goldChange, awaitingRoll, etc.), changing only the narration, suggestedActions, and turnOutcome as needed.` }],
         temperature: 0.7,
         response_format: { type: 'json_object' },
       });
@@ -1538,6 +1660,11 @@ export async function generateNarration(
       if (asString(reparsed.narration)) parsed = reparsed;
     } catch { /* keep original draft if the retry fails */ }
   }
+
+  logAiCall('generateNarration', {
+    character: character.id, action, model: 'gpt-4o', temperature: 0.7,
+    messages, rawResponse: content, parsed, validationIssues: issues, retried,
+  });
 
   return parseNarrationResponse(parsed);
 }
@@ -1731,6 +1858,15 @@ Respond with JSON:
   "character1SuggestedActions": ["3-4 ideas tailored to Character 1's class/abilities; [] if awaitingRoll or isHighStakes"],
   "character2SuggestedActions": ["3-4 ideas tailored to Character 2's class/abilities; [] if awaitingRoll or isHighStakes"],
   "sceneImagePrompt": "string",
+  "turnOutcome": {
+    "playerIntent": "what BOTH players were trying to do this turn",
+    "concreteResult": "the concrete thing that happened in the shared scene (NOT atmosphere)",
+    "informationRevealed": ["specific facts/clues/names/places learned this turn; [] only if a roll is pending or no info was sought"],
+    "situationChanged": "boolean",
+    "unresolvedQuestion": "string | null",
+    "whyNoRoll": "string | null",
+    "whyRollNeeded": "string | null"
+  },
   "isLevelUp": false,
   "isDeath": false,
   "isCombat": boolean,
@@ -1809,13 +1945,15 @@ Respond with JSON:
   }
 }`;
 
+  const coopContractBlock = TURN_RESOLUTION_CONTRACT + '\n' + CO_OP_SINGLE_CAMERA_RULE + '\n' + STYLE_ANTI_REPETITION;
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       { role: 'system', content: DM_SYSTEM_PROMPT },
       { role: 'user', content: worldContext },
+      { role: 'system', content: coopContractBlock },
     ],
-    temperature: 0.85,
+    temperature: 0.7,
     response_format: { type: 'json_object' },
   });
 
@@ -1825,16 +1963,22 @@ Respond with JSON:
 
   // Enforcement pass: if the draft broke the hard prose/structure rules the model
   // routinely ignores, send one corrective rewrite with the violations spelled out.
-  const issues = detectNarrationIssues(asString(parsed.narration) || '', true);
+  const issues = detectNarrationIssues(asString(parsed.narration) || '', true, {
+    action: `${a1.action} || ${a2.action}`,
+    turnOutcome: cleanTurnOutcome(parsed.turnOutcome),
+  });
+  let retried = false;
   if (issues.length > 0) {
+    retried = true;
     try {
       const retry = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
           { role: 'system', content: DM_SYSTEM_PROMPT },
           { role: 'user', content: worldContext },
+          { role: 'system', content: coopContractBlock },
           { role: 'assistant', content },
-          { role: 'user', content: `Your draft broke hard DM rules:\n- ${issues.join('\n- ')}\n\nReturn the SAME JSON object with the same fields and mechanical values (hpChange, loot, goldChange, awaitingRoll, etc.), changing ONLY the narration (and suggestedActions if needed) to fix these issues. Keep both characters in one shared scene.` }],
+          { role: 'user', content: `The previous response failed quality validation because it did not concretely resolve the players' actions:\n- ${issues.join('\n- ')}\n\nRewrite while preserving continuity. Do not add vague mystery language. Do not open with weather or ambient atmosphere. You MUST reveal a specific fact OR call for a roll OR change the situation. Keep both characters in ONE shared scene. Return the SAME JSON object with the same mechanical values (hpChange, loot, goldChange, awaitingRoll, etc.), changing only the narration, suggestedActions, and turnOutcome as needed.` }],
         temperature: 0.7,
         response_format: { type: 'json_object' },
       });
@@ -1843,6 +1987,11 @@ Respond with JSON:
       if (asString(reparsed.narration)) parsed = reparsed;
     } catch { /* keep original draft if the retry fails */ }
   }
+
+  logAiCall('generateCoopNarration', {
+    characters: [c1.id, c2.id], actions: [a1.action, a2.action], model: 'gpt-4o', temperature: 0.7,
+    worldContext, rawResponse: content, parsed, validationIssues: issues, retried,
+  });
 
   const base = parseNarrationResponse(parsed);
 
@@ -1948,14 +2097,20 @@ Respond with JSON:
     messages: [
       { role: 'system', content: 'You are a master Dungeon Master resolving dice roll outcomes in a dynamic, genre-fluid fantasy sandbox RPG. Match the outcome tone to the current scene and world bible. Respond with valid JSON only.' },
       { role: 'user', content: prompt },
+      { role: 'system', content: STYLE_ANTI_REPETITION },
     ],
-    temperature: 0.85,
+    temperature: 0.7,
     response_format: { type: 'json_object' },
   });
 
   const content = response.choices[0].message.content || '{}';
   let parsed: Record<string, unknown> = {};
   try { parsed = JSON.parse(content); } catch { /* use empty defaults */ }
+
+  logAiCall('generateRollOutcome', {
+    character: character.id, model: 'gpt-4o', temperature: 0.7,
+    prompt, rawResponse: content, parsed,
+  });
 
   return {
     narration: asString(parsed.narration) || 'The outcome unfolds...',

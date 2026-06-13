@@ -190,6 +190,13 @@ export const useGameStore = create<GameState>()((set) => ({
         merged.shopInventory = { ...(current.shopInventory || {}), ...changes.shopInventory };
       }
 
+      // mysteryClues: upsert by id
+      if (changes.mysteryClues) {
+        const existing = new Map((current.mysteryClues || []).map(c => [c.id, c]));
+        for (const clue of changes.mysteryClues) existing.set(clue.id, { ...existing.get(clue.id), ...clue });
+        merged.mysteryClues = Array.from(existing.values());
+      }
+
       // activeNPC: direct set
       if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 

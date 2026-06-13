@@ -246,6 +246,16 @@ export interface WorldState {
     bossPhase?: number;
   } | null;
   activeNPC?: string | null;
+  // Future-friendly stub for a structured mystery/clue ledger. Not yet driven by
+  // a full system — the immediate pacing fix lives in the turn-resolution contract.
+  mysteryClues?: {
+    id: string;
+    status: 'undiscovered' | 'revealed' | 'resolved';
+    clue: string;
+    pointsToward: string;
+    possibleSources: string[];
+    revealedAtEventId?: string;
+  }[];
   shopInventory?: Record<string, ShopItem[]>;
   keyNPCs?: NpcMemory[];         // pinned NPCs that survive the rolling 20-NPC cap, max 8
   actionsInCurrentAct?: number;  // resets to 0 each time the act advances
