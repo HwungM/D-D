@@ -834,6 +834,7 @@ export type NarrationCampaignContext = {
   mustIntroduceStatus?: Record<string, boolean>;
   pendingDirectorBeat?: { beat: string; urgency: 'low' | 'high' | 'critical'; expiresAfter: number } | null;
   futureHooks?: { id: string; description: string; source: string }[];
+  railDirectives?: string;
 };
 
 function buildCampaignContextBlock(campaignContext: NarrationCampaignContext | null | undefined, worldBible: WorldBible, characterLevel: number): string {
@@ -1199,6 +1200,8 @@ ${buildCampaignContextBlock(campaignContext, worldBible, character.level)}
 
 RECENT HISTORY:
 ${recentHistory.slice(-8).join('\n')}
+
+${campaignContext?.railDirectives ? `\n${campaignContext.railDirectives}\n` : ''}
 
 ${campaignContext?.otherCharacters && campaignContext.otherCharacters.length > 0 ? `PARTY:
 ${campaignContext.otherCharacters.map(c => {
