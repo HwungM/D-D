@@ -9,6 +9,7 @@ import {
   type ActionRail,
   type ResolvedRailRoll,
 } from './storyRails';
+import { buildStoryTasteProfile, formatTasteDirective, type StoryTasteProfile } from './storyTaste';
 
 type ScenePurpose = NonNullable<WorldState['sceneState']>['purpose'];
 type PacingMode = NonNullable<WorldState['sceneState']>['pacingMode'];
@@ -22,6 +23,7 @@ export interface SceneFrame {
   exits: string[];
   presentNpcs: string[];
   concreteReveal?: string;
+  taste: StoryTasteProfile;
 }
 
 export interface EngineTurnPlan {
@@ -52,13 +54,16 @@ function firstText(...values: Array<string | undefined | null>): string {
   return values.find(v => typeof v === 'string' && v.trim().length > 0)?.trim() || '';
 }
 
-function actionPurpose(rails: ActionRail[]): ScenePurpose {
+function actionPurpose(rails: ActionRail[], taste: StoryTasteProfile): ScenePurpose {
   if (rails.some(r => r.intent === 'rest')) return 'rest';
   if (rails.some(r => r.intent === 'attack')) return 'combat';
   if (rails.some(r => r.targetLocation)) return 'travel';
+  if (rails.some(r => r.intent === 'bond')) return 'social';
+  if (rails.some(r => r.intent === 'shop')) return 'social';
+  if (rails.some(r => r.intent === 'help')) return taste.preferredNextPurpose === 'combat' ? 'combat' : 'social';
   if (rails.some(r => r.intent === 'intimidation' || r.intent === 'persuasion')) return 'social';
   if (rails.some(r => r.intent === 'sense magic' || r.intent === 'investigation')) return 'gather_info';
-  return 'explore';
+  return taste.preferredNextPurpose;
 }
 
 function frameLocation(rails: ActionRail[], worldState: WorldState, worldBible: WorldBible): string {
@@ -108,14 +113,14 @@ function concreteReveal(worldState: WorldState, worldBible: WorldBible, rails: A
   ) || undefined;
 }
 
-function buildSceneFrame(rails: ActionRail[], worldState: WorldState, worldBible: WorldBible): SceneFrame {
+function buildSceneFrame(rails: ActionRail[], worldState: WorldState, worldBible: WorldBible, taste: StoryTasteProfile): SceneFrame {
   const location = frameLocation(rails, worldState, worldBible);
-  const purpose = actionPurpose(rails);
+  const purpose = actionPurpose(rails, taste);
   const pacingMode: PacingMode =
     worldState.endgamePhase === 'confrontation' ? 'climax' :
     purpose === 'combat' ? 'climax' :
     purpose === 'social' || purpose === 'gather_info' ? 'tension' :
-    'exploration';
+    taste.preferredPacingMode;
 
   return {
     location,
@@ -137,6 +142,7 @@ function buildSceneFrame(rails: ActionRail[], worldState: WorldState, worldBible
     exits: locationChoices(worldState, worldBible, location),
     presentNpcs: presentNpcs(worldState),
     concreteReveal: concreteReveal(worldState, worldBible, rails),
+    taste,
   };
 }
 
@@ -160,7 +166,6 @@ function buildWorldPatch(rails: ActionRail[], frame: SceneFrame, worldState: Wor
   const priorScene = worldState.sceneState;
   const isTransition = !!railPatch.currentLocation || frame.purpose === 'travel';
   return {
-    ...seedQuestIfNeeded(worldState, {} as WorldBible),
     ...railPatch,
     currentLocation: railPatch.currentLocation || frame.location,
     discoveredLocations: Array.from(new Set([...(worldState.discoveredLocations || []), frame.location])),
@@ -204,11 +209,15 @@ function buildGuardrails(plan: Omit<EngineTurnPlan, 'guardrails'>): string {
 
   return `${formatRailBlock(plan.rails, plan.resolvedRolls)}
 
+${formatTasteDirective(frame.taste)}
+
 GAME ENGINE TURN CONTRACT - NON-NEGOTIABLE:
 - Open at location: ${frame.location}
 - Scene purpose: ${frame.purpose}
 - Scene objective: ${frame.objective}
 - Stakes: ${frame.stakes}
+- Preferred next pillar if the players leave this scene open-ended: ${frame.taste.preferredNextPurpose}
+- Scene exchange budget from taste engine: ${frame.taste.maxSceneExchanges}. If this scene is at/over budget, force payoff, roll, complication, or transition.
 ${frame.presentNpcs.length ? `- Present/remembered NPCs available: ${frame.presentNpcs.join(', ')}` : '- No active NPC is guaranteed present unless introduced in this scene.'}
 ${frame.exits.length ? `- Known exits/leads: ${frame.exits.join(', ')}` : '- Create one concrete reachable lead if the scene would otherwise dead-end.'}
 ${revealLine}
@@ -218,7 +227,8 @@ ${revealLine}
 
 function buildPlan(characters: Character[], actions: string[], worldState: WorldState, worldBible: WorldBible, resolveRolls: boolean): EngineTurnPlan {
   const rails = actions.map((action, i) => analyzeActionRail(characters[i], action, worldState, worldBible));
-  const frame = buildSceneFrame(rails, worldState, worldBible);
+  const taste = buildStoryTasteProfile(worldBible, worldState);
+  const frame = buildSceneFrame(rails, worldState, worldBible, taste);
   const worldStatePatch = {
     ...seedQuestIfNeeded(worldState, worldBible),
     ...buildWorldPatch(rails, frame, worldState, characters),

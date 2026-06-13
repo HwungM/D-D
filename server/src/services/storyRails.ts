@@ -91,6 +91,15 @@ function classifyAction(action: string): { intent: string; roll?: Omit<RailRollD
   if (/\b(rest|sleep|short rest|long rest|recover|take a break|hit die)\b/.test(a)) {
     return { intent: 'rest' };
   }
+  if (/\b(buy|sell|shop|merchant|vendor|trade|haggle|purchase)\b/.test(a)) {
+    return { intent: 'shop', roll: /\b(haggle|negotiate|bargain|discount)\b/.test(a) ? { stat: 'cha', dc: 13, reason: 'negotiate price or terms with a merchant', dramatic: false } : undefined };
+  }
+  if (/\b(help|assist|aid|cover|protect|defend|support)\b/.test(a)) {
+    return { intent: 'help' };
+  }
+  if (/\b(talk to|comfort|check on|hug|kiss|flirt|confess|apologize|thank|bond|share a moment|hold hands|encourage)\b/.test(a)) {
+    return { intent: 'bond' };
+  }
   if (/\b(shakedown|intimidate|threaten|press .*answers|force .*answer|demand answers)\b/.test(a)) {
     return { intent: 'intimidation', roll: { stat: 'cha', dc: 14, reason: 'intimidate or pressure an NPC for answers', dramatic: false } };
   }

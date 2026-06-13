@@ -5,6 +5,7 @@ import path from 'path';
 import { supabaseAdmin } from './supabase';
 import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext, CharacterOnlineStatus, NpcMemory, CombatEnemy, Recipe, Companion } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
+import { buildStoryTasteProfile, formatTasteDirective } from './storyTaste';
 
 dotenv.config();
 
@@ -1837,6 +1838,8 @@ ${charBlock(c2, 'CHARACTER 2')}
 RECENT HISTORY:
 ${recentHistory.slice(-6).join('\n')}
 
+${campaignContext?.railDirectives ? `\n${campaignContext.railDirectives}\n` : ''}
+
 CHARACTER 1 (${c1.name}, id: ${c1.id}) ACTION: ${a1.action}
 CHARACTER 2 (${c2.name}, id: ${c2.id}) ACTION: ${a2.action}
 ${spotlightDirective ? `\n${spotlightDirective}` : ''}
@@ -2676,6 +2679,7 @@ export async function runStoryDirector(
     const futureHooks = (worldState.futureHooks || []).filter(h => !h.resolved);
     const backstoryHooks = worldState.backstoryHooks || [];
     const actGoalsAchieved = worldState.actGoalsAchieved || [];
+    const taste = buildStoryTasteProfile(worldBible, worldState);
 
     const roadmap = worldBible.dmRoadmap;
     const actGoals = act === 1 ? roadmap?.act1Goals : act === 2 ? roadmap?.act2Goals : roadmap?.act3ConvergenceThreads;
@@ -2695,6 +2699,8 @@ Campaign health check for Act ${act}:
 - Characters: ${characters.map(c => `${c.name} (${c.race} ${c.class}, Lv${c.level})`).join(', ')}
 - Central conflict: ${worldBible.centralConflict || 'unknown'}
 - Mystery layer question: ${worldBible.mysteryLayer?.centralQuestion || 'none'}
+
+${formatTasteDirective(taste)}
 `;
 
     const response = await openai.chat.completions.create({
