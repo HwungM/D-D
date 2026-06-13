@@ -313,6 +313,7 @@ OPTIONAL SUGGESTION RULES:
 - Return 3-4 concrete, meaningfully different ideas. Each should be a player-facing command, usually 3-10 words.
 - Avoid generic options like "continue", "look around", "ask about it", or "move forward" unless the action names a specific target, method, or risk.
 - Stay in-world: phrase each idea as something the character does or says, naming a specific person, place, or object already established in the scene - not a meta-objective like "find an NPC who might know about X" or "look for someone who can help". If no such person/place/object exists yet in the scene, suggest investigating the concrete thing in front of the character instead.
+- Phrase suggestions as natural in-fiction actions, NOT as game-mechanic buttons. Write "Reach out with your senses toward the sapling's aura" or "Ask Smint to read the magic clinging to the roots", NOT "Use your wisdom to sense magical presence" or "Make an Athletics check". Name the fiction; let the stat stay implicit.
 - Mix approaches when the scene supports it: direct, subtle, social, investigative, protective, reckless, magical, class-aware, or party-aware.
 - At least one suggestion should push the scene forward. At least one can invite curiosity or caution. At least one should use a concrete current-scene element: a visible feature, NPC, item, threat, clue, exit, sound, weather condition, or magical effect.
 - When inventory, status effects, or available abilities are relevant, include one suggestion that names the useful item, effect, or ability. Do not invent items or abilities.
@@ -827,6 +828,7 @@ export type NarrationCampaignContext = {
   backstoryHooks?: import('../../../shared/types').BackstoryHook[];
   actGoalsAchieved?: string[];
   forceComplication?: boolean;
+  forceEscalation?: boolean;
   actionsInCurrentAct?: number;
   keyNPCs?: NpcMemory[];
   mustIntroduceStatus?: Record<string, boolean>;
@@ -1057,7 +1059,9 @@ const STYLE_ANTI_REPETITION = `
 ═══ STYLE ANTI-REPETITION ═══
 Do NOT open the narration with weather, sky, clouds, wind, rain, mist, fog, storm, "the air", or generic market/crowd bustle UNLESS the action directly concerns it or the weather just mechanically changed.
 Open instead with: the acting character, the NPC's response, the object being handled, the enemy's move, the clue being revealed, or the immediate consequence of the action.
-Banned vague-mystery filler unless paired with a SPECIFIC fact/name/place/symbol/consequence in the same breath: "not just for show", "deeper significance", "the weight of what looms", "a lead worth pursuing", "something ancient stirs", "all is not as it seems", "secrets just within reach".`;
+Banned vague-mystery filler unless paired with a SPECIFIC fact/name/place/symbol/consequence in the same breath: "not just for show", "deeper significance", "the weight of what looms", "a lead worth pursuing", "something ancient stirs", "all is not as it seems", "secrets just within reach".
+END ON A PLAYABLE SITUATION, NOT A POETIC SUMMARY. Do not close a turn with mood-setting summary lines like "the mystery deepens", "the weight of history presses around them", "a crucial step toward understanding", "their journey continues", "this sets the stage for what comes next", or "a sense of purpose fills them". Those describe importance instead of giving the players something to DO. Instead end on a concrete state they can act from: what is now in front of them, what just changed, what an NPC wants, or the choice/threat/exit now facing them.
+Prefer plain table-DM phrasing over ornate prose. "Now you have a lead: someone named Adrian is tied to this sapling, and the roots are holding his memory in place" beats "the realization imbues both of them with a sense of purpose." Say what is true and what it means for the players, plainly.`;
 
 const CO_OP_SINGLE_CAMERA_RULE = `
 ═══ CO-OP SINGLE CAMERA RULE ═══
@@ -1145,6 +1149,7 @@ SUGGESTION INPUTS:
 
   const sceneState = worldState.sceneState;
   const forceComplication = campaignContext?.forceComplication;
+  const forceEscalation = campaignContext?.forceEscalation;
   const autoPackingMode = sceneState?.pacingMode || (
     combatState?.inCombat ? 'climax' :
     (campaignContext?.act ?? 1) >= 3 ? 'tension' :
@@ -1153,7 +1158,8 @@ SUGGESTION INPUTS:
   const pacingBlock = `
 ═══ PACING DIRECTIVE ═══
 Scene purpose: ${sceneState?.purpose || 'explore'} | Exchanges in scene: ${sceneState?.exchangeCount ?? 0} | Pacing mode: ${autoPackingMode.toUpperCase()}${sceneState && sceneState.stalledCount >= 2 ? `
-⚠ STALL DETECTED (${sceneState.stalledCount} consecutive exchanges without story advancement)${forceComplication ? '\nFORCE COMPLICATION THIS TURN - something must change RIGHT NOW. Introduce an interruption, revelation, or threat. Do not let the scene continue as-is.' : ' - consider introducing a complication.'}` : ''}
+⚠ STALL DETECTED (${sceneState.stalledCount} consecutive exchanges without story advancement)${forceComplication ? '\nFORCE COMPLICATION THIS TURN - something must change RIGHT NOW. Introduce an interruption, revelation, or threat. Do not let the scene continue as-is.' : ' - consider introducing a complication.'}` : ''}${forceEscalation ? `
+⚠ CLUE-TO-CHOICE ESCALATION (this scene has already handed out enough lore): do NOT produce another pure-exposition paragraph about the same object/NPC. This turn MUST introduce ONE of: a meaningful choice the players must make, a roll with real stakes, a complication or danger, a new location/lead to act on, an NPC demand or pushback, or a clear scene exit. The mystery object stops being a Q&A booth - it now forces a decision or sends them somewhere.` : ''}
 ═══════════════════════`;
 
   // Endgame block - shared with the co-op path
@@ -1576,6 +1582,15 @@ const STALL_PHRASES = [
   'the weave of', 'promise of secrets', 'sowing more questions',
   'might be unlocked', 'sowing the seeds', 'pursuing the echoes',
   'hangs in the air', 'ripe with the potential', 'what the future holds',
+  // Poetic summary closers - "important-sounding" fantasy filler that ends a turn
+  // without leaving the players a playable situation.
+  'the mystery deepens', 'deepened the mystery', 'deepening the mystery',
+  'the weight of history', 'weight of the orchard', 'sense of purpose',
+  'crucial step toward', 'a crucial step', 'step toward understanding',
+  'significance of their discovery', 'significance of the discovery',
+  'presence of something watching', 'something watching, waiting',
+  'their journey continues', 'sets the stage for', 'setting the stage',
+  'the path forward', 'a deeper mystery', 'unspoken history',
 ];
 
 // Verbs that signal the player sought INFORMATION (must yield a fact or a roll).
@@ -1806,7 +1821,8 @@ ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
 ${worldState.companion ? `companion: ${worldState.companion.name} the ${worldState.companion.species} (bond level ${worldState.companion.bondLevel}) - ${worldState.companion.description}` : ''}
 ${worldState.factionStandings && Object.keys(worldState.factionStandings).length > 0 ? `faction standings: ${Object.entries(worldState.factionStandings).map(([f, v]) => `${f} (${v})`).join(', ')}` : ''}
-Scene purpose: ${worldState.sceneState?.purpose || 'explore'} | Exchanges in scene: ${worldState.sceneState?.exchangeCount ?? 0} | Pacing mode: ${worldState.sceneState?.pacingMode || 'exploration'}${worldState.sceneState && worldState.sceneState.stalledCount >= 2 ? ` - STALL DETECTED (${worldState.sceneState.stalledCount} consecutive exchanges without story advancement), consider introducing a complication.` : ''}
+Scene purpose: ${worldState.sceneState?.purpose || 'explore'} | Exchanges in scene: ${worldState.sceneState?.exchangeCount ?? 0} | Pacing mode: ${worldState.sceneState?.pacingMode || 'exploration'}${worldState.sceneState && worldState.sceneState.stalledCount >= 2 ? ` - STALL DETECTED (${worldState.sceneState.stalledCount} consecutive exchanges without story advancement), consider introducing a complication.` : ''}${(worldState.sceneState?.cluesThisScene ?? 0) >= 2 ? `
+⚠ CLUE-TO-CHOICE ESCALATION (this scene has already handed out enough lore): do NOT produce another pure-exposition paragraph about the same object/NPC. This turn MUST introduce ONE of: a meaningful choice the party must make, a roll with real stakes, a complication or danger, a new location/lead, an NPC demand or pushback, or a clear scene exit. The mystery object stops being a Q&A booth - it forces a decision or sends them somewhere.` : ''}
 ${worldState.activeNPC ? `Currently talking to: ${worldState.activeNPC}` : ''}
 
 ${buildCampaignContextBlock(campaignContext, worldBible, Math.max(c1.level, c2.level))}
@@ -1852,6 +1868,7 @@ OPTIONAL SUGGESTIONS:
 - If combat is active, every idea must name a target, tactic, terrain feature, ally, or escape route.
 - Do not offer generic ideas like "continue", "look around", or "move forward".
 - Stay in-world: phrase each idea as something the character does or says, naming a specific person, place, or object already established in the scene - not a meta-objective like "find an NPC who might know about X" or "look for someone who can help". If no such person/place/object exists yet in the scene, suggest investigating the concrete thing in front of the character instead.
+- Phrase suggestions as natural in-fiction actions, NOT as game-mechanic buttons. Write "Reach out with your senses toward the sapling's aura" or "Ask your partner to read the magic clinging to the roots", NOT "Use your wisdom to sense magical presence" or "Make an Athletics check". Name the fiction; let the stat stay implicit.
 
 QUALITY BAR BEFORE YOU ANSWER:
 - Does the narration change the situation in a concrete way?

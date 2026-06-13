@@ -234,6 +234,7 @@ export interface WorldState {
     exchangeCount: number;
     stalledCount: number;
     pacingMode: 'exploration' | 'tension' | 'climax' | 'resolution';
+    cluesThisScene?: number; // concrete clues revealed since this scene began; drives clue-to-choice escalation
   };
   combatState?: {
     inCombat: boolean;

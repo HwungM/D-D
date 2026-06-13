@@ -906,6 +906,7 @@ export async function processAction(
     backstoryHooks: ws.backstoryHooks,
     actGoalsAchieved: ws.actGoalsAchieved,
     forceComplication,
+    forceEscalation: (currentSceneState?.cluesThisScene ?? 0) >= 2,
     actionsInCurrentAct: ws.actionsInCurrentAct || 0,
     keyNPCs: ws.keyNPCs,
     mustIntroduceStatus: mustIntroduce.length > 0 ? mustIntroduceStatus : undefined,
@@ -1062,18 +1063,23 @@ export async function processAction(
   const prevSceneState = ws.sceneState;
   const aiMomentum = aiResponse.sceneMomentum || 'advancing';
   const isTransitioning = aiMomentum === 'transitioning';
+  // Count concrete clues revealed this turn (capped) so the prompt can force a
+  // clue-to-choice escalation once a scene has handed out enough lore.
+  const cluesThisTurn = Math.min(aiResponse.turnOutcome?.informationRevealed?.length ?? 0, 3);
   const newSceneState: WorldState['sceneState'] = isTransitioning
     ? {
         purpose: aiResponse.scenePurpose || 'explore',
         exchangeCount: 0,
         stalledCount: 0,
         pacingMode: aiResponse.pacingMode || 'exploration',
+        cluesThisScene: cluesThisTurn,
       }
     : {
         purpose: aiResponse.scenePurpose || prevSceneState?.purpose || 'explore',
         exchangeCount: (prevSceneState?.exchangeCount ?? 0) + 1,
         stalledCount: aiMomentum === 'stalling' ? (prevSceneState?.stalledCount ?? 0) + 1 : 0,
         pacingMode: aiResponse.pacingMode || prevSceneState?.pacingMode || 'exploration',
+        cluesThisScene: (prevSceneState?.cluesThisScene ?? 0) + cluesThisTurn,
       };
 
   // Track active NPC from AI response â€” auto-clear on location change
@@ -1828,6 +1834,7 @@ export async function processCoopAction(
     backstoryHooks: ws.backstoryHooks,
     actGoalsAchieved: ws.actGoalsAchieved,
     forceComplication: (ws.sceneState?.stalledCount ?? 0) >= 3,
+    forceEscalation: (ws.sceneState?.cluesThisScene ?? 0) >= 2,
     actionsInCurrentAct: ws.actionsInCurrentAct || 0,
     keyNPCs: ws.keyNPCs,
     mustIntroduceStatus: mustIntroduce.length > 0 ? mustIntroduceStatus : undefined,
@@ -1953,18 +1960,21 @@ export async function processCoopAction(
   const prevSceneState = ws.sceneState;
   const aiMomentum = aiResponse.sceneMomentum || 'advancing';
   const isTransitioning = aiMomentum === 'transitioning';
+  const cluesThisTurn = Math.min(aiResponse.turnOutcome?.informationRevealed?.length ?? 0, 3);
   const newSceneState: WorldState['sceneState'] = isTransitioning
     ? {
         purpose: aiResponse.scenePurpose || 'explore',
         exchangeCount: 0,
         stalledCount: 0,
         pacingMode: aiResponse.pacingMode || 'exploration',
+        cluesThisScene: cluesThisTurn,
       }
     : {
         purpose: aiResponse.scenePurpose || prevSceneState?.purpose || 'explore',
         exchangeCount: (prevSceneState?.exchangeCount ?? 0) + 1,
         stalledCount: aiMomentum === 'stalling' ? (prevSceneState?.stalledCount ?? 0) + 1 : 0,
         pacingMode: aiResponse.pacingMode || prevSceneState?.pacingMode || 'exploration',
+        cluesThisScene: (prevSceneState?.cluesThisScene ?? 0) + cluesThisTurn,
       };
 
   // Track active NPC â€” auto-clear on location change
