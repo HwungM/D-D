@@ -290,10 +290,18 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
     const keyNpcMap = new Map(toArr<NpcMemory>(current.keyNPCs).map(n => [n.name, n]));
 
     for (const npc of npcArray) {
-      const prev = existing.get(npc.name);
+      // Placeholder reveal: "Mysterious Stranger" -> "Eldrin" merges into the new
+      // name instead of leaving both entries behind.
+      const placeholder = npc.replacesName && npc.replacesName !== npc.name ? existing.get(npc.replacesName) : undefined;
+      if (placeholder) {
+        existing.delete(npc.replacesName!);
+        keyNpcMap.delete(npc.replacesName!);
+      }
+      const prev = existing.get(npc.name) || placeholder;
       const metChars = Array.from(new Set([...(prev?.metCharacters || []), ...(npc.metCharacters || [])]));
       const interactionCount = (prev?.interactionCount || 0) + 1;
-      const merged_npc = { ...prev, ...npc, metCharacters: metChars, interactionCount };
+      const { replacesName: _replacesName, ...npcRest } = npc;
+      const merged_npc = { ...prev, ...npcRest, metCharacters: metChars, interactionCount };
       existing.set(npc.name, merged_npc);
 
       // Promote to keyNPCs when interaction count reaches 3 or AI explicitly flags them

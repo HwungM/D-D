@@ -135,6 +135,7 @@ export interface NpcMemory {
   role?: string;               // e.g. "merchant", "guard captain", "innkeeper", "quest giver"
   portrait_url?: string;       // cached AI-generated or stock portrait URL
   gender?: 'male' | 'female' | 'nonbinary'; // set on introduction, used for portrait matching
+  replacesName?: string; // when a placeholder ("Mysterious Stranger") reveals their real name, set this to the placeholder's name so the old entry is merged into this one rather than duplicated
 }
 
 export interface CampaignSpineSnapshot {

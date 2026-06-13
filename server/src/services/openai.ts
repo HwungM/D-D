@@ -156,6 +156,9 @@ WORLD MEMORY RULES:
 - RETURNING NPCs: when a known NPC reappears, their first line or gesture should show they remember - reference the last meeting, a debt, a shared joke, a promise kept or broken, or what the party did for or to them (their notes, relationship score, and the journal hold these details). Never let a known NPC greet the party as strangers, and never re-introduce them as if new.
 - NPC notes are CUMULATIVE MEMORY: whatever you write in an npcMemory entry's notes REPLACES the old notes entirely. So when updating an NPC, carry forward their established facts (personality trait, role, key shared history) and append what changed this scene - never overwrite rich notes with a generic one-liner.
 - Update worldStateChanges.npcMemory when a named NPC is introduced or relationship changes.
+- npcMemory is for PEOPLE (and sapient creatures) only - never create an entry for an object, plant, landmark, or scenery element (a sapling, a statue, a door), even if it has a proper noun carved into it.
+- PLACEHOLDER REVEALS: if an NPC was previously tracked under a placeholder like "Mysterious Stranger" or "Hooded Figure" and now gives their real name, write the npcMemory entry under the REAL name and set replacesName to the exact placeholder name - do not leave both entries in memory.
+- NAME VARIETY: avoid reusing the most common fantasy names (Eldrin, Gareth, Aldric, Thorne, Mira, Lyra) unless one already exists in this campaign's npcMemory/keyNPCs and you're referring to them. Favor distinctive, varied names that fit this world's culture.
 - Update worldStateChanges.activeQuests when a quest begins, progresses, or resolves.
 - Always update worldStateChanges.currentLocation when the party moves to a new place.
 - worldStateChanges follows the same shape as the worldState object - only include fields that actually changed.

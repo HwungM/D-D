@@ -126,12 +126,17 @@ export const useGameStore = create<GameState>()((set) => ({
         const npcArray = (Array.isArray(changes.npcMemory) ? changes.npcMemory : Object.values(changes.npcMemory)).filter(isNpcMemory);
         const existing = new Map((current.npcMemory || []).map(n => [n.name, n]));
         for (const npc of npcArray) {
-          const prev = existing.get(npc.name);
+          // Placeholder reveal: "Mysterious Stranger" -> "Eldrin" merges into the
+          // new name instead of leaving both entries behind.
+          const placeholder = npc.replacesName && npc.replacesName !== npc.name ? existing.get(npc.replacesName) : undefined;
+          if (placeholder) existing.delete(npc.replacesName!);
+          const prev = existing.get(npc.name) || placeholder;
+          const { replacesName: _replacesName, ...npcRest } = npc;
           if (prev) {
-            const metChars = Array.from(new Set([...(prev.metCharacters || []), ...(npc.metCharacters || [])]));
-            existing.set(npc.name, { ...prev, ...npc, metCharacters: metChars });
+            const metChars = Array.from(new Set([...(prev.metCharacters || []), ...(npcRest.metCharacters || [])]));
+            existing.set(npc.name, { ...prev, ...npcRest, metCharacters: metChars });
           } else {
-            existing.set(npc.name, npc);
+            existing.set(npc.name, npcRest);
           }
         }
         merged.npcMemory = Array.from(existing.values()).slice(-20);
