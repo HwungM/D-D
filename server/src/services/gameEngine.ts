@@ -1,8 +1,9 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks, generateCoopNarration } from './openai';
 import OpenAI from 'openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe, InventoryItem, CombatEnemy } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe, InventoryItem, CombatEnemy, StoryLedgerEntry } from '../../../shared/types';
 import { buildAwaitingRollNarration, enforceTurnPlanNarration, planCoopTurn, planOpeningTurn, planSoloTurn } from './gameDirector';
+import { applyContinuityRepairs, buildContinuityDirective, buildContinuityPatch } from './storyContinuity';
 
 function appendAchievement(existing: UnlockedAchievement[] | undefined, achievement: { title: string; description: string }, characterName: string): UnlockedAchievement[] {
   const list = existing || [];
@@ -392,6 +393,17 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
     merged.actGoalsAchieved = Array.from(new Set([...(current.actGoalsAchieved || []), ...toArr<string>(changes.actGoalsAchieved)]));
   }
 
+  // storyLedger: upsert by id, keeping unresolved obligations visible while
+  // pruning older resolved entries.
+  if (changes.storyLedger) {
+    const existing = new Map(toArr<StoryLedgerEntry>(current.storyLedger).map(entry => [entry.id, entry]));
+    for (const entry of toArr<StoryLedgerEntry>(changes.storyLedger)) existing.set(entry.id, { ...existing.get(entry.id), ...entry });
+    const all = Array.from(existing.values());
+    const open = all.filter(entry => entry.status !== 'resolved').slice(-30);
+    const resolved = all.filter(entry => entry.status === 'resolved').slice(-20);
+    merged.storyLedger = [...open, ...resolved];
+  }
+
   // mysteryClues: upsert by id (future-friendly clue ledger stub)
   if (changes.mysteryClues) {
     const existing = new Map((current.mysteryClues || []).map(c => [c.id, c]));
@@ -408,7 +420,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 
   // Simple scalar fields
-  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs', 'unlockedAchievements', 'knownRecipes', 'spotlightBalance', 'lastPillarUsed', 'lastHighStakesAction', 'pendingDirectorBeat', 'pendingTurn', 'coopPendingRoll', 'companion'] as const) {
+  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs', 'unlockedAchievements', 'knownRecipes', 'spotlightBalance', 'lastPillarUsed', 'lastHighStakesAction', 'pendingDirectorBeat', 'pendingTurn', 'coopPendingRoll', 'companion', 'recentPlayerActions'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
   }
 
@@ -837,6 +849,7 @@ export async function processAction(
   const ws = campaign.world_state as WorldState;
   const wb = campaign.world_bible as WorldBible;
   const turnPlan = planSoloTurn(character as Character, action, ws, wb);
+  const continuityDirectives = buildContinuityDirective([character as Character], turnPlan.rails, ws, wb);
 
   // Session count is incremented in getOpeningScene â€” just initialize if missing here
   if (!ws.sessionCount) {
@@ -915,6 +928,7 @@ export async function processAction(
     pendingDirectorBeat: ws.pendingDirectorBeat || null,
     futureHooks: (ws.futureHooks || []).filter(h => !h.resolved).slice(-10),
     railDirectives: turnPlan.guardrails,
+    continuityDirectives,
   };
 
   if (turnPlan.awaitingRoll) {
@@ -961,6 +975,7 @@ export async function processAction(
     campaignContext
   );
   enforceTurnPlanNarration(aiResponse, turnPlan);
+  applyContinuityRepairs(aiResponse, [character as Character], turnPlan.rails);
 
   // Explicit rest detection â€” override AI if player clearly stated rest intent (but not negations)
   const isNegatedRest = /\b(not|don'?t|won'?t|can'?t|no|never|stop|avoid|refuse)\b.{0,20}\b(rest|sleep|camp|recover)\b/i.test(action);
@@ -1234,6 +1249,7 @@ export async function processAction(
       ? { npcMemory: [...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory), ...autoNpcMemory] }
       : {}),
     ...locationTracking,
+    ...buildContinuityPatch([character as Character], turnPlan.rails, ws, aiResponse, newActionCount, newLocation),
     ...activeNPCChange,
     ...shopInventoryChange,
     combatState,
@@ -1863,6 +1879,7 @@ export async function processCoopAction(
   const ws = campaign.world_state as WorldState;
   const wb = campaign.world_bible as WorldBible;
   const coopPlan = planCoopTurn(characters, pendingActions.map(pa => pa.action), ws, wb);
+  const continuityDirectives = buildContinuityDirective(characters, coopPlan.rails, ws, wb);
 
   // Get recent history (use first character as reference)
   const recentHistory = await getRecentHistory(campaignId, pendingActions[0].characterId);
@@ -1902,6 +1919,7 @@ export async function processCoopAction(
     pendingDirectorBeat: ws.pendingDirectorBeat || null,
     futureHooks: (ws.futureHooks || []).filter(h => !h.resolved).slice(-10),
     railDirectives: coopPlan.guardrails,
+    continuityDirectives,
   };
 
   // Call generateCoopNarration
@@ -1913,6 +1931,7 @@ export async function processCoopAction(
     campaignContext
   );
   enforceTurnPlanNarration(aiResponse, coopPlan);
+  applyContinuityRepairs(aiResponse, characters, coopPlan.rails);
   if (coopPlan.resolvedRolls.length > 0) {
     aiResponse.awaitingRoll = false;
     aiResponse.rollContext = undefined;
@@ -2213,6 +2232,7 @@ export async function processCoopAction(
     actionsInCurrentAct: newActionsInCurrentAct,
     combatState,
     characterLocations,
+    ...buildContinuityPatch(characters, coopPlan.rails, ws, aiResponse, newActionCount, newLocation),
     currentSceneSummary,
     actionsSinceLastSummary,
     sceneState: newSceneState,

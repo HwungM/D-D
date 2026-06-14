@@ -156,6 +156,37 @@ export interface CampaignSpineSnapshot {
   updatedAt: string;
 }
 
+export interface StoryLedgerEntry {
+  id: string;
+  kind: 'lead' | 'clue' | 'promise' | 'npc_thread' | 'relationship' | 'threat' | 'choice';
+  title: string;
+  summary: string;
+  status: 'open' | 'pressing' | 'resolved';
+  urgency: 'low' | 'medium' | 'high';
+  anchorLocation?: string;
+  anchorNpc?: string;
+  characterIds?: string[];
+  sourceAction?: string;
+  createdAt: string;
+  updatedAt?: string;
+  dueByAction?: number;
+  resolvedAt?: string;
+}
+
+export interface StoryActionMemory {
+  characterId: string;
+  characterName: string;
+  action: string;
+  intent: string;
+  scenePurpose: NonNullable<WorldState['sceneState']>['purpose'];
+  location?: string;
+  targetLocation?: string;
+  resultDigest?: string;
+  concreteChange: boolean;
+  rollRequested: boolean;
+  createdAt: string;
+}
+
 export interface LocationNode {
   name: string;
   region: string;
@@ -217,6 +248,8 @@ export interface WorldState {
   sessionNotes?: string[];
   campaignJournal?: CampaignJournalEntry[];
   campaignSpine?: CampaignSpineSnapshot;
+  storyLedger?: StoryLedgerEntry[];
+  recentPlayerActions?: StoryActionMemory[];
   characterHistory?: CharacterHistoryEntry[];
   antagonistProgress?: Record<string, { stepIndex: number; lastAction: string; knowsPlayers: boolean }>;
   sessionCount?: number;
