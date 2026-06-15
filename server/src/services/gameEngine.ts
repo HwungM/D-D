@@ -1,7 +1,9 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks, generateCoopNarration } from './openai';
 import OpenAI from 'openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe, InventoryItem, CombatEnemy } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe, InventoryItem, CombatEnemy, StoryLedgerEntry } from '../../../shared/types';
+import { buildAwaitingRollNarration, enforceTurnPlanNarration, planCoopTurn, planOpeningTurn, planSoloTurn } from './gameDirector';
+import { applyContinuityRepairs, buildContinuityDirective, buildContinuityPatch } from './storyContinuity';
 
 function appendAchievement(existing: UnlockedAchievement[] | undefined, achievement: { title: string; description: string }, characterName: string): UnlockedAchievement[] {
   const list = existing || [];
@@ -391,6 +393,17 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
     merged.actGoalsAchieved = Array.from(new Set([...(current.actGoalsAchieved || []), ...toArr<string>(changes.actGoalsAchieved)]));
   }
 
+  // storyLedger: upsert by id, keeping unresolved obligations visible while
+  // pruning older resolved entries.
+  if (changes.storyLedger) {
+    const existing = new Map(toArr<StoryLedgerEntry>(current.storyLedger).map(entry => [entry.id, entry]));
+    for (const entry of toArr<StoryLedgerEntry>(changes.storyLedger)) existing.set(entry.id, { ...existing.get(entry.id), ...entry });
+    const all = Array.from(existing.values());
+    const open = all.filter(entry => entry.status !== 'resolved').slice(-30);
+    const resolved = all.filter(entry => entry.status === 'resolved').slice(-20);
+    merged.storyLedger = [...open, ...resolved];
+  }
+
   // mysteryClues: upsert by id (future-friendly clue ledger stub)
   if (changes.mysteryClues) {
     const existing = new Map((current.mysteryClues || []).map(c => [c.id, c]));
@@ -407,7 +420,7 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 
   // Simple scalar fields
-  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs', 'unlockedAchievements', 'knownRecipes', 'spotlightBalance', 'lastPillarUsed', 'lastHighStakesAction', 'pendingDirectorBeat', 'pendingTurn', 'coopPendingRoll', 'companion'] as const) {
+  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs', 'unlockedAchievements', 'knownRecipes', 'spotlightBalance', 'lastPillarUsed', 'lastHighStakesAction', 'pendingDirectorBeat', 'pendingTurn', 'coopPendingRoll', 'companion', 'recentPlayerActions'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
   }
 
@@ -835,6 +848,8 @@ export async function processAction(
   // Build campaign context for narrative enrichment
   const ws = campaign.world_state as WorldState;
   const wb = campaign.world_bible as WorldBible;
+  const turnPlan = planSoloTurn(character as Character, action, ws, wb);
+  const continuityDirectives = buildContinuityDirective([character as Character], turnPlan.rails, ws, wb);
 
   // Session count is incremented in getOpeningScene â€” just initialize if missing here
   if (!ws.sessionCount) {
@@ -912,17 +927,55 @@ export async function processAction(
     mustIntroduceStatus: mustIntroduce.length > 0 ? mustIntroduceStatus : undefined,
     pendingDirectorBeat: ws.pendingDirectorBeat || null,
     futureHooks: (ws.futureHooks || []).filter(h => !h.resolved).slice(-10),
+    railDirectives: turnPlan.guardrails,
+    continuityDirectives,
   };
+
+  if (turnPlan.awaitingRoll) {
+    const statKey = turnPlan.awaitingRoll.rollContext.stat.toLowerCase() as keyof Character['stats'];
+    const statValue = typeof (character as Character).stats?.[statKey] === 'number' ? (character as Character).stats[statKey] : 10;
+    const rollContext = {
+      ...turnPlan.awaitingRoll.rollContext,
+      modifier: getStatModifier(statValue),
+    };
+    const narration = buildAwaitingRollNarration({ ...turnPlan, awaitingRoll: { ...turnPlan.awaitingRoll, rollContext } });
+
+    await supabaseAdmin.from('story_events').insert({
+      campaign_id: campaignId,
+      character_id: characterId,
+      event_type: 'action',
+      content: action,
+      metadata: { enginePlanned: true },
+    });
+    await supabaseAdmin.from('story_events').insert({
+      campaign_id: campaignId,
+      character_id: characterId,
+      event_type: 'narration',
+      content: narration,
+      metadata: { awaitingRoll: true, rollContext, enginePlan: turnPlan.sceneFrame },
+    });
+
+    return {
+      narration,
+      awaitingRoll: true,
+      rollContext,
+      suggestedActions: [],
+      isDeath: false,
+      isLevelUp: false,
+    };
+  }
 
   // Generate narration via GPT-4o
   const aiResponse = await generateNarration(
     action,
-    ws,
+    turnPlan.worldStateForNarration,
     wb,
     character as Character,
     recentHistory,
     campaignContext
   );
+  enforceTurnPlanNarration(aiResponse, turnPlan);
+  applyContinuityRepairs(aiResponse, [character as Character], turnPlan.rails);
 
   // Explicit rest detection â€” override AI if player clearly stated rest intent (but not negations)
   const isNegatedRest = /\b(not|don'?t|won'?t|can'?t|no|never|stop|avoid|refuse)\b.{0,20}\b(rest|sleep|camp|recover)\b/i.test(action);
@@ -986,7 +1039,7 @@ export async function processAction(
   const xpGained = success ? Math.floor(Math.random() * 20) + 10 : 5;
 
   // Always track per-character location and last seen
-  const newLocation = (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation;
+  const newLocation = turnPlan.worldStatePatch.currentLocation || (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation;
   const locationTracking: Partial<WorldState> = {
     characterLocations: {
       ...(ws.characterLocations || {}),
@@ -1191,10 +1244,12 @@ export async function processAction(
 
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
+    ...turnPlan.worldStatePatch,
     ...(autoNpcMemory.length > 0
       ? { npcMemory: [...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory), ...autoNpcMemory] }
       : {}),
     ...locationTracking,
+    ...buildContinuityPatch([character as Character], turnPlan.rails, ws, aiResponse, newActionCount, newLocation),
     ...activeNPCChange,
     ...shopInventoryChange,
     combatState,
@@ -1548,6 +1603,7 @@ export async function getOpeningScene(
 
   const openingWs = campaign.world_state as WorldState;
   const openingWb = campaign.world_bible as WorldBible;
+  const openingPlan = planOpeningTurn(character as Character, openingWs, openingWb);
 
   // Increment session count each time a player enters the game
   const newSessionCount = (openingWs.sessionCount ?? 0) + 1;
@@ -1585,6 +1641,7 @@ export async function getOpeningScene(
     foreshadowingLedger: openingWs.foreshadowingLedger,
     backstoryHooks: openingWs.backstoryHooks,
     actGoalsAchieved: openingWs.actGoalsAchieved,
+    railDirectives: openingPlan.guardrails,
   };
 
   const fallenHeroes = openingWs.fallenHeroes || [];
@@ -1594,12 +1651,30 @@ export async function getOpeningScene(
 
   const aiResponse = await generateNarration(
     openingAction,
-    openingWs,
+    openingPlan.worldStateForNarration,
     openingWb,
     character as Character,
     [],
     openingContext
   );
+  enforceTurnPlanNarration(aiResponse, openingPlan);
+
+  const openingChanges: Partial<WorldState> = {
+    ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
+    ...openingPlan.worldStatePatch,
+    characterLocations: {
+      ...(openingWs.characterLocations || {}),
+      [characterId]: (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || openingPlan.worldStatePatch.currentLocation || openingWs.currentLocation || 'Unknown',
+    },
+    characterLastSeen: {
+      ...(openingWs.characterLastSeen || {}),
+      [characterId]: new Date().toISOString(),
+    },
+  };
+  const openingWorldState = mergeWorldStateChanges(openingWs, openingChanges);
+  openingWorldState.locationGraph = buildLocationGraphSnapshot(openingWorldState, openingWb);
+  openingWorldState.campaignSpine = buildCampaignSpineSnapshot(openingWorldState, openingWb, campaign.act || 1);
+  await supabaseAdmin.from('campaigns').update({ world_state: openingWorldState }).eq('id', campaignId);
 
   // Save just the narration â€” no player action event for the opening
   await supabaseAdmin.from('story_events').insert({
@@ -1612,6 +1687,7 @@ export async function getOpeningScene(
 
   return {
     narration: aiResponse.narration,
+    worldStateChanges: openingWorldState,
     sceneImagePrompt: aiResponse.sceneImagePrompt,
     suggestedActions: aiResponse.suggestedActions,
     isDeath: false,
@@ -1802,6 +1878,8 @@ export async function processCoopAction(
 
   const ws = campaign.world_state as WorldState;
   const wb = campaign.world_bible as WorldBible;
+  const coopPlan = planCoopTurn(characters, pendingActions.map(pa => pa.action), ws, wb);
+  const continuityDirectives = buildContinuityDirective(characters, coopPlan.rails, ws, wb);
 
   // Get recent history (use first character as reference)
   const recentHistory = await getRecentHistory(campaignId, pendingActions[0].characterId);
@@ -1840,16 +1918,24 @@ export async function processCoopAction(
     mustIntroduceStatus: mustIntroduce.length > 0 ? mustIntroduceStatus : undefined,
     pendingDirectorBeat: ws.pendingDirectorBeat || null,
     futureHooks: (ws.futureHooks || []).filter(h => !h.resolved).slice(-10),
+    railDirectives: coopPlan.guardrails,
+    continuityDirectives,
   };
 
   // Call generateCoopNarration
   const aiResponse = await generateCoopNarration(
     pendingActions.map((pa, i) => ({ character: characters[i], action: pa.action })),
-    ws,
+    coopPlan.worldStateForNarration,
     wb,
     recentHistory,
     campaignContext
   );
+  enforceTurnPlanNarration(aiResponse, coopPlan);
+  applyContinuityRepairs(aiResponse, characters, coopPlan.rails);
+  if (coopPlan.resolvedRolls.length > 0) {
+    aiResponse.awaitingRoll = false;
+    aiResponse.rollContext = undefined;
+  }
 
   // Explicit rest detection - override AI per character if they clearly stated rest intent (but not negations)
   const isNegatedRest = (action: string) => /\b(not|don'?t|won'?t|can'?t|no|never|stop|avoid|refuse)\b.{0,20}\b(rest|sleep|camp|recover)\b/i.test(action);
@@ -1938,7 +2024,7 @@ export async function processCoopAction(
   }
 
   // Track per-character location and last seen
-  const newLocation = (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation;
+  const newLocation = coopPlan.worldStatePatch.currentLocation || (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation;
   const characterLocations = {
     ...(ws.characterLocations || {}),
     [characters[0].id]: newLocation || 'Unknown',
@@ -2127,6 +2213,7 @@ export async function processCoopAction(
 
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
+    ...coopPlan.worldStatePatch,
     ...(autoNpcMemory.length > 0
       ? { npcMemory: [...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory), ...autoNpcMemory] }
       : {}),
@@ -2145,6 +2232,7 @@ export async function processCoopAction(
     actionsInCurrentAct: newActionsInCurrentAct,
     combatState,
     characterLocations,
+    ...buildContinuityPatch(characters, coopPlan.rails, ws, aiResponse, newActionCount, newLocation),
     currentSceneSummary,
     actionsSinceLastSummary,
     sceneState: newSceneState,
@@ -2298,6 +2386,7 @@ export async function processCoopAction(
     advanceAct: !!aiResponse.advanceAct,
     bossPhaseAdvance: !!aiResponse.bossPhaseAdvance,
     achievementUnlocked: aiResponse.achievementUnlocked ?? null,
+    railRolls: coopPlan.resolvedRolls,
   };
   const personalTurnMeta = (updated: Character, original: Character, changes: typeof aiResponse.character1Changes, leveledUp: boolean, ability: ReturnType<typeof getAbilityForLevel> | undefined) => ({
     isLevelUp: leveledUp,
@@ -2320,14 +2409,14 @@ export async function processCoopAction(
       character_id: pendingActions[0].characterId,
       event_type: 'action',
       content: pendingActions[0].action,
-      metadata: { coopRound: true },
+      metadata: { coopRound: true, railRoll: coopPlan.resolvedRolls.find(r => r.characterId === pendingActions[0].characterId) },
     }),
     supabaseAdmin.from('story_events').insert({
       campaign_id: campaignId,
       character_id: pendingActions[1].characterId,
       event_type: 'action',
       content: pendingActions[1].action,
-      metadata: { coopRound: true },
+      metadata: { coopRound: true, railRoll: coopPlan.resolvedRolls.find(r => r.characterId === pendingActions[1].characterId) },
     }),
   ]);
   await Promise.all([
@@ -2349,7 +2438,15 @@ export async function processCoopAction(
 
   return {
     narration: aiResponse.narration,
-    diceRoll: diceResult,
+    diceRoll: diceResult || (coopPlan.resolvedRolls[0]
+      ? {
+          sides: 20,
+          rolls: [coopPlan.resolvedRolls[0].rollResult],
+          modifier: coopPlan.resolvedRolls[0].modifier,
+          total: coopPlan.resolvedRolls[0].rollTotal,
+          description: `${coopPlan.resolvedRolls[0].characterName}: ${coopPlan.resolvedRolls[0].reason}`,
+        }
+      : undefined),
     worldStateChanges: char2Result.updatedWorldState,
     character1Id: characters[0].id,
     character2Id: characters[1].id,

@@ -5,6 +5,7 @@ import path from 'path';
 import { supabaseAdmin } from './supabase';
 import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext, CharacterOnlineStatus, NpcMemory, CombatEnemy, Recipe, Companion } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
+import { buildStoryTasteProfile, formatTasteDirective } from './storyTaste';
 
 dotenv.config();
 
@@ -835,6 +836,8 @@ export type NarrationCampaignContext = {
   mustIntroduceStatus?: Record<string, boolean>;
   pendingDirectorBeat?: { beat: string; urgency: 'low' | 'high' | 'critical'; expiresAfter: number } | null;
   futureHooks?: { id: string; description: string; source: string }[];
+  railDirectives?: string;
+  continuityDirectives?: string;
 };
 
 function buildCampaignContextBlock(campaignContext: NarrationCampaignContext | null | undefined, worldBible: WorldBible, characterLevel: number): string {
@@ -1204,6 +1207,9 @@ ${buildCampaignContextBlock(campaignContext, worldBible, character.level)}
 
 RECENT HISTORY:
 ${recentHistory.slice(-8).join('\n')}
+
+${campaignContext?.railDirectives ? `\n${campaignContext.railDirectives}\n` : ''}
+${campaignContext?.continuityDirectives ? `\n${campaignContext.continuityDirectives}\n` : ''}
 
 ${campaignContext?.otherCharacters && campaignContext.otherCharacters.length > 0 ? `PARTY:
 ${campaignContext.otherCharacters.map(c => {
@@ -1838,6 +1844,9 @@ ${charBlock(c2, 'CHARACTER 2')}
 
 RECENT HISTORY:
 ${recentHistory.slice(-6).join('\n')}
+
+${campaignContext?.railDirectives ? `\n${campaignContext.railDirectives}\n` : ''}
+${campaignContext?.continuityDirectives ? `\n${campaignContext.continuityDirectives}\n` : ''}
 
 CHARACTER 1 (${c1.name}, id: ${c1.id}) ACTION: ${a1.action}
 CHARACTER 2 (${c2.name}, id: ${c2.id}) ACTION: ${a2.action}
@@ -2678,6 +2687,7 @@ export async function runStoryDirector(
     const futureHooks = (worldState.futureHooks || []).filter(h => !h.resolved);
     const backstoryHooks = worldState.backstoryHooks || [];
     const actGoalsAchieved = worldState.actGoalsAchieved || [];
+    const taste = buildStoryTasteProfile(worldBible, worldState);
 
     const roadmap = worldBible.dmRoadmap;
     const actGoals = act === 1 ? roadmap?.act1Goals : act === 2 ? roadmap?.act2Goals : roadmap?.act3ConvergenceThreads;
@@ -2697,6 +2707,8 @@ Campaign health check for Act ${act}:
 - Characters: ${characters.map(c => `${c.name} (${c.race} ${c.class}, Lv${c.level})`).join(', ')}
 - Central conflict: ${worldBible.centralConflict || 'unknown'}
 - Mystery layer question: ${worldBible.mysteryLayer?.centralQuestion || 'none'}
+
+${formatTasteDirective(taste)}
 `;
 
     const response = await openai.chat.completions.create({
