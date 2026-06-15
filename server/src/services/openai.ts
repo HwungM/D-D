@@ -408,6 +408,7 @@ MULTI-ENEMY COMBAT RULES:
 - Each archetype fights differently: soldiers shield each other, mages hang back, minions rush in waves, beasts go for killing blows.
 - Boss fights: set isBossFight: true on combat start. When boss condition reaches "critical", set bossPhaseAdvance: true and describe a dramatic transformation - the boss gets more dangerous, not less.
 - Suggest actions that are class-appropriate and reference available abilities.
+- VARY combat suggestions round to round - don't repeat the same spell/attack as a suggestion 2 rounds running even if it's working. Once a character has used their signature attack 2+ times this fight, suggest something different: an item, a different ability/cantrip, a tactical move (terrain, cover, flanking, protecting an ally), or pressing an advantage (a finishing blow, a grapple, knocking a weapon away).
 - If the party has a companion (provided in context), let it act in combat: at bondLevel 1-2 it might distract an enemy or create a small opening (narrative only); at bondLevel 3-4 it can land minor hits or interpose to soak a hit (small hpChange, occasional minor heal/damage in the 1-3 range); at bondLevel 5 it can pull off a meaningful assist (a bigger hpChange, helping defeat a minion, or saving a character from a killing blow). Don't make the companion a second full combatant - it supports, it doesn't replace player agency.
 
 COMBAT STAKES & DAMAGE RULES:
@@ -1005,11 +1006,15 @@ function buildCombatBlock(combatState: WorldState['combatState'], partyHpLine: s
   const bossLine = combatState.isBossFight
     ? `\nBOSS FIGHT - Phase ${combatState.bossPhase || 1}. When boss reaches critical, advance to next phase (set bossPhaseAdvance: true). Each phase changes the boss's tactics and appearance dramatically.`
     : '';
+  const dragOnRound = combatState.isBossFight ? 5 : 3;
+  const dragLine = combatState.roundNumber >= dragOnRound
+    ? `\n⚠ THIS FIGHT HAS RUN ${combatState.roundNumber} ROUNDS WITHOUT RESOLUTION. Repeating "they stagger but hold on" again is not acceptable. This round MUST do ONE of: drop an enemy to isDefeated (set enemyDefeated), advance a boss to its next phase (bossPhaseAdvance) or finally to defeat, or have the enemy land a costly hit/new threat that changes the terms of the fight (reinforcements, environment hazard, a hostage, a forced retreat). Move the fight toward an ending.`
+    : '';
   return `
 ═══ ACTIVE COMBAT ═══
 Round: ${combatState.roundNumber} | ${partyHpLine}
 ENEMIES:
-${enemyLines}${bossLine}
+${enemyLines}${bossLine}${dragLine}
 ACTIONS ALREADY TRIED: ${(combatState.playerActionsAttempted || []).slice(-5).join(', ') || 'none yet'}
 RULES: Maintain enemy continuity - they remember every action. When an enemy is defeated, set enemyDefeated to their name. Set combatEnemies[] in every response to reflect current state. Every enemy still standing ACTS this round - apply its cost per COMBAT STAKES & DAMAGE RULES.
 ═════════════════════`;
