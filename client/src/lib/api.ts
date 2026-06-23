@@ -95,7 +95,7 @@ export const gameApi = {
     api.get(`/game/history/${campaignId}/${characterId}?limit=${limit || 50}${party ? '&party=true' : ''}`),
   getScene: (campaignId: string, characterId: string) =>
     api.get(`/game/scene/${campaignId}/${characterId}`),
-  resolveRoll: (data: { characterId: string; campaignId: string; rollContext: unknown }) =>
+  resolveRoll: (data: { characterId: string; campaignId: string }) =>
     api.post('/game/resolve-roll', data),
   devKill: (characterId: string) => api.post(`/game/dev-kill/${characterId}`),
   devClearCombat: (campaignId: string) => api.post(`/game/dev-clear-combat/${campaignId}`),

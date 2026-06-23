@@ -515,7 +515,6 @@ export default function Game() {
       const { data } = await gameApi.resolveRoll({
         characterId,
         campaignId,
-        rollContext: diceModalData.rollContext,
       })
       const result = data as ActionResult
       setLastActionResult(result)

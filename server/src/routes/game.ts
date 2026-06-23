@@ -5,6 +5,7 @@ import { processAction, getOpeningScene, getCoopOpeningScene, resolveRollAction,
 import { generateEpilogue } from '../services/openai';
 import type { WorldState, WorldBible, Character } from '../../../shared/types';
 import { z } from 'zod';
+import { aiRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 const COOP_TURN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -31,7 +32,7 @@ const actionSchema = z.object({
   action: z.string().min(1).max(500),
 });
 
-router.post('/action', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/action', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
   const parse = actionSchema.safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: parse.error.errors });
@@ -141,27 +142,28 @@ router.post('/action', requireAuth, async (req: AuthRequest, res: Response): Pro
 const resolveRollSchema = z.object({
   characterId: z.string().uuid(),
   campaignId: z.string().uuid(),
-  rollContext: z.object({
-    stat: z.string(),
-    dc: z.number(),
-    diceType: z.string(),
-    description: z.string(),
-    successDescription: z.string(),
-    failDescription: z.string(),
-    critSuccessDescription: z.string().optional(),
-    critFailDescription: z.string().optional(),
-    isDramatic: z.boolean(),
-    modifier: z.number(),
-  }),
 });
 
-router.post('/resolve-roll', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+const storedRollContextSchema = z.object({
+  stat: z.enum(['str', 'dex', 'con', 'int', 'wis', 'cha']),
+  dc: z.number().int().min(1).max(30),
+  diceType: z.string(),
+  description: z.string(),
+  successDescription: z.string(),
+  failDescription: z.string(),
+  critSuccessDescription: z.string().optional(),
+  critFailDescription: z.string().optional(),
+  isDramatic: z.boolean(),
+  modifier: z.number().optional(),
+});
+
+router.post('/resolve-roll', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
   const parse = resolveRollSchema.safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: parse.error.errors });
     return;
   }
-  const { characterId, campaignId, rollContext } = parse.data;
+  const { characterId, campaignId } = parse.data;
 
   const { data: character } = await supabaseAdmin
     .from('characters')
@@ -176,44 +178,115 @@ router.post('/resolve-roll', requireAuth, async (req: AuthRequest, res: Response
   }
 
   try {
-    const stats = character.stats as Record<string, number> | null;
-    const statKey = rollContext.stat.toLowerCase();
-    const statValue = typeof stats?.[statKey] === 'number' ? stats[statKey] : 10;
-    const modifier = getStatModifier(statValue);
-    const rollResult = Math.floor(Math.random() * 20) + 1;
-    const rollTotal = rollResult + modifier;
-    const dc = rollContext.dc;
-    const success = rollTotal >= dc;
-    const isCritSuccess = rollResult === 20;
-    const isCritFail = rollResult === 1;
-    const authoritativeContext = { ...rollContext, modifier };
+    await withCampaignLock(campaignId, async () => {
+      const { data: campaignRow } = await supabaseAdmin
+        .from('campaigns')
+        .select('world_state')
+        .eq('id', campaignId)
+        .single();
+      const pendingCoopRoll = (campaignRow?.world_state as WorldState | undefined)?.coopPendingRoll;
 
-    const { data: campaignRow } = await supabaseAdmin
-      .from('campaigns')
-      .select('world_state')
-      .eq('id', campaignId)
-      .single();
-    const pendingCoopRoll = (campaignRow?.world_state as WorldState | undefined)?.coopPendingRoll;
+      if (pendingCoopRoll && pendingCoopRoll.actingCharacterId !== characterId) {
+        res.status(409).json({ error: 'Your partner holds the dice for this turn. Wait for their roll.' });
+        return;
+      }
 
-    // While a co-op roll is pending, only the acting character may resolve it.
-    // Anyone else (e.g. a partner whose client restored a stale dice modal)
-    // must wait - resolving through the solo path here would double-apply the turn.
-    if (pendingCoopRoll && pendingCoopRoll.actingCharacterId !== characterId) {
-      res.status(409).json({ error: 'Your partner holds the dice for this turn. Wait for their roll.' });
-      return;
-    }
+      let pendingEventId: string | null = null;
+      let pendingMetadata: Record<string, unknown> | null = null;
+      let storedRollContext: unknown = pendingCoopRoll?.rollContext;
 
-    const result = pendingCoopRoll && pendingCoopRoll.actingCharacterId === characterId
-      ? await resolveCoopRollAction(campaignId, characterId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext)
-      : await resolveRollAction(characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext);
-    res.json(result);
+      if (!pendingCoopRoll) {
+        const { data: pendingEvent } = await supabaseAdmin
+          .from('story_events')
+          .select('id, metadata')
+          .eq('campaign_id', campaignId)
+          .eq('character_id', characterId)
+          .eq('event_type', 'narration')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        pendingEventId = pendingEvent?.id || null;
+        pendingMetadata = pendingEvent?.metadata as Record<string, unknown> | null;
+        storedRollContext = pendingMetadata?.rollContext;
+
+        if (!pendingEventId || pendingMetadata?.awaitingRoll !== true) {
+          res.status(409).json({ error: 'No unresolved roll is pending for this character' });
+          return;
+        }
+      }
+
+      const contextParse = storedRollContextSchema.safeParse(storedRollContext);
+      if (!contextParse.success) {
+        res.status(409).json({ error: 'The pending roll challenge is invalid or incomplete' });
+        return;
+      }
+
+      if (pendingEventId && pendingMetadata) {
+        const claimedMetadata = { ...pendingMetadata, awaitingRoll: false, rollStatus: 'resolving' };
+        const { data: claimedEvent } = await supabaseAdmin
+          .from('story_events')
+          .update({ metadata: claimedMetadata })
+          .eq('id', pendingEventId)
+          .contains('metadata', { awaitingRoll: true })
+          .select('id')
+          .single();
+
+        if (!claimedEvent) {
+          res.status(409).json({ error: 'This roll has already been resolved' });
+          return;
+        }
+      }
+
+      const rollContext = contextParse.data;
+      try {
+        const stats = character.stats as Record<string, number> | null;
+        const statValue = typeof stats?.[rollContext.stat] === 'number' ? stats[rollContext.stat] : 10;
+        const modifier = getStatModifier(statValue);
+        const rollResult = Math.floor(Math.random() * 20) + 1;
+        const rollTotal = rollResult + modifier;
+        const dc = rollContext.dc;
+        const success = rollTotal >= dc;
+        const isCritSuccess = rollResult === 20;
+        const isCritFail = rollResult === 1;
+        const authoritativeContext = { ...rollContext, modifier };
+
+        const result = pendingCoopRoll
+          ? await resolveCoopRollAction(campaignId, characterId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext)
+          : await resolveRollAction(characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext);
+
+        if (pendingEventId && pendingMetadata) {
+          await supabaseAdmin
+            .from('story_events')
+            .update({
+              metadata: {
+                ...pendingMetadata,
+                awaitingRoll: false,
+                rollStatus: 'resolved',
+                resolvedAt: new Date().toISOString(),
+              },
+            })
+            .eq('id', pendingEventId);
+        }
+
+        res.json(result);
+      } catch (error) {
+        if (pendingEventId && pendingMetadata) {
+          await supabaseAdmin
+            .from('story_events')
+            .update({ metadata: { ...pendingMetadata, awaitingRoll: true } })
+            .eq('id', pendingEventId);
+        }
+        throw error;
+      }
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to resolve roll';
     res.status(500).json({ error: message });
   }
 });
 
-router.post('/start', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/start', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
   const { characterId, campaignId } = req.body;
   if (!characterId || !campaignId) {
     res.status(400).json({ error: 'characterId and campaignId required' });
@@ -374,13 +447,26 @@ router.post('/dev-kill/:characterId', requireAuth, async (req: AuthRequest, res:
 
   const { data: character } = await supabaseAdmin
     .from('characters')
-    .select('user_id')
+    .select('user_id, campaign_id')
     .eq('id', characterId)
     .eq('user_id', req.user!.id)
     .single();
 
   if (!character) {
     res.status(403).json({ error: 'Character not found or not yours' });
+    return;
+  }
+
+  const { data: testCampaign } = await supabaseAdmin
+    .from('campaigns')
+    .select('id')
+    .eq('id', character.campaign_id)
+    .eq('created_by', req.user!.id)
+    .eq('campaign_type', 'testing')
+    .single();
+
+  if (!testCampaign) {
+    res.status(403).json({ error: 'Dev actions are limited to testing campaigns you created' });
     return;
   }
 
@@ -422,8 +508,17 @@ router.post('/dev-clear-combat/:campaignId', requireAuth, async (req: AuthReques
 
   const { campaignId } = req.params;
 
-  const { data: campaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaignId).single();
-  if (!campaign) { res.status(404).json({ error: 'Campaign not found' }); return; }
+  const { data: campaign } = await supabaseAdmin
+    .from('campaigns')
+    .select('world_state')
+    .eq('id', campaignId)
+    .eq('created_by', req.user!.id)
+    .eq('campaign_type', 'testing')
+    .single();
+  if (!campaign) {
+    res.status(403).json({ error: 'Dev actions are limited to testing campaigns you created' });
+    return;
+  }
 
   const ws = campaign.world_state as Record<string, unknown>;
   ws.combatState = null;
@@ -451,6 +546,7 @@ router.post('/dev-patch/:campaignId', requireAuth, async (req: AuthRequest, res:
     .from('campaigns')
     .select('world_state, campaign_type')
     .eq('id', campaignId)
+    .eq('created_by', req.user!.id)
     .single();
 
   if (!campaign) { res.status(404).json({ error: 'Campaign not found' }); return; }
@@ -474,7 +570,7 @@ router.post('/dev-patch/:campaignId', requireAuth, async (req: AuthRequest, res:
   res.json({ success: true, worldState: updated?.world_state, act: updated?.act });
 });
 
-router.post('/epilogue/:campaignId/:characterId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/epilogue/:campaignId/:characterId', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
   const { campaignId, characterId } = req.params;
   const { victory } = req.body;
 

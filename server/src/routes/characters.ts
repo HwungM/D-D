@@ -7,6 +7,7 @@ import { RACE_STAT_BONUSES, CLASS_BASE_HP } from '../../../shared/types';
 import type { CharacterStats, Race, CharacterClass } from '../../../shared/types';
 import { rollDice } from '../services/gameEngine';
 import { getAbilityForLevel } from '../../../shared/classAbilities';
+import { aiRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -51,7 +52,7 @@ function rollStats(): CharacterStats {
   };
 }
 
-router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
   const parse = createSchema.safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: parse.error.errors });
@@ -204,11 +205,45 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
 
 router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
-  const allowedFields = ['name', 'backstory', 'portrait_url', 'hp', 'gold', 'inventory', 'abilities'];
+  const allowedFields = ['name', 'backstory', 'portrait_url'];
+  const devFields = ['hp', 'gold', 'inventory', 'abilities'];
   const updates: Record<string, unknown> = {};
 
   for (const field of allowedFields) {
     if (req.body[field] !== undefined) updates[field] = req.body[field];
+  }
+
+  if (devFields.some(field => req.body[field] !== undefined)) {
+    const { data: characterCampaign } = await supabaseAdmin
+      .from('characters')
+      .select('campaign_id')
+      .eq('id', id)
+      .eq('user_id', req.user!.id)
+      .single();
+
+    const { data: testingCampaign } = characterCampaign
+      ? await supabaseAdmin
+          .from('campaigns')
+          .select('id')
+          .eq('id', characterCampaign.campaign_id)
+          .eq('created_by', req.user!.id)
+          .eq('campaign_type', 'testing')
+          .single()
+      : { data: null };
+
+    if (!testingCampaign) {
+      res.status(403).json({ error: 'Direct stat and inventory edits are limited to testing campaigns you created' });
+      return;
+    }
+
+    for (const field of devFields) {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: 'No editable fields provided' });
+    return;
   }
 
   const { data: character, error } = await supabaseAdmin
