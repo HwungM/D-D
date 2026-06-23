@@ -1,7 +1,8 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
-import { processAction, getOpeningScene, getCoopOpeningScene, resolveRollAction, resolveCoopRollAction, processCoopAction, getStatModifier, compressToJournalEntry } from '../services/gameEngine';
+import { processAction, getOpeningScene, getCoopOpeningScene, resolveRollAction, resolveCoopRollAction, processCoopAction, compressToJournalEntry } from '../services/gameEngine';
+import { getStatModifier } from '../services/characterProgressionSystem';
 import { generateEpilogue } from '../services/openai';
 import type { WorldState, WorldBible, Character } from '../../../shared/types';
 import { z } from 'zod';

@@ -5,7 +5,7 @@ import { generateCharacterPortrait, extractBackstoryHooks } from '../services/op
 import { z } from 'zod';
 import { RACE_STAT_BONUSES, CLASS_BASE_HP } from '../../../shared/types';
 import type { CharacterStats, Race, CharacterClass } from '../../../shared/types';
-import { rollDice } from '../services/gameEngine';
+import { rollDice } from '../services/characterProgressionSystem';
 import { getAbilityForLevel } from '../../../shared/classAbilities';
 import { aiRateLimit } from '../middleware/rateLimit';
 
