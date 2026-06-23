@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import OpenAI from 'openai';
 import { z } from 'zod';
+import { aiRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -11,7 +12,7 @@ const ttsSchema = z.object({
   voice: z.enum(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']).optional(),
 });
 
-router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
   const parse = ttsSchema.safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: parse.error.errors });

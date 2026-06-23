@@ -3,6 +3,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import { generateImage } from '../services/openai';
 import { supabaseAdmin } from '../services/supabase';
 import { z } from 'zod';
+import { aiRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -12,7 +13,7 @@ const generateSchema = z.object({
   assetType: z.enum(['scene', 'portrait', 'item', 'npc', 'enemy']).default('scene'),
 });
 
-router.post('/generate', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/generate', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
   const parse = generateSchema.safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: parse.error.errors });

@@ -13,6 +13,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Railway/Vercel-style deployments sit behind one trusted reverse proxy.
+// This keeps IP-based rate limits accurate for the two real clients.
+app.set('trust proxy', 1);
+
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',

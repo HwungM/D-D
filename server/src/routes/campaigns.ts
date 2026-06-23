@@ -4,10 +4,11 @@ import { supabaseAdmin } from '../services/supabase';
 import { generateStorySeed, generateWorldBible } from '../services/openai';
 import { z } from 'zod';
 import type { LocationGraph, WorldBible, WorldState } from '../../../shared/types';
+import { aiRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 
-router.get('/seeds', requireAuth, async (_req: AuthRequest, res: Response): Promise<void> => {
+router.get('/seeds', requireAuth, aiRateLimit, async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const seeds = await generateStorySeed();
     res.json({ seeds });
@@ -57,7 +58,7 @@ function initialLocationGraph(worldBible: WorldBible): LocationGraph {
   };
 }
 
-router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
   const parse = createSchema.safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: parse.error.errors });
@@ -455,10 +456,21 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response): Prom
     }
   }
 
-  await supabaseAdmin.from('story_events').delete().eq('campaign_id', id);
-  await supabaseAdmin.from('characters').delete().eq('campaign_id', id);
-  await supabaseAdmin.from('campaign_members').delete().eq('campaign_id', id);
-  await supabaseAdmin.from('campaigns').delete().eq('id', id);
+  const cleanupTables = ['story_events', 'sessions', 'npcs', 'party_invites', 'characters', 'campaign_members'] as const;
+  for (const table of cleanupTables) {
+    const { error } = await supabaseAdmin.from(table).delete().eq('campaign_id', id);
+    if (error) {
+      res.status(500).json({ error: `Failed to delete campaign data from ${table}` });
+      return;
+    }
+  }
+
+  const { error: deleteError } = await supabaseAdmin.from('campaigns').delete().eq('id', id);
+
+  if (deleteError) {
+    res.status(500).json({ error: 'Failed to delete campaign completely' });
+    return;
+  }
 
   res.json({ success: true });
 });

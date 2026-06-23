@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase, supabaseAdmin } from '../services/supabase';
 import { z } from 'zod';
+import { authRateLimit } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -46,7 +47,7 @@ async function getOrCreateUser(username: string): Promise<{ id: string; username
   return { id: signIn.user.id, username, session: signIn.session };
 }
 
-router.post('/register', async (req: Request, res: Response): Promise<void> => {
+router.post('/register', authRateLimit, async (req: Request, res: Response): Promise<void> => {
   const parse = z.object({ username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/), password: z.string() }).safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: parse.error.errors[0]?.message || 'Invalid input' });
@@ -60,7 +61,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
   res.status(201).json({ user: { id: result.id, username: result.username }, session: result.session });
 });
 
-router.post('/login', async (req: Request, res: Response): Promise<void> => {
+router.post('/login', authRateLimit, async (req: Request, res: Response): Promise<void> => {
   const parse = z.object({ username: z.string().min(1), password: z.string().optional() }).safeParse(req.body);
   if (!parse.success) {
     res.status(400).json({ error: 'Invalid input' });

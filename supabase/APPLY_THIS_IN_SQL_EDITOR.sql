@@ -45,3 +45,15 @@ exception when duplicate_object then null; end $$;
 
 -- Character gender, so the DM uses the right pronouns.
 alter table characters add column if not exists gender text;
+
+-- Columns used by current campaign ownership and testing-mode checks.
+alter table campaigns add column if not exists created_by uuid references profiles(id);
+alter table campaigns add column if not exists campaign_type text default 'adventure';
+
+-- Campaign creation and membership changes are performed by the service-role
+-- backend. Do not let browser clients bypass those server checks directly.
+drop policy if exists "Users can join campaigns" on campaign_members;
+drop policy if exists "Members can insert campaigns" on campaigns;
+
+create index if not exists idx_party_invites_campaign_id on party_invites(campaign_id);
+create index if not exists idx_party_invites_invite_code on party_invites(invite_code);
