@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
-import { processAction, getOpeningScene, getCoopOpeningScene, resolveRollAction, resolveCoopRollAction, processCoopAction, getStatModifier } from '../services/gameEngine';
+import { processAction, getOpeningScene, getCoopOpeningScene, resolveRollAction, resolveCoopRollAction, processCoopAction, getStatModifier, compressToJournalEntry } from '../services/gameEngine';
 import { generateEpilogue } from '../services/openai';
 import type { WorldState, WorldBible, Character } from '../../../shared/types';
 import { z } from 'zod';
@@ -30,6 +30,7 @@ const actionSchema = z.object({
   characterId: z.string().uuid(),
   campaignId: z.string().uuid(),
   action: z.string().min(1).max(500),
+  requestId: z.string().uuid().optional(),
 });
 
 router.post('/action', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
@@ -38,7 +39,7 @@ router.post('/action', requireAuth, aiRateLimit, async (req: AuthRequest, res: R
     res.status(400).json({ error: parse.error.errors });
     return;
   }
-  const { characterId, campaignId, action } = parse.data;
+  const { characterId, campaignId, action, requestId } = parse.data;
 
   // Verify ownership and campaign pairing
   const { data: character } = await supabaseAdmin
@@ -130,9 +131,46 @@ router.post('/action', requireAuth, aiRateLimit, async (req: AuthRequest, res: R
       return;
     }
 
-    // Solo path
-    const result = await processAction(characterId, action, campaignId);
-    res.json(result);
+    // Solo path: serialize turns and reserve a request id before the expensive
+    // AI call. A network retry can no longer apply the same turn twice.
+    await withCampaignLock(campaignId, async () => {
+      if (requestId) {
+        const { data: campaign } = await supabaseAdmin
+          .from('campaigns')
+          .select('world_state')
+          .eq('id', campaignId)
+          .single();
+        const ws = (campaign?.world_state || {}) as WorldState;
+        if ((ws.processedActionRequests || []).includes(requestId)) {
+          res.status(409).json({ error: 'This action was already processed' });
+          return;
+        }
+        const processedActionRequests = [...(ws.processedActionRequests || []), requestId].slice(-100);
+        await supabaseAdmin
+          .from('campaigns')
+          .update({ world_state: { ...ws, processedActionRequests } })
+          .eq('id', campaignId);
+      }
+
+      try {
+        const result = await processAction(characterId, action, campaignId);
+        res.json(result);
+      } catch (error) {
+        if (requestId) {
+          const { data: campaign } = await supabaseAdmin
+            .from('campaigns')
+            .select('world_state')
+            .eq('id', campaignId)
+            .single();
+          const ws = (campaign?.world_state || {}) as WorldState;
+          await supabaseAdmin
+            .from('campaigns')
+            .update({ world_state: { ...ws, processedActionRequests: (ws.processedActionRequests || []).filter(id => id !== requestId) } })
+            .eq('id', campaignId);
+        }
+        throw error;
+      }
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Game engine error';
     res.status(500).json({ error: message });
@@ -323,12 +361,183 @@ router.post('/start', requireAuth, aiRateLimit, async (req: AuthRequest, res: Re
       return;
     }
 
-    const result = await getOpeningScene(characterId, campaignId);
+    const result = await withCampaignLock(campaignId, () => getOpeningScene(characterId, campaignId));
     res.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to start game';
     res.status(500).json({ error: message });
   }
+});
+
+const sessionSchema = z.object({
+  characterId: z.string().uuid(),
+});
+
+router.get('/session/:campaignId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { campaignId } = req.params;
+  const { data: membership } = await supabaseAdmin
+    .from('campaign_members')
+    .select('campaign_id')
+    .eq('campaign_id', campaignId)
+    .eq('user_id', req.user!.id)
+    .maybeSingle();
+  if (!membership) {
+    res.status(403).json({ error: 'Access denied' });
+    return;
+  }
+
+  const { data: campaign } = await supabaseAdmin
+    .from('campaigns')
+    .select('world_state')
+    .eq('id', campaignId)
+    .single();
+  const ws = (campaign?.world_state || {}) as WorldState;
+  res.json({ activeSession: ws.activeSession || null, lastSessionRecap: ws.lastSessionRecap || null });
+});
+
+router.post('/session/:campaignId/start', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { campaignId } = req.params;
+  const parse = sessionSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: parse.error.errors });
+    return;
+  }
+  const { characterId } = parse.data;
+
+  const { data: character } = await supabaseAdmin
+    .from('characters')
+    .select('id')
+    .eq('id', characterId)
+    .eq('campaign_id', campaignId)
+    .eq('user_id', req.user!.id)
+    .single();
+  if (!character) {
+    res.status(403).json({ error: 'Character not found or not yours' });
+    return;
+  }
+
+  await withCampaignLock(campaignId, async () => {
+    const { data: campaign } = await supabaseAdmin
+      .from('campaigns')
+      .select('world_state')
+      .eq('id', campaignId)
+      .single();
+    const ws = (campaign?.world_state || {}) as WorldState;
+    if (ws.activeSession) {
+      res.json({ activeSession: ws.activeSession, resumed: true });
+      return;
+    }
+
+    const sessionNumber = (ws.sessionCount || 0) + 1;
+    const { data: session, error } = await supabaseAdmin
+      .from('sessions')
+      .insert({
+        campaign_id: campaignId,
+        character_id: characterId,
+        session_number: sessionNumber,
+        started_by: req.user!.id,
+        status: 'active',
+      })
+      .select('id, created_at')
+      .single();
+    if (error || !session) {
+      res.status(500).json({ error: 'Failed to begin session' });
+      return;
+    }
+
+    const activeSession = {
+      id: session.id,
+      sessionNumber,
+      startedAt: session.created_at,
+      startedBy: req.user!.id,
+    };
+    await supabaseAdmin
+      .from('campaigns')
+      .update({ world_state: { ...ws, activeSession, sessionNotes: [] } })
+      .eq('id', campaignId);
+    res.status(201).json({ activeSession, resumed: false });
+  });
+});
+
+router.post('/session/:campaignId/end', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { campaignId } = req.params;
+  const parse = sessionSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: parse.error.errors });
+    return;
+  }
+
+  const { data: membership } = await supabaseAdmin
+    .from('campaign_members')
+    .select('campaign_id')
+    .eq('campaign_id', campaignId)
+    .eq('user_id', req.user!.id)
+    .maybeSingle();
+  if (!membership) {
+    res.status(403).json({ error: 'Access denied' });
+    return;
+  }
+
+  await withCampaignLock(campaignId, async () => {
+    const { data: campaign } = await supabaseAdmin
+      .from('campaigns')
+      .select('world_state, act')
+      .eq('id', campaignId)
+      .single();
+    const ws = (campaign?.world_state || {}) as WorldState;
+    const active = ws.activeSession;
+    if (!active) {
+      res.status(409).json({ error: 'No active session to end' });
+      return;
+    }
+
+    const { data: events } = await supabaseAdmin
+      .from('story_events')
+      .select('event_type, content, created_at')
+      .eq('campaign_id', campaignId)
+      .gte('created_at', active.startedAt)
+      .order('created_at', { ascending: true })
+      .limit(300);
+    const eventNotes = (events || [])
+      .filter(event => event.event_type === 'action' || event.event_type === 'narration')
+      .map(event => `[${event.event_type}] ${String(event.content).slice(0, 500)}`);
+    const notes = eventNotes.length > 0 ? eventNotes : (ws.sessionNotes || []);
+    const recap = await compressToJournalEntry(
+      campaignId,
+      notes.length > 0 ? notes : ['The party gathered, took stock, and prepared for what comes next.'],
+      campaign?.act || 1,
+      active.sessionNumber,
+    );
+
+    const endedAt = new Date().toISOString();
+    const { error: sessionError } = await supabaseAdmin
+      .from('sessions')
+      .update({
+        status: 'completed',
+        ended_at: endedAt,
+        summary: recap.summary,
+        journal_entry: recap.summary,
+        key_decisions: recap.keyDecisions,
+        major_npcs: recap.majorNPCsIntroduced,
+        event_count: events?.length || 0,
+      })
+      .eq('id', active.id);
+    if (sessionError) {
+      res.status(500).json({ error: 'Failed to save session recap' });
+      return;
+    }
+
+    const worldState = {
+      ...ws,
+      activeSession: null,
+      lastSessionRecap: recap,
+      sessionCount: active.sessionNumber,
+      sessionNotes: [],
+      campaignJournal: [...(ws.campaignJournal || []), recap].slice(-100),
+    };
+    await supabaseAdmin.from('campaigns').update({ world_state: worldState }).eq('id', campaignId);
+    res.json({ recap, endedAt });
+  });
 });
 
 router.get('/history/:campaignId/:characterId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {

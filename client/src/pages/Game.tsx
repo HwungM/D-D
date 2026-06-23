@@ -98,6 +98,7 @@ export default function Game() {
   const historicalIds = useRef<Set<string>>(new Set())
   const coopWaitingRef = useRef(false)
   const coopResolvedAtRef = useRef(0)
+  const sessionStartAttempted = useRef(false)
   // Events already routed into the UI - realtime and the poll fallback can both
   // deliver the same row; side effects (popups, unlocks) must fire exactly once.
   const processedEventIds = useRef<Set<string>>(new Set())
@@ -118,6 +119,9 @@ export default function Game() {
   const [campaignName, setCampaignName] = useState('')
   const [showDeathScreen, setShowDeathScreen] = useState(false)
   const [recap, setRecap] = useState<{ summary: string; keyDecisions: string[]; sessionNumber: number; gapHours: number } | null>(null)
+  const [sessionEnded, setSessionEnded] = useState(false)
+  const [endingSession, setEndingSession] = useState(false)
+  const [activeSessionNumber, setActiveSessionNumber] = useState<number | null>(null)
   const [shopItems, setShopItems] = useState<ShopItem[]>([])
   const [showShop, setShowShop] = useState(false)
   const [showActTransition, setShowActTransition] = useState(false)
@@ -150,6 +154,37 @@ export default function Game() {
     audioManager.startAmbient()
     document.addEventListener('click', () => { audioManager.startAmbient(); audioManager.startGameplay() }, { once: true })
   }, [])
+
+  useEffect(() => {
+    if (!campaignId || !characterId || sessionStartAttempted.current) return
+    sessionStartAttempted.current = true
+    gameApi.startSession(campaignId, characterId)
+      .then(({ data }) => setActiveSessionNumber(data.activeSession?.sessionNumber || null))
+      .catch(() => {
+        sessionStartAttempted.current = false
+      })
+  }, [campaignId, characterId])
+
+  async function handleEndSession() {
+    if (!campaignId || !characterId || endingSession) return
+    if (!window.confirm('End this play session and save a durable recap?')) return
+    setEndingSession(true)
+    try {
+      const { data } = await gameApi.endSession(campaignId, characterId)
+      setSessionEnded(true)
+      setActiveSessionNumber(null)
+      setRecap({
+        summary: data.recap.summary,
+        keyDecisions: data.recap.keyDecisions || [],
+        sessionNumber: data.recap.sessionNumber,
+        gapHours: 0,
+      })
+    } catch (err) {
+      setLastError({ message: getErrorMessage(err), action: 'End session' })
+    } finally {
+      setEndingSession(false)
+    }
+  }
 
   const refreshParty = useCallback(() => {
     if (!campaignId) return
@@ -1068,6 +1103,18 @@ export default function Game() {
               Invite
             </button>
           )}
+          {campaignId && characterId && activeSessionNumber && (
+            <button
+              type="button"
+              onClick={handleEndSession}
+              disabled={endingSession || isLoading || coopWaiting}
+              className="px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200 disabled:opacity-40"
+              style={{ border: '1px solid rgba(167,139,250,0.34)', background: 'rgba(139,92,246,0.08)', color: 'rgba(237,233,254,0.78)' }}
+              title={`Save and close Session ${activeSessionNumber}`}
+            >
+              {endingSession ? 'Saving...' : `End S${activeSessionNumber}`}
+            </button>
+          )}
           {(['character', 'quests', 'people', 'map', 'world', 'journal', 'achievements'] as const).map(tab => {
             const labels = { character: 'Sheet', quests: 'Quests', map: 'Map', world: 'World', people: 'People', journal: 'Log', achievements: 'Awards' }
             const isActive = showSidebar && sidebarTab === tab
@@ -1473,7 +1520,7 @@ export default function Game() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="max-w-lg border border-violet-200/25 bg-zinc-950/95 p-6 shadow-xl">
             <h2 className="font-fantasy text-sm uppercase tracking-[0.25em] text-violet-100/70">
-              Previously, Session {recap.sessionNumber}...
+              {sessionEnded ? `Session ${recap.sessionNumber} Complete` : `Previously, Session ${recap.sessionNumber}...`}
             </h2>
             <p className="mt-3 font-serif text-sm leading-relaxed text-violet-50/85">
               {recap.summary}
@@ -1483,14 +1530,19 @@ export default function Game() {
                 {recap.keyDecisions.map((d, i) => <li key={i}>{d}</li>)}
               </ul>
             )}
-            <p className="mt-4 font-mono text-[10px] uppercase tracking-widest text-violet-100/30">
-              {recap.gapHours < 24 ? `${recap.gapHours}h` : `${Math.round(recap.gapHours / 24)}d`} since last session
-            </p>
+            {!sessionEnded && (
+              <p className="mt-4 font-mono text-[10px] uppercase tracking-widest text-violet-100/30">
+                {recap.gapHours < 24 ? `${recap.gapHours}h` : `${Math.round(recap.gapHours / 24)}d`} since last session
+              </p>
+            )}
             <button
-              onClick={() => setRecap(null)}
+              onClick={() => {
+                setRecap(null)
+                if (sessionEnded) navigate('/dashboard')
+              }}
               className="mt-4 w-full border border-violet-200/30 bg-violet-300/8 px-4 py-2 font-fantasy text-xs uppercase tracking-[0.2em] text-violet-100/80 transition-all hover:bg-violet-300/15"
             >
-              Continue the Adventure
+              {sessionEnded ? 'Return to the Hall' : 'Continue the Adventure'}
             </button>
           </div>
         </div>

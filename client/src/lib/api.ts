@@ -90,11 +90,17 @@ export const gameApi = {
   start: (characterId: string, campaignId: string) =>
     api.post('/game/start', { characterId, campaignId }),
   action: (characterId: string, campaignId: string, action: string) =>
-    api.post('/game/action', { characterId, campaignId, action }),
+    api.post('/game/action', { characterId, campaignId, action, requestId: crypto.randomUUID() }),
   getHistory: (campaignId: string, characterId: string, limit?: number, party?: boolean) =>
     api.get(`/game/history/${campaignId}/${characterId}?limit=${limit || 50}${party ? '&party=true' : ''}`),
   getScene: (campaignId: string, characterId: string) =>
     api.get(`/game/scene/${campaignId}/${characterId}`),
+  getSession: (campaignId: string) =>
+    api.get(`/game/session/${campaignId}`),
+  startSession: (campaignId: string, characterId: string) =>
+    api.post(`/game/session/${campaignId}/start`, { characterId }),
+  endSession: (campaignId: string, characterId: string) =>
+    api.post(`/game/session/${campaignId}/end`, { characterId }),
   resolveRoll: (data: { characterId: string; campaignId: string }) =>
     api.post('/game/resolve-roll', data),
   devKill: (characterId: string) => api.post(`/game/dev-kill/${characterId}`),

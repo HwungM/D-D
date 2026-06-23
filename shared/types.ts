@@ -214,6 +214,8 @@ export interface CombatEnemy {
   name: string;
   archetype: 'beast' | 'soldier' | 'mage' | 'boss' | 'minion';
   maxHp: number;
+  currentHp?: number;
+  armorClass?: number;
   condition: 'healthy' | 'wounded' | 'critical';
   isDefeated?: boolean;
   specialAbility?: string; // one-line description of what makes them dangerous
@@ -253,6 +255,14 @@ export interface WorldState {
   characterHistory?: CharacterHistoryEntry[];
   antagonistProgress?: Record<string, { stepIndex: number; lastAction: string; knowsPlayers: boolean }>;
   sessionCount?: number;
+  activeSession?: {
+    id: string;
+    sessionNumber: number;
+    startedAt: string;
+    startedBy: string;
+  } | null;
+  lastSessionRecap?: CampaignJournalEntry | null;
+  processedActionRequests?: string[];
   foreshadowingLedger?: ForeshadowingEntry[];
   backstoryHooks?: BackstoryHook[];
   villainMoveCount?: number;
@@ -485,6 +495,7 @@ export interface ActionResult {
   enemyDefeated?: string;
   isBossFight?: boolean;
   bossPhaseAdvance?: boolean;
+  combatDamage?: { target: string; amount: number; defeated: boolean };
   isHighStakes?: boolean;
   choiceCards?: HighStakesChoice[];
   characterHistoryNote?: CharacterHistoryEntry;

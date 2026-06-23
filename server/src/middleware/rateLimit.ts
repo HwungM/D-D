@@ -16,7 +16,8 @@ export function createRateLimit(options: RateLimitOptions): RequestHandler {
 
   return (req, res, next) => {
     const now = Date.now();
-    const key = req.ip || req.socket.remoteAddress || 'unknown';
+    const authenticatedUserId = (req as typeof req & { user?: { id?: string } }).user?.id;
+    const key = authenticatedUserId || req.ip || req.socket.remoteAddress || 'unknown';
     const current = counters.get(key);
 
     if (!current || current.resetAt <= now) {

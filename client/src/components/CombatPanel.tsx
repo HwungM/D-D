@@ -29,7 +29,9 @@ const CONDITION_WIDTH: Record<string, string> = {
 
 function EnemyBar({ enemy }: { enemy: CombatEnemy }) {
   const color = CONDITION_COLOR[enemy.condition]
-  const width = CONDITION_WIDTH[enemy.condition]
+  const width = enemy.currentHp != null && enemy.maxHp > 0
+    ? `${Math.max(0, Math.min(100, (enemy.currentHp / enemy.maxHp) * 100))}%`
+    : CONDITION_WIDTH[enemy.condition]
   const icon = ARCHETYPE_ICONS[enemy.archetype] || 'FOE'
 
   return (
@@ -53,7 +55,11 @@ function EnemyBar({ enemy }: { enemy: CombatEnemy }) {
             className="font-sans text-xs ml-2 shrink-0"
             style={{ color, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.1em' }}
           >
-            {enemy.isDefeated ? 'defeated' : enemy.condition}
+            {enemy.isDefeated
+              ? 'defeated'
+              : enemy.currentHp != null
+                ? `${enemy.currentHp}/${enemy.maxHp} HP`
+                : enemy.condition}
           </span>
         </div>
         <div className="w-full overflow-hidden" style={{ height: 2, background: 'rgba(255,255,255,0.08)' }}>
