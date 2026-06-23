@@ -4,6 +4,13 @@ import OpenAI from 'openai';
 import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe, InventoryItem, CombatEnemy, StoryLedgerEntry } from '../../../shared/types';
 import { buildAwaitingRollNarration, enforceTurnPlanNarration, planCoopTurn, planOpeningTurn, planSoloTurn } from './gameDirector';
 import { applyContinuityRepairs, buildContinuityDirective, buildContinuityPatch } from './storyContinuity';
+import {
+  canAdvanceAct,
+  combatantMemoryPatch,
+  groundedFightSearchNarration,
+  hasGroundedEncounterSetup,
+  isFightSeekingAction,
+} from './narrativeRules';
 
 function appendAchievement(existing: UnlockedAchievement[] | undefined, achievement: { title: string; description: string }, characterName: string): UnlockedAchievement[] {
   const list = existing || [];
@@ -51,6 +58,126 @@ import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
 // causes .map() to crash. This helper handles that case cleanly.
 function toArr<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function actionSignals(actions: string[]): {
+  pursuedOrCornered: boolean;
+  sparedOrAcceptedSurrender: boolean;
+  rescued: boolean;
+} {
+  const text = actions.join(' ');
+  return {
+    pursuedOrCornered: /\b(chase|pursue|corner|cut off|block (?:their|his|her|its) escape|run down|hunt down)\b/i.test(text),
+    sparedOrAcceptedSurrender: /\b(spare|show mercy|accept (?:their|his|her|its) surrender|let (?:them|him|her|it) go|release)\b/i.test(text),
+    rescued: /\b(rescue|save|free|protect)\b/i.test(text),
+  };
+}
+
+function newlyDefeatedCombatants(
+  previous: CombatEnemy[] | undefined,
+  current: CombatEnemy[] | undefined,
+  explicitlyDefeated?: string,
+): string[] {
+  const previousByName = new Map((previous || []).map(enemy => [enemy.name.toLowerCase(), enemy]));
+  const names = new Set<string>();
+  if (explicitlyDefeated) names.add(explicitlyDefeated);
+  for (const enemy of current || []) {
+    const prior = previousByName.get(enemy.name.toLowerCase());
+    if ((enemy.isDefeated || enemy.currentHp === 0) && !(prior?.isDefeated || prior?.currentHp === 0)) {
+      names.add(enemy.name);
+    }
+  }
+  return Array.from(names);
+}
+
+function preventUngroundedFight(
+  aiResponse: {
+    narration: string;
+    isCombat?: boolean;
+    isVictory?: boolean;
+    enemyName?: string;
+    combatEnemies?: CombatEnemy[];
+    enemyDefeated?: string;
+    isBossFight?: boolean;
+    bossPhaseAdvance?: boolean;
+    scenePurpose?: string;
+    pacingMode?: string;
+    suggestedActions?: string[];
+    awaitingRoll?: boolean;
+    rollContext?: unknown;
+    diceRequired?: boolean;
+    hpChange?: number;
+    loot?: unknown;
+    isDeath?: boolean;
+    deathDescription?: string;
+    isHighStakes?: boolean;
+    choiceCards?: unknown;
+    worldStateChanges?: Partial<WorldState>;
+    character1Changes?: { hpChange?: number; loot?: unknown; isDeath?: boolean; deathDescription?: string };
+    character2Changes?: { hpChange?: number; loot?: unknown; isDeath?: boolean; deathDescription?: string };
+  },
+  actions: string[],
+  location: string | undefined,
+  alreadyInCombat: boolean,
+): boolean {
+  if (
+    alreadyInCombat
+    || !aiResponse.isCombat
+    || !actions.some(isFightSeekingAction)
+    || hasGroundedEncounterSetup(aiResponse.narration)
+  ) {
+    return false;
+  }
+
+  const phantomNames = new Set([
+    aiResponse.enemyName,
+    ...(aiResponse.combatEnemies || []).map(enemy => enemy.name),
+  ].filter((name): name is string => !!name).map(name => name.toLowerCase()));
+  if (aiResponse.worldStateChanges) {
+    const changes = aiResponse.worldStateChanges;
+    if (changes.npcMemory) {
+      changes.npcMemory = toArr<NpcMemory>(changes.npcMemory)
+        .filter(npc => !phantomNames.has(npc.name.toLowerCase()));
+    }
+    if (typeof changes.activeNPC === 'string' && phantomNames.has(changes.activeNPC.toLowerCase())) {
+      changes.activeNPC = null;
+    }
+    changes.combatState = null;
+  }
+
+  aiResponse.narration = groundedFightSearchNarration(location);
+  aiResponse.isCombat = false;
+  aiResponse.isVictory = false;
+  aiResponse.enemyName = undefined;
+  aiResponse.combatEnemies = undefined;
+  aiResponse.enemyDefeated = undefined;
+  aiResponse.isBossFight = false;
+  aiResponse.bossPhaseAdvance = false;
+  aiResponse.scenePurpose = 'gather_info';
+  aiResponse.pacingMode = 'tension';
+  aiResponse.suggestedActions = ['Follow the freshest trail', 'Question someone nearby', 'Choose a defensible ambush point'];
+  aiResponse.awaitingRoll = false;
+  aiResponse.rollContext = undefined;
+  aiResponse.diceRequired = false;
+  aiResponse.hpChange = undefined;
+  aiResponse.loot = undefined;
+  aiResponse.isDeath = false;
+  aiResponse.deathDescription = undefined;
+  aiResponse.isHighStakes = false;
+  aiResponse.choiceCards = undefined;
+  if (aiResponse.character1Changes) {
+    aiResponse.character1Changes.hpChange = undefined;
+    aiResponse.character1Changes.loot = undefined;
+    aiResponse.character1Changes.isDeath = false;
+    aiResponse.character1Changes.deathDescription = undefined;
+  }
+  if (aiResponse.character2Changes) {
+    aiResponse.character2Changes.hpChange = undefined;
+    aiResponse.character2Changes.loot = undefined;
+    aiResponse.character2Changes.isDeath = false;
+    aiResponse.character2Changes.deathDescription = undefined;
+  }
+  return true;
 }
 
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -993,6 +1120,7 @@ export async function processAction(
   );
   enforceTurnPlanNarration(aiResponse, turnPlan);
   applyContinuityRepairs(aiResponse, [character as Character], turnPlan.rails);
+  preventUngroundedFight(aiResponse, [action], ws.currentLocation, !!ws.combatState?.inCombat);
 
   // Explicit rest detection â€” override AI if player clearly stated rest intent (but not negations)
   const isNegatedRest = /\b(not|don'?t|won'?t|can'?t|no|never|stop|avoid|refuse)\b.{0,20}\b(rest|sleep|camp|recover)\b/i.test(action);
@@ -1182,6 +1310,24 @@ export async function processAction(
         interactionCount: 1,
       }]
     : [];
+  const combatSignals = actionSignals([action]);
+  const newCombatEncounter = !ws.combatState?.inCombat && !!combatState?.inCombat;
+  const combatantEnemies = combatState?.enemies || aiResponse.combatEnemies || ws.combatState?.enemies;
+  const defeatedNames = newlyDefeatedCombatants(ws.combatState?.enemies, combatantEnemies, aiResponse.enemyDefeated);
+  const shouldUpdateCombatantMemory = newCombatEncounter
+    || defeatedNames.length > 0
+    || combatSignals.pursuedOrCornered
+    || combatSignals.sparedOrAcceptedSurrender
+    || combatSignals.rescued;
+  const combatantNpcMemory = shouldUpdateCombatantMemory
+    ? combatantMemoryPatch(combatantEnemies, ws.npcMemory, {
+        location: newLocation || ws.currentLocation,
+        playerNames: [character.name],
+        newEncounter: newCombatEncounter,
+        defeatedNames,
+        ...combatSignals,
+      })
+    : [];
 
   // Persist shop inventory per location â€” same visit shows same items, but resets after leaving and doing 5+ things elsewhere
   const shopInventoryChange: Partial<WorldState> = {};
@@ -1267,8 +1413,14 @@ export async function processAction(
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
     ...turnPlan.worldStatePatch,
-    ...(autoNpcMemory.length > 0
-      ? { npcMemory: [...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory), ...autoNpcMemory] }
+    ...(autoNpcMemory.length > 0 || combatantNpcMemory.length > 0
+      ? {
+          npcMemory: [
+            ...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory),
+            ...autoNpcMemory,
+            ...combatantNpcMemory,
+          ],
+        }
       : {}),
     ...locationTracking,
     ...buildContinuityPatch([character as Character], turnPlan.rails, ws, aiResponse, newActionCount, newLocation),
@@ -1337,8 +1489,10 @@ export async function processAction(
     { id: campaignId, world_state: campaign.world_state as WorldState, act: campaign.act, world_bible: wb }
   );
 
-  // Advance act if triggered
-  if (aiResponse.advanceAct) {
+  // The model may propose an act transition, but the engine owns the pacing gate.
+  const didAdvanceAct = !!aiResponse.advanceAct
+    && canAdvanceAct(updatedWorldState, wb, campaign.act || 1).allowed;
+  if (didAdvanceAct) {
     const newAct = (campaign.act || 1) + 1;
     await supabaseAdmin.from('campaigns').update({ act: newAct }).eq('id', campaignId);
 
@@ -1432,7 +1586,7 @@ export async function processAction(
     loot: aiResponse.loot as ActionResult['loot'],
     shopItems: aiResponse.shopItems as ShopItem[] | undefined,
     isMerchant: aiResponse.isMerchant,
-    advanceAct: aiResponse.advanceAct,
+    advanceAct: didAdvanceAct,
     statusEffectChanges: aiResponse.statusEffectChanges as ActionResult['statusEffectChanges'],
     isHighStakes: aiResponse.isHighStakes,
     choiceCards: aiResponse.choiceCards,
@@ -1975,6 +2129,7 @@ export async function processCoopAction(
   );
   enforceTurnPlanNarration(aiResponse, coopPlan);
   applyContinuityRepairs(aiResponse, characters, coopPlan.rails);
+  preventUngroundedFight(aiResponse, pendingActions.map(pa => pa.action), ws.currentLocation, !!ws.combatState?.inCombat);
   if (coopPlan.resolvedRolls.length > 0) {
     aiResponse.awaitingRoll = false;
     aiResponse.rollContext = undefined;
@@ -2167,6 +2322,24 @@ export async function processCoopAction(
 
   // Update combat state (shared with the solo path)
   const { combatState, forcedVictory } = advanceCombatState(ws.combatState ?? null, aiResponse, pendingActions.map(pa => pa.action));
+  const combatSignals = actionSignals(pendingActions.map(pa => pa.action));
+  const newCombatEncounter = !ws.combatState?.inCombat && !!combatState?.inCombat;
+  const combatantEnemies = combatState?.enemies || aiResponse.combatEnemies || ws.combatState?.enemies;
+  const defeatedNames = newlyDefeatedCombatants(ws.combatState?.enemies, combatantEnemies, aiResponse.enemyDefeated);
+  const shouldUpdateCombatantMemory = newCombatEncounter
+    || defeatedNames.length > 0
+    || combatSignals.pursuedOrCornered
+    || combatSignals.sparedOrAcceptedSurrender
+    || combatSignals.rescued;
+  const combatantNpcMemory = shouldUpdateCombatantMemory
+    ? combatantMemoryPatch(combatantEnemies, ws.npcMemory, {
+        location: newLocation || ws.currentLocation,
+        playerNames: characters.map(character => character.name),
+        newEncounter: newCombatEncounter,
+        defeatedNames,
+        ...combatSignals,
+      })
+    : [];
 
   // Update foreshadowing ledger from AI response
   const ledgerChanges: ForeshadowingEntry[] = [];
@@ -2260,8 +2433,14 @@ export async function processCoopAction(
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
     ...coopPlan.worldStatePatch,
-    ...(autoNpcMemory.length > 0
-      ? { npcMemory: [...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory), ...autoNpcMemory] }
+    ...(autoNpcMemory.length > 0 || combatantNpcMemory.length > 0
+      ? {
+          npcMemory: [
+            ...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory),
+            ...autoNpcMemory,
+            ...combatantNpcMemory,
+          ],
+        }
       : {}),
     ...(ledgerChanges.length > 0 ? { foreshadowingLedger: ledgerChanges } : {}),
     ...(futureHooksChanges ? { futureHooks: futureHooksChanges } : {}),
@@ -2355,8 +2534,10 @@ export async function processCoopAction(
     { id: campaignId, world_state: char1Result.updatedWorldState, act: campaign.act, world_bible: wb }
   );
 
-  // Advance act if triggered
-  if (aiResponse.advanceAct) {
+  // The model may propose an act transition, but the engine owns the pacing gate.
+  const didAdvanceAct = !!aiResponse.advanceAct
+    && canAdvanceAct(char2Result.updatedWorldState, wb, campaign.act || 1).allowed;
+  if (didAdvanceAct) {
     const newAct = (campaign.act || 1) + 1;
     await supabaseAdmin.from('campaigns').update({ act: newAct }).eq('id', campaignId);
 
@@ -2429,7 +2610,7 @@ export async function processCoopAction(
     choiceCards: aiResponse.choiceCards ?? null,
     isMerchant: !!aiResponse.isMerchant,
     shopItems: aiResponse.isMerchant ? aiResponse.shopItems ?? null : null,
-    advanceAct: !!aiResponse.advanceAct,
+    advanceAct: didAdvanceAct,
     bossPhaseAdvance: !!aiResponse.bossPhaseAdvance,
     achievementUnlocked: aiResponse.achievementUnlocked ?? null,
     railRolls: coopPlan.resolvedRolls,
@@ -2518,7 +2699,7 @@ export async function processCoopAction(
     loot: (aiResponse.character1Changes?.loot || aiResponse.loot) as ActionResult['loot'],
     isHighStakes: aiResponse.isHighStakes,
     choiceCards: aiResponse.choiceCards,
-    advanceAct: aiResponse.advanceAct,
+    advanceAct: didAdvanceAct,
     isBossFight: aiResponse.isBossFight,
     bossPhaseAdvance: aiResponse.bossPhaseAdvance,
     combatEnemies: aiResponse.combatEnemies,
