@@ -8,6 +8,12 @@ import { canAdvanceAct } from './actPacingSystem';
 import { preventUngroundedFight } from './aiContractValidator';
 import { advanceCombatState as advanceCombatStateFromSystem, newlyDefeatedCombatants } from './combatSystem';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
+import {
+  buildCampaignSpineSnapshot as buildCampaignSpineSnapshotFromSystem,
+  buildLocationGraphSnapshot as buildLocationGraphSnapshotFromSystem,
+  campaignLengthTargetActions as campaignLengthTargetActionsFromSystem,
+  mergeWorldStateChanges as mergeWorldStateChangesFromSystem,
+} from './worldStateSystem';
 
 function appendAchievement(existing: UnlockedAchievement[] | undefined, achievement: { title: string; description: string }, characterName: string): UnlockedAchievement[] {
   const list = existing || [];
@@ -661,7 +667,7 @@ export async function applyConsequences(
 
   // Apply world state changes (smart patch merge)
   if (actionResult.worldStateChanges) {
-    newWorldState = mergeWorldStateChanges(newWorldState, actionResult.worldStateChanges as Partial<WorldState>);
+    newWorldState = mergeWorldStateChangesFromSystem(newWorldState, actionResult.worldStateChanges as Partial<WorldState>);
   }
 
   // Apply HP changes
@@ -810,8 +816,8 @@ export async function applyConsequences(
   }
 
   // Single atomic world state write â€” eliminates co-op race conditions
-  newWorldState.locationGraph = buildLocationGraphSnapshot(newWorldState, campaign.world_bible);
-  newWorldState.campaignSpine = buildCampaignSpineSnapshot(newWorldState, campaign.world_bible, campaign.act ?? 1);
+  newWorldState.locationGraph = buildLocationGraphSnapshotFromSystem(newWorldState, campaign.world_bible);
+  newWorldState.campaignSpine = buildCampaignSpineSnapshotFromSystem(newWorldState, campaign.world_bible, campaign.act ?? 1);
   await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
 
   // Persist character updates
@@ -1023,7 +1029,7 @@ export async function processAction(
     });
 
     if (aiResponse.worldStateChanges) {
-      const wsWithChanges = mergeWorldStateChanges(ws, aiResponse.worldStateChanges);
+      const wsWithChanges = mergeWorldStateChangesFromSystem(ws, aiResponse.worldStateChanges);
       await supabaseAdmin.from('campaigns').update({ world_state: wsWithChanges }).eq('id', campaignId);
     }
 
@@ -1278,7 +1284,7 @@ export async function processAction(
     if (primaryAntagonist) {
       const progress = antagonistProgress[primaryAntagonist.name];
       const totalSteps = primaryAntagonist.planSteps?.length || 5;
-      const targetActions = campaignLengthTargetActions(wb);
+      const targetActions = campaignLengthTargetActionsFromSystem(wb);
       if (progress && progress.stepIndex >= totalSteps - 1 && newActionCount >= targetActions * 0.5) {
         endgamePhase = 'approaching';
       }
@@ -1390,8 +1396,8 @@ export async function processAction(
       const wsUpdates: Partial<WorldState> = { actionsInCurrentAct: 0 };
       if (hooksChanged) wsUpdates.backstoryHooks = updatedHooks;
       const advancedWorldState = { ...postActWs, ...wsUpdates };
-      advancedWorldState.locationGraph = buildLocationGraphSnapshot(advancedWorldState, wb);
-      advancedWorldState.campaignSpine = buildCampaignSpineSnapshot(advancedWorldState, wb, newAct);
+      advancedWorldState.locationGraph = buildLocationGraphSnapshotFromSystem(advancedWorldState, wb);
+      advancedWorldState.campaignSpine = buildCampaignSpineSnapshotFromSystem(advancedWorldState, wb, newAct);
       await supabaseAdmin.from('campaigns').update({ world_state: advancedWorldState }).eq('id', campaignId);
     }
   }
@@ -1745,9 +1751,9 @@ export async function getOpeningScene(
       [characterId]: new Date().toISOString(),
     },
   };
-  const openingWorldState = mergeWorldStateChanges(openingWs, openingChanges);
-  openingWorldState.locationGraph = buildLocationGraphSnapshot(openingWorldState, openingWb);
-  openingWorldState.campaignSpine = buildCampaignSpineSnapshot(openingWorldState, openingWb, campaign.act || 1);
+  const openingWorldState = mergeWorldStateChangesFromSystem(openingWs, openingChanges);
+  openingWorldState.locationGraph = buildLocationGraphSnapshotFromSystem(openingWorldState, openingWb);
+  openingWorldState.campaignSpine = buildCampaignSpineSnapshotFromSystem(openingWorldState, openingWb, campaign.act || 1);
   await supabaseAdmin.from('campaigns').update({ world_state: openingWorldState }).eq('id', campaignId);
 
   // Save just the narration â€” no player action event for the opening
@@ -1887,7 +1893,7 @@ export async function getCoopOpeningScene(
   // Persist any world state the opening established (location, NPCs met, active
   // NPC) so both players share a consistent world from turn one.
   if (aiResponse.worldStateChanges) {
-    const mergedWs = mergeWorldStateChanges(openingWs, aiResponse.worldStateChanges);
+    const mergedWs = mergeWorldStateChangesFromSystem(openingWs, aiResponse.worldStateChanges);
     await supabaseAdmin.from('campaigns').update({ world_state: mergedWs }).eq('id', campaignId);
   }
 
@@ -2048,7 +2054,7 @@ export async function processCoopAction(
       })
     ));
 
-    const wsWithChanges = aiResponse.worldStateChanges ? mergeWorldStateChanges(ws, aiResponse.worldStateChanges) : ws;
+    const wsWithChanges = aiResponse.worldStateChanges ? mergeWorldStateChangesFromSystem(ws, aiResponse.worldStateChanges) : ws;
 
     await supabaseAdmin.from('campaigns').update({
       world_state: { ...wsWithChanges, pendingTurn: null, coopPendingRoll: { actingCharacterId, rollContext: aiResponse.rollContext, actions: pendingActions } }
@@ -2300,7 +2306,7 @@ export async function processCoopAction(
     if (primaryAntagonist) {
       const progress = antagonistProgress[primaryAntagonist.name];
       const totalSteps = primaryAntagonist.planSteps?.length || 5;
-      const targetActions = campaignLengthTargetActions(wb);
+      const targetActions = campaignLengthTargetActionsFromSystem(wb);
       if (progress && progress.stepIndex >= totalSteps - 1 && newActionCount >= targetActions * 0.5) {
         endgamePhase = 'approaching';
       }
@@ -2434,8 +2440,8 @@ export async function processCoopAction(
       const wsUpdates: Partial<WorldState> = { actionsInCurrentAct: 0 };
       if (hooksChanged) wsUpdates.backstoryHooks = updatedHooks;
       const advancedWorldState = { ...postActWs, ...wsUpdates };
-      advancedWorldState.locationGraph = buildLocationGraphSnapshot(advancedWorldState, wb);
-      advancedWorldState.campaignSpine = buildCampaignSpineSnapshot(advancedWorldState, wb, newAct);
+      advancedWorldState.locationGraph = buildLocationGraphSnapshotFromSystem(advancedWorldState, wb);
+      advancedWorldState.campaignSpine = buildCampaignSpineSnapshotFromSystem(advancedWorldState, wb, newAct);
       await supabaseAdmin.from('campaigns').update({ world_state: advancedWorldState }).eq('id', campaignId);
     }
   }
