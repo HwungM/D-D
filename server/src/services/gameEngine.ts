@@ -55,6 +55,14 @@ function toArr<T>(value: unknown): T[] {
 
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 import { getAbilityForLevel } from '../../../shared/classAbilities';
+import {
+  calculateActionXp,
+  calculateNarrativeXp,
+  degreeOfSuccess,
+  normalizeMechanicalConsequences,
+  resolvePlayerCombatRoll,
+  stackInventory,
+} from './rulesEngine';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -472,14 +480,26 @@ export function advanceCombatState(
     const initialEnemies: CombatEnemy[] = ai.combatEnemies && ai.combatEnemies.length > 0
       ? ai.combatEnemies
       : [{ name: ai.enemyName, archetype: 'soldier', maxHp: 30, condition: 'healthy' }];
+    const normalizedEnemies = initialEnemies.map(enemy => ({
+      ...enemy,
+      maxHp: Math.max(1, Math.min(500, Math.round(enemy.maxHp || 1))),
+      currentHp: Math.max(1, Math.min(500, Math.round(enemy.currentHp ?? enemy.maxHp ?? 1))),
+      armorClass: enemy.armorClass ?? (
+        enemy.archetype === 'boss' ? 17
+          : enemy.archetype === 'soldier' ? 15
+            : enemy.archetype === 'mage' ? 12
+              : enemy.archetype === 'minion' ? 11
+                : 13
+      ),
+    }));
     return {
       combatState: {
         inCombat: true,
-        enemyName: initialEnemies.find(e => !e.isDefeated)?.name || initialEnemies[0]?.name || ai.enemyName,
+        enemyName: normalizedEnemies.find(e => !e.isDefeated)?.name || normalizedEnemies[0]?.name || ai.enemyName,
         enemyCondition: 'healthy',
         roundNumber: 1,
         playerActionsAttempted: newActions,
-        enemies: initialEnemies,
+        enemies: normalizedEnemies,
         isBossFight: ai.isBossFight || false,
         bossPhase: ai.isBossFight ? 1 : undefined,
       },
@@ -496,9 +516,22 @@ export function advanceCombatState(
 
     let enemies = prev.enemies || [];
     if (ai.combatEnemies && ai.combatEnemies.length > 0) {
-      enemies = ai.combatEnemies;
+      enemies = ai.combatEnemies.map(enemy => {
+        const prior = prev.enemies?.find(candidate => candidate.name.toLowerCase() === enemy.name.toLowerCase());
+        const maxHp = Math.max(1, Math.min(500, Math.round(enemy.maxHp || prior?.maxHp || 1)));
+        const currentHp = Math.max(0, Math.min(maxHp, Math.round(enemy.currentHp ?? prior?.currentHp ?? maxHp)));
+        const hpRatio = currentHp / maxHp;
+        return {
+          ...enemy,
+          maxHp,
+          currentHp,
+          condition: currentHp === 0 || hpRatio <= 0.25 ? 'critical' as const : hpRatio <= 0.6 ? 'wounded' as const : 'healthy' as const,
+          isDefeated: enemy.isDefeated || currentHp === 0,
+          armorClass: enemy.armorClass ?? prior?.armorClass,
+        };
+      });
     } else if (ai.enemyDefeated) {
-      enemies = enemies.map(e => e.name === ai.enemyDefeated ? { ...e, isDefeated: true, condition: 'critical' as const } : e);
+      enemies = enemies.map(e => e.name === ai.enemyDefeated ? { ...e, currentHp: 0, isDefeated: true, condition: 'critical' as const } : e);
     } else {
       enemies = enemies.map(e => e.name === prev.enemyName ? { ...e, condition: roundCondition } : e);
     }
@@ -611,6 +644,11 @@ export async function applyConsequences(
 ): Promise<{ updatedCharacter: Character; updatedWorldState: WorldState }> {
   const validItemTypes = new Set(['weapon', 'armor', 'potion', 'misc', 'key']);
   const updates: Partial<Character> = {};
+  const mechanical = normalizeMechanicalConsequences(currentCharacter, {
+    hpChange: actionResult.hpChange,
+    goldChange: actionResult.goldChange,
+    loot: actionResult.loot,
+  }, { isDeath: actionResult.isDeath });
 
   // Re-fetch latest world state right before writing to minimize race window in co-op
   const { data: freshCampaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaign.id).single();
@@ -623,20 +661,19 @@ export async function applyConsequences(
   }
 
   // Apply HP changes
-  if (actionResult.hpChange !== undefined && !isNaN(actionResult.hpChange)) {
-    updates.hp = Math.max(0, Math.min(currentCharacter.max_hp, currentCharacter.hp + actionResult.hpChange));
+  if (mechanical.hpChange !== undefined) {
+    updates.hp = Math.max(0, Math.min(currentCharacter.max_hp, currentCharacter.hp + mechanical.hpChange));
   }
 
   // Apply gold changes â€” validate to prevent NaN/runaway values from AI
-  if (actionResult.goldChange !== undefined && !isNaN(actionResult.goldChange)) {
-    const clampedChange = Math.max(-10000, Math.min(10000, Math.round(actionResult.goldChange)));
-    updates.gold = Math.max(0, currentCharacter.gold + clampedChange);
+  if (mechanical.goldChange !== undefined) {
+    updates.gold = Math.max(0, currentCharacter.gold + mechanical.goldChange);
   }
 
   // Apply loot to inventory
-  if (actionResult.loot && actionResult.loot.length > 0) {
+  if (mechanical.loot && mechanical.loot.length > 0) {
     const existingInventory = currentCharacter.inventory || [];
-    const newItems = actionResult.loot
+    const newItems = mechanical.loot
       .filter(item => item.name && typeof item.name === 'string')
       .map(item => ({
         id: item.id || crypto.randomUUID(),
@@ -648,17 +685,7 @@ export async function applyConsequences(
         setName: (item as { setName?: string }).setName,
         setBonus: (item as { setBonus?: string }).setBonus,
       }));
-    // Stack items with same name
-    const merged = [...existingInventory];
-    for (const newItem of newItems) {
-      const existing = merged.find(i => i.name.toLowerCase() === newItem.name.toLowerCase());
-      if (existing) {
-        existing.quantity += newItem.quantity;
-      } else {
-        merged.push(newItem);
-      }
-    }
-    updates.inventory = merged;
+    updates.inventory = stackInventory(existingInventory, newItems);
   }
 
   // Apply XP and check level up
@@ -728,21 +755,11 @@ export async function applyConsequences(
       .filter(item => item.quantity > 0);
   }
 
-  // Accumulate all world state mutations before writing once
+  // Accumulate session notes until the players explicitly end the shared
+  // session. This avoids arbitrary "every N actions" boundaries and gives
+  // recaps a real start/end point.
   if (actionResult.sessionNote) {
-    let notes = [...(newWorldState.sessionNotes || []), actionResult.sessionNote].slice(-50);
-    if (notes.length >= 8) {
-      try {
-        const actNumber = campaign.act ?? 1;
-        const sessionCount = (newWorldState.sessionCount ?? 0) + 1;
-        const entry = await compressToJournalEntry(campaign.id, notes, actNumber, sessionCount);
-        newWorldState.campaignJournal = [...(newWorldState.campaignJournal || []), entry];
-        notes = [];
-      } catch {
-        notes = notes.slice(-10);
-      }
-    }
-    newWorldState.sessionNotes = notes;
+    newWorldState.sessionNotes = [...(newWorldState.sessionNotes || []), actionResult.sessionNote].slice(-100);
   }
 
   if (actionResult.characterHistoryNote) {
@@ -1036,7 +1053,12 @@ export async function processAction(
   }
 
   // Calculate XP for meaningful actions
-  const xpGained = success ? Math.floor(Math.random() * 20) + 10 : 5;
+  const xpGained = diceResult
+    ? calculateActionXp(character.level, degreeOfSuccess(diceResult.rolls[0] || 1, diceResult.total, aiResponse.diceDC ?? 12), {
+        combat: !!aiResponse.isCombat,
+        dramatic: !!aiResponse.isHighStakes,
+      })
+    : calculateNarrativeXp(character.level, { combat: !!aiResponse.isCombat });
 
   // Always track per-character location and last seen
   const newLocation = turnPlan.worldStatePatch.currentLocation || (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation;
@@ -1452,12 +1474,28 @@ export async function resolveRollAction(
     recentHistory
   );
 
-  const xpGained = success ? Math.floor(Math.random() * 20) + 10 : 5;
+  const xpGained = calculateActionXp(
+    (character as Character).level,
+    degreeOfSuccess(rollResult, rollTotal, dc),
+    { combat: !!(campaign.world_state as WorldState).combatState?.inCombat, dramatic: rollContext.isDramatic },
+  );
+  const combatRoll = resolvePlayerCombatRoll(
+    character as Character,
+    (campaign.world_state as WorldState).combatState,
+    rollContext,
+    rollResult,
+    rollTotal,
+    dc,
+  );
+  const worldStateChanges = {
+    ...(aiResponse.worldStateChanges as Partial<WorldState> | undefined),
+    ...(combatRoll ? { combatState: combatRoll.combatState } : {}),
+  };
 
   const { updatedCharacter, updatedWorldState } = await applyConsequences(
     characterId,
     {
-      worldStateChanges: aiResponse.worldStateChanges as Partial<WorldState>,
+      worldStateChanges,
       isDeath: aiResponse.isDeath,
       xpGained,
       hpChange: aiResponse.isDeath ? -(character as Character).max_hp : aiResponse.hpChange,
@@ -1473,7 +1511,7 @@ export async function resolveRollAction(
     character_id: characterId,
     event_type: 'dice_roll',
     content: `Rolled ${rollResult} (total ${rollTotal}) vs DC ${dc} â€” ${success ? 'SUCCESS' : 'FAILURE'}`,
-    metadata: { rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, rollContext },
+    metadata: { rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, rollContext, combatDamage: combatRoll?.damage || 0, combatTarget: combatRoll?.target },
   });
   await supabaseAdmin.from('story_events').insert({
     campaign_id: campaignId,
@@ -1504,8 +1542,9 @@ export async function resolveRollAction(
     sceneImagePrompt: aiResponse.sceneImagePrompt,
     suggestedActions: aiResponse.suggestedActions,
     isDeath: aiResponse.isDeath,
-    isVictory: aiResponse.isVictory,
-    isCombat: aiResponse.isCombat,
+    isVictory: combatRoll?.victory || aiResponse.isVictory,
+    isCombat: combatRoll ? !combatRoll.victory : aiResponse.isCombat,
+    combatDamage: combatRoll?.target ? { target: combatRoll.target, amount: combatRoll.damage, defeated: combatRoll.defeated } : undefined,
     loot: aiResponse.loot as ActionResult['loot'],
     isLevelUp: false,
   };
@@ -1542,7 +1581,11 @@ export async function resolveCoopRollAction(
   const { data: refreshedCampaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaignId).single();
   const wsAfterRoll = (refreshedCampaign?.world_state || result.worldStateChanges || ws) as WorldState;
 
-  const xpGained = success ? Math.floor(Math.random() * 20) + 10 : 5;
+  const xpGained = calculateActionXp(
+    (partnerChar as Character).level,
+    degreeOfSuccess(rollResult, rollTotal, dc),
+    { combat: !!ws.combatState?.inCombat, dramatic: rollContext.isDramatic, coop: true },
+  );
   // worldStateChanges (not the passed-in snapshot) is what actually persists:
   // applyConsequences re-fetches the latest world state before writing, so the
   // pending roll must be cleared via the merge path or it lives in the DB forever.
@@ -2011,7 +2054,10 @@ export async function processCoopAction(
     success = diceResult.total >= (aiResponse.diceDC ?? 12);
   }
 
-  const xpGained = success ? (aiResponse.comboBonus ? Math.floor((Math.floor(Math.random() * 20) + 10) * 1.5) : Math.floor(Math.random() * 20) + 10) : 5;
+  const xpGained = calculateNarrativeXp(
+    Math.max(characters[0]?.level || 1, characters[1]?.level || 1),
+    { combat: !!aiResponse.isCombat, coop: true },
+  ) + (aiResponse.comboBonus ? 5 : 0);
 
   // Build world state changes (tracking both characters)
   const newActionCount = (ws.actionCount || 0) + 1;

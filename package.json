@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "install:all": "npm install --prefix server && npm install --prefix client",
-    "build": "echo 'skip'",
+    "build": "npm run build --prefix server && npm run build --prefix client",
+    "typecheck": "npm run typecheck --prefix server && npm run typecheck --prefix client",
+    "test": "npm run test --prefix server",
+    "check": "npm run typecheck && npm run test && npm run build",
     "start": "cd server && npx tsx src/index.ts"
   },
   "devDependencies": {

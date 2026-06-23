@@ -612,7 +612,9 @@ function CampaignCard({ campaign, onContinue, onDelete, isContinuing = false, is
   const image = getCampaignImage(campaign)
   const playMode = campaignPlayMode(campaign)
   const currentLocation = campaign.world_state?.currentLocation || 'Unknown road'
-  const scenePurpose = (campaign.world_state as { scenePurpose?: string } | undefined)?.scenePurpose || 'The DM is holding the next beat.'
+  const latestRecap = campaign.world_state?.lastSessionRecap?.summary || campaign.world_state?.campaignSpine?.lastRecap
+  const sessionNumber = campaign.world_state?.sessionCount || campaign.world_state?.lastSessionRecap?.sessionNumber
+  const scenePurpose = latestRecap || 'The DM is holding the next beat.'
 
   return (
     <article className="group relative min-h-[360px] overflow-hidden border border-white/10 bg-black/50 shadow-[0_18px_80px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-1 hover:border-cyan-200/42 hover:shadow-[0_30px_110px_rgba(0,0,0,0.52)]">
@@ -636,6 +638,11 @@ function CampaignCard({ campaign, onContinue, onDelete, isContinuing = false, is
                 }
               >
                 {playMode === 'collaborative' ? 'Party' : 'Solo'}
+              </span>
+            )}
+            {!isTesting && sessionNumber && (
+              <span className="border border-violet-200/20 bg-violet-300/[0.07] px-2.5 py-1 font-fantasy text-[10px] uppercase tracking-[0.16em] text-violet-100/68">
+                Session {sessionNumber}
               </span>
             )}
           </div>
