@@ -6,6 +6,7 @@ import { supabaseAdmin } from './supabase';
 import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext, CharacterOnlineStatus, NpcMemory, CombatEnemy, Recipe, Companion } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
 import { buildStoryTasteProfile, formatTasteDirective } from './storyTaste';
+import { COMBAT_AND_NPC_PERSISTENCE_CONTRACT, GROUNDED_ENCOUNTER_CONTRACT } from './aiPromptContracts';
 
 dotenv.config();
 
@@ -265,9 +266,7 @@ LIVING WORLD RULES — What makes D&D feel like D&D:
 - Economy is logical. Things cost money. Rare things cost more. Some things aren't for sale. Services require favors or trust. Being famous opens some doors and closes others.
 - Seed at least one background tension per region: a noble family dispute, a mercenary company gone quiet, a harvest that failed, a temple whose priests stopped being seen. These are not quests — they are the texture of a living world. The party may never investigate. That's fine.
 
-GROUNDED ENCOUNTER RULE:
-- "I look for a fight/trouble/enemies" begins a search; it does NOT summon opponents out of nowhere. Unless a hostile is already present or an established threat is immediately reachable, spend this turn grounding the encounter through tracks, witnesses, rumors, a visible patrol, a victim, a hideout, or an ambush location. End with a concrete lead and meaningful choices. Combat may begin after the party follows or acts on that lead.
-- Every encounter needs a reason these opponents are here, what they were doing before the party arrived, and a physical route by which the party found them. Never use "suddenly, two bandits appear" as the whole setup.
+${GROUNDED_ENCOUNTER_CONTRACT}
 
 NPC CONVERSATION TRACKING:
 - When the character begins talking to a specific NPC, set worldStateChanges.activeNPC to that NPC's name.
@@ -406,17 +405,7 @@ ENEMY ROSTER — Pre-generated portraits exist for ALL of these. Use names from 
 goblin, goblin shaman, bandit, bandit leader, assassin, cultist, dark knight, dark wizard, fallen paladin, warlord, necromancer, vampire, lich, mind flayer, demon, shadow demon, imp, pit fiend, succubus, ghost, specter, wight, revenant, wraith, will-o-wisp, skeleton, skeleton archer, skeleton mage, zombie, zombie giant, mummy, young dragon, ancient dragon, wyvern, harpy, manticore, chimera, hydra, basilisk, medusa, beholder, minotaur, owlbear, troll, ogre, giant rat, giant spider, dire wolf, wolf, hell hound, gargoyle, treant, earth elemental, fire elemental, orc warrior, orc warchief, orc berserker, gnoll, gnoll pack lord, gnoll berserker, bugbear, kobold, kobold shaman, kobold trapper, hill giant, frost giant, stone giant, storm giant, fire giant, cyclops, sea monster, dragon turtle, doppelganger, lamia, yuan-ti, werewolf, wendigo, golem, iron golem, stone golem, flesh golem, clay golem, death knight, vampire thrall, vampire bride, drow, drow priestess, drider, rakshasa, night hag, sea hag, displacer beast, bulette, purple worm, remorhaz, carrion crawler, gibbering mouther, naga, marilith, balor, chain devil, bone devil, aboleth, chuul, roper, intellect devourer, phase spider, ettercap, ankheg, umber hulk, rust monster, fallen angel.
 You may add a name prefix (e.g. "Ancient Minotaur", "Corrupted Treant", "Pack of Gnolls") — the keyword still matches. Only invent a fully custom creature when the story truly demands something unique that none of the above can serve.
 
-MULTI-ENEMY COMBAT RULES:
-- When starting combat with multiple enemies, set combatEnemies: [{name, archetype, maxHp, condition, specialAbility}] for each enemy.
-- Give every person-like combatant a distinct name. Every named combatant is a persistent person: include each one in worldStateChanges.npcMemory, not only the active speaker or lead enemy.
-- Violence has durable social consequences. Starting a real fight generally makes a person-like opponent hostile; defeating, chasing, or cornering someone worsens the relationship further, while accepting surrender or rescuing them can temper it. Do not leave a beaten enemy at a mildly awkward acquaintance relationship.
-- archetype: "beast" (savage, fearless), "soldier" (tactical, coordinated), "mage" (ranged, vulnerable melee), "boss" (legendary, multi-phase), "minion" (numerous, fragile)
-- Each round, return combatEnemies[] reflecting current state. When an enemy falls, set their isDefeated: true AND set enemyDefeated to their name.
-- Each archetype fights differently: soldiers shield each other, mages hang back, minions rush in waves, beasts go for killing blows.
-- Boss fights: set isBossFight: true on combat start. When boss condition reaches "critical", set bossPhaseAdvance: true and describe a dramatic transformation - the boss gets more dangerous, not less.
-- Suggest actions that are class-appropriate and reference available abilities.
-- VARY combat suggestions round to round - don't repeat the same spell/attack as a suggestion 2 rounds running even if it's working. Once a character has used their signature attack 2+ times this fight, suggest something different: an item, a different ability/cantrip, a tactical move (terrain, cover, flanking, protecting an ally), or pressing an advantage (a finishing blow, a grapple, knocking a weapon away).
-- If the party has a companion (provided in context), let it act in combat: at bondLevel 1-2 it might distract an enemy or create a small opening (narrative only); at bondLevel 3-4 it can land minor hits or interpose to soak a hit (small hpChange, occasional minor heal/damage in the 1-3 range); at bondLevel 5 it can pull off a meaningful assist (a bigger hpChange, helping defeat a minion, or saving a character from a killing blow). Don't make the companion a second full combatant - it supports, it doesn't replace player agency.
+${COMBAT_AND_NPC_PERSISTENCE_CONTRACT}
 
 COMBAT STAKES & DAMAGE RULES:
 - Combat must cost something. Every round that an enemy is still standing and able to act, it ACTS - it attacks, grapples, corners, or wounds. A round where the players take no damage must be EARNED (strong defense, clever positioning, a good roll, a spent resource or ability) - never the default. A whole fight with zero damage taken against a real enemy group is a failure of stakes.
