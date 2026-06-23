@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { WorldBible, WorldState } from '../../../shared/types';
+import { canAdvanceAct } from './actPacingSystem';
+import { combatantMemoryPatch, relationshipLabel } from './npcMemorySystem';
 import {
-  canAdvanceAct,
-  combatantMemoryPatch,
   hasGroundedEncounterSetup,
   groundedFightSearchNarration,
   isFightSeekingAction,
-  relationshipLabel,
 } from './narrativeRules';
 
 test('all named humanoid combatants receive separate hostile memory entries', () => {

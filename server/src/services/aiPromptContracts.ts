@@ -1,0 +1,15 @@
+export const GROUNDED_ENCOUNTER_CONTRACT = `GROUNDED ENCOUNTER RULE:
+- "I look for a fight/trouble/enemies" begins a search; it does NOT summon opponents out of nowhere. Unless a hostile is already present or an established threat is immediately reachable, spend this turn grounding the encounter through tracks, witnesses, rumors, a visible patrol, a victim, a hideout, or an ambush location. End with a concrete lead and meaningful choices. Combat may begin after the party follows or acts on that lead.
+- Every encounter needs a reason these opponents are here, what they were doing before the party arrived, and a physical route by which the party found them. Never use "suddenly, two bandits appear" as the whole setup.`;
+
+export const COMBAT_AND_NPC_PERSISTENCE_CONTRACT = `MULTI-ENEMY COMBAT RULES:
+- When starting combat with multiple enemies, set combatEnemies: [{name, archetype, maxHp, condition, specialAbility}] for each enemy.
+- Give every person-like combatant a distinct name. Every named combatant is a persistent person: include each one in worldStateChanges.npcMemory, not only the active speaker or lead enemy.
+- Violence has durable social consequences. Starting a real fight generally makes a person-like opponent hostile; defeating, chasing, or cornering someone worsens the relationship further, while accepting surrender or rescuing them can temper it. Do not leave a beaten enemy at a mildly awkward acquaintance relationship.
+- archetype: "beast" (savage, fearless), "soldier" (tactical, coordinated), "mage" (ranged, vulnerable melee), "boss" (legendary, multi-phase), "minion" (numerous, fragile)
+- Each round, return combatEnemies[] reflecting current state. When an enemy falls, set their isDefeated: true AND set enemyDefeated to their name.
+- Each archetype fights differently: soldiers shield each other, mages hang back, minions rush in waves, beasts go for killing blows.
+- Boss fights: set isBossFight: true on combat start. When boss condition reaches "critical", set bossPhaseAdvance: true and describe a dramatic transformation - the boss gets more dangerous, not less.
+- Suggest actions that are class-appropriate and reference available abilities.
+- VARY combat suggestions round to round - don't repeat the same spell/attack as a suggestion 2 rounds running even if it's working. Once a character has used their signature attack 2+ times this fight, suggest something different: an item, a different ability/cantrip, a tactical move (terrain, cover, flanking, protecting an ally), or pressing an advantage (a finishing blow, a grapple, knocking a weapon away).
+- If the party has a companion (provided in context), let it act in combat: at bondLevel 1-2 it might distract an enemy or create a small opening (narrative only); at bondLevel 3-4 it can land minor hits or interpose to soak a hit (small hpChange, occasional minor heal/damage in the 1-3 range); at bondLevel 5 it can pull off a meaningful assist (a bigger hpChange, helping defeat a minion, or saving a character from a killing blow). Don't make the companion a second full combatant - it supports, it doesn't replace player agency.`;
