@@ -6,6 +6,11 @@ import { buildAwaitingRollNarration, enforceTurnPlanNarration, planCoopTurn, pla
 import { applyContinuityRepairs, buildContinuityDirective, buildContinuityPatch } from './storyContinuity';
 import { canAdvanceAct } from './actPacingSystem';
 import { preventUngroundedFight } from './aiContractValidator';
+import {
+  checkLevelUp as checkLevelUpFromSystem,
+  getStatModifier as getStatModifierFromSystem,
+  rollDice as rollDiceFromSystem,
+} from './characterProgressionSystem';
 import { advanceCombatState as advanceCombatStateFromSystem, newlyDefeatedCombatants } from './combatSystem';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
 import {
@@ -54,7 +59,6 @@ function resolveConsumedItems(character: { inventory?: { name: string; type: str
   }
   return consumed;
 }
-import { XP_THRESHOLDS, CLASS_BASE_HP } from '../../../shared/types';
 
 // Safe array coercion — (value || []) only guards against null/undefined, but the AI
 // occasionally returns {} for a field that should be an array, which is truthy and
@@ -445,24 +449,6 @@ function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState
   return merged;
 }
 
-export function rollDice(sides: number, modifier: number = 0, count: number = 1): DiceRollResult {
-  const rolls: number[] = [];
-  for (let i = 0; i < count; i++) {
-    rolls.push(Math.floor(Math.random() * sides) + 1);
-  }
-  const rawTotal = rolls.reduce((a, b) => a + b, 0);
-  return {
-    sides,
-    rolls,
-    modifier,
-    total: Math.max(1, rawTotal + modifier),
-  };
-}
-
-export function getStatModifier(statValue: number): number {
-  return Math.floor((statValue - 10) / 2);
-}
-
 // Advance the combat tracker from one turn to the next. Shared by the solo and
 // co-op paths so they stay in parity. The AI's combatEnemies[] (with per-enemy
 // condition + isDefeated) is the source of truth; the round-based condition is
@@ -571,17 +557,6 @@ export function advanceCombatState(
     return { combatState: null, forcedVictory: false };
   }
   return { combatState: prev, forcedVictory: false };
-}
-
-export function checkLevelUp(character: Character): { leveledUp: boolean; newLevel?: number; hpGain?: number } {
-  const currentLevelThreshold = XP_THRESHOLDS[character.level] ?? Infinity;
-  if (character.xp >= currentLevelThreshold && character.level < 20) {
-    const newLevel = character.level + 1;
-    const baseHp = CLASS_BASE_HP[character.class as keyof typeof CLASS_BASE_HP] ?? 8;
-    const hpGain = Math.floor(baseHp / 2) + 1 + getStatModifier(character.stats.con);
-    return { leveledUp: true, newLevel, hpGain: Math.max(1, hpGain) };
-  }
-  return { leveledUp: false };
 }
 
 export async function compressToJournalEntry(
@@ -701,7 +676,7 @@ export async function applyConsequences(
   // Apply XP and check level up
   if (actionResult.xpGained && actionResult.xpGained > 0) {
     updates.xp = currentCharacter.xp + actionResult.xpGained;
-    const levelCheck = checkLevelUp({ ...currentCharacter, xp: updates.xp });
+    const levelCheck = checkLevelUpFromSystem({ ...currentCharacter, xp: updates.xp });
     if (levelCheck.leveledUp && levelCheck.newLevel) {
       updates.level = levelCheck.newLevel;
       updates.max_hp = currentCharacter.max_hp + (levelCheck.hpGain ?? 0);
@@ -963,7 +938,7 @@ export async function processAction(
     const statValue = typeof (character as Character).stats?.[statKey] === 'number' ? (character as Character).stats[statKey] : 10;
     const rollContext = {
       ...turnPlan.awaitingRoll.rollContext,
-      modifier: getStatModifier(statValue),
+      modifier: getStatModifierFromSystem(statValue),
     };
     const narration = buildAwaitingRollNarration({ ...turnPlan, awaitingRoll: { ...turnPlan.awaitingRoll, rollContext } });
 
@@ -1057,8 +1032,8 @@ export async function processAction(
       : action.toLowerCase().includes('lift') || action.toLowerCase().includes('attack') ? 'str'
       : 'dex';
 
-    const modifier = getStatModifier(character.stats[statKey as keyof typeof character.stats] as number);
-    diceResult = rollDice(sides, modifier);
+    const modifier = getStatModifierFromSystem(character.stats[statKey as keyof typeof character.stats] as number);
+    diceResult = rollDiceFromSystem(sides, modifier);
     diceResult.description = aiResponse.diceDescription;
     success = diceResult.total >= (aiResponse.diceDC ?? 12);
   }
@@ -2086,8 +2061,8 @@ export async function processCoopAction(
       : rollingAction.toLowerCase().includes('lift') || rollingAction.toLowerCase().includes('attack') ? 'str'
       : 'dex';
 
-    const modifier = getStatModifier(rollingCharacter.stats[statKey as keyof typeof rollingCharacter.stats] as number);
-    diceResult = rollDice(sides, modifier);
+    const modifier = getStatModifierFromSystem(rollingCharacter.stats[statKey as keyof typeof rollingCharacter.stats] as number);
+    diceResult = rollDiceFromSystem(sides, modifier);
     diceResult.description = aiResponse.diceDescription;
     success = diceResult.total >= (aiResponse.diceDC ?? 12);
   }
