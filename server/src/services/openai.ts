@@ -14,8 +14,9 @@ import {
   TURN_RESOLUTION_CONTRACT,
 } from './aiPromptContracts';
 import { parseJsonRecord, parseJsonValueOrFallback } from './aiResponseParser';
+import { repairNarrationDraftIfNeeded, type AiTurnRepairMessage } from './aiTurnRepairSystem';
 import { ART_STYLE_PREFIX, EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
-import { cleanTurnOutcome, detectNarrationIssues, type TurnOutcome } from './narrationQualityValidator';
+import { cleanTurnOutcome, type TurnOutcome } from './narrationQualityValidator';
 
 dotenv.config();
 
@@ -1500,33 +1501,28 @@ export async function generateNarration(
   const content = response.choices[0].message.content || '{}';
   let parsed = parseJsonRecord(content);
 
-  // Enforcement pass (solo): same corrective rewrite as co-op, minus the
-  // shared-scene rule which only applies with two characters.
-  let retried = false;
-  const issues = detectNarrationIssues(asString(parsed.narration) || '', false, {
+  const repair = await repairNarrationDraftIfNeeded({
+    parsed,
+    rawContent: content,
+    isCoop: false,
     action,
-    turnOutcome: cleanTurnOutcome(parsed.turnOutcome),
-  });
-  if (issues.length > 0) {
-    retried = true;
-    try {
+    messages,
+    buildRepairInstruction: issues => `The previous response failed quality validation because it did not concretely resolve the player's action:\n- ${issues.join('\n- ')}\n\nRewrite while preserving continuity. Do not add vague mystery language. Do not open with weather or ambient atmosphere. The player's action was: "${action}". You MUST reveal a specific fact OR call for a roll OR change the situation. Return the SAME JSON object with the same mechanical values (hpChange, loot, goldChange, awaitingRoll, etc.), changing only the narration, suggestedActions, and turnOutcome as needed.`,
+    requestRepair: async repairMessages => {
       const retry = await openai.chat.completions.create({
         model: 'gpt-4o',
-        messages: [
-          ...messages,
-          { role: 'assistant', content },
-          { role: 'user', content: `The previous response failed quality validation because it did not concretely resolve the player's action:\n- ${issues.join('\n- ')}\n\nRewrite while preserving continuity. Do not add vague mystery language. Do not open with weather or ambient atmosphere. The player's action was: "${action}". You MUST reveal a specific fact OR call for a roll OR change the situation. Return the SAME JSON object with the same mechanical values (hpChange, loot, goldChange, awaitingRoll, etc.), changing only the narration, suggestedActions, and turnOutcome as needed.` }],
+        messages: repairMessages,
         temperature: 0.7,
         response_format: { type: 'json_object' },
       });
-      const reparsed = parseJsonRecord(retry.choices[0].message.content);
-      if (asString(reparsed.narration)) parsed = reparsed;
-    } catch { /* keep original draft if the retry fails */ }
-  }
+      return retry.choices[0].message.content || '';
+    },
+  });
+  parsed = repair.parsed;
 
   logAiCall('generateNarration', {
     character: character.id, action, model: 'gpt-4o', temperature: 0.7,
-    messages, rawResponse: content, parsed, validationIssues: issues, retried,
+    messages, rawResponse: content, parsed, validationIssues: repair.issues, retried: repair.retried,
   });
 
   return parseNarrationResponse(parsed);
@@ -1816,13 +1812,14 @@ Respond with JSON:
 }`;
 
   const coopContractBlock = TURN_RESOLUTION_CONTRACT + '\n' + CO_OP_SINGLE_CAMERA_RULE + '\n' + STYLE_ANTI_REPETITION;
+  const messages = [
+    { role: 'system', content: DM_SYSTEM_PROMPT },
+    { role: 'user', content: worldContext },
+    { role: 'system', content: coopContractBlock },
+  ] satisfies AiTurnRepairMessage[];
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
-    messages: [
-      { role: 'system', content: DM_SYSTEM_PROMPT },
-      { role: 'user', content: worldContext },
-      { role: 'system', content: coopContractBlock },
-    ],
+    messages,
     temperature: 0.7,
     response_format: { type: 'json_object' },
   });
@@ -1830,36 +1827,28 @@ Respond with JSON:
   const content = response.choices[0].message.content || '{}';
   let parsed = parseJsonRecord(content);
 
-  // Enforcement pass: if the draft broke the hard prose/structure rules the model
-  // routinely ignores, send one corrective rewrite with the violations spelled out.
-  const issues = detectNarrationIssues(asString(parsed.narration) || '', true, {
+  const repair = await repairNarrationDraftIfNeeded({
+    parsed,
+    rawContent: content,
+    isCoop: true,
     action: `${a1.action} || ${a2.action}`,
-    turnOutcome: cleanTurnOutcome(parsed.turnOutcome),
-  });
-  let retried = false;
-  if (issues.length > 0) {
-    retried = true;
-    try {
+    messages,
+    buildRepairInstruction: issues => `The previous response failed quality validation because it did not concretely resolve the players' actions:\n- ${issues.join('\n- ')}\n\nRewrite while preserving continuity. Do not add vague mystery language. Do not open with weather or ambient atmosphere. You MUST reveal a specific fact OR call for a roll OR change the situation. Keep both characters in ONE shared scene. Return the SAME JSON object with the same mechanical values (hpChange, loot, goldChange, awaitingRoll, etc.), changing only the narration, suggestedActions, and turnOutcome as needed.`,
+    requestRepair: async repairMessages => {
       const retry = await openai.chat.completions.create({
         model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: DM_SYSTEM_PROMPT },
-          { role: 'user', content: worldContext },
-          { role: 'system', content: coopContractBlock },
-          { role: 'assistant', content },
-          { role: 'user', content: `The previous response failed quality validation because it did not concretely resolve the players' actions:\n- ${issues.join('\n- ')}\n\nRewrite while preserving continuity. Do not add vague mystery language. Do not open with weather or ambient atmosphere. You MUST reveal a specific fact OR call for a roll OR change the situation. Keep both characters in ONE shared scene. Return the SAME JSON object with the same mechanical values (hpChange, loot, goldChange, awaitingRoll, etc.), changing only the narration, suggestedActions, and turnOutcome as needed.` }],
+        messages: repairMessages,
         temperature: 0.7,
         response_format: { type: 'json_object' },
       });
-      const retryContent = retry.choices[0].message.content || '';
-      const reparsed = parseJsonRecord(retryContent);
-      if (asString(reparsed.narration)) parsed = reparsed;
-    } catch { /* keep original draft if the retry fails */ }
-  }
+      return retry.choices[0].message.content || '';
+    },
+  });
+  parsed = repair.parsed;
 
   logAiCall('generateCoopNarration', {
     characters: [c1.id, c2.id], actions: [a1.action, a2.action], model: 'gpt-4o', temperature: 0.7,
-    worldContext, rawResponse: content, parsed, validationIssues: issues, retried,
+    worldContext, rawResponse: content, parsed, validationIssues: repair.issues, retried: repair.retried,
   });
 
   const base = parseNarrationResponse(parsed);
