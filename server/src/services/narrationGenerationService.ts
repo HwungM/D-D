@@ -17,6 +17,7 @@ import {
   type NarrationCampaignContext,
 } from './narrationPromptBuilder';
 import { asString, cleanSuggestedActions, parseNarrationResponse, type NarrationResult } from './narrationResponseParser';
+import { isTurnPipelineEnabled, runCoopTurnPipeline, runSoloTurnPipeline } from './turnPipeline';
 
 type ChatClient = {
   chat: {
@@ -38,6 +39,12 @@ export async function generateNarrationFromService(
   recentHistory: string[],
   campaignContext?: NarrationCampaignContext | null
 ): Promise<NarrationResult> {
+  // Pipeline path (flagged): director → narrator → extractor for sharper, more
+  // reliable turns. Falls back to the single-call path below when disabled.
+  if (isTurnPipelineEnabled()) {
+    return runSoloTurnPipeline(openai, logAiCall, action, worldState, worldBible, character, recentHistory, campaignContext);
+  }
+
   const messages = buildNarrationMessages(action, worldState, worldBible, character, recentHistory, campaignContext);
 
   const response = await openai.chat.completions.create({
@@ -124,6 +131,10 @@ export async function generateCoopNarrationFromService(
   campaignContext?: NarrationCampaignContext | null
 ): Promise<NarrationResult & { character1Changes?: NarrationResult['character1Changes']; character2Changes?: NarrationResult['character2Changes']; character1SuggestedActions?: string[]; character2SuggestedActions?: string[] }> {
   if (actions.length < 2) throw new Error('generateCoopNarration requires exactly 2 actions');
+
+  if (isTurnPipelineEnabled()) {
+    return runCoopTurnPipeline(openai, logAiCall, actions, worldState, worldBible, recentHistory, campaignContext);
+  }
 
   const [a1, a2] = actions;
   const c1 = a1.character;
