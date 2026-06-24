@@ -23,6 +23,12 @@ import {
   type CampaignGenerationPlayerPreferences,
 } from './campaignGenerationService';
 import { runStoryDirector as runStoryDirectorFromService, type StoryDirectorBeat } from './storyDirectorService';
+import {
+  extractFutureHooks as extractFutureHooksFromService,
+  generateProactiveEvent as generateProactiveEventFromService,
+  type FutureHook,
+  type ProactiveEvent,
+} from './worldMotionService';
 
 dotenv.config();
 
@@ -2148,102 +2154,18 @@ export async function extractFutureHooks(
   action: string,
   narration: string,
   worldState: WorldState,
-  characterName: string
-): Promise<{ id: string; description: string; source: string; createdAt: string; resolved: boolean }[]> {
-  try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `You are analyzing a D&D session moment to extract future hooks - things that COULD have repercussions later if remembered. Extract 0-2 items only. Only flag genuinely notable moments, not mundane actions. Return JSON only.`,
-        },
-        {
-          role: 'user',
-          content: `Character: ${characterName}
-Current location: ${worldState.currentLocation || 'unknown'}
-Player action: "${action}"
-What happened: "${narration.slice(0, 500)}"
-
-Extract 0-2 future hooks from this moment. These are things that could matter later:
-- An NPC was threatened/wronged/helped - they might remember
-- A faction noticed something the players did
-- A promise or oath was made
-- An object of unknown significance appeared
-- A choice was made that one character might regret
-- Something was left behind or ignored that will matter
-
-Return: {"hooks": [{"description": "short description of the repercussion potential", "type": "npc_grudge|faction_memory|promise|object|choice|abandoned"}]}
-Or: {"hooks": []} if nothing notable happened.`,
-        },
-      ],
-      temperature: 0.5,
-      response_format: { type: 'json_object' },
-    });
-
-    const raw = response.choices[0].message.content || '{}';
-    const parsed = parseJsonValueOrFallback<{ hooks?: { description: string; type?: string }[] }>(raw, { hooks: [] });
-    const hooks = parsed.hooks || [];
-    if (!hooks.length) return [];
-
-    return hooks.slice(0, 2).map(h => ({
-      id: crypto.randomUUID(),
-      description: h.description,
-      source: action.slice(0, 100),
-      createdAt: new Date().toISOString(),
-      resolved: false,
-    }));
-  } catch {
-    return [];
-  }
+  characterName: string,
+): Promise<FutureHook[]> {
+  return extractFutureHooksFromService(openai, action, narration, worldState, characterName);
 }
 
 export async function generateProactiveEvent(
   worldState: WorldState,
   worldBible: WorldBible,
-  character: Character
-): Promise<{ narration: string; sceneImagePrompt: string; suggestedActions: string[] }> {
-  const antagonistContext = worldBible.antagonistRoster && worldBible.antagonistRoster.length > 0
-    ? `Active antagonists: ${worldBible.antagonistRoster.map(a => `${a.isRevealed ? a.name : '[Unknown Force]'} - ${a.currentStep}`).join('; ')}`
-    : '';
-
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'system',
-        content: `You are a DM injecting a proactive world event. Something happened in the world without the player doing anything. Make it atmospheric, brief (2-3 sentences), and connected to the antagonist's agenda or world state. NOT a combat encounter. A rumor, an observation, something found, a messenger arriving, distant sounds. End with 3-4 optional action ideas. Respond with valid JSON only.`,
-      },
-      {
-        role: 'user',
-        content: `The world stirs while ${character.name} (${character.race} ${character.class}, Level ${character.level}) rests or travels.
-
-Current location: ${worldState.currentLocation || 'unknown'}
-Time: ${worldState.timeOfDay || 'unknown'}
-Central conflict: ${worldBible.centralConflict || 'unknown'}
-${antagonistContext}
-
-Return JSON:
-{
-  "narration": "2-3 sentence atmospheric world event the character observes or hears about",
-  "sceneImagePrompt": "brief scene description",
-  "suggestedActions": ["specific reaction 1", "specific reaction 2", "specific reaction 3", "specific reaction 4"]
-}`,
-      },
-    ],
-    temperature: 0.9,
-    response_format: { type: 'json_object' },
-  });
-
-  const content = response.choices[0].message.content || '{}';
-  const parsed = parseJsonRecord(content);
-  return {
-    narration: (parsed.narration as string) || 'Something stirs in the distance...',
-    sceneImagePrompt: (parsed.sceneImagePrompt as string) || '',
-    suggestedActions: (parsed.suggestedActions as string[]) || [],
-  };
+  character: Character,
+): Promise<ProactiveEvent> {
+  return generateProactiveEventFromService(openai, worldState, worldBible, character);
 }
-
 export async function generateEpilogue(
   worldState: WorldState,
   worldBible: WorldBible,
