@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "D&D RPG Backend Server",
   "main": "dist/server/src/index.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
