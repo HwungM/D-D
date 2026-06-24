@@ -425,7 +425,7 @@ router.get('/:id/party', requireAuth, async (req: AuthRequest, res: Response): P
 router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   const { id } = req.params;
 
-  // Verify ownership â€” check created_by, fall back to membership for old campaigns
+  // Verify ownership — check created_by, fall back to membership for old campaigns
   const { data: campaign } = await supabaseAdmin
     .from('campaigns')
     .select('created_by')

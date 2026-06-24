@@ -1,5 +1,6 @@
 export function isFightSeekingAction(action: string): boolean {
-  return /\b(look|search|hunt|find|seek|ask|go)\b.{0,30}\b(fight|trouble|brawl|bandit|enemy|monster|combat)\b/i.test(action);
+  return /\b(look|search|hunt|find|seek|ask|go|want|start|pick|cause)\b.{0,40}\b(fight|trouble|brawl|bandits?|enemies|enemy|monsters?|combat)\b/i.test(action)
+    || /\b(fight|brawl|combat)\b.{0,20}\b(now|someone|anything|anyone)\b/i.test(action);
 }
 
 export function hasGroundedEncounterSetup(narration: string): boolean {

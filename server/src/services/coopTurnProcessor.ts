@@ -1,6 +1,6 @@
 import type { ActionResult, Character, CharacterHistoryEntry, DiceRollResult, InventoryItem, NpcMemory, ShopItem, WorldBible, WorldState } from '../../../shared/types';
 import { getAbilityForLevel } from '../../../shared/classAbilities';
-import { preventUngroundedFight } from './aiContractValidator';
+import { ensureCombatEncounterCompleteness, preventUngroundedFight } from './aiContractValidator';
 import {
   advanceActIfAllowed,
   applyConsequences,
@@ -29,6 +29,7 @@ import {
   buildLocationTracking,
   buildSceneStateUpdate,
   buildShopInventoryChange,
+  buildSpotlightBalanceUpdate,
   resolveConsumedItems,
   resolveEndgamePhase,
 } from './turnStateHelpers';
@@ -126,6 +127,7 @@ export async function processCoopAction(
   enforceTurnPlanNarration(aiResponse, coopPlan);
   applyContinuityRepairs(aiResponse, characters, coopPlan.rails);
   preventUngroundedFight(aiResponse, pendingActions.map(pa => pa.action), ws.currentLocation, !!ws.combatState?.inCombat);
+  ensureCombatEncounterCompleteness(aiResponse);
   if (coopPlan.resolvedRolls.length > 0) {
     aiResponse.awaitingRoll = false;
     aiResponse.rollContext = undefined;
@@ -215,15 +217,16 @@ export async function processCoopAction(
   const newActionsInCurrentAct = (ws.actionsInCurrentAct || 0) + 1;
 
   // Update spotlight balance
-  const currentBalance = { ...(ws.spotlightBalance || {}) };
-  if (aiResponse.spotlightCharacterId) {
-    currentBalance[aiResponse.spotlightCharacterId] = (currentBalance[aiResponse.spotlightCharacterId] || 0) + 1;
-  }
+  const { spotlightBalance: currentBalance, spotlightCharacterId } = buildSpotlightBalanceUpdate(
+    ws.spotlightBalance,
+    [characters[0].id, characters[1].id],
+    aiResponse.spotlightCharacterId,
+  );
 
   const newLocation = coopPlan.worldStatePatch.currentLocation || (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation;
   const locationTracking = buildLocationTracking(ws, [characters[0].id, characters[1].id], newLocation);
 
-  // Scene summary â€” regenerate every 4 actions
+  // Scene summary — regenerate every 4 actions
   const sceneActionCount = (ws.actionsSinceLastSummary || 0) + 1;
   let currentSceneSummary = ws.currentSceneSummary;
   let actionsSinceLastSummary = sceneActionCount;
@@ -388,7 +391,7 @@ export async function processCoopAction(
     { id: campaignId, world_state: ws, act: campaign.act, world_bible: wb }
   );
 
-  // Apply consequences to Character 2 (world state already updated â€” applyConsequences re-fetches)
+  // Apply consequences to Character 2 (world state already updated — applyConsequences re-fetches)
   const char2Result = await applyConsequences(
     pendingActions[1].characterId,
     {
@@ -450,6 +453,7 @@ export async function processCoopAction(
     bossPhaseAdvance: !!aiResponse.bossPhaseAdvance,
     achievementUnlocked: aiResponse.achievementUnlocked ?? null,
     railRolls: coopPlan.resolvedRolls,
+    spotlightCharacterId,
   };
   const personalTurnMeta = (updated: Character, original: Character, changes: typeof aiResponse.character1Changes, leveledUp: boolean, ability: ReturnType<typeof getAbilityForLevel> | undefined) => ({
     isLevelUp: leveledUp,

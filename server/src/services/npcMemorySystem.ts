@@ -6,9 +6,9 @@ export function relationshipLabel(score: number): string {
   if (score >= 80) return 'devoted ally';
   if (score >= 50) return 'trusted friend';
   if (score >= 20) return 'friendly';
-  if (score >= -19) return 'acquaintance';
-  if (score >= -49) return 'wary';
-  if (score >= -79) return 'bitter rival';
+  if (score >= 0) return 'acquaintance';
+  if (score >= -34) return 'wary';
+  if (score >= -69) return 'bitter rival';
   return 'sworn enemy';
 }
 
@@ -53,11 +53,11 @@ export function combatantMemoryPatch(
     .filter(enemy => PERSON_ARCHETYPES.has(enemy.archetype) && enemy.name.trim().length > 0)
     .map(enemy => {
       const previous = existing.get(enemy.name.toLowerCase());
-      let delta = options.newEncounter ? -35 : 0;
-      if (defeatedNames.has(enemy.name.toLowerCase())) delta -= 15;
-      if (options.pursuedOrCornered) delta -= 25;
-      if (options.sparedOrAcceptedSurrender) delta += 20;
-      if (options.rescued) delta += 50;
+      let delta = options.newEncounter ? -45 : 0;
+      if (defeatedNames.has(enemy.name.toLowerCase())) delta -= 20;
+      if (options.pursuedOrCornered) delta -= 30;
+      if (options.sparedOrAcceptedSurrender) delta += 10;
+      if (options.rescued) delta += 45;
       const score = Math.max(-100, Math.min(100, (previous?.relationshipScore ?? 0) + delta));
 
       const eventNote = options.rescued
@@ -71,7 +71,7 @@ export function combatantMemoryPatch(
       return {
         ...previous,
         name: previous?.name || enemy.name,
-        disposition: score <= -20 ? 'hostile' : previous?.disposition || 'neutral',
+        disposition: score < 0 ? 'hostile' : previous?.disposition || 'neutral',
         notes: [previous?.notes, eventNote].filter(Boolean).join(' ').slice(-1000),
         lastMet: options.location,
         metCharacters: Array.from(new Set([...(previous?.metCharacters || []), ...options.playerNames])),

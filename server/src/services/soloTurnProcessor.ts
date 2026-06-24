@@ -1,6 +1,6 @@
 import type { ActionResult, Character, CharacterHistoryEntry, CharacterOnlineStatus, DiceRollResult, NpcMemory, ShopItem, WorldBible, WorldState } from '../../../shared/types';
 import { getAbilityForLevel } from '../../../shared/classAbilities';
-import { preventUngroundedFight } from './aiContractValidator';
+import { ensureCombatEncounterCompleteness, preventUngroundedFight } from './aiContractValidator';
 import {
   advanceActIfAllowed,
   applyConsequences,
@@ -206,6 +206,7 @@ export async function processAction(
   enforceTurnPlanNarration(aiResponse, turnPlan);
   applyContinuityRepairs(aiResponse, [character as Character], turnPlan.rails);
   preventUngroundedFight(aiResponse, [action], ws.currentLocation, !!ws.combatState?.inCombat);
+  ensureCombatEncounterCompleteness(aiResponse);
 
   // Explicit rest detection — override AI if player clearly stated rest intent (but not negations)
   const isNegatedRest = /\b(not|don'?t|won'?t|can'?t|no|never|stop|avoid|refuse)\b.{0,20}\b(rest|sleep|camp|recover)\b/i.test(action);
