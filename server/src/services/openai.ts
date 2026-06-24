@@ -13,6 +13,7 @@ import {
   STYLE_ANTI_REPETITION,
   TURN_RESOLUTION_CONTRACT,
 } from './aiPromptContracts';
+import { parseJsonRecord, parseJsonValueOrFallback } from './aiResponseParser';
 import { ART_STYLE_PREFIX, EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
 
 dotenv.config();
@@ -1593,8 +1594,7 @@ export async function generateNarration(
   });
 
   const content = response.choices[0].message.content || '{}';
-  let parsed: Record<string, unknown>;
-  try { parsed = JSON.parse(content); } catch { return parseNarrationResponse({}); }
+  let parsed = parseJsonRecord(content);
 
   // Enforcement pass (solo): same corrective rewrite as co-op, minus the
   // shared-scene rule which only applies with two characters.
@@ -1615,7 +1615,7 @@ export async function generateNarration(
         temperature: 0.7,
         response_format: { type: 'json_object' },
       });
-      const reparsed = JSON.parse(retry.choices[0].message.content || '') as Record<string, unknown>;
+      const reparsed = parseJsonRecord(retry.choices[0].message.content);
       if (asString(reparsed.narration)) parsed = reparsed;
     } catch { /* keep original draft if the retry fails */ }
   }
@@ -1698,7 +1698,7 @@ export async function* generateNarrationStreaming(
 
   // Parse full buffer and yield done event
   try {
-    const parsed = JSON.parse(fullBuffer);
+    const parsed = parseJsonRecord(fullBuffer);
     yield { type: 'done', result: parseNarrationResponse(parsed) };
   } catch {
     yield { type: 'done', result: parseNarrationResponse({ narration: 'The world holds its breath...' }) };
@@ -1924,8 +1924,7 @@ Respond with JSON:
   });
 
   const content = response.choices[0].message.content || '{}';
-  let parsed: Record<string, unknown> = {};
-  try { parsed = JSON.parse(content); } catch { /* use empty defaults */ }
+  let parsed = parseJsonRecord(content);
 
   // Enforcement pass: if the draft broke the hard prose/structure rules the model
   // routinely ignores, send one corrective rewrite with the violations spelled out.
@@ -1949,7 +1948,7 @@ Respond with JSON:
         response_format: { type: 'json_object' },
       });
       const retryContent = retry.choices[0].message.content || '';
-      const reparsed = JSON.parse(retryContent) as Record<string, unknown>;
+      const reparsed = parseJsonRecord(retryContent);
       if (asString(reparsed.narration)) parsed = reparsed;
     } catch { /* keep original draft if the retry fails */ }
   }
@@ -2070,8 +2069,7 @@ Respond with JSON:
   });
 
   const content = response.choices[0].message.content || '{}';
-  let parsed: Record<string, unknown> = {};
-  try { parsed = JSON.parse(content); } catch { /* use empty defaults */ }
+  const parsed = parseJsonRecord(content);
 
   logAiCall('generateRollOutcome', {
     character: character.id, model: 'gpt-4o', temperature: 0.7,
@@ -2212,8 +2210,7 @@ Return JSON:
     response_format: { type: 'json_object' },
   });
 
-  let parsed: { hooks?: unknown[] } = { hooks: [] };
-  try { parsed = JSON.parse(response.choices[0].message.content || '{"hooks":[]}'); } catch { /* use empty hooks */ }
+  const parsed = parseJsonValueOrFallback<{ hooks?: unknown[] }>(response.choices[0].message.content, { hooks: [] });
   return (parsed.hooks || [])
     .map(asRecord)
     .filter((hook): hook is Record<string, unknown> => !!hook && !!asString(hook.hook))
@@ -2264,8 +2261,7 @@ Return JSON:
     response_format: { type: 'json_object' },
   });
 
-  let parsed: Record<string, unknown> = {};
-  try { parsed = JSON.parse(response.choices[0].message.content || '{}'); } catch { /* use defaults */ }
+  const parsed = parseJsonRecord(response.choices[0].message.content);
   return {
     narration: (parsed.narration as string) || 'Something has changed in the world while you were away.',
     sessionNote: (parsed.sessionNote as string) || 'Villain advanced their plan.',
@@ -2298,8 +2294,7 @@ Return JSON array:
   });
 
   const content = response.choices[0].message.content || '{"seeds":[]}';
-  let parsed: unknown;
-  try { parsed = JSON.parse(content); } catch { return []; }
+  const parsed = parseJsonValueOrFallback<unknown>(content, []);
   return (parsed as { seeds?: StorySeedOption[] }).seeds || (parsed as StorySeedOption[]) || [];
 }
 
@@ -2549,10 +2544,8 @@ Requirements:
   });
 
   const content = response.choices[0].message.content || '{}';
-  let parsed: WorldBible;
-  try {
-    parsed = JSON.parse(content) as WorldBible;
-  } catch {
+  const parsed = parseJsonValueOrFallback<WorldBible | undefined>(content, undefined);
+  if (!parsed) {
     throw new Error('Failed to parse world bible from AI response');
   }
 
@@ -2670,7 +2663,7 @@ Otherwise return:
     });
 
     const raw = response.choices[0].message.content || '{}';
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const parsed = parseJsonRecord(raw);
     if (parsed.healthy) return null;
     if (!parsed.beat) return null;
 
@@ -2722,7 +2715,7 @@ Or: {"hooks": []} if nothing notable happened.`,
     });
 
     const raw = response.choices[0].message.content || '{}';
-    const parsed = JSON.parse(raw) as { hooks?: { description: string; type?: string }[] };
+    const parsed = parseJsonValueOrFallback<{ hooks?: { description: string; type?: string }[] }>(raw, { hooks: [] });
     const hooks = parsed.hooks || [];
     if (!hooks.length) return [];
 
@@ -2776,8 +2769,7 @@ Return JSON:
   });
 
   const content = response.choices[0].message.content || '{}';
-  let parsed: Record<string, unknown> = {};
-  try { parsed = JSON.parse(content); } catch { /* use defaults */ }
+  const parsed = parseJsonRecord(content);
   return {
     narration: (parsed.narration as string) || 'Something stirs in the distance...',
     sceneImagePrompt: (parsed.sceneImagePrompt as string) || '',
