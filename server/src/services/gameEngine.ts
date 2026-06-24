@@ -1,7 +1,7 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks, generateCoopNarration } from './openai';
 import OpenAI from 'openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe, InventoryItem, CombatEnemy, StoryLedgerEntry } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, InventoryItem } from '../../../shared/types';
 import { buildAwaitingRollNarration, enforceTurnPlanNarration, planCoopTurn, planOpeningTurn, planSoloTurn } from './gameDirector';
 import { applyContinuityRepairs, buildContinuityDirective, buildContinuityPatch } from './storyContinuity';
 import { canAdvanceAct } from './actPacingSystem';
@@ -23,46 +23,20 @@ import {
   campaignLengthTargetActions as campaignLengthTargetActionsFromSystem,
   mergeWorldStateChanges as mergeWorldStateChangesFromSystem,
 } from './worldStateSystem';
-
-function appendAchievement(existing: UnlockedAchievement[] | undefined, achievement: { title: string; description: string }, characterName: string): UnlockedAchievement[] {
-  const list = existing || [];
-  if (list.some(a => a.title === achievement.title)) return list;
-  return [...list, { title: achievement.title, description: achievement.description, characterName, unlockedAt: new Date().toISOString() }];
-}
-
-function appendRecipe(existing: Recipe[] | undefined, recipe: Recipe): Recipe[] {
-  const list = existing || [];
-  if (list.some(r => r.name === recipe.name)) return list;
-  return [...list, recipe];
-}
-
-function applyFactionRepChange(existing: Record<string, number> | undefined, change: { faction: string; delta: number }): Record<string, number> {
-  const current = existing?.[change.faction] || 0;
-  return { ...existing, [change.faction]: Math.max(-100, Math.min(100, current + change.delta)) };
-}
-
-// Resolve which inventory items were consumed: prefer AI's explicit list, fall back to narration regex
-function resolveConsumedItems(character: { inventory?: { name: string; type: string }[] }, explicit: string[] | undefined, narration: string | undefined): string[] {
-  if (explicit && explicit.length > 0) {
-    return explicit.filter((name: string) =>
-      (character.inventory || []).some((i: { name: string }) => i.name.toLowerCase() === name.toLowerCase())
-    );
-  }
-  const consumed: string[] = [];
-  if (!narration) return consumed;
-  const consumableNames = (character.inventory || [])
-    .filter((i: { type: string }) => i.type === 'potion' || i.type === 'misc')
-    .map((i: { name: string }) => i.name);
-  for (const itemName of consumableNames) {
-    const escaped = itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const usePattern = new RegExp(`\\b(drink|drinks|drank|use|uses|used|consume|consumes|consumed|quaff|quaffs|quaffed)\\b.{0,30}\\b${escaped}\\b`, 'i');
-    const gonePattern = new RegExp(`\\b${escaped}\\b.{0,30}\\b(is consumed|is used|disappears|shatters|crumbles|is gone)\\b`, 'i');
-    if (usePattern.test(narration) || gonePattern.test(narration)) {
-      consumed.push(itemName);
-    }
-  }
-  return consumed;
-}
+import {
+  appendAchievement,
+  appendRecipe,
+  applyFactionRepChange,
+  buildActiveNpcChange,
+  buildAutoNpcMemory,
+  buildBackstoryHookChanges,
+  buildForeshadowingAndFutureHookChanges,
+  buildLocationTracking,
+  buildSceneStateUpdate,
+  buildShopInventoryChange,
+  resolveConsumedItems,
+  resolveEndgamePhase,
+} from './turnStateHelpers';
 
 // Safe array coercion — (value || []) only guards against null/undefined, but the AI
 // occasionally returns {} for a field that should be an array, which is truthy and
@@ -79,487 +53,6 @@ import {
   degreeOfSuccess,
   resolvePlayerCombatRoll,
 } from './rulesEngine';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
-function asStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-}
-
-function isNpcMemory(value: unknown): value is NpcMemory {
-  return isRecord(value) && typeof value.name === 'string' && typeof value.notes === 'string';
-}
-
-function isActiveQuest(value: unknown): value is ActiveQuest {
-  return isRecord(value) && typeof value.title === 'string' && typeof value.description === 'string';
-}
-
-function campaignLengthTargetActions(worldBible?: WorldBible): number {
-  const length = worldBible?.playerPreferences?.campaignLength;
-  if (length === 'one_shot') return 8;
-  if (length === 'short') return 18;
-  if (length === 'long') return 60;
-  if (length === 'open_ended') return 75;
-  return 35;
-}
-
-function getActLabel(_worldBible: WorldBible | undefined, act: number): string {
-  // Short, non-spoiler arc title. The detailed climax lives in the DM roadmap
-  // (fed to the AI) and must NOT surface to players in the journal/world codex.
-  return act === 1 ? 'The Call' : act === 2 ? 'The Trial' : 'The Reckoning';
-}
-
-function normalizeLocationName(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function inferRegionForLocation(location: string, worldBible?: WorldBible): string {
-  const geo = worldBible?.geography?.find(entry => entry.name.toLowerCase() === location.toLowerCase());
-  if (geo?.type === 'region') return geo.name;
-  const region = worldBible?.geography?.find(entry =>
-    entry.type === 'region' && location.toLowerCase().includes(entry.name.toLowerCase())
-  );
-  return region?.name || 'Known Realm';
-}
-
-function buildLocationGraphSnapshot(worldState: WorldState, worldBible: WorldBible | undefined): WorldState['locationGraph'] {
-  const now = new Date().toISOString();
-  const currentLocation = normalizeLocationName(worldState.currentLocation);
-  const geography = worldBible?.geography || [];
-  const names = new Set<string>();
-
-  for (const entry of geography) names.add(entry.name);
-  for (const loc of worldState.discoveredLocations || []) {
-    const name = normalizeLocationName(loc);
-    if (name) names.add(name);
-  }
-  for (const loc of Object.values(worldState.characterLocations || {})) {
-    const name = normalizeLocationName(loc);
-    if (name) names.add(name);
-  }
-  if (currentLocation) names.add(currentLocation);
-
-  const questHooksByLocation = new Map<string, string[]>();
-  for (const quest of worldState.activeQuests || []) {
-    if (quest.status !== 'active') continue;
-    for (const location of names) {
-      if (quest.description.toLowerCase().includes(location.toLowerCase()) || quest.title.toLowerCase().includes(location.toLowerCase())) {
-        questHooksByLocation.set(location, [...(questHooksByLocation.get(location) || []), quest.title]);
-      }
-    }
-  }
-
-  const npcsByLocation = new Map<string, string[]>();
-  for (const npc of [...(worldState.npcMemory || []), ...(worldState.keyNPCs || [])]) {
-    const lastMet = normalizeLocationName(npc.lastMet);
-    if (!lastMet) continue;
-    npcsByLocation.set(lastMet, Array.from(new Set([...(npcsByLocation.get(lastMet) || []), npc.name])));
-    names.add(lastMet);
-  }
-  if (worldState.activeNPC && currentLocation) {
-    npcsByLocation.set(currentLocation, Array.from(new Set([...(npcsByLocation.get(currentLocation) || []), worldState.activeNPC])));
-  }
-
-  const partyByLocation = new Map<string, string[]>();
-  for (const [characterId, location] of Object.entries(worldState.characterLocations || {})) {
-    const name = normalizeLocationName(location);
-    if (!name) continue;
-    partyByLocation.set(name, [...(partyByLocation.get(name) || []), characterId]);
-  }
-
-  const existingNodes = new Map(toArr<LocationNode>(worldState.locationGraph?.nodes).map(node => [node.name.toLowerCase(), node]));
-  const sortedNames = Array.from(names).filter(Boolean).sort((a, b) => a.localeCompare(b));
-  const nodes = sortedNames.map(name => {
-    const previous = existingNodes.get(name.toLowerCase());
-    const geo = geography.find(entry => entry.name.toLowerCase() === name.toLowerCase());
-    const region = inferRegionForLocation(name, worldBible);
-    const isCurrent = currentLocation.toLowerCase() === name.toLowerCase();
-    const wasCurrent = (previous?.tags || []).includes('current');
-    const existingConnections = previous?.connectedTo || [];
-    const connectedTo = Array.from(new Set([
-      ...existingConnections,
-      ...(currentLocation && name !== currentLocation && (isCurrent || existingConnections.includes(currentLocation)) ? [currentLocation] : []),
-    ])).slice(0, 8);
-
-    return {
-      name,
-      region,
-      description: geo?.description || previous?.description,
-      type: geo?.type || previous?.type || 'unknown',
-      discoveredAt: previous?.discoveredAt || now,
-      lastVisitedAt: isCurrent ? now : previous?.lastVisitedAt,
-      visits: (previous?.visits || 0) + (isCurrent && !wasCurrent ? 1 : 0),
-      connectedTo,
-      npcsPresent: npcsByLocation.get(name) || [],
-      questHooks: questHooksByLocation.get(name) || [],
-      partyHere: partyByLocation.get(name) || (isCurrent ? ['current'] : []),
-      tags: Array.from(new Set([
-        ...(previous?.tags || []).filter(tag => tag !== 'current'),
-        ...(geo?.type ? [geo.type] : []),
-        ...(isCurrent ? ['current'] : []),
-        ...((questHooksByLocation.get(name) || []).length ? ['quest'] : []),
-        ...((npcsByLocation.get(name) || []).length ? ['npc'] : []),
-      ])).slice(0, 8),
-    };
-  });
-
-  const regionMap = new Map<string, string[]>();
-  for (const node of nodes) {
-    regionMap.set(node.region, [...(regionMap.get(node.region) || []), node.name]);
-  }
-  const regions = Array.from(regionMap.entries()).map(([name, locations]) => ({ name, locations }));
-  const nearby = currentLocation
-    ? Array.from(new Set([
-      ...(nodes.find(node => node.name === currentLocation)?.connectedTo || []),
-      ...nodes.filter(node => node.region === inferRegionForLocation(currentLocation, worldBible) && node.name !== currentLocation).map(node => node.name),
-    ])).slice(0, 6)
-    : nodes.slice(0, 6).map(node => node.name);
-
-  return {
-    currentLocation: currentLocation || undefined,
-    nodes,
-    regions,
-    nearby,
-    updatedAt: now,
-  };
-}
-
-function buildCampaignSpineSnapshot(worldState: WorldState, worldBible: WorldBible | undefined, act = 1): WorldState['campaignSpine'] {
-  const targetActions = campaignLengthTargetActions(worldBible);
-  const actionsInArc = Math.max(0, worldState.actionsInCurrentAct || 0);
-  const progress = Math.max(0, Math.min(100, Math.round((actionsInArc / targetActions) * 100)));
-  const pressure = worldState.endgamePhase === 'confrontation'
-    ? 'climax'
-    : worldState.combatState?.inCombat || worldState.pendingDirectorBeat?.urgency === 'critical'
-      ? 'dangerous'
-      : progress >= 65 || worldState.pendingDirectorBeat?.urgency === 'high'
-        ? 'rising'
-        : 'low';
-
-  const latestJournal = (worldState.campaignJournal || []).slice(-1)[0];
-  const latestNote = (worldState.sessionNotes || []).slice(-1)[0];
-  const lastRecap = worldState.currentSceneSummary || latestJournal?.summary || latestNote || 'The campaign is still finding its first lasting shape.';
-
-  const openThreads = [
-    ...(worldState.activeQuests || [])
-      .filter(quest => quest.status === 'active')
-      .map(quest => `Quest: ${quest.title}`),
-    ...(worldState.futureHooks || [])
-      .filter(hook => !hook.resolved)
-      .slice(-4)
-      .map(hook => `Future hook: ${hook.description}`),
-    ...(worldState.backstoryHooks || [])
-      .filter(hook => hook.status !== 'resolved')
-      .slice(-3)
-      .map(hook => `Backstory: ${hook.characterName} - ${hook.hook}`),
-    ...(worldState.foreshadowingLedger || [])
-      .filter(entry => entry.payoffStatus !== 'paid_off')
-      .slice(-3)
-      .map(entry => `Foreshadowing: ${entry.description}`),
-    // Only name the antagonist once the story has revealed them — this spine
-    // is shown to players in the journal, not just fed to the DM.
-    ...(worldBible?.primaryAntagonist?.isRevealed
-      ? [`Antagonist: ${worldBible.primaryAntagonist.name} wants ${worldBible.primaryAntagonist.agenda}`]
-      : []),
-  ]
-    .filter((thread, index, all) => all.indexOf(thread) === index)
-    .slice(0, 8);
-
-  const relationshipMap = new Map<string, NpcMemory>();
-  for (const npc of [...(worldState.npcMemory || []), ...(worldState.keyNPCs || [])]) {
-    relationshipMap.set(npc.name, { ...relationshipMap.get(npc.name), ...npc });
-  }
-  const keyRelationships = Array.from(relationshipMap.values())
-    .sort((a, b) => Number(!!b.isKeyNPC) - Number(!!a.isKeyNPC) || (b.interactionCount || 0) - (a.interactionCount || 0))
-    .slice(0, 6)
-    .map(npc => ({
-      name: npc.name,
-      disposition: npc.disposition || 'unknown',
-      note: npc.notes || 'Known to the campaign.',
-    }));
-
-  const nextPressure = worldState.pendingDirectorBeat?.beat
-    || (openThreads[0] ? `Follow up on ${openThreads[0].replace(/^(Quest|Future hook|Backstory|Foreshadowing|Antagonist): /, '')}` : 'Let the next player choice define the pressure.');
-
-  return {
-    currentArc: {
-      act,
-      label: getActLabel(worldBible, act),
-      progress,
-      pressure,
-    },
-    lastRecap,
-    openThreads,
-    keyRelationships,
-    nextPressure,
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-function mergeWorldStateChanges(current: WorldState, changes: Partial<WorldState>): WorldState {
-  const merged = { ...current };
-
-  // Per-character location â€” only update the specific character's entry
-  if (changes.characterLocations) {
-    merged.characterLocations = { ...current.characterLocations, ...changes.characterLocations };
-  }
-
-  // currentLocation: only update if provided (for the acting character)
-  if (changes.currentLocation) merged.currentLocation = changes.currentLocation;
-
-  // npcMemory: merge by name (upsert), preserving metCharacters + interactionCount from both sides
-  if (changes.npcMemory) {
-    const npcArray = (Array.isArray(changes.npcMemory) ? changes.npcMemory : Object.values(changes.npcMemory)).filter(isNpcMemory);
-    const existing = new Map(toArr<NpcMemory>(current.npcMemory).map(n => [n.name, n]));
-    const keyNpcMap = new Map(toArr<NpcMemory>(current.keyNPCs).map(n => [n.name, n]));
-
-    for (const npc of npcArray) {
-      // Placeholder reveal: "Mysterious Stranger" -> "Eldrin" merges into the new
-      // name instead of leaving both entries behind.
-      const placeholder = npc.replacesName && npc.replacesName !== npc.name ? existing.get(npc.replacesName) : undefined;
-      if (placeholder) {
-        existing.delete(npc.replacesName!);
-        keyNpcMap.delete(npc.replacesName!);
-      }
-      const prev = existing.get(npc.name) || placeholder;
-      const metChars = Array.from(new Set([...(prev?.metCharacters || []), ...(npc.metCharacters || [])]));
-      const interactionCount = (prev?.interactionCount || 0) + 1;
-      const { replacesName: _replacesName, ...npcRest } = npc;
-      const merged_npc = { ...prev, ...npcRest, metCharacters: metChars, interactionCount };
-      existing.set(npc.name, merged_npc);
-
-      // Promote to keyNPCs when interaction count reaches 3 or AI explicitly flags them
-      if ((interactionCount >= 3 || npc.isKeyNPC) && !keyNpcMap.has(npc.name)) {
-        keyNpcMap.set(npc.name, { ...merged_npc, isKeyNPC: true });
-      } else if (keyNpcMap.has(npc.name)) {
-        keyNpcMap.set(npc.name, { ...keyNpcMap.get(npc.name)!, ...npc, metCharacters: metChars, interactionCount });
-      }
-    }
-
-    merged.npcMemory = Array.from(existing.values()).slice(-20); // rolling 20 NPCs
-    // keyNPCs: never pruned, capped at 8 (oldest promoted out when full, they're still in npcMemory)
-    const keyList = Array.from(keyNpcMap.values());
-    merged.keyNPCs = keyList.slice(-8);
-  }
-
-  // activeQuests: merge by title (upsert)
-  if (changes.activeQuests) {
-    const questArray = (Array.isArray(changes.activeQuests) ? changes.activeQuests : Object.values(changes.activeQuests)).filter(isActiveQuest);
-    const existing = new Map(toArr<ActiveQuest>(current.activeQuests).map(q => [q.title, q]));
-    for (const q of questArray) existing.set(q.title, { ...existing.get(q.title), ...q, startedAt: existing.get(q.title)?.startedAt || new Date().toISOString() });
-    merged.activeQuests = Array.from(existing.values());
-  }
-
-  // discoveredLocations: union, capped at 100. When over the cap, keep the most
-  // significant places (most-visited, most-recently-visited) rather than just
-  // the most-recently-discovered — otherwise a beloved home base discovered
-  // early gets silently evicted the moment the party finds its 101st location.
-  if (changes.discoveredLocations) {
-    const all = Array.from(new Set([...(current.discoveredLocations || []), ...toArr<string>(changes.discoveredLocations)]));
-    if (all.length <= 100) {
-      merged.discoveredLocations = all;
-    } else {
-      const nodeByName = new Map(toArr<LocationNode>(current.locationGraph?.nodes).map(node => [node.name.toLowerCase(), node]));
-      const scored = all.map((name, index) => {
-        const node = nodeByName.get(name.toLowerCase());
-        const visits = node?.visits || 0;
-        const lastVisited = node?.lastVisitedAt ? Date.parse(node.lastVisitedAt) || 0 : 0;
-        // Recently-discovered-but-unvisited entries still rank above stale, never-revisited ones.
-        const recencyBonus = index;
-        return { name, score: visits * 1000 + (lastVisited > 0 ? 1 : 0) * 500 + recencyBonus };
-      });
-      scored.sort((a, b) => b.score - a.score);
-      merged.discoveredLocations = scored.slice(0, 100).map(entry => entry.name);
-    }
-  }
-
-  // factionStandings: merge (last write wins per faction)
-  if (changes.factionStandings) {
-    merged.factionStandings = { ...current.factionStandings, ...changes.factionStandings };
-  }
-
-  // sessionNotes: append new ones only
-  if (changes.sessionNotes) {
-    const notesArray = Array.isArray(changes.sessionNotes) ? asStringArray(changes.sessionNotes) : asStringArray(Object.values(changes.sessionNotes));
-    const existing = new Set(current.sessionNotes || []);
-    const newNotes = notesArray.filter(n => !existing.has(n));
-    merged.sessionNotes = [...(current.sessionNotes || []), ...newNotes];
-  }
-
-  // characterLastSeen: merge
-  if (changes.characterLastSeen) {
-    merged.characterLastSeen = { ...current.characterLastSeen, ...changes.characterLastSeen };
-  }
-
-  // foreshadowingLedger: merge by id (upsert)
-  if (changes.foreshadowingLedger) {
-    const existing = new Map(toArr<ForeshadowingEntry>(current.foreshadowingLedger).map(f => [f.id, f]));
-    for (const entry of toArr<ForeshadowingEntry>(changes.foreshadowingLedger)) existing.set(entry.id, { ...existing.get(entry.id), ...entry });
-    merged.foreshadowingLedger = Array.from(existing.values()).slice(-50);
-  }
-
-  // backstoryHooks: merge by characterId+hook (upsert by hook text)
-  if (changes.backstoryHooks) {
-    const existing = new Map(toArr<BackstoryHook>(current.backstoryHooks).map(h => [`${h.characterId}:${h.hook}`, h]));
-    for (const hook of toArr<BackstoryHook>(changes.backstoryHooks)) existing.set(`${hook.characterId}:${hook.hook}`, { ...existing.get(`${hook.characterId}:${hook.hook}`), ...hook });
-    // Keep all dormant/active hooks (the story still owes them a payoff), but cap resolved
-    // ones so a long campaign doesn't accumulate an ever-growing list of closed-out threads.
-    const all = Array.from(existing.values());
-    const open = all.filter(h => h.status !== 'resolved');
-    const resolved = all.filter(h => h.status === 'resolved').slice(-15);
-    merged.backstoryHooks = [...open, ...resolved];
-  }
-
-  // actGoalsAchieved: union
-  if (changes.actGoalsAchieved) {
-    merged.actGoalsAchieved = Array.from(new Set([...(current.actGoalsAchieved || []), ...toArr<string>(changes.actGoalsAchieved)]));
-  }
-
-  // storyLedger: upsert by id, keeping unresolved obligations visible while
-  // pruning older resolved entries.
-  if (changes.storyLedger) {
-    const existing = new Map(toArr<StoryLedgerEntry>(current.storyLedger).map(entry => [entry.id, entry]));
-    for (const entry of toArr<StoryLedgerEntry>(changes.storyLedger)) existing.set(entry.id, { ...existing.get(entry.id), ...entry });
-    const all = Array.from(existing.values());
-    const open = all.filter(entry => entry.status !== 'resolved').slice(-30);
-    const resolved = all.filter(entry => entry.status === 'resolved').slice(-20);
-    merged.storyLedger = [...open, ...resolved];
-  }
-
-  // mysteryClues: upsert by id (future-friendly clue ledger stub)
-  if (changes.mysteryClues) {
-    const existing = new Map((current.mysteryClues || []).map(c => [c.id, c]));
-    for (const clue of changes.mysteryClues) existing.set(clue.id, { ...existing.get(clue.id), ...clue });
-    merged.mysteryClues = Array.from(existing.values()).slice(-50);
-  }
-
-  // shopInventory: merge by location key
-  if (changes.shopInventory) {
-    merged.shopInventory = { ...(current.shopInventory || {}), ...changes.shopInventory };
-  }
-
-  // activeNPC: direct set
-  if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
-
-  // Simple scalar fields
-  for (const key of ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs', 'unlockedAchievements', 'knownRecipes', 'spotlightBalance', 'lastPillarUsed', 'lastHighStakesAction', 'pendingDirectorBeat', 'pendingTurn', 'coopPendingRoll', 'companion', 'recentPlayerActions'] as const) {
-    if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
-  }
-
-  return merged;
-}
-
-// Advance the combat tracker from one turn to the next. Shared by the solo and
-// co-op paths so they stay in parity. The AI's combatEnemies[] (with per-enemy
-// condition + isDefeated) is the source of truth; the round-based condition is
-// only a fallback when the AI omits it. Two safety nets keep a fight from
-// getting stuck: when every enemy is flagged defeated, or when the AI signals
-// victory, combat ends and forcedVictory is reported so the caller can mark the
-// turn a win even if the AI forgot to set isVictory itself.
-type CombatAiSignals = {
-  isCombat?: boolean;
-  enemyName?: string;
-  combatEnemies?: CombatEnemy[];
-  enemyDefeated?: string;
-  isVictory?: boolean;
-  isBossFight?: boolean;
-  bossPhaseAdvance?: boolean;
-};
-
-export function advanceCombatState(
-  prev: NonNullable<WorldState['combatState']> | null,
-  ai: CombatAiSignals,
-  newActions: string[],
-): { combatState: NonNullable<WorldState['combatState']> | null; forcedVictory: boolean } {
-  // Starting a new fight
-  if (ai.isCombat && ai.enemyName && !prev?.inCombat) {
-    const initialEnemies: CombatEnemy[] = ai.combatEnemies && ai.combatEnemies.length > 0
-      ? ai.combatEnemies
-      : [{ name: ai.enemyName, archetype: 'soldier', maxHp: 30, condition: 'healthy' }];
-    const normalizedEnemies = initialEnemies.map(enemy => ({
-      ...enemy,
-      maxHp: Math.max(1, Math.min(500, Math.round(enemy.maxHp || 1))),
-      currentHp: Math.max(1, Math.min(500, Math.round(enemy.currentHp ?? enemy.maxHp ?? 1))),
-      armorClass: enemy.armorClass ?? (
-        enemy.archetype === 'boss' ? 17
-          : enemy.archetype === 'soldier' ? 15
-            : enemy.archetype === 'mage' ? 12
-              : enemy.archetype === 'minion' ? 11
-                : 13
-      ),
-    }));
-    return {
-      combatState: {
-        inCombat: true,
-        enemyName: normalizedEnemies.find(e => !e.isDefeated)?.name || normalizedEnemies[0]?.name || ai.enemyName,
-        enemyCondition: 'healthy',
-        roundNumber: 1,
-        playerActionsAttempted: newActions,
-        enemies: normalizedEnemies,
-        isBossFight: ai.isBossFight || false,
-        bossPhase: ai.isBossFight ? 1 : undefined,
-      },
-      forcedVictory: false,
-    };
-  }
-
-  // Continuing an existing fight
-  if (ai.isCombat && ai.enemyName && prev?.inCombat) {
-    const rounds = prev.roundNumber + 1;
-    // Fallback condition tied to how long the fight has run — never to how hurt
-    // the player is (that was inverted). Real per-enemy state comes from the AI.
-    const roundCondition: 'healthy' | 'wounded' | 'critical' = rounds <= 2 ? 'healthy' : rounds <= 5 ? 'wounded' : 'critical';
-
-    let enemies = prev.enemies || [];
-    if (ai.combatEnemies && ai.combatEnemies.length > 0) {
-      enemies = ai.combatEnemies.map(enemy => {
-        const prior = prev.enemies?.find(candidate => candidate.name.toLowerCase() === enemy.name.toLowerCase());
-        const maxHp = Math.max(1, Math.min(500, Math.round(enemy.maxHp || prior?.maxHp || 1)));
-        const currentHp = Math.max(0, Math.min(maxHp, Math.round(enemy.currentHp ?? prior?.currentHp ?? maxHp)));
-        const hpRatio = currentHp / maxHp;
-        return {
-          ...enemy,
-          maxHp,
-          currentHp,
-          condition: currentHp === 0 || hpRatio <= 0.25 ? 'critical' as const : hpRatio <= 0.6 ? 'wounded' as const : 'healthy' as const,
-          isDefeated: enemy.isDefeated || currentHp === 0,
-          armorClass: enemy.armorClass ?? prior?.armorClass,
-        };
-      });
-    } else if (ai.enemyDefeated) {
-      enemies = enemies.map(e => e.name === ai.enemyDefeated ? { ...e, currentHp: 0, isDefeated: true, condition: 'critical' as const } : e);
-    } else {
-      enemies = enemies.map(e => e.name === prev.enemyName ? { ...e, condition: roundCondition } : e);
-    }
-
-    const living = enemies.filter(e => !e.isDefeated);
-    const allDefeated = enemies.length > 0 && living.length === 0;
-    if (ai.isVictory || allDefeated) {
-      return { combatState: null, forcedVictory: allDefeated && !ai.isVictory };
-    }
-
-    return {
-      combatState: {
-        ...prev,
-        enemyName: living[0]?.name || prev.enemyName,
-        enemyCondition: living[0]?.condition || roundCondition,
-        roundNumber: rounds,
-        enemies,
-        playerActionsAttempted: [...(prev.playerActionsAttempted || []).slice(-8), ...newActions],
-        bossPhase: ai.bossPhaseAdvance ? (prev.bossPhase || 1) + 1 : prev.bossPhase,
-      },
-      forcedVictory: false,
-    };
-  }
-
-  // Not a combat turn — close out any fight that was running (victory or escape)
-  if (ai.isVictory || prev?.inCombat) {
-    return { combatState: null, forcedVictory: false };
-  }
-  return { combatState: prev, forcedVictory: false };
-}
 
 export async function compressToJournalEntry(
   _campaignId: string,
@@ -931,16 +424,7 @@ export async function processAction(
 
   // Always track per-character location and last seen
   const newLocation = turnPlan.worldStatePatch.currentLocation || (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation;
-  const locationTracking: Partial<WorldState> = {
-    characterLocations: {
-      ...(ws.characterLocations || {}),
-      [characterId]: newLocation || 'Unknown',
-    },
-    characterLastSeen: {
-      ...(ws.characterLastSeen || {}),
-      [characterId]: new Date().toISOString(),
-    },
-  };
+  const locationTracking = buildLocationTracking(ws, [characterId], newLocation);
 
   // Update combat state
   const { combatState, forcedVictory } = advanceCombatStateFromSystem(ws.combatState ?? null, aiResponse, [action]);
@@ -956,101 +440,25 @@ export async function processAction(
     } catch { /* non-critical, keep old summary */ }
   }
 
-  // Update foreshadowing ledger from AI response
-  const ledgerChanges: import('../../../shared/types').ForeshadowingEntry[] = [];
-  if (aiResponse.newForeshadowing) {
-    for (const f of aiResponse.newForeshadowing) {
-      ledgerChanges.push({
-        id: f.id || crypto.randomUUID(),
-        description: f.description,
-        type: f.type as import('../../../shared/types').ForeshadowingEntry['type'],
-        introducedInAct: campaign.act || 1,
-        payoffStatus: 'planted',
-        createdAt: new Date().toISOString(),
-      });
-    }
-  }
-  if (aiResponse.paidOffForeshadowing) {
-    const existing = ws.foreshadowingLedger || [];
-    for (const id of aiResponse.paidOffForeshadowing) {
-      const entry = existing.find(f => f.id === id);
-      if (entry) ledgerChanges.push({ ...entry, payoffStatus: 'paid_off', payoffDescription: 'Resolved in story' });
-    }
-  }
-  let futureHooksChanges: WorldState['futureHooks'] | undefined;
-  if (aiResponse.resolvedFutureHooks && aiResponse.resolvedFutureHooks.length > 0) {
-    const phrases = aiResponse.resolvedFutureHooks.map(p => p.toLowerCase().trim()).filter(p => p.length >= 3);
-    const existing = ws.futureHooks || [];
-    if (phrases.length > 0 && existing.some(h => !h.resolved && phrases.some(p => h.description.toLowerCase().includes(p)))) {
-      futureHooksChanges = existing.map(h => (!h.resolved && phrases.some(p => h.description.toLowerCase().includes(p))) ? { ...h, resolved: true } : h);
-    }
-  }
+  const { ledgerChanges, futureHooksChanges } = buildForeshadowingAndFutureHookChanges(aiResponse, ws, campaign.act || 1);
 
-  // Update backstory hooks
-  const hookChanges: import('../../../shared/types').BackstoryHook[] = [];
-  if (aiResponse.backstoryHookActivated) {
-    const hooks = ws.backstoryHooks || [];
-    const dormant = hooks.find(h => h.characterId === aiResponse.backstoryHookActivated && h.status === 'dormant');
-    if (dormant) hookChanges.push({ ...dormant, status: 'active', seededAt: new Date().toISOString() });
-  }
-  if (aiResponse.backstoryHookResolved) {
-    const hooks = ws.backstoryHooks || [];
-    const active = hooks.find(h => h.characterId === aiResponse.backstoryHookResolved && h.status === 'active');
-    if (active) hookChanges.push({ ...active, status: 'resolved' });
-  }
+  const hookChanges = buildBackstoryHookChanges(aiResponse, ws.backstoryHooks);
 
   // Track act goal achievements
   const goalChanges: string[] = [];
   if (aiResponse.actGoalAchieved) goalChanges.push(aiResponse.actGoalAchieved);
 
   // Update scene state pacing tracker
-  const prevSceneState = ws.sceneState;
-  const aiMomentum = aiResponse.sceneMomentum || 'advancing';
-  const isTransitioning = aiMomentum === 'transitioning';
-  // Count concrete clues revealed this turn (capped) so the prompt can force a
-  // clue-to-choice escalation once a scene has handed out enough lore.
-  const cluesThisTurn = Math.min(aiResponse.turnOutcome?.informationRevealed?.length ?? 0, 3);
-  const newSceneState: WorldState['sceneState'] = isTransitioning
-    ? {
-        purpose: aiResponse.scenePurpose || 'explore',
-        exchangeCount: 0,
-        stalledCount: 0,
-        pacingMode: aiResponse.pacingMode || 'exploration',
-        cluesThisScene: cluesThisTurn,
-      }
-    : {
-        purpose: aiResponse.scenePurpose || prevSceneState?.purpose || 'explore',
-        exchangeCount: (prevSceneState?.exchangeCount ?? 0) + 1,
-        stalledCount: aiMomentum === 'stalling' ? (prevSceneState?.stalledCount ?? 0) + 1 : 0,
-        pacingMode: aiResponse.pacingMode || prevSceneState?.pacingMode || 'exploration',
-        cluesThisScene: (prevSceneState?.cluesThisScene ?? 0) + cluesThisTurn,
-      };
+  const newSceneState = buildSceneStateUpdate(ws.sceneState, aiResponse);
 
-  // Track active NPC from AI response â€” auto-clear on location change
-  const activeNPCChange: Partial<WorldState> = {};
-  const locationChanged = newLocation && ws.currentLocation && newLocation !== ws.currentLocation;
-  if (locationChanged) {
-    activeNPCChange.activeNPC = null; // leaving a location always ends the conversation
-  } else if (aiResponse.activeNPC !== undefined) {
-    activeNPCChange.activeNPC = aiResponse.activeNPC;
-  }
-
-  // If the model sets activeNPC but forgets npcMemory, still save a lightweight character card.
-  const activeNpcName = typeof activeNPCChange.activeNPC === 'string' ? activeNPCChange.activeNPC.trim() : '';
-  const existingNpcNames = new Set([
-    ...toArr<NpcMemory>(ws.npcMemory).map(npc => npc.name.toLowerCase()),
-    ...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory).map(npc => npc.name.toLowerCase()),
-  ]);
-  const autoNpcMemory: NpcMemory[] = activeNpcName && !existingNpcNames.has(activeNpcName.toLowerCase())
-    ? [{
-        name: activeNpcName,
-        disposition: 'unknown',
-        notes: `Met ${character.name} near ${newLocation || ws.currentLocation || 'the current scene'}.`,
-        lastMet: newLocation || ws.currentLocation,
-        metCharacters: [character.name],
-        interactionCount: 1,
-      }]
-    : [];
+  const activeNPCChange = buildActiveNpcChange(ws, aiResponse, newLocation);
+  const autoNpcMemory = buildAutoNpcMemory(
+    ws,
+    aiResponse.worldStateChanges as Partial<WorldState> | undefined,
+    activeNPCChange.activeNPC,
+    [character.name],
+    newLocation,
+  );
   const combatSignals = actionSignals([action]);
   const newCombatEncounter = !ws.combatState?.inCombat && !!combatState?.inCombat;
   const combatantEnemies = combatState?.enemies || aiResponse.combatEnemies || ws.combatState?.enemies;
@@ -1070,37 +478,12 @@ export async function processAction(
       })
     : [];
 
-  // Persist shop inventory per location â€” same visit shows same items, but resets after leaving and doing 5+ things elsewhere
-  const shopInventoryChange: Partial<WorldState> = {};
-  if (aiResponse.isMerchant && aiResponse.shopItems && aiResponse.shopItems.length > 0) {
-    const validItemTypes = new Set(['weapon', 'armor', 'potion', 'misc', 'key']);
-    // Validate and sanitize shop items to prevent undefined fields crashing the UI
-    aiResponse.shopItems = aiResponse.shopItems
-      .filter(item => item.name && typeof item.name === 'string')
-      .map(item => ({
-        id: item.id || crypto.randomUUID(),
-        name: item.name,
-        description: item.description || '',
-        type: (validItemTypes.has(item.type) ? item.type : 'misc') as ShopItem['type'],
-        price: typeof item.price === 'number' && !isNaN(item.price) ? Math.max(1, Math.round(item.price)) : 10,
-        quantity: typeof item.quantity === 'number' && !isNaN(item.quantity) ? Math.max(1, Math.round(item.quantity)) : 1,
-      }));
-
-    const location = (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation || 'unknown';
-    const existingInventory = ws.shopInventory?.[location];
-    const actionsSinceHere = ws.actionsSinceLastSummary || 0;
-    if (existingInventory && actionsSinceHere < 6) {
-      aiResponse.shopItems = existingInventory;
-    } else {
-      // Prune old shop inventories â€” keep at most 20 locations to avoid JSONB bloat
-      const existingShop = ws.shopInventory || {};
-      const keys = Object.keys(existingShop);
-      const pruned = keys.length >= 20
-        ? Object.fromEntries(keys.slice(-19).map(k => [k, existingShop[k]]))
-        : existingShop;
-      shopInventoryChange.shopInventory = { ...pruned, [location]: aiResponse.shopItems as ShopItem[] };
-    }
-  }
+  const { shopInventoryChange, shopItems } = buildShopInventoryChange(
+    ws,
+    aiResponse,
+    (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation || 'unknown',
+  );
+  if (shopItems) aiResponse.shopItems = shopItems;
 
   // Track total action count for villain move timing
   const newActionCount = (ws.actionCount || 0) + 1;
@@ -1129,25 +512,14 @@ export async function processAction(
     } catch { /* non-critical */ }
   }
 
-  // Handle endgame phase triggers from AI
-  let endgamePhase = ws.endgamePhase;
-  if ((aiResponse as unknown as Record<string, unknown>).triggerFinalConfrontation) {
-    endgamePhase = 'confrontation';
-  } else if ((aiResponse as unknown as Record<string, unknown>).endgameResolved) {
-    endgamePhase = 'none';
-  } else if (!endgamePhase || endgamePhase === 'none') {
-    // Auto-escalate to approaching when villain plan is near completion
-    const antagonistProgress = ws.antagonistProgress || {};
-    const primaryAntagonist = wb.primaryAntagonist;
-    if (primaryAntagonist) {
-      const progress = antagonistProgress[primaryAntagonist.name];
-      const totalSteps = primaryAntagonist.planSteps?.length || 5;
-      const targetActions = campaignLengthTargetActionsFromSystem(wb);
-      if (progress && progress.stepIndex >= totalSteps - 1 && newActionCount >= targetActions * 0.5) {
-        endgamePhase = 'approaching';
-      }
-    }
-  }
+  const endgamePhase = resolveEndgamePhase(
+    ws.endgamePhase,
+    aiResponse,
+    ws,
+    wb,
+    newActionCount,
+    campaignLengthTargetActionsFromSystem(wb),
+  );
 
   const newActionsInCurrentAct = (ws.actionsInCurrentAct || 0) + 1;
 
@@ -1965,13 +1337,8 @@ export async function processCoopAction(
     currentBalance[aiResponse.spotlightCharacterId] = (currentBalance[aiResponse.spotlightCharacterId] || 0) + 1;
   }
 
-  // Track per-character location and last seen
   const newLocation = coopPlan.worldStatePatch.currentLocation || (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation;
-  const characterLocations = {
-    ...(ws.characterLocations || {}),
-    [characters[0].id]: newLocation || 'Unknown',
-    [characters[1].id]: newLocation || 'Unknown',
-  };
+  const locationTracking = buildLocationTracking(ws, [characters[0].id, characters[1].id], newLocation);
 
   // Scene summary â€” regenerate every 4 actions
   const sceneActionCount = (ws.actionsSinceLastSummary || 0) + 1;
@@ -1984,82 +1351,19 @@ export async function processCoopAction(
     } catch { /* non-critical */ }
   }
 
-  // Update scene state pacing tracker
-  const prevSceneState = ws.sceneState;
-  const aiMomentum = aiResponse.sceneMomentum || 'advancing';
-  const isTransitioning = aiMomentum === 'transitioning';
-  const cluesThisTurn = Math.min(aiResponse.turnOutcome?.informationRevealed?.length ?? 0, 3);
-  const newSceneState: WorldState['sceneState'] = isTransitioning
-    ? {
-        purpose: aiResponse.scenePurpose || 'explore',
-        exchangeCount: 0,
-        stalledCount: 0,
-        pacingMode: aiResponse.pacingMode || 'exploration',
-        cluesThisScene: cluesThisTurn,
-      }
-    : {
-        purpose: aiResponse.scenePurpose || prevSceneState?.purpose || 'explore',
-        exchangeCount: (prevSceneState?.exchangeCount ?? 0) + 1,
-        stalledCount: aiMomentum === 'stalling' ? (prevSceneState?.stalledCount ?? 0) + 1 : 0,
-        pacingMode: aiResponse.pacingMode || prevSceneState?.pacingMode || 'exploration',
-        cluesThisScene: (prevSceneState?.cluesThisScene ?? 0) + cluesThisTurn,
-      };
+  const newSceneState = buildSceneStateUpdate(ws.sceneState, aiResponse);
 
-  // Track active NPC â€” auto-clear on location change
-  const activeNPCChange: Partial<WorldState> = {};
-  const locationChanged = newLocation && ws.currentLocation && newLocation !== ws.currentLocation;
-  if (locationChanged) {
-    activeNPCChange.activeNPC = null;
-  } else if (aiResponse.activeNPC !== undefined) {
-    activeNPCChange.activeNPC = aiResponse.activeNPC;
-  }
+  const activeNPCChange = buildActiveNpcChange(ws, aiResponse, newLocation);
+  const autoNpcMemory = buildAutoNpcMemory(
+    ws,
+    aiResponse.worldStateChanges as Partial<WorldState> | undefined,
+    activeNPCChange.activeNPC,
+    characters.map(character => character.name),
+    newLocation,
+  );
 
-  // If the model sets activeNPC but forgets npcMemory, save a lightweight character card
-  const activeNpcName = typeof activeNPCChange.activeNPC === 'string' ? activeNPCChange.activeNPC.trim() : '';
-  const existingNpcNames = new Set([
-    ...toArr<NpcMemory>(ws.npcMemory).map(npc => npc.name.toLowerCase()),
-    ...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory).map(npc => npc.name.toLowerCase()),
-  ]);
-  const autoNpcMemory: NpcMemory[] = activeNpcName && !existingNpcNames.has(activeNpcName.toLowerCase())
-    ? [{
-        name: activeNpcName,
-        disposition: 'unknown',
-        notes: `Met ${characters[0].name} and ${characters[1].name} near ${newLocation || ws.currentLocation || 'the current scene'}.`,
-        lastMet: newLocation || ws.currentLocation,
-        metCharacters: [characters[0].name, characters[1].name],
-        interactionCount: 1,
-      }]
-    : [];
-
-  // Persist shop inventory per location
-  const shopInventoryChange: Partial<WorldState> = {};
-  if (aiResponse.isMerchant && aiResponse.shopItems && aiResponse.shopItems.length > 0) {
-    const validItemTypes = new Set(['weapon', 'armor', 'potion', 'misc', 'key']);
-    aiResponse.shopItems = aiResponse.shopItems
-      .filter(item => item.name && typeof item.name === 'string')
-      .map(item => ({
-        id: item.id || crypto.randomUUID(),
-        name: item.name,
-        description: item.description || '',
-        type: (validItemTypes.has(item.type) ? item.type : 'misc') as ShopItem['type'],
-        price: typeof item.price === 'number' && !isNaN(item.price) ? Math.max(1, Math.round(item.price)) : 10,
-        quantity: typeof item.quantity === 'number' && !isNaN(item.quantity) ? Math.max(1, Math.round(item.quantity)) : 1,
-      }));
-
-    const location = newLocation || 'unknown';
-    const existingInventory = ws.shopInventory?.[location];
-    const actionsSinceHere = ws.actionsSinceLastSummary || 0;
-    if (existingInventory && actionsSinceHere < 6) {
-      aiResponse.shopItems = existingInventory;
-    } else {
-      const existingShop = ws.shopInventory || {};
-      const keys = Object.keys(existingShop);
-      const pruned = keys.length >= 20
-        ? Object.fromEntries(keys.slice(-19).map(k => [k, existingShop[k]]))
-        : existingShop;
-      shopInventoryChange.shopInventory = { ...pruned, [location]: aiResponse.shopItems as ShopItem[] };
-    }
-  }
+  const { shopInventoryChange, shopItems } = buildShopInventoryChange(ws, aiResponse, newLocation || 'unknown');
+  if (shopItems) aiResponse.shopItems = shopItems;
 
   // Update combat state (shared with the solo path)
   const { combatState, forcedVictory } = advanceCombatStateFromSystem(ws.combatState ?? null, aiResponse, pendingActions.map(pa => pa.action));
@@ -2082,48 +1386,9 @@ export async function processCoopAction(
       })
     : [];
 
-  // Update foreshadowing ledger from AI response
-  const ledgerChanges: ForeshadowingEntry[] = [];
-  if (aiResponse.newForeshadowing) {
-    for (const f of aiResponse.newForeshadowing) {
-      ledgerChanges.push({
-        id: f.id || crypto.randomUUID(),
-        description: f.description,
-        type: f.type as ForeshadowingEntry['type'],
-        introducedInAct: campaign.act || 1,
-        payoffStatus: 'planted',
-        createdAt: new Date().toISOString(),
-      });
-    }
-  }
-  if (aiResponse.paidOffForeshadowing) {
-    const existing = ws.foreshadowingLedger || [];
-    for (const id of aiResponse.paidOffForeshadowing) {
-      const entry = existing.find(f => f.id === id);
-      if (entry) ledgerChanges.push({ ...entry, payoffStatus: 'paid_off', payoffDescription: 'Resolved in story' });
-    }
-  }
-  let futureHooksChanges: WorldState['futureHooks'] | undefined;
-  if (aiResponse.resolvedFutureHooks && aiResponse.resolvedFutureHooks.length > 0) {
-    const phrases = aiResponse.resolvedFutureHooks.map(p => p.toLowerCase().trim()).filter(p => p.length >= 3);
-    const existing = ws.futureHooks || [];
-    if (phrases.length > 0 && existing.some(h => !h.resolved && phrases.some(p => h.description.toLowerCase().includes(p)))) {
-      futureHooksChanges = existing.map(h => (!h.resolved && phrases.some(p => h.description.toLowerCase().includes(p))) ? { ...h, resolved: true } : h);
-    }
-  }
+  const { ledgerChanges, futureHooksChanges } = buildForeshadowingAndFutureHookChanges(aiResponse, ws, campaign.act || 1);
 
-  // Update backstory hooks for either character
-  const hookChanges: BackstoryHook[] = [];
-  if (aiResponse.backstoryHookActivated) {
-    const hooks = ws.backstoryHooks || [];
-    const dormant = hooks.find(h => h.characterId === aiResponse.backstoryHookActivated && h.status === 'dormant');
-    if (dormant) hookChanges.push({ ...dormant, status: 'active', seededAt: new Date().toISOString() });
-  }
-  if (aiResponse.backstoryHookResolved) {
-    const hooks = ws.backstoryHooks || [];
-    const active = hooks.find(h => h.characterId === aiResponse.backstoryHookResolved && h.status === 'active');
-    if (active) hookChanges.push({ ...active, status: 'resolved' });
-  }
+  const hookChanges = buildBackstoryHookChanges(aiResponse, ws.backstoryHooks);
 
   // Track act goal achievements
   const goalChanges: string[] = [];
@@ -2152,24 +1417,14 @@ export async function processCoopAction(
     } catch { /* non-critical */ }
   }
 
-  // Handle endgame phase triggers from AI
-  let endgamePhase = ws.endgamePhase;
-  if (aiResponse.triggerFinalConfrontation) {
-    endgamePhase = 'confrontation';
-  } else if (aiResponse.endgameResolved) {
-    endgamePhase = 'none';
-  } else if (!endgamePhase || endgamePhase === 'none') {
-    const antagonistProgress = ws.antagonistProgress || {};
-    const primaryAntagonist = wb.primaryAntagonist;
-    if (primaryAntagonist) {
-      const progress = antagonistProgress[primaryAntagonist.name];
-      const totalSteps = primaryAntagonist.planSteps?.length || 5;
-      const targetActions = campaignLengthTargetActionsFromSystem(wb);
-      if (progress && progress.stepIndex >= totalSteps - 1 && newActionCount >= targetActions * 0.5) {
-        endgamePhase = 'approaching';
-      }
-    }
-  }
+  const endgamePhase = resolveEndgamePhase(
+    ws.endgamePhase,
+    aiResponse,
+    ws,
+    wb,
+    newActionCount,
+    campaignLengthTargetActionsFromSystem(wb),
+  );
 
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
@@ -2197,7 +1452,7 @@ export async function processCoopAction(
     actionCount: newActionCount,
     actionsInCurrentAct: newActionsInCurrentAct,
     combatState,
-    characterLocations,
+    ...locationTracking,
     ...buildContinuityPatch(characters, coopPlan.rails, ws, aiResponse, newActionCount, newLocation),
     currentSceneSummary,
     actionsSinceLastSummary,
@@ -2207,10 +1462,6 @@ export async function processCoopAction(
       : ws.lastPillarUsed,
     ...activeNPCChange,
     ...shopInventoryChange,
-    characterLastSeen: {
-      ...(ws.characterLastSeen || {}),
-      ...Object.fromEntries(pendingActions.map(pa => [pa.characterId, new Date().toISOString()])),
-    },
     pendingTurn: null,
     coopPendingRoll: null,
     spotlightBalance: currentBalance,
