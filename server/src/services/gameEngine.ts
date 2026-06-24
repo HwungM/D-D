@@ -1,16 +1,20 @@
 import { supabaseAdmin } from './supabase';
 import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks, generateCoopNarration } from './openai';
 import OpenAI from 'openai';
-import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, StatusEffect, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe, InventoryItem, CombatEnemy, StoryLedgerEntry } from '../../../shared/types';
+import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, ActiveQuest, ForeshadowingEntry, BackstoryHook, LocationNode, UnlockedAchievement, Recipe, InventoryItem, CombatEnemy, StoryLedgerEntry } from '../../../shared/types';
 import { buildAwaitingRollNarration, enforceTurnPlanNarration, planCoopTurn, planOpeningTurn, planSoloTurn } from './gameDirector';
 import { applyContinuityRepairs, buildContinuityDirective, buildContinuityPatch } from './storyContinuity';
 import { canAdvanceAct } from './actPacingSystem';
 import { preventUngroundedFight } from './aiContractValidator';
 import {
-  checkLevelUp as checkLevelUpFromSystem,
   getStatModifier as getStatModifierFromSystem,
   rollDice as rollDiceFromSystem,
 } from './characterProgressionSystem';
+import {
+  appendCharacterHistory,
+  appendFallenHero,
+  applyCharacterConsequences,
+} from './consequenceSystem';
 import { advanceCombatState as advanceCombatStateFromSystem, newlyDefeatedCombatants } from './combatSystem';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
 import {
@@ -73,9 +77,7 @@ import {
   calculateActionXp,
   calculateNarrativeXp,
   degreeOfSuccess,
-  normalizeMechanicalConsequences,
   resolvePlayerCombatRoll,
-  stackInventory,
 } from './rulesEngine';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -627,13 +629,7 @@ export async function applyConsequences(
   currentCharacter: Character,
   campaign: { id: string; world_state: WorldState; act?: number; world_bible?: WorldBible }
 ): Promise<{ updatedCharacter: Character; updatedWorldState: WorldState }> {
-  const validItemTypes = new Set(['weapon', 'armor', 'potion', 'misc', 'key']);
-  const updates: Partial<Character> = {};
-  const mechanical = normalizeMechanicalConsequences(currentCharacter, {
-    hpChange: actionResult.hpChange,
-    goldChange: actionResult.goldChange,
-    loot: actionResult.loot,
-  }, { isDeath: actionResult.isDeath });
+  const updates: Partial<Character> = applyCharacterConsequences(currentCharacter, actionResult);
 
   // Re-fetch latest world state right before writing to minimize race window in co-op
   const { data: freshCampaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaign.id).single();
@@ -644,102 +640,6 @@ export async function applyConsequences(
   if (actionResult.worldStateChanges) {
     newWorldState = mergeWorldStateChangesFromSystem(newWorldState, actionResult.worldStateChanges as Partial<WorldState>);
   }
-
-  // Apply HP changes
-  if (mechanical.hpChange !== undefined) {
-    updates.hp = Math.max(0, Math.min(currentCharacter.max_hp, currentCharacter.hp + mechanical.hpChange));
-  }
-
-  // Apply gold changes â€” validate to prevent NaN/runaway values from AI
-  if (mechanical.goldChange !== undefined) {
-    updates.gold = Math.max(0, currentCharacter.gold + mechanical.goldChange);
-  }
-
-  // Apply loot to inventory
-  if (mechanical.loot && mechanical.loot.length > 0) {
-    const existingInventory = currentCharacter.inventory || [];
-    const newItems = mechanical.loot
-      .filter(item => item.name && typeof item.name === 'string')
-      .map(item => ({
-        id: item.id || crypto.randomUUID(),
-        name: item.name,
-        description: item.description || '',
-        quantity: Math.max(1, Math.round(item.quantity || 1)),
-        type: (validItemTypes.has(item.type) ? item.type : 'misc') as 'weapon' | 'armor' | 'potion' | 'misc' | 'key',
-        value: typeof item.value === 'number' && !isNaN(item.value) ? item.value : undefined,
-        setName: (item as { setName?: string }).setName,
-        setBonus: (item as { setBonus?: string }).setBonus,
-      }));
-    updates.inventory = stackInventory(existingInventory, newItems);
-  }
-
-  // Apply XP and check level up
-  if (actionResult.xpGained && actionResult.xpGained > 0) {
-    updates.xp = currentCharacter.xp + actionResult.xpGained;
-    const levelCheck = checkLevelUpFromSystem({ ...currentCharacter, xp: updates.xp });
-    if (levelCheck.leveledUp && levelCheck.newLevel) {
-      updates.level = levelCheck.newLevel;
-      updates.max_hp = currentCharacter.max_hp + (levelCheck.hpGain ?? 0);
-      updates.hp = Math.min(currentCharacter.hp + (levelCheck.hpGain ?? 0), updates.max_hp);
-      const newAbility = getAbilityForLevel(currentCharacter.class, levelCheck.newLevel);
-      if (newAbility) {
-        const existingAbilities = currentCharacter.abilities || [];
-        const alreadyHas = existingAbilities.some(a => a.name === newAbility.name);
-        if (!alreadyHas) updates.abilities = [...existingAbilities, newAbility];
-      }
-    }
-  }
-
-  // Apply status effects + decrement durations on every action
-  {
-    let effects: StatusEffect[] = [...(currentCharacter.status_effects || [])];
-    effects = effects
-      .map(e => e.duration != null ? { ...e, duration: e.duration - 1 } : e)
-      .filter(e => e.duration == null || e.duration > 0);
-
-    if (actionResult.statusEffectChanges) {
-      if (actionResult.statusEffectChanges.remove) {
-        const toRemove = new Set(toArr<string>(actionResult.statusEffectChanges.remove).map(n => n.toLowerCase()));
-        effects = effects.filter(e => !toRemove.has(e.name.toLowerCase()));
-      }
-      if (actionResult.statusEffectChanges.add) {
-        for (const e of actionResult.statusEffectChanges.add) {
-          if (!e.name || typeof e.name !== 'string') continue;
-          const validEffectTypes = new Set(['buff', 'debuff', 'neutral']);
-          const effectType = validEffectTypes.has(e.type) ? e.type : 'neutral';
-          const existing = effects.findIndex(x => x.name.toLowerCase() === e.name.toLowerCase());
-          const effect: StatusEffect = { name: e.name, description: e.description || '', type: effectType as StatusEffect['type'], duration: e.duration };
-          if (existing >= 0) effects[existing] = effect;
-          else effects.push(effect);
-        }
-      }
-    }
-    updates.status_effects = effects;
-  }
-
-  // Decrement ability cooldowns each action; reset all on rest
-  {
-    const abilities = currentCharacter.abilities || [];
-    if (abilities.length > 0) {
-      const updated = abilities.map(a => {
-        if (actionResult.isRest) return { ...a, currentCooldown: 0 };
-        if (actionResult.abilityUsed && a.name === actionResult.abilityUsed && a.cooldown) return { ...a, currentCooldown: a.cooldown };
-        if (a.currentCooldown && a.currentCooldown > 0) return { ...a, currentCooldown: a.currentCooldown - 1 };
-        return a;
-      });
-      if (JSON.stringify(updated) !== JSON.stringify(abilities)) updates.abilities = updated;
-    }
-  }
-
-  // Remove consumed items from inventory when AI narrates their use
-  if (actionResult.consumedItems && toArr(actionResult.consumedItems).length > 0) {
-    const consumed = new Set(toArr<string>(actionResult.consumedItems).map(c => c.toLowerCase()));
-    const inv = updates.inventory ?? currentCharacter.inventory ?? [];
-    updates.inventory = inv
-      .map(item => consumed.has(item.name.toLowerCase()) ? { ...item, quantity: item.quantity - 1 } : item)
-      .filter(item => item.quantity > 0);
-  }
-
   // Accumulate session notes until the players explicitly end the shared
   // session. This avoids arbitrary "every N actions" boundaries and gives
   // recaps a real start/end point.
@@ -748,11 +648,7 @@ export async function applyConsequences(
   }
 
   if (actionResult.characterHistoryNote) {
-    const history = [...(newWorldState.characterHistory || []), {
-      ...actionResult.characterHistoryNote,
-      createdAt: new Date().toISOString(),
-    }];
-    newWorldState.characterHistory = history.slice(-50);
+    newWorldState = appendCharacterHistory(newWorldState, actionResult.characterHistoryNote);
   }
 
   if (actionResult.antagonistUpdate) {
@@ -774,20 +670,7 @@ export async function applyConsequences(
   }
 
   if (actionResult.isDeath) {
-    updates.hp = 0;
-    updates.is_alive = false;
-    updates.death_note = actionResult.deathDescription || 'Fell in battle.';
-    const fallen = Array.isArray(newWorldState.fallenHeroes) ? newWorldState.fallenHeroes : [];
-    fallen.push({
-      name: currentCharacter.name,
-      race: currentCharacter.race,
-      class: currentCharacter.class,
-      level: currentCharacter.level,
-      cause: actionResult.deathDescription || 'Fell in battle.',
-      diedAt: new Date().toISOString(),
-      location: newWorldState.currentLocation || 'Unknown',
-    });
-    newWorldState.fallenHeroes = fallen;
+    newWorldState = appendFallenHero(newWorldState, currentCharacter, actionResult.deathDescription);
   }
 
   // Single atomic world state write â€” eliminates co-op race conditions
