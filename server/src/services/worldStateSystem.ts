@@ -16,6 +16,16 @@ function isNpcMemory(value: unknown): value is NpcMemory {
   return isRecord(value) && typeof value.name === 'string' && typeof value.notes === 'string';
 }
 
+function npcMemoryKey(name: unknown): string {
+  return typeof name === 'string' ? name.trim().toLowerCase() : '';
+}
+
+function npcMemoryEntries(list: unknown): [string, NpcMemory][] {
+  return toArr<NpcMemory>(list)
+    .map((npc): [string, NpcMemory] => [npcMemoryKey(npc.name), npc])
+    .filter((entry): entry is [string, NpcMemory] => entry[0].length > 0);
+}
+
 function isActiveQuest(value: unknown): value is ActiveQuest {
   return isRecord(value) && typeof value.title === 'string' && typeof value.description === 'string';
 }
@@ -228,26 +238,29 @@ export function mergeWorldStateChanges(current: WorldState, changes: Partial<Wor
 
   if (changes.npcMemory) {
     const npcArray = (Array.isArray(changes.npcMemory) ? changes.npcMemory : Object.values(changes.npcMemory)).filter(isNpcMemory);
-    const existing = new Map(toArr<NpcMemory>(current.npcMemory).map(n => [n.name, n]));
-    const keyNpcMap = new Map(toArr<NpcMemory>(current.keyNPCs).map(n => [n.name, n]));
+    const existing = new Map<string, NpcMemory>(npcMemoryEntries(current.npcMemory));
+    const keyNpcMap = new Map<string, NpcMemory>(npcMemoryEntries(current.keyNPCs));
 
     for (const npc of npcArray) {
-      const placeholder = npc.replacesName && npc.replacesName !== npc.name ? existing.get(npc.replacesName) : undefined;
-      if (placeholder) {
-        existing.delete(npc.replacesName!);
-        keyNpcMap.delete(npc.replacesName!);
+      const npcKey = npcMemoryKey(npc.name);
+      if (!npcKey) continue;
+      const replacesKey = npc.replacesName && npcMemoryKey(npc.replacesName) !== npcKey ? npcMemoryKey(npc.replacesName) : '';
+      const placeholder = replacesKey ? existing.get(replacesKey) : undefined;
+      if (placeholder && replacesKey) {
+        existing.delete(replacesKey);
+        keyNpcMap.delete(replacesKey);
       }
-      const prev = existing.get(npc.name) || placeholder;
+      const prev = existing.get(npcKey) || placeholder;
       const metChars = Array.from(new Set([...(prev?.metCharacters || []), ...(npc.metCharacters || [])]));
       const interactionCount = (prev?.interactionCount || 0) + 1;
       const { replacesName: _replacesName, ...npcRest } = npc;
       const mergedNpc = { ...prev, ...npcRest, metCharacters: metChars, interactionCount };
-      existing.set(npc.name, mergedNpc);
+      existing.set(npcKey, mergedNpc);
 
-      if ((interactionCount >= 3 || npc.isKeyNPC) && !keyNpcMap.has(npc.name)) {
-        keyNpcMap.set(npc.name, { ...mergedNpc, isKeyNPC: true });
-      } else if (keyNpcMap.has(npc.name)) {
-        keyNpcMap.set(npc.name, { ...keyNpcMap.get(npc.name)!, ...npc, metCharacters: metChars, interactionCount });
+      if ((interactionCount >= 3 || npc.isKeyNPC) && !keyNpcMap.has(npcKey)) {
+        keyNpcMap.set(npcKey, { ...mergedNpc, isKeyNPC: true });
+      } else if (keyNpcMap.has(npcKey)) {
+        keyNpcMap.set(npcKey, { ...keyNpcMap.get(npcKey)!, ...npc, metCharacters: metChars, interactionCount });
       }
     }
 

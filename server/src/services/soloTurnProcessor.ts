@@ -1,5 +1,6 @@
 import type { ActionResult, Character, CharacterHistoryEntry, CharacterOnlineStatus, DiceRollResult, NpcMemory, ShopItem, WorldBible, WorldState } from '../../../shared/types';
 import { getAbilityForLevel } from '../../../shared/classAbilities';
+import { canAdvanceAct } from './actPacingSystem';
 import { ensureCombatEncounterCompleteness, preventUngroundedFight } from './aiContractValidator';
 import {
   advanceActIfAllowed,
@@ -333,6 +334,21 @@ export async function processAction(
 
   // Track total action count for villain move timing
   const newActionCount = (ws.actionCount || 0) + 1;
+  const newActionsInCurrentAct = (ws.actionsInCurrentAct || 0) + 1;
+  const actAdvancePreview = aiResponse.advanceAct
+    ? canAdvanceAct({
+        ...ws,
+        actionsInCurrentAct: newActionsInCurrentAct,
+        actGoalsAchieved: Array.from(new Set([...(ws.actGoalsAchieved || []), ...goalChanges])),
+        lastHighStakesAction: aiResponse.isHighStakes ? newActionCount : ws.lastHighStakesAction,
+        npcMemory: [
+          ...(ws.npcMemory || []),
+          ...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory),
+          ...autoNpcMemory,
+          ...combatantNpcMemory,
+        ],
+      }, wb, campaign.act || 1)
+    : undefined;
 
   const engineAuditEntry = buildEngineAuditEntry({
     worldState: ws,
@@ -350,6 +366,9 @@ export async function processAction(
     actGoalsAdded: goalChanges,
     highStakes: !!aiResponse.isHighStakes || !!ws.lastHighStakesAction,
     directorBeatPending: !!ws.pendingDirectorBeat,
+    actAdvance: aiResponse.advanceAct
+      ? { proposed: true, allowed: !!actAdvancePreview?.allowed, reason: actAdvancePreview?.reason }
+      : undefined,
   });
 
   const { shopInventoryChange, shopItems } = buildShopInventoryChange(
@@ -391,8 +410,6 @@ export async function processAction(
     newActionCount,
     campaignLengthTargetActionsFromSystem(wb),
   );
-
-  const newActionsInCurrentAct = (ws.actionsInCurrentAct || 0) + 1;
 
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),

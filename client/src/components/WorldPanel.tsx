@@ -44,6 +44,30 @@ function reputationBar(value: unknown) {
   return { color, label, pct }
 }
 
+function readinessReport(worldState: WorldState, npcs: NpcMemory[]) {
+  const issues: string[] = []
+  const audit = Array.isArray(worldState.engineAudit) ? worldState.engineAudit : []
+  const latestAudit = audit.length > 0 ? audit[audit.length - 1] : undefined
+  const activeCombatants = worldState.combatState?.inCombat ? (worldState.combatState.enemies?.length || 0) : 0
+  const act = worldState.campaignSpine?.currentArc.act
+
+  if (audit.length === 0) issues.push('Take one fresh turn so the engine audit can verify this campaign state.')
+  if (latestAudit?.checks.some(check => check.status === 'blocked')) issues.push('The last audited turn had a blocked engine rule. Inspect it before calling the test clean.')
+  if (worldState.combatState?.inCombat && activeCombatants === 0) issues.push('Combat is active but no individual enemies are tracked.')
+  if ((worldState.activeNPC || worldState.combatState?.enemyName) && npcs.length === 0) issues.push('A named person is active, but the People Sheet is still empty.')
+  if (act === 2 && !worldState.lastHighStakesAction) issues.push('Act II has not recorded a high-stakes beat yet.')
+
+  const spotlightCounts = Object.values(worldState.spotlightBalance || {}).filter((value): value is number => typeof value === 'number')
+  if (spotlightCounts.length >= 2 && Math.max(...spotlightCounts) - Math.min(...spotlightCounts) >= 4) {
+    issues.push('Co-op spotlight is skewed by four or more turns.')
+  }
+
+  const score = Math.max(0, 100 - issues.length * 20)
+  const label = score >= 90 ? 'Final-test ready' : score >= 70 ? 'Almost ready' : score >= 40 ? 'Needs attention' : 'Not ready'
+  const color = score >= 90 ? '#4ade80' : score >= 70 ? '#f59e0b' : score >= 40 ? '#f97316' : '#f87171'
+  return { issues, score, label, color }
+}
+
 function uniqueNpcList(worldState: WorldState): NpcMemory[] {
   const byName = new Map<string, NpcMemory>()
   const add = (npc: unknown) => {
@@ -112,6 +136,7 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
   const spine = worldState.campaignSpine
   const pressure = spine ? (PRESSURE_STYLE[spine.currentArc.pressure] || PRESSURE_STYLE.low) : null
   const auditEntries = Array.isArray(worldState.engineAudit) ? worldState.engineAudit.slice(-5).reverse() : []
+  const readiness = readinessReport(worldState, npcs)
 
   return (
     <div className="space-y-6 p-4 text-sm text-parchment-100">
@@ -151,6 +176,32 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
           </div>
         </section>
       )}
+
+      <section className="border p-4" style={{ borderColor: `${readiness.color}44`, background: `${readiness.color}10` }}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.24em]" style={{ color: readiness.color }}>Final Test Readiness</p>
+            <h3 className="mt-1 font-fantasy text-xl text-parchment-100">{readiness.label}</h3>
+          </div>
+          <span className="shrink-0 border px-2 py-1 font-mono text-sm" style={{ color: readiness.color, borderColor: `${readiness.color}66`, background: `${readiness.color}14` }}>
+            {readiness.score}%
+          </span>
+        </div>
+
+        {readiness.issues.length === 0 ? (
+          <p className="mt-3 font-serif text-sm leading-relaxed text-parchment-200/70">
+            Current tracked state has no obvious readiness blockers. Testing can focus on feel, pacing, and whether the story lands.
+          </p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {readiness.issues.map((issue, index) => (
+              <div key={`${issue}-${index}`} className="border border-white/8 bg-black/20 px-3 py-2">
+                <p className="font-serif text-sm leading-relaxed text-parchment-200/68">{issue}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="border border-purple-300/16 bg-purple-300/[0.035] p-4">
         <div className="flex items-start justify-between gap-3">

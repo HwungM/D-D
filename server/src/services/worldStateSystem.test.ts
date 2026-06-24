@@ -26,6 +26,26 @@ test('world state reducer merges NPC memory and promotes recurring key NPCs', ()
   assert.equal(merged.keyNPCs?.[0].name, 'Veyra');
 });
 
+test('world state reducer merges NPC memory case-insensitively', () => {
+  const merged = mergeWorldStateChanges(
+    {
+      npcMemory: [{ name: 'Bandit 2', disposition: 'hostile', notes: 'Defeated at the tollhouse.', interactionCount: 1, metCharacters: ['King'] }],
+      keyNPCs: [{ name: 'Captain Roe', disposition: 'neutral', notes: 'Gate captain.', interactionCount: 3, isKeyNPC: true }],
+    },
+    {
+      npcMemory: [{ name: 'bandit 2', disposition: 'hostile', notes: 'Spared but furious.', metCharacters: ['Sun Mi'] }],
+      keyNPCs: [{ name: 'captain roe', disposition: 'friendly', notes: 'Helped the party.', isKeyNPC: true }],
+    },
+  );
+
+  assert.equal(merged.npcMemory?.length, 1);
+  assert.equal(merged.npcMemory?.[0].name, 'bandit 2');
+  assert.equal(merged.npcMemory?.[0].interactionCount, 2);
+  assert.deepEqual(merged.npcMemory?.[0].metCharacters, ['King', 'Sun Mi']);
+  assert.equal(merged.keyNPCs?.length, 1);
+  assert.equal(merged.keyNPCs?.[0].name, 'captain roe');
+});
+
 test('world state reducer merges quests, notes, and discovered locations without duplicates', () => {
   const merged = mergeWorldStateChanges(
     {
