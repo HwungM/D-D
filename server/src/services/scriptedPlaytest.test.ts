@@ -169,6 +169,27 @@ test('scripted final playtest covers combat grounding, People Sheet memory, life
   };
   assert.equal(canAdvanceAct(actThreeReady, bible, 3).allowed, true);
 
+  const openEndedBible = {
+    playerPreferences: { campaignLength: 'open_ended' },
+    dmRoadmap: {
+      act1Goals: ['Choose the next road'],
+      act2Goals: ['Force a faction choice', 'Survive a hard reversal'],
+      act3ConvergenceThreads: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
+    },
+  } as unknown as WorldBible;
+  assert.equal(canAdvanceAct({
+    actionsInCurrentAct: 24,
+    actGoalsAchieved: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
+    endgamePhase: 'none',
+    completedEvents: ['The drowned bell was destroyed, Captain Veyra was redeemed, and the Ash Gate was sealed in victory.'],
+  } as WorldState, openEndedBible, 3).allowed, true);
+  assert.equal(canAdvanceAct({
+    actionsInCurrentAct: 24,
+    activeQuests: [{ title: 'Follow the silver comet', description: 'Find what opened beyond the Ash Gate.', status: 'active' }],
+    actGoalsAchieved: ['Choose the next road'],
+    futureHooks: [{ id: 'moon-road', description: 'A moonlit road opens beyond the sealed gate.', source: 'test', createdAt: 'now', resolved: false }],
+  } as WorldState, openEndedBible, 4).allowed, true);
+
   const spotlight = buildSpotlightBalanceUpdate({ king: 5, sunMi: 1 }, ['king', 'sunMi'], null);
   assert.equal(spotlight.spotlightCharacterId, 'sunMi');
   assert.equal(spotlight.spotlightBalance.sunMi, 2);

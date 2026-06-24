@@ -4,11 +4,13 @@ interface Props {
   worldState: WorldState | null
 }
 
-const ACT_NAMES: Record<number, string> = {
-  1: 'Act I — The Call',
-  2: 'Act II — The Trial',
-  3: 'Act III — The Reckoning',
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']
+
+function actName(act: number, label?: string): string {
+  const roman = ROMAN[act - 1] || String(act)
+  return `Act ${roman}${label ? ` - ${label}` : ''}`
 }
+
 
 export default function JournalPanel({ worldState }: Props) {
   const recap = worldState?.campaignSpine?.lastRecap
@@ -50,7 +52,7 @@ export default function JournalPanel({ worldState }: Props) {
           <div className="mt-3 border border-amber-200/18 bg-amber-300/[0.04] px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <p className="font-fantasy text-base" style={{ color: '#f5e6c8' }}>
-                {ACT_NAMES[spine.currentArc.act] ?? `Act ${spine.currentArc.act}`}
+                {actName(spine.currentArc.act, spine.currentArc.label)}
               </p>
               <span
                 className="font-fantasy text-[9px] uppercase tracking-[0.16em] px-2 py-0.5"
@@ -88,7 +90,7 @@ export default function JournalPanel({ worldState }: Props) {
           <ul className="mt-3 space-y-2">
             {threads.map((thread, i) => (
               <li key={i} className="flex items-start gap-2 font-serif text-sm" style={{ color: 'rgba(220,195,155,0.68)' }}>
-                <span style={{ color: 'rgba(200,146,42,0.5)', marginTop: 2 }}>◆</span>
+                <span style={{ color: 'rgba(200,146,42,0.5)', marginTop: 2 }}>-</span>
                 {thread}
               </li>
             ))}
@@ -110,7 +112,7 @@ export default function JournalPanel({ worldState }: Props) {
               >
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <p className="font-fantasy text-[10px] uppercase tracking-[0.18em]" style={{ color: 'rgba(200,146,42,0.62)' }}>
-                    {ACT_NAMES[entry.actNumber] ?? `Act ${entry.actNumber}`} · Session {entry.sessionNumber}
+                    {actName(entry.actNumber)} - Session {entry.sessionNumber}
                   </p>
                   <span className="font-serif text-[10px]" style={{ color: 'rgba(180,155,110,0.38)' }}>
                     {new Date(entry.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
@@ -123,7 +125,7 @@ export default function JournalPanel({ worldState }: Props) {
                   <div className="mt-3 space-y-1">
                     {entry.keyDecisions.map((d, j) => (
                       <p key={j} className="flex items-start gap-2 font-serif text-xs" style={{ color: 'rgba(180,155,110,0.62)' }}>
-                        <span style={{ color: 'rgba(200,146,42,0.4)', flexShrink: 0 }}>›</span> {d}
+                        <span style={{ color: 'rgba(200,146,42,0.4)', flexShrink: 0 }}>{'>'}</span> {d}
                       </p>
                     ))}
                   </div>

@@ -1,4 +1,5 @@
 import type { BackstoryHook, EngineAuditCheck, EngineAuditEntry, ForeshadowingEntry, NpcMemory, Recipe, ShopItem, WorldBible, WorldState } from '../../../shared/types';
+import { actRoleFor, arcNumberFor } from './actPacingSystem';
 import type { NarrationResult } from './narrationResponseParser';
 
 export function appendAchievement(
@@ -280,6 +281,8 @@ export function buildEngineAuditEntry(options: {
   const combatantsTracked = Math.max(0, options.combatantsTracked || 0);
   const npcMemoryUpdates = Math.max(0, options.npcMemoryUpdates || 0);
   const actGoalsCompleted = Math.max(0, (options.worldState.actGoalsAchieved || []).length + (options.actGoalsAdded || []).length);
+  const role = actRoleFor(options.act);
+  const arc = arcNumberFor(options.act);
 
   checks.push(options.ungroundedFightBlocked
     ? { label: 'Grounded encounter', status: 'blocked', detail: 'Blocked an ungrounded fight spawn and converted it into investigation pressure.' }
@@ -301,33 +304,33 @@ export function buildEngineAuditEntry(options: {
     ? { label: 'People Sheet updates', status: 'pass', detail: `${npcMemoryUpdates} NPC memory update${npcMemoryUpdates === 1 ? '' : 's'} queued.` }
     : { label: 'People Sheet updates', status: 'info', detail: 'No NPC memory updates were needed this turn.' });
 
-  if (options.act === 1) {
+  if (role === 1) {
     checks.push({
-      label: 'Act I readiness',
+      label: `Act ${options.act} setup readiness`,
       status: actGoalsCompleted > 0 || npcMemoryUpdates > 0 ? 'pass' : 'warn',
       detail: actGoalsCompleted > 0
-        ? `Act I has ${actGoalsCompleted} roadmap goal${actGoalsCompleted === 1 ? '' : 's'} completed.`
-        : 'Act I still needs a concrete hook, NPC, location, or roadmap beat before it should advance.',
+        ? `Arc ${arc} setup has ${actGoalsCompleted} roadmap goal${actGoalsCompleted === 1 ? '' : 's'} completed.`
+        : `Arc ${arc} setup still needs a concrete hook, NPC, location, or roadmap beat before it should advance.`,
     });
   }
 
-  if (options.act === 2) {
+  if (role === 2) {
     checks.push({
-      label: 'Act II readiness',
+      label: `Act ${options.act} escalation readiness`,
       status: options.highStakes && actGoalsCompleted >= 2 ? 'pass' : 'warn',
       detail: options.highStakes
-        ? `Act II has high-stakes pressure; ${actGoalsCompleted} roadmap goal${actGoalsCompleted === 1 ? '' : 's'} completed.`
-        : `Act II still needs high-stakes pressure before it should advance; ${actGoalsCompleted} roadmap goal${actGoalsCompleted === 1 ? '' : 's'} completed.`,
+        ? `Arc ${arc} escalation has high-stakes pressure; ${actGoalsCompleted} roadmap goal${actGoalsCompleted === 1 ? '' : 's'} completed.`
+        : `Arc ${arc} escalation still needs high-stakes pressure before it should advance; ${actGoalsCompleted} roadmap goal${actGoalsCompleted === 1 ? '' : 's'} completed.`,
     });
   }
 
-  if (options.act >= 3) {
+  if (role === 3) {
     checks.push({
-      label: 'Act III readiness',
+      label: `Act ${options.act} climax readiness`,
       status: options.actAdvance?.allowed ? 'pass' : 'warn',
       detail: options.actAdvance?.allowed
-        ? 'Act III has enough convergence and resolution evidence to close.'
-        : 'Act III should not close until convergence threads, confrontation, and final resolution are recorded.',
+        ? `Arc ${arc} climax has enough convergence and resolution evidence to advance.`
+        : `Arc ${arc} climax should not advance until convergence threads and a concrete resolution are recorded.`,
     });
   }
 

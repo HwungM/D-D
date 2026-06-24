@@ -10,7 +10,7 @@ Use this as the human pass after the automated scripted playtest is green.
 
 ## Scenarios to try
 
-1. Type “look for a fight.”
+1. Type "look for a fight."
    - Pass: no enemy appears from nowhere.
    - Pass: World tab audit says the ungrounded fight was blocked.
 
@@ -22,10 +22,11 @@ Use this as the human pass after the automated scripted playtest is green.
    - Pass: People Sheet records each person-like opponent.
    - Pass: relationship stays wary/hostile/bitter, not acquaintance.
 
-4. Try to rush each act.
-   - Pass: Act I waits for intro + hook.
-   - Pass: Act II waits for goals + high stakes.
-   - Pass: Act III waits for convergence + confrontation + resolution.
+4. Try to rush each arc role.
+   - Pass: setup acts (Act I, Act IV, Act VII...) wait for a hook or active quest.
+   - Pass: escalation acts (Act II, Act V, Act VIII...) wait for goals + high stakes.
+   - Pass: climax acts (Act III, Act VI, Act IX...) wait for convergence + combat-free concrete resolution.
+   - Pass: long/open-ended campaigns can resolve Act III as a local arc and continue into Act IV instead of ending the whole campaign.
 
 5. Play co-op with Sun Mi.
    - Pass: spotlight does not drift permanently to one player.

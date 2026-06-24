@@ -198,7 +198,7 @@ Return JSON matching this exact schema. Every field must be substantive and spec
   ],
   "primaryAntagonist": {
     "name": "A cryptic title or name (not their true name yet)",
-    "trueName": "Their real name - kept secret until Act 3",
+    "trueName": "Their real name - kept secret until a climax arc when the reveal has been earned",
     "type": "primary",
     "agenda": "Their goal in 1-2 sentences - concrete and specific, vague enough to remain mysterious",
     "currentStep": "The specific step of their plan currently underway - what they are doing RIGHT NOW",
@@ -264,9 +264,9 @@ Return JSON matching this exact schema. Every field must be substantive and spec
   "futureHookSeeds": [
     "IF players choose to [specific action X in this world], then [future consequence Y - be specific about what changes]",
     "IF [specific NPC name from this campaign] survives/is spared, they will [specific future role]",
-    "The [specific object/location/secret from Act 1] will [become critical in Act 3 because of this specific reason]",
+    "The [specific object/location/secret from the setup arc] will [become critical in a later climax because of this specific reason]",
     "If the players ignore [specific faction from this campaign], [that faction] will [specific retaliation action]",
-    "The [specific choice the players will face in Act 2] will [shape the Act 3 resolution in this specific way]",
+    "The [specific choice the players will face in an escalation arc] will [shape a later arc resolution in this specific way]",
     "A recurring small NPC (name them) who, if players are kind to them, turns out to [have this crucial role later]"
   ],
   "campaignBrief": {
@@ -305,10 +305,10 @@ Return JSON matching this exact schema. Every field must be substantive and spec
     "act2ClimaxEvent": "The darkest moment - the low point where players question whether victory is possible. Specific.",
     "act3ConvergenceThreads": [
       "Thread 1 converging - specific NPC or plot element from Act 1 that returns",
-      "Thread 2 converging - how the central mystery connects to the final confrontation",
+      "Thread 2 converging - how the central mystery connects to the current arc climax",
       "Thread 3 converging - how a choice the players made in Act 2 shapes the ending"
     ],
-    "act3ClimaxEvent": "The final confrontation - describe its shape, location, and what makes it climactic. Specific.",
+    "act3ClimaxEvent": "The current arc climax - describe its shape, location, and what makes it climactic. For long/open-ended campaigns this should resolve the local arc without forcing the whole campaign to end.",
     "act3ResolutionOptions": [
       "Victory option: specific to this campaign's themes",
       "Pyrrhic victory option: the immediate threat ends but something irreversible has changed",

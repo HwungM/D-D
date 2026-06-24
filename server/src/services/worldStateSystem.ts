@@ -1,4 +1,5 @@
 import type { ActiveQuest, BackstoryHook, ForeshadowingEntry, LocationNode, NpcMemory, StoryLedgerEntry, WorldBible, WorldState } from '../../../shared/types';
+import { actRoleFor, arcNumberFor } from './actPacingSystem';
 
 function toArr<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
@@ -39,8 +40,14 @@ export function campaignLengthTargetActions(worldBible?: WorldBible): number {
   return 35;
 }
 
-function getActLabel(_worldBible: WorldBible | undefined, act: number): string {
-  return act === 1 ? 'The Call' : act === 2 ? 'The Trial' : 'The Reckoning';
+function getActLabel(worldBible: WorldBible | undefined, act: number): string {
+  const role = actRoleFor(act);
+  const arc = arcNumberFor(act);
+  const longForm = worldBible?.playerPreferences?.campaignLength === 'long' || worldBible?.playerPreferences?.campaignLength === 'open_ended';
+  const prefix = longForm && arc > 1 ? `Arc ${arc}: ` : '';
+  if (role === 1) return `${prefix}The Call`;
+  if (role === 2) return `${prefix}The Trial`;
+  return `${prefix}${longForm ? 'The Climax' : 'The Reckoning'}`;
 }
 
 function normalizeLocationName(value: unknown): string {
