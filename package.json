@@ -9,6 +9,7 @@
     "build": "npm run build --prefix server && npm run build --prefix client",
     "typecheck": "npm run typecheck --prefix server && npm run typecheck --prefix client",
     "test": "npm run test --prefix server",
+    "test:playtest": "npm run test:playtest --prefix server",
     "check": "npm run typecheck && npm run test && npm run build",
     "start": "cd server && npx tsx src/index.ts"
   },
