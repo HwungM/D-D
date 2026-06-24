@@ -1,20 +1,20 @@
 import { supabaseAdmin } from './supabase';
-import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, extractFutureHooks, generateCoopNarration } from './openai';
+import { generateNarration, generateRollOutcome, generateSceneSummary, generateVillainMove, runStoryDirector, generateCoopNarration } from './openai';
 import OpenAI from 'openai';
 import type { Character, WorldState, WorldBible, DiceRollResult, ActionResult, StoryEvent, ShopItem, CampaignJournalEntry, CharacterHistoryEntry, RollContext, CharacterOnlineStatus, NpcMemory, InventoryItem } from '../../../shared/types';
 import { buildAwaitingRollNarration, enforceTurnPlanNarration, planCoopTurn, planOpeningTurn, planSoloTurn } from './gameDirector';
 import { applyContinuityRepairs, buildContinuityDirective, buildContinuityPatch } from './storyContinuity';
-import { canAdvanceAct } from './actPacingSystem';
 import { preventUngroundedFight } from './aiContractValidator';
 import {
   getStatModifier as getStatModifierFromSystem,
   rollDice as rollDiceFromSystem,
 } from './characterProgressionSystem';
 import {
-  appendCharacterHistory,
-  appendFallenHero,
-  applyCharacterConsequences,
-} from './consequenceSystem';
+  advanceActIfAllowed,
+  applyConsequences,
+  getRecentHistory,
+  queueFutureHookExtraction,
+} from './campaignTurnPersistence';
 import { advanceCombatState as advanceCombatStateFromSystem, newlyDefeatedCombatants } from './combatSystem';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
 import {
@@ -96,105 +96,6 @@ Return JSON:
     majorNPCsIntroduced: parsed.majorNPCsIntroduced || [],
     createdAt: new Date().toISOString(),
   };
-}
-
-export async function applyConsequences(
-  characterId: string,
-  actionResult: {
-    worldStateChanges?: Partial<WorldState>;
-    isLevelUp?: boolean;
-    isDeath?: boolean;
-    deathDescription?: string;
-    xpGained?: number;
-    hpChange?: number;
-    goldChange?: number;
-    loot?: { id: string; name: string; description: string; quantity: number; type: string; value?: number; setName?: string; setBonus?: string }[];
-    diceResult?: DiceRollResult;
-    diceDC?: number;
-    statusEffectChanges?: { add?: { name: string; description: string; type: string; duration?: number }[]; remove?: string[] };
-    sessionNote?: string;
-    characterHistoryNote?: CharacterHistoryEntry;
-    antagonistUpdate?: { name: string; newStep?: string; lastAction?: string; nowKnowsPlayers?: boolean };
-    isRest?: boolean;
-    abilityUsed?: string;
-    consumedItems?: string[];
-  },
-  currentCharacter: Character,
-  campaign: { id: string; world_state: WorldState; act?: number; world_bible?: WorldBible }
-): Promise<{ updatedCharacter: Character; updatedWorldState: WorldState }> {
-  const updates: Partial<Character> = applyCharacterConsequences(currentCharacter, actionResult);
-
-  // Re-fetch latest world state right before writing to minimize race window in co-op
-  const { data: freshCampaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaign.id).single();
-  const latestWorldState = (freshCampaign?.world_state as WorldState) || campaign.world_state;
-  let newWorldState = { ...latestWorldState };
-
-  // Apply world state changes (smart patch merge)
-  if (actionResult.worldStateChanges) {
-    newWorldState = mergeWorldStateChangesFromSystem(newWorldState, actionResult.worldStateChanges as Partial<WorldState>);
-  }
-  // Accumulate session notes until the players explicitly end the shared
-  // session. This avoids arbitrary "every N actions" boundaries and gives
-  // recaps a real start/end point.
-  if (actionResult.sessionNote) {
-    newWorldState.sessionNotes = [...(newWorldState.sessionNotes || []), actionResult.sessionNote].slice(-100);
-  }
-
-  if (actionResult.characterHistoryNote) {
-    newWorldState = appendCharacterHistory(newWorldState, actionResult.characterHistoryNote);
-  }
-
-  if (actionResult.antagonistUpdate) {
-    const au = actionResult.antagonistUpdate;
-    let antagonistName = au.name;
-    if (antagonistName === '[UNKNOWN]') {
-      const roster = campaign.world_bible?.antagonistRoster;
-      const unrevealed = roster?.find(a => !a.isRevealed);
-      antagonistName = unrevealed?.name || campaign.world_bible?.primaryAntagonist?.name || antagonistName;
-    }
-    const progress = { ...(newWorldState.antagonistProgress || {}) };
-    const existing = progress[antagonistName] || { stepIndex: 0, lastAction: '', knowsPlayers: false };
-    progress[antagonistName] = {
-      stepIndex: au.newStep ? existing.stepIndex + 1 : existing.stepIndex,
-      lastAction: au.lastAction || existing.lastAction,
-      knowsPlayers: au.nowKnowsPlayers ?? existing.knowsPlayers,
-    };
-    newWorldState.antagonistProgress = progress;
-  }
-
-  if (actionResult.isDeath) {
-    newWorldState = appendFallenHero(newWorldState, currentCharacter, actionResult.deathDescription);
-  }
-
-  // Single atomic world state write â€” eliminates co-op race conditions
-  newWorldState.locationGraph = buildLocationGraphSnapshotFromSystem(newWorldState, campaign.world_bible);
-  newWorldState.campaignSpine = buildCampaignSpineSnapshotFromSystem(newWorldState, campaign.world_bible, campaign.act ?? 1);
-  await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
-
-  // Persist character updates
-  if (Object.keys(updates).length > 0) {
-    await supabaseAdmin.from('characters').update(updates).eq('id', characterId);
-  }
-
-  return {
-    updatedCharacter: { ...currentCharacter, ...updates },
-    updatedWorldState: newWorldState,
-  };
-}
-
-export async function getRecentHistory(campaignId: string, characterId: string, limit = 20): Promise<string[]> {
-  const { data } = await supabaseAdmin
-    .from('story_events')
-    .select('event_type, content, created_at')
-    .eq('campaign_id', campaignId)
-    .eq('character_id', characterId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  if (!data) return [];
-  return data
-    .reverse()
-    .map(e => `[${e.event_type.toUpperCase()}] ${e.content.slice(0, 200)}`);
 }
 
 export async function processAction(
@@ -602,54 +503,20 @@ export async function processAction(
     { id: campaignId, world_state: campaign.world_state as WorldState, act: campaign.act, world_bible: wb }
   );
 
-  // The model may propose an act transition, but the engine owns the pacing gate.
-  const didAdvanceAct = !!aiResponse.advanceAct
-    && canAdvanceAct(updatedWorldState, wb, campaign.act || 1).allowed;
-  if (didAdvanceAct) {
-    const newAct = (campaign.act || 1) + 1;
-    await supabaseAdmin.from('campaigns').update({ act: newAct }).eq('id', campaignId);
-
-    // Reset actionsInCurrentAct counter and activate backstory hooks for the new act
-    const { data: freshCamp } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaignId).single();
-    if (freshCamp) {
-      const postActWs = (freshCamp.world_state as WorldState) || {};
-      const hooks = postActWs.backstoryHooks || [];
-      const actLabel = newAct === 2 ? 'act2' : newAct === 3 ? 'act3' : 'act1';
-      let hooksChanged = false;
-      const updatedHooks = hooks.map(h => {
-        if (h.status === 'dormant' && (h as unknown as Record<string, string>).seedTiming === actLabel) {
-          hooksChanged = true;
-          return { ...h, status: 'active' as const, seededAt: new Date().toISOString() };
-        }
-        return h;
-      });
-      const wsUpdates: Partial<WorldState> = { actionsInCurrentAct: 0 };
-      if (hooksChanged) wsUpdates.backstoryHooks = updatedHooks;
-      const advancedWorldState = { ...postActWs, ...wsUpdates };
-      advancedWorldState.locationGraph = buildLocationGraphSnapshotFromSystem(advancedWorldState, wb);
-      advancedWorldState.campaignSpine = buildCampaignSpineSnapshotFromSystem(advancedWorldState, wb, newAct);
-      await supabaseAdmin.from('campaigns').update({ world_state: advancedWorldState }).eq('id', campaignId);
-    }
-  }
+  const didAdvanceAct = await advanceActIfAllowed(campaignId, aiResponse.advanceAct, updatedWorldState, wb, campaign.act || 1);
 
   // Determine if a new ability was granted on level-up
   const newLevelAfter = updatedCharacter.level;
   const grantedAbility = newLevelAfter > prevLevel ? getAbilityForLevel(character.class, newLevelAfter) ?? undefined : undefined;
 
-  // Extract future hooks from what just happened (fire-and-forget, non-blocking)
-  if (newActionCount % 3 === 0) {
-    extractFutureHooks(action, aiResponse.narration, updatedWorldState, (character as Character).name)
-      .then(hooks => {
-        if (hooks.length > 0) {
-          const existing = updatedWorldState.futureHooks || [];
-          const merged = [...existing, ...hooks].slice(-30);
-          supabaseAdmin.from('campaigns').update({
-            world_state: { ...updatedWorldState, futureHooks: merged }
-          }).eq('id', campaignId).then(() => {}, () => {});
-        }
-      })
-      .catch(() => {});
-  }
+  queueFutureHookExtraction({
+    shouldRun: newActionCount % 3 === 0,
+    actionSummary: action,
+    narration: aiResponse.narration,
+    worldState: updatedWorldState,
+    actorName: (character as Character).name,
+    campaignId,
+  });
 
   // Log player action and DM narration as separate events
   await supabaseAdmin.from('story_events').insert({
@@ -1526,55 +1393,16 @@ export async function processCoopAction(
     { id: campaignId, world_state: char1Result.updatedWorldState, act: campaign.act, world_bible: wb }
   );
 
-  // The model may propose an act transition, but the engine owns the pacing gate.
-  const didAdvanceAct = !!aiResponse.advanceAct
-    && canAdvanceAct(char2Result.updatedWorldState, wb, campaign.act || 1).allowed;
-  if (didAdvanceAct) {
-    const newAct = (campaign.act || 1) + 1;
-    await supabaseAdmin.from('campaigns').update({ act: newAct }).eq('id', campaignId);
+  const didAdvanceAct = await advanceActIfAllowed(campaignId, aiResponse.advanceAct, char2Result.updatedWorldState, wb, campaign.act || 1);
 
-    const { data: freshCamp } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaignId).single();
-    if (freshCamp) {
-      const postActWs = (freshCamp.world_state as WorldState) || {};
-      const hooks = postActWs.backstoryHooks || [];
-      const actLabel = newAct === 2 ? 'act2' : newAct === 3 ? 'act3' : 'act1';
-      let hooksChanged = false;
-      const updatedHooks = hooks.map(h => {
-        if (h.status === 'dormant' && (h as unknown as Record<string, string>).seedTiming === actLabel) {
-          hooksChanged = true;
-          return { ...h, status: 'active' as const, seededAt: new Date().toISOString() };
-        }
-        return h;
-      });
-      const wsUpdates: Partial<WorldState> = { actionsInCurrentAct: 0 };
-      if (hooksChanged) wsUpdates.backstoryHooks = updatedHooks;
-      const advancedWorldState = { ...postActWs, ...wsUpdates };
-      advancedWorldState.locationGraph = buildLocationGraphSnapshotFromSystem(advancedWorldState, wb);
-      advancedWorldState.campaignSpine = buildCampaignSpineSnapshotFromSystem(advancedWorldState, wb, newAct);
-      await supabaseAdmin.from('campaigns').update({ world_state: advancedWorldState }).eq('id', campaignId);
-    }
-  }
-
-  // Extract future hooks from what just happened (fire-and-forget, non-blocking)
-  if (newActionCount % 3 === 0) {
-    const finalWorldState = char2Result.updatedWorldState;
-    extractFutureHooks(
-      `${characters[0].name}: ${pendingActions[0].action} | ${characters[1].name}: ${pendingActions[1].action}`,
-      aiResponse.narration,
-      finalWorldState,
-      `${characters[0].name} & ${characters[1].name}`
-    )
-      .then(hooks => {
-        if (hooks.length > 0) {
-          const existing = finalWorldState.futureHooks || [];
-          const merged = [...existing, ...hooks].slice(-30);
-          supabaseAdmin.from('campaigns').update({
-            world_state: { ...finalWorldState, futureHooks: merged }
-          }).eq('id', campaignId).then(() => {}, () => {});
-        }
-      })
-      .catch(() => {});
-  }
+  queueFutureHookExtraction({
+    shouldRun: newActionCount % 3 === 0,
+    actionSummary: `${characters[0].name}: ${pendingActions[0].action} | ${characters[1].name}: ${pendingActions[1].action}`,
+    narration: aiResponse.narration,
+    worldState: char2Result.updatedWorldState,
+    actorName: `${characters[0].name} & ${characters[1].name}`,
+    campaignId,
+  });
 
   const updatedChar1 = char1Result.updatedCharacter;
   const updatedChar2 = char2Result.updatedCharacter;
