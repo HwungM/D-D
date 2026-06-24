@@ -12,6 +12,7 @@ import {
   buildLocationTracking,
   buildSceneStateUpdate,
   buildShopInventoryChange,
+  buildSpotlightBalanceUpdate,
   resolveConsumedItems,
   resolveEndgamePhase,
 } from './turnStateHelpers';
@@ -108,4 +109,14 @@ test('resolveEndgamePhase respects explicit AI triggers and antagonist progress'
   assert.equal(resolveEndgamePhase('none', { triggerFinalConfrontation: true }, {}, worldBible, 1, 10), 'confrontation');
   assert.equal(resolveEndgamePhase('confrontation', { endgameResolved: true }, {}, worldBible, 1, 10), 'none');
   assert.equal(resolveEndgamePhase('none', {}, { antagonistProgress: { Warden: { stepIndex: 1, lastAction: 'moved', knowsPlayers: true } } }, worldBible, 8, 10), 'approaching');
+});
+
+test('buildSpotlightBalanceUpdate uses model spotlight or falls back to less spotlighted player', () => {
+  const modelChoice = buildSpotlightBalanceUpdate({ char1: 3, char2: 0 }, ['char1', 'char2'], 'char1');
+  assert.equal(modelChoice.spotlightCharacterId, 'char1');
+  assert.equal(modelChoice.spotlightBalance.char1, 4);
+
+  const fallback = buildSpotlightBalanceUpdate({ char1: 4, char2: 1 }, ['char1', 'char2'], null);
+  assert.equal(fallback.spotlightCharacterId, 'char2');
+  assert.equal(fallback.spotlightBalance.char2, 2);
 });

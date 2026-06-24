@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { WorldState } from '../../../shared/types';
-import { preventUngroundedFight } from './aiContractValidator';
+import { ensureCombatEncounterCompleteness, preventUngroundedFight } from './aiContractValidator';
 import { advanceCombatState, newlyDefeatedCombatants } from './combatSystem';
 import { actionSignals } from './npcMemorySystem';
 
@@ -79,4 +79,18 @@ test('AI contract validator blocks ungrounded fight spawns', () => {
   assert.equal(response.worldStateChanges?.activeNPC, null);
   assert.deepEqual(response.worldStateChanges?.npcMemory, []);
   assert.match(response.narration, /no enemy is in reach yet/i);
+});
+
+test('AI contract validator expands under-specified group fights into tracked combatants', () => {
+  const response = {
+    narration: 'Following the boot tracks to a ruined tollhouse, you see two bandits counting stolen coin beside the road.',
+    isCombat: true,
+    enemyName: 'bandits',
+    combatEnemies: [{ name: 'Rusk', archetype: 'soldier' as const, maxHp: 12, condition: 'healthy' as const }],
+  };
+
+  const changed = ensureCombatEncounterCompleteness(response);
+  assert.equal(changed, true);
+  assert.equal(response.combatEnemies.length, 2);
+  assert.deepEqual(response.combatEnemies.map(enemy => enemy.name), ['Rusk', 'Bandit 2']);
 });

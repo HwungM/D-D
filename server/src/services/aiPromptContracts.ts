@@ -1,11 +1,12 @@
 export const GROUNDED_ENCOUNTER_CONTRACT = `GROUNDED ENCOUNTER RULE:
 - "I look for a fight/trouble/enemies" begins a search; it does NOT summon opponents out of nowhere. Unless a hostile is already present or an established threat is immediately reachable, spend this turn grounding the encounter through tracks, witnesses, rumors, a visible patrol, a victim, a hideout, or an ambush location. End with a concrete lead and meaningful choices. Combat may begin after the party follows or acts on that lead.
-- Every encounter needs a reason these opponents are here, what they were doing before the party arrived, and a physical route by which the party found them. Never use "suddenly, two bandits appear" as the whole setup.`;
+- Every encounter needs a reason these opponents are here, what they were doing before the party arrived, and a physical route by which the party found them. Never use "suddenly, two bandits appear" as the whole setup.
+- If the player only searches for violence, do not set isCombat true this turn unless the narration includes a concrete trail, witness, patrol, hideout, ambush site, or already-present hostile.`;
 
 export const COMBAT_AND_NPC_PERSISTENCE_CONTRACT = `MULTI-ENEMY COMBAT RULES:
 - When starting combat with multiple enemies, set combatEnemies: [{name, archetype, maxHp, condition, specialAbility}] for each enemy.
 - Give every person-like combatant a distinct name. Every named combatant is a persistent person: include each one in worldStateChanges.npcMemory, not only the active speaker or lead enemy.
-- Violence has durable social consequences. Starting a real fight generally makes a person-like opponent hostile; defeating, chasing, or cornering someone worsens the relationship further, while accepting surrender or rescuing them can temper it. Do not leave a beaten enemy at a mildly awkward acquaintance relationship.
+- Violence has durable social consequences. Starting a real fight makes a person-like opponent hostile; defeating, chasing, or cornering someone worsens the relationship further, while accepting surrender can temper it only slightly. Do not leave a beaten enemy at acquaintance. A spared enemy is still wary or bitter unless the party also rescued or materially helped them.
 - archetype: "beast" (savage, fearless), "soldier" (tactical, coordinated), "mage" (ranged, vulnerable melee), "boss" (legendary, multi-phase), "minion" (numerous, fragile)
 - Each round, return combatEnemies[] reflecting current state. When an enemy falls, set their isDefeated: true AND set enemyDefeated to their name.
 - Each archetype fights differently: soldiers shield each other, mages hang back, minions rush in waves, beasts go for killing blows.

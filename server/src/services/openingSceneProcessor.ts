@@ -26,7 +26,7 @@ export async function getOpeningScene(
   openingWs.sessionCount = newSessionCount;
   await supabaseAdmin.from('campaigns').update({ world_state: openingWs }).eq('id', campaignId);
 
-  // Check if the villain should make a proactive move â€” every 3 sessions or on first return
+  // Check if the villain should make a proactive move — every 3 sessions or on first return
   const villainMoveCount = openingWs.villainMoveCount ?? 0;
   const sessionCount = newSessionCount;
   const villainMoveDue = sessionCount > 0 && (sessionCount % 3 === 0 || villainMoveCount === 0) && sessionCount > villainMoveCount * 3;
@@ -62,7 +62,7 @@ export async function getOpeningScene(
 
   const fallenHeroes = openingWs.fallenHeroes || [];
   const openingAction = fallenHeroes.length > 0
-    ? `SUCCESSOR_ENTRY: A new hero enters the world. The previous hero ${fallenHeroes[fallenHeroes.length - 1].name} (${fallenHeroes[fallenHeroes.length - 1].race} ${fallenHeroes[fallenHeroes.length - 1].class}, level ${fallenHeroes[fallenHeroes.length - 1].level}) fell â€” ${fallenHeroes[fallenHeroes.length - 1].cause}. The new hero is ${character.name}, ${character.race} ${character.class}. Acknowledge the fallen in a way that fits the world. NPCs who knew the previous hero may reference them.${villainMovePreamble}`
+    ? `SUCCESSOR_ENTRY: A new hero enters the world. The previous hero ${fallenHeroes[fallenHeroes.length - 1].name} (${fallenHeroes[fallenHeroes.length - 1].race} ${fallenHeroes[fallenHeroes.length - 1].class}, level ${fallenHeroes[fallenHeroes.length - 1].level}) fell — ${fallenHeroes[fallenHeroes.length - 1].cause}. The new hero is ${character.name}, ${character.race} ${character.class}. Acknowledge the fallen in a way that fits the world. NPCs who knew the previous hero may reference them.${villainMovePreamble}`
     : `OPENING_SCENE${villainMovePreamble}`;
 
   const aiResponse = await generateNarration(
@@ -92,7 +92,7 @@ export async function getOpeningScene(
   openingWorldState.campaignSpine = buildCampaignSpineSnapshotFromSystem(openingWorldState, openingWb, campaign.act || 1);
   await supabaseAdmin.from('campaigns').update({ world_state: openingWorldState }).eq('id', campaignId);
 
-  // Save just the narration â€” no player action event for the opening
+  // Save just the narration — no player action event for the opening
   await supabaseAdmin.from('story_events').insert({
     campaign_id: campaignId,
     character_id: characterId,

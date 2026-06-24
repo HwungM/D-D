@@ -243,3 +243,16 @@ export function buildLocationTracking(
     },
   };
 }
+
+export function buildSpotlightBalanceUpdate(
+  existing: WorldState['spotlightBalance'] | undefined,
+  characterIds: [string, string],
+  modelSpotlightCharacterId?: string | null,
+): { spotlightBalance: NonNullable<WorldState['spotlightBalance']>; spotlightCharacterId: string } {
+  const spotlightBalance = { ...(existing || {}) };
+  const spotlightCharacterId = modelSpotlightCharacterId && characterIds.includes(modelSpotlightCharacterId)
+    ? modelSpotlightCharacterId
+    : ((spotlightBalance[characterIds[0]] || 0) <= (spotlightBalance[characterIds[1]] || 0) ? characterIds[0] : characterIds[1]);
+  spotlightBalance[spotlightCharacterId] = (spotlightBalance[spotlightCharacterId] || 0) + 1;
+  return { spotlightBalance, spotlightCharacterId };
+}

@@ -35,6 +35,64 @@ function toArr<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
+const PERSON_ENEMY_WORDS = /\b(bandits?|guards?|soldiers?|cultists?|raiders?|thugs?|mercenaries|mages?|assassins?|scouts?|hunters?|pirates?|brigands?|goblins?|orcs?|kobolds?|skeletons?|zombies?)\b/i;
+
+function pluralCountFromText(text: string): number | undefined {
+  const lowered = text.toLowerCase();
+  const wordCounts: Record<string, number> = {
+    two: 2,
+    pair: 2,
+    three: 3,
+    trio: 3,
+    four: 4,
+    several: 3,
+    few: 3,
+  };
+  for (const [word, count] of Object.entries(wordCounts)) {
+    if (new RegExp(`\\b${word}\\b.{0,24}${PERSON_ENEMY_WORDS.source}`, 'i').test(lowered)) return count;
+  }
+  const numeric = lowered.match(/\b([2-4])\b.{0,24}(bandits?|guards?|soldiers?|cultists?|raiders?|thugs?|mercenaries|mages?|assassins?|scouts?|hunters?|pirates?|brigands?|goblins?|orcs?|kobolds?|skeletons?|zombies?)\b/i);
+  return numeric ? Number(numeric[1]) : undefined;
+}
+
+function archetypeForEnemyLabel(label: string): CombatEnemy['archetype'] {
+  if (/\b(mage|cultist|shaman|warlock|wizard)\b/i.test(label)) return 'mage';
+  if (/\b(goblin|kobold|zombie|skeleton|minion)\b/i.test(label)) return 'minion';
+  return 'soldier';
+}
+
+function singularEnemyLabel(text: string, fallback: string): string {
+  const match = text.match(PERSON_ENEMY_WORDS);
+  const raw = match?.[0] || fallback || 'enemy';
+  return raw
+    .replace(/ies$/i, 'y')
+    .replace(/s$/i, '')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+export function ensureCombatEncounterCompleteness(aiResponse: ContractResponse): boolean {
+  if (!aiResponse.isCombat) return false;
+  const existing = aiResponse.combatEnemies || [];
+  const detectedCount = pluralCountFromText(`${aiResponse.enemyName || ''} ${aiResponse.narration}`) || existing.length;
+  if (!detectedCount || detectedCount <= existing.length || detectedCount <= 1) return false;
+
+  const baseLabel = singularEnemyLabel(`${aiResponse.enemyName || ''} ${aiResponse.narration}`, aiResponse.enemyName || 'enemy');
+  const archetype = archetypeForEnemyLabel(baseLabel);
+  const filled: CombatEnemy[] = [...existing];
+  for (let i = existing.length; i < Math.min(detectedCount, 4); i += 1) {
+    filled.push({
+      name: `${baseLabel} ${i + 1}`,
+      archetype,
+      maxHp: archetype === 'mage' ? 10 : archetype === 'minion' ? 6 : 12,
+      condition: 'healthy',
+      isDefeated: false,
+    });
+  }
+  aiResponse.combatEnemies = filled;
+  aiResponse.enemyName = filled.find(enemy => !enemy.isDefeated)?.name || aiResponse.enemyName;
+  return true;
+}
+
 export function preventUngroundedFight(
   aiResponse: ContractResponse,
   actions: string[],

@@ -77,7 +77,7 @@ export async function resolveRollAction(
     campaign_id: campaignId,
     character_id: characterId,
     event_type: 'dice_roll',
-    content: `Rolled ${rollResult} (total ${rollTotal}) vs DC ${dc} â€” ${success ? 'SUCCESS' : 'FAILURE'}`,
+    content: `Rolled ${rollResult} (total ${rollTotal}) vs DC ${dc} — ${success ? 'SUCCESS' : 'FAILURE'}`,
     metadata: { rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, rollContext, combatDamage: combatRoll?.damage || 0, combatTarget: combatRoll?.target },
   });
   await supabaseAdmin.from('story_events').insert({

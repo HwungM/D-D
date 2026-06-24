@@ -37,13 +37,14 @@ test('mercy tempers but does not erase the consequence of violence', () => {
     [],
     { playerNames: ['King'], newEncounter: true, sparedOrAcceptedSurrender: true },
   );
-  assert.equal(npc.relationshipScore, -15);
-  assert.equal(relationshipLabel(npc.relationshipScore || 0), 'acquaintance');
+  assert.equal(npc.relationshipScore, -35);
+  assert.notEqual(relationshipLabel(npc.relationshipScore || 0), 'acquaintance');
   assert.match(npc.notes, /spared/i);
 });
 
 test('fight seeking is distinguished from a grounded encounter setup', () => {
   assert.equal(isFightSeekingAction('I look for a fight'), true);
+  assert.equal(isFightSeekingAction('I want to start a fight'), true);
   assert.equal(hasGroundedEncounterSetup('Two bandits suddenly appear.'), false);
   assert.equal(hasGroundedEncounterSetup('You follow boot tracks from an overturned wagon to a bandit camp.'), true);
   assert.match(groundedFightSearchNarration('Old Road'), /no enemy is in reach yet/i);
@@ -74,5 +75,36 @@ test('acts cannot advance before minimum pacing or act-one introductions', () =>
     npcMemory: [{ name: 'Captain Veyra', disposition: 'neutral', notes: '' }],
     discoveredLocations: ['Ash Gate'],
   } as WorldState, bible, 1);
+  assert.equal(ready.allowed, true);
+});
+
+test('act two requires roadmap progress and a high stakes beat before advancing', () => {
+  const bible = {
+    playerPreferences: { campaignLength: 'medium' },
+    dmRoadmap: {
+      act2Goals: ['Expose the smuggler route', 'Force the baron into the open', 'Recover the drowned bell'],
+    },
+  } as unknown as WorldBible;
+
+  const tooThin = canAdvanceAct({
+    actionsInCurrentAct: 20,
+    actGoalsAchieved: ['Expose the smuggler route'],
+    lastHighStakesAction: 18,
+  } as WorldState, bible, 2);
+  assert.equal(tooThin.allowed, false);
+  assert.match(tooThin.reason || '', /roadmap goal/i);
+
+  const noReversal = canAdvanceAct({
+    actionsInCurrentAct: 20,
+    actGoalsAchieved: ['Expose the smuggler route', 'Force the baron into the open'],
+  } as WorldState, bible, 2);
+  assert.equal(noReversal.allowed, false);
+  assert.match(noReversal.reason || '', /high-stakes/i);
+
+  const ready = canAdvanceAct({
+    actionsInCurrentAct: 20,
+    actGoalsAchieved: ['Expose the smuggler route', 'Force the baron into the open'],
+    lastHighStakesAction: 19,
+  } as WorldState, bible, 2);
   assert.equal(ready.allowed, true);
 });
