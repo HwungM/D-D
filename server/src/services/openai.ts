@@ -17,6 +17,7 @@ import { parseJsonRecord, parseJsonValueOrFallback } from './aiResponseParser';
 import { repairNarrationDraftIfNeeded, type AiTurnRepairMessage } from './aiTurnRepairSystem';
 import { ART_STYLE_PREFIX, EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
 import { cleanTurnOutcome, type TurnOutcome } from './narrationQualityValidator';
+import { StreamingNarrationParser } from './streamingNarrationParser';
 
 dotenv.config();
 
@@ -1546,59 +1547,18 @@ export async function* generateNarrationStreaming(
     stream: true,
   });
 
-  let fullBuffer = '';
-  let state: 'scanning' | 'in_narration' | 'done' = 'scanning';
-  let escapeNext = false;
+  const streamingParser = new StreamingNarrationParser();
 
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta?.content || '';
-    fullBuffer += delta;
-
-    if (state === 'scanning') {
-      // Look for "narration":" in buffer
-      const marker = '"narration":"';
-      const idx = fullBuffer.indexOf(marker);
-      if (idx !== -1) {
-        state = 'in_narration';
-        // Start yielding from after the marker
-        const start = idx + marker.length;
-        const remaining = fullBuffer.slice(start);
-        for (const ch of remaining) {
-          if (escapeNext) {
-            escapeNext = false;
-            if (ch === '"') { yield { type: 'token', token: '"' }; continue; }
-            if (ch === '\\') { yield { type: 'token', token: '\\' }; continue; }
-            if (ch === 'n') { yield { type: 'token', token: '\n' }; continue; }
-            if (ch === 't') { yield { type: 'token', token: '\t' }; continue; }
-            yield { type: 'token', token: ch };
-            continue;
-          }
-          if (ch === '\\') { escapeNext = true; continue; }
-          if (ch === '"') { state = 'done'; break; }
-          yield { type: 'token', token: ch };
-        }
-      }
-    } else if (state === 'in_narration') {
-      for (const ch of delta) {
-        if (escapeNext) {
-          escapeNext = false;
-          if (ch === '"') { yield { type: 'token', token: '"' }; continue; }
-          if (ch === '\\') { yield { type: 'token', token: '\\' }; continue; }
-          if (ch === 'n') { yield { type: 'token', token: '\n' }; continue; }
-          if (ch === 't') { yield { type: 'token', token: '\t' }; continue; }
-          yield { type: 'token', token: ch };
-          continue;
-        }
-        if (ch === '\\') { escapeNext = true; continue; }
-        if (ch === '"') { state = 'done'; break; }
-        yield { type: 'token', token: ch };
-      }
+    for (const token of streamingParser.push(delta)) {
+      yield { type: 'token', token };
     }
   }
 
   // Parse full buffer and yield done event
   try {
-    const parsed = parseJsonRecord(fullBuffer);
+    const parsed = parseJsonRecord(streamingParser.getRawJson());
     yield { type: 'done', result: parseNarrationResponse(parsed) };
   } catch {
     yield { type: 'done', result: parseNarrationResponse({ narration: 'The world holds its breath...' }) };
