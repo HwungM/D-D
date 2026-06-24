@@ -38,6 +38,7 @@ import {
   DM_SYSTEM_PROMPT,
   type NarrationCampaignContext,
 } from './narrationPromptBuilder';
+import { generateRollOutcomeFromService, type RollOutcomeContext } from './rollNarrationService';
 
 dotenv.config();
 
@@ -788,21 +789,6 @@ Respond with JSON:
   };
 }
 
-function getDegreeOfSuccess(
-  rollTotal: number,
-  dc: number,
-  isCritSuccess: boolean,
-  isCritFail: boolean
-): { label: string; degree: 'crit_fail' | 'clear_fail' | 'near_miss' | 'partial_success' | 'clean_success' | 'crit_success'; margin: number } {
-  if (isCritSuccess) return { label: 'CRITICAL SUCCESS (natural 20)', degree: 'crit_success', margin: rollTotal - dc };
-  if (isCritFail) return { label: 'CRITICAL FAILURE (natural 1)', degree: 'crit_fail', margin: rollTotal - dc };
-  const margin = rollTotal - dc;
-  if (margin >= 4) return { label: `CLEAN SUCCESS (beat DC by ${margin})`, degree: 'clean_success', margin };
-  if (margin >= 1) return { label: `PARTIAL SUCCESS (beat DC by only ${margin})`, degree: 'partial_success', margin };
-  if (margin >= -3) return { label: `NEAR MISS (missed DC by ${Math.abs(margin)})`, degree: 'near_miss', margin };
-  return { label: `CLEAR FAILURE (missed DC by ${Math.abs(margin)})`, degree: 'clear_fail', margin };
-}
-
 export async function generateRollOutcome(
   rollResult: number,
   rollTotal: number,
@@ -810,102 +796,25 @@ export async function generateRollOutcome(
   success: boolean,
   isCritSuccess: boolean,
   isCritFail: boolean,
-  rollContext: { stat: string; description: string; successDescription: string; failDescription: string; critSuccessDescription?: string; critFailDescription?: string },
+  rollContext: RollOutcomeContext,
   worldState: WorldState,
   character: Character,
   recentHistory: string[]
 ): Promise<{ narration: string; worldStateChanges?: Partial<WorldState>; hpChange?: number; goldChange?: number; suggestedActions: string[]; sceneImagePrompt: string; isDeath?: boolean; isVictory?: boolean; isCombat?: boolean; loot?: unknown[] }> {
-  const { label: resultLabel, degree } = getDegreeOfSuccess(rollTotal, dc, isCritSuccess, isCritFail);
-
-  const flavorHint = isCritSuccess && rollContext.critSuccessDescription
-    ? rollContext.critSuccessDescription
-    : isCritFail && rollContext.critFailDescription
-      ? rollContext.critFailDescription
-      : success
-        ? rollContext.successDescription
-        : rollContext.failDescription;
-
-  const degreeGuidance: Record<string, string> = {
-    crit_fail: 'CRITICAL FAILURE: Something goes dramatically wrong beyond just failing. A new complication emerges - a weapon drops, a secret is exposed, an enemy is emboldened, the situation escalates into something worse.',
-    clear_fail: 'CLEAR FAILURE: Direct consequence, no ambiguity. A door closed, a suspicion confirmed, a resource spent for nothing. Don\'t soften it - but also have something happen AS a result of failing, not just absence of success.',
-    near_miss: 'NEAR MISS: "Almost" - the player nearly had it. A minor setback or complication, not the full failure consequence. They slip but catch themselves. The lie almost holds. Partial information, partial progress. The story continues - just slightly worse.',
-    partial_success: 'PARTIAL SUCCESS: They do it, but with a cost or complication. The door opens but they made noise. The persuasion works but the NPC wants something in return. The attack lands but leaves them exposed. Yes, AND something costs them.',
-    clean_success: 'CLEAN SUCCESS: Exactly what was attempted, cleanly executed. No asterisks, no complications. A moment of competence. Let it feel good.',
-    crit_success: 'CRITICAL SUCCESS: Exceed expectations dramatically. The task is accomplished AND something extra happens - an enemy is off-balance, a new opportunity appears, an ally is inspired, a bonus is earned. This is a highlight moment.',
-  };
-
-  const combatState = worldState.combatState;
-  const combatStakesBlock = combatState?.inCombat
-    ? `
-ACTIVE COMBAT - Round ${combatState.roundNumber}. Enemies: ${(combatState.enemies || []).filter(e => !e.isDefeated).map(e => `${e.name} (${e.condition})`).join(', ') || `${combatState.enemyName} (${combatState.enemyCondition})`}.
-COMBAT STAKES: the enemies act on this outcome too. On near_miss, clear_fail, or crit_fail, an enemy's counterattack usually LANDS - apply it via hpChange (a typical hit costs ~10-20% of the character's max HP; bosses hit harder). On partial_success the attack succeeds but usually costs something - often a hit taken in exchange. Only clean_success and crit_success normally escape unscathed. Never narrate a wound without setting hpChange, and never set hpChange without narrating the hit.`
-    : '';
-
-  const prompt = `You are a DM resolving the outcome of a dice roll.
-The player attempted: ${rollContext.description}
-They rolled ${rollResult} + ${rollTotal - rollResult} (${rollContext.stat.toUpperCase()} modifier) = ${rollTotal} vs DC ${dc} - ${resultLabel}.
-Flavor hint for this outcome: "${flavorHint}"
-
-DEGREE OF SUCCESS DIRECTIVE:
-${degreeGuidance[degree]}${combatStakesBlock}
-
-Character: ${character.name} (${character.race} ${character.class}, Level ${character.level})${characterGenderLine(character)}
-HP: ${character.hp}/${character.max_hp} | Location: ${worldState.currentLocation || 'unknown'}
-Inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
-Available abilities: ${(character.abilities || []).filter(a => !a.currentCooldown || a.currentCooldown <= 0).slice(0, 5).map(a => a.name).join(', ') || 'none'}
-Scene state: ${worldState.currentSceneSummary || 'use recent history and the roll outcome'}
-Recent history:
-${recentHistory.slice(-4).join('\n')}
-
-Write vivid outcome narration (100-150 words) that precisely matches the ${resultLabel} degree.
-The near miss and partial success cases are the most narratively rich - use them to keep the story moving with texture rather than just pass/fail.
-Suggested actions should be 3-4 optional ideas grounded in the changed situation after the roll. Include a concrete scene feature, NPC, item, ability, ally, threat, clue, or exit when relevant. Avoid generic ideas.
-
-Respond with JSON:
-{
-  "narration": "string",
-  "worldStateChanges": object | null,
-  "hpChange": number | null,
-  "goldChange": number | null,
-  "suggestedActions": ["3-4 optional action ideas after this roll outcome"],
-  "sceneImagePrompt": "string",
-  "isDeath": boolean,
-  "isVictory": boolean,
-  "isCombat": boolean,
-  "loot": [{"id":"uid","name":"item","description":"desc","quantity":1,"type":"weapon|armor|potion|misc|key","value":10}] | null
-}`;
-
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      { role: 'system', content: 'You are a master Dungeon Master resolving dice roll outcomes in a dynamic, genre-fluid fantasy sandbox RPG. Match the outcome tone to the current scene and world bible. Respond with valid JSON only.' },
-      { role: 'user', content: prompt },
-      { role: 'system', content: STYLE_ANTI_REPETITION },
-    ],
-    temperature: 0.7,
-    response_format: { type: 'json_object' },
+  return generateRollOutcomeFromService({
+    rollResult,
+    rollTotal,
+    dc,
+    success,
+    isCritSuccess,
+    isCritFail,
+    rollContext,
+    worldState,
+    character,
+    recentHistory,
+    openai,
+    logAiCall,
   });
-
-  const content = response.choices[0].message.content || '{}';
-  const parsed = parseJsonRecord(content);
-
-  logAiCall('generateRollOutcome', {
-    character: character.id, model: 'gpt-4o', temperature: 0.7,
-    prompt, rawResponse: content, parsed,
-  });
-
-  return {
-    narration: asString(parsed.narration) || 'The outcome unfolds...',
-    worldStateChanges: asRecord(parsed.worldStateChanges) as Partial<WorldState> | undefined,
-    hpChange: clampNumber(parsed.hpChange, -1000, 1000),
-    goldChange: clampNumber(parsed.goldChange, -10000, 10000),
-    suggestedActions: cleanSuggestedActions(parsed.suggestedActions, ['Check what changed', 'Use a nearby advantage', 'Follow up fast', 'Regroup before acting']),
-    sceneImagePrompt: asString(parsed.sceneImagePrompt) || '',
-    isDeath: asBoolean(parsed.isDeath),
-    isVictory: asBoolean(parsed.isVictory),
-    isCombat: asBoolean(parsed.isCombat),
-    loot: cleanLoot(parsed.loot) as unknown[] | undefined,
-  };
 }
 
 export async function generateImage(description: string, cacheKey: string): Promise<string> {
