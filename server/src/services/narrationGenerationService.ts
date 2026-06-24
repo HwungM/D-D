@@ -42,7 +42,12 @@ export async function generateNarrationFromService(
   // Pipeline path (flagged): director → narrator → extractor for sharper, more
   // reliable turns. Falls back to the single-call path below when disabled.
   if (isTurnPipelineEnabled()) {
-    return runSoloTurnPipeline(openai, logAiCall, action, worldState, worldBible, character, recentHistory, campaignContext);
+    try {
+      return await runSoloTurnPipeline(openai, logAiCall, action, worldState, worldBible, character, recentHistory, campaignContext);
+    } catch (error) {
+      // Never let a pipeline hiccup break a turn — fall back to the proven single-call path.
+      logAiCall('pipeline.fallback', { path: 'solo', error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   const messages = buildNarrationMessages(action, worldState, worldBible, character, recentHistory, campaignContext);
@@ -133,7 +138,11 @@ export async function generateCoopNarrationFromService(
   if (actions.length < 2) throw new Error('generateCoopNarration requires exactly 2 actions');
 
   if (isTurnPipelineEnabled()) {
-    return runCoopTurnPipeline(openai, logAiCall, actions, worldState, worldBible, recentHistory, campaignContext);
+    try {
+      return await runCoopTurnPipeline(openai, logAiCall, actions, worldState, worldBible, recentHistory, campaignContext);
+    } catch (error) {
+      logAiCall('pipeline.fallback', { path: 'coop', error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   const [a1, a2] = actions;

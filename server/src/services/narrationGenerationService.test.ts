@@ -84,6 +84,10 @@ function narrationPayload(narration = 'Mira finds a brass key beneath the cracke
 }
 
 test('generateNarrationFromService calls gpt-4o through the injected client and logs the parsed result', async () => {
+  // This test pins the legacy single-call path; disable the (default-on) pipeline for it.
+  const prevFlag = process.env.TURN_PIPELINE;
+  process.env.TURN_PIPELINE = '0';
+  const restore = () => { if (prevFlag === undefined) delete process.env.TURN_PIPELINE; else process.env.TURN_PIPELINE = prevFlag; };
   const logs: Record<string, unknown>[] = [];
   let callCount = 0;
   const openai = {
@@ -121,6 +125,7 @@ test('generateNarrationFromService calls gpt-4o through the injected client and 
   assert.deepEqual(result.suggestedActions, ['Try the brass key on the gate', 'Inspect the Glass Warden mark']);
   assert.equal(logs.length, 1);
   assert.equal(logs[0].character, 'char-1');
+  restore();
 });
 
 test('generateNarrationStreamingFromService streams narration tokens and returns parsed final JSON', async () => {

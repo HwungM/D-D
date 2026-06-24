@@ -32,9 +32,12 @@ import { formatStoryThreadsBlock, rankStoryThreads } from './storyMemory';
 // The engine (combat system, reducers, guardrails) consumes the result unchanged.
 // Gated behind a flag so the existing single-call path stays the default.
 
+// On by default — the pipeline is the product. Set TURN_PIPELINE=0 (or false/off)
+// to fall back to the legacy single-call engine. Any pipeline error also falls
+// back automatically (see narrationGenerationService), so this can't break play.
 export function isTurnPipelineEnabled(): boolean {
   const flag = (process.env.TURN_PIPELINE || '').toLowerCase();
-  return flag === '1' || flag === 'true' || flag === 'on';
+  return flag !== '0' && flag !== 'false' && flag !== 'off' && flag !== 'no';
 }
 
 export type ChatClient = {
