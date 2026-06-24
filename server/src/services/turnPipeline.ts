@@ -1,4 +1,5 @@
 import type { Character, RollContext, WorldBible, WorldState } from '../../../shared/types';
+import { CO_OP_SINGLE_CAMERA_RULE } from './aiPromptContracts';
 import { parseJsonRecord } from './aiResponseParser';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
 import {
@@ -84,7 +85,9 @@ const NARRATOR_VOICE = `You are a world-class Dungeon Master writing the prose f
 - Speak in second person. Keep system text, JSON, and DC reasoning out of the prose.`;
 
 const COOP_NARRATOR_VOICE = `${NARRATOR_VOICE}
-- CO-OP: ONE shared scene, single camera. Both characters occupy the same moment, see and react to each other. NEVER write "Meanwhile" or split them into two parallel threads. Give each character concrete presence — an action, a reaction, a line of body language — every turn. Their bond is story material; leave openings for banter but let the players author their own words and feelings.`;
+- CO-OP: Character 1 and Character 2 are TWO SEPARATE PEOPLE with different names, standing side by side in ONE shared scene. Refer to EACH BY NAME and act out EACH ONE's submitted action as their own. NEVER merge them into a single actor, never write one character performing the other's action, and never write phrases like "his other self" or "they both" to cover a move only one made. If Character 1 distracts and Character 2 flanks, show Character 1 distracting AND Character 2 flanking, each named.
+- ONE shared scene, single camera: both occupy the same moment, see and react to each other. NEVER write "Meanwhile" or split them into two parallel threads. Give each character concrete presence — an action, a reaction, a line of body language — every turn. Their bond is story material; leave openings for banter but let the players author their own words and feelings.
+${CO_OP_SINGLE_CAMERA_RULE}`;
 
 function leanSceneContext(worldState: WorldState): string {
   const cs = worldState.combatState;
@@ -171,7 +174,8 @@ WHEN TO CALL FOR A ROLL (set needsRoll true — these are NOT auto-successes, an
 - Identifying hidden magic, recalling obscure lore, or reading runes when the answer is non-obvious (int/wis).
 - Stealth, pickpocketing/theft (ALWAYS a dex roll), lockpicking, or any attack with an uncertain outcome.
 - If several recent actions all just worked with no roll, the scene has no stakes — call for the roll when the outcome is uncertain AND failure would cost something. Do NOT roll for the trivial or purely expressive (looking at something in plain sight, walking somewhere safe, party conversation).
-COMBAT GROUNDING: only set combatStarting true if the scene actually grounds the enemy — tracks, a witness, a patrol, a hideout, an ambush, or a creature already present. NEVER spawn a fight from nothing just because the player went looking for one; in that case set combatStarting false and make the beat about finding the trail.`;
+COMBAT GROUNDING: only set combatStarting true if an enemy is ALREADY established in the scene (named in recent history, the active NPC turning hostile, or a creature the narration has already placed here). A bare intent like "look for a fight", "find something to kill", or "go hunting trouble" with no enemy yet present MUST set combatStarting false — make the beat about discovering a sign, trail, witness, or lead that points toward a real encounter next. Do not conjure an enemy out of nowhere to satisfy the action.${args.isCoop ? `
+CO-OP: there are TWO distinct player characters with different names and ids. BOTH submitted actions are mandatory — include one priority for EACH character's action, named (e.g. "King draws the guard's eye" AND "Sun Mi slips the lock"). The focus rule does NOT let you drop, merge, or reassign either player's action; co-op always keeps both present. spotlightCharacterId and actingCharacterId must be a real character id from the actions below.` : ''}`;
 
   const user = `${args.charactersBlock}
 
@@ -233,6 +237,7 @@ async function runNarratorPass(
     worldBible: WorldBible;
     recentHistory: string[];
     isCoop: boolean;
+    coopNames?: string[];
   },
 ): Promise<{ narration: string; sceneImagePrompt: string }> {
   const { plan, worldState, worldBible } = args;
@@ -267,6 +272,7 @@ RECENT HISTORY:
 ${args.recentHistory.slice(-6).join('\n') || '(beginning)'}
 
 ${args.actionsBlock}
+${args.isCoop && args.coopNames?.length === 2 ? `\nHARD REQUIREMENT: ${args.coopNames[0]} AND ${args.coopNames[1]} are two different people. BOTH must appear by name and perform their OWN submitted action in this one shared scene. Do NOT attribute ${args.coopNames[1]}'s action to ${args.coopNames[0]}, never write "his other self" or "the other ${args.coopNames[0]}", and never call ${args.coopNames[1]} by ${args.coopNames[0]}'s name.` : ''}
 
 Write the prose (${lengthGuide}). Respond with JSON: {"narration": "the story text the players see", "sceneImagePrompt": "a brief vivid scene description for image generation"}`;
 
@@ -472,8 +478,16 @@ CHARACTER 2 (id: ${c2.id}):\n${characterLine(c2)}\nInventory: ${c2.inventory.sli
   const plan = await runDirectorPass(openai, log, {
     actionsBlock, charactersBlock, worldState, worldBible, campaignContext, isCoop: true, fallbackActingId: c1.id,
   });
+  // Force the narrator's per-character priorities from the ACTUAL submitted actions.
+  // gpt-4o tends to anchor both actions onto the spotlight character; deriving the
+  // priorities here guarantees the narrator is told, structurally, that each named
+  // character performs their own move — regardless of how the director summarized it.
+  const narratorPlan: BeatPlan = {
+    ...plan,
+    priorities: [`${c1.name} — ${a1.action}`, `${c2.name} — ${a2.action}`],
+  };
   const { narration, sceneImagePrompt } = await runNarratorPass(openai, log, {
-    plan, actionsBlock, charactersBlock, worldState, worldBible, recentHistory, isCoop: true,
+    plan: narratorPlan, actionsBlock, charactersBlock, worldState, worldBible, recentHistory, isCoop: true, coopNames: [c1.name, c2.name],
   });
   const mech = (c: Character) => `${c.name} (id ${c.id}): HP ${c.hp}/${c.max_hp}, Gold ${c.gold}, L${c.level}. Inventory: ${c.inventory.slice(0, 8).map(i => i.name).join(', ') || 'none'}. Abilities: ${abilitiesForExtractor(c)}.${c.status_effects?.length ? ` Status: ${c.status_effects.map(e => e.name).join(', ')}.` : ''}`;
   const raw = await runExtractorPass(openai, log, {

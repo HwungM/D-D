@@ -32,6 +32,7 @@ function character(overrides: Partial<Character> = {}): Character {
     hp: 28, max_hp: 30, gold: 40, stats: { str: 16, dex: 12, con: 14, int: 10, wis: 11, cha: 13 },
     abilities: [], inventory: [{ id: 'sword', name: 'Iron Sword', description: 'A worn blade.', quantity: 1, type: 'weapon', value: 15 }],
     status_effects: [], backstory: 'A sellsword hunting the brother who betrayed his company.', is_alive: true,
+    ...overrides,
   } as unknown as Character;
 }
 
