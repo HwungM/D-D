@@ -5,7 +5,6 @@ import path from 'path';
 import { supabaseAdmin } from './supabase';
 import type { Character, WorldState, WorldBible, StorySeedOption, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, RollContext, CharacterOnlineStatus, NpcMemory, CombatEnemy, Recipe, Companion } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
-import { buildStoryTasteProfile, formatTasteDirective } from './storyTaste';
 import {
   COMBAT_AND_NPC_PERSISTENCE_CONTRACT,
   CO_OP_SINGLE_CAMERA_RULE,
@@ -23,6 +22,7 @@ import {
   generateWorldBible as generateWorldBibleFromService,
   type CampaignGenerationPlayerPreferences,
 } from './campaignGenerationService';
+import { runStoryDirector as runStoryDirectorFromService, type StoryDirectorBeat } from './storyDirectorService';
 
 dotenv.config();
 
@@ -2140,92 +2140,10 @@ export async function runStoryDirector(
   worldState: WorldState,
   worldBible: WorldBible,
   characters: Character[],
-  act: number
-): Promise<{ beat: string; urgency: 'low' | 'high' | 'critical'; beatType: string } | null> {
-  try {
-    const actionsInAct = worldState.actionsInCurrentAct || 0;
-    const actionCount = worldState.actionCount || 0;
-    const sceneState = worldState.sceneState;
-    const lastPillar = worldState.lastPillarUsed || sceneState?.purpose || 'explore';
-    const spotlightBalance = worldState.spotlightBalance || {};
-    const sessionNotes = worldState.sessionNotes || [];
-    const futureHooks = (worldState.futureHooks || []).filter(h => !h.resolved);
-    const backstoryHooks = worldState.backstoryHooks || [];
-    const actGoalsAchieved = worldState.actGoalsAchieved || [];
-    const taste = buildStoryTasteProfile(worldBible, worldState);
-
-    const roadmap = worldBible.dmRoadmap;
-    const actGoals = act === 1 ? roadmap?.act1Goals : act === 2 ? roadmap?.act2Goals : roadmap?.act3ConvergenceThreads;
-    const totalGoals = actGoals?.length || 4;
-    const goalsComplete = actGoalsAchieved.length;
-
-    const context = `
-Campaign health check for Act ${act}:
-- Actions in current act: ${actionsInAct}
-- Total actions: ${actionCount}
-- Last scene type (pillar): ${lastPillar}
-- Spotlight balance: ${JSON.stringify(spotlightBalance)}
-- Unresolved future hooks: ${futureHooks.length} (${futureHooks.slice(-3).map(h => h.description).join('; ') || 'none'})
-- Backstory hooks: ${backstoryHooks.filter(h => h.status === 'active').length} active, ${backstoryHooks.filter(h => h.status === 'dormant').length} dormant
-- Act goals achieved: ${goalsComplete}/${totalGoals}
-- Recent session notes: ${sessionNotes.slice(-3).join(' | ') || 'none'}
-- Characters: ${characters.map(c => `${c.name} (${c.race} ${c.class}, Lv${c.level})`).join(', ')}
-- Central conflict: ${worldBible.centralConflict || 'unknown'}
-- Mystery layer question: ${worldBible.mysteryLayer?.centralQuestion || 'none'}
-
-${formatTasteDirective(taste)}
-`;
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a Story Director evaluating campaign health for a genre-fluid fantasy RPG. Given campaign state, determine if a specific intervention is needed in the next 1-2 player actions to keep the story on track. Be specific - name NPCs, name scenes, name mechanics. Return JSON only.`,
-        },
-        {
-          role: 'user',
-          content: `${context}
-
-Based on this campaign state, what specific thing MUST happen in the next 1-2 player actions?
-
-Consider:
-- Is the act overdue for a mystery clue drop? (Every 3-4 actions)
-- Is one character dominating spotlight while another is ignored?
-- Are there urgent future hooks that need to pay off now?
-- Are there active backstory hooks that need escalation?
-- Is the pillar balance off (all combat, no social/exploration)?
-- Are act goals dangerously behind?
-
-If the campaign is healthy and nothing is urgently needed, return {"healthy": true}.
-
-Otherwise return:
-{
-  "beat": "Specific directive: exactly what must happen, naming NPCs/locations/situations. 2-3 sentences max.",
-  "urgency": "low|high|critical",
-  "beatType": "mystery_clue|spotlight_shift|hook_payoff|backstory_escalation|pillar_balance|act_goal|pacing"
-}`,
-        },
-      ],
-      temperature: 0.6,
-      response_format: { type: 'json_object' },
-    });
-
-    const raw = response.choices[0].message.content || '{}';
-    const parsed = parseJsonRecord(raw);
-    if (parsed.healthy) return null;
-    if (!parsed.beat) return null;
-
-    return {
-      beat: parsed.beat as string,
-      urgency: (parsed.urgency as 'low' | 'high' | 'critical') || 'low',
-      beatType: (parsed.beatType as string) || 'pacing',
-    };
-  } catch {
-    return null;
-  }
+  act: number,
+): Promise<StoryDirectorBeat | null> {
+  return runStoryDirectorFromService(openai, worldState, worldBible, characters, act);
 }
-
 export async function extractFutureHooks(
   action: string,
   narration: string,
