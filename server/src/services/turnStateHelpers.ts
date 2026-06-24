@@ -301,13 +301,33 @@ export function buildEngineAuditEntry(options: {
     ? { label: 'People Sheet updates', status: 'pass', detail: `${npcMemoryUpdates} NPC memory update${npcMemoryUpdates === 1 ? '' : 's'} queued.` }
     : { label: 'People Sheet updates', status: 'info', detail: 'No NPC memory updates were needed this turn.' });
 
+  if (options.act === 1) {
+    checks.push({
+      label: 'Act I readiness',
+      status: actGoalsCompleted > 0 || npcMemoryUpdates > 0 ? 'pass' : 'warn',
+      detail: actGoalsCompleted > 0
+        ? `Act I has ${actGoalsCompleted} roadmap goal${actGoalsCompleted === 1 ? '' : 's'} completed.`
+        : 'Act I still needs a concrete hook, NPC, location, or roadmap beat before it should advance.',
+    });
+  }
+
   if (options.act === 2) {
     checks.push({
-      label: 'Act II pacing',
+      label: 'Act II readiness',
       status: options.highStakes && actGoalsCompleted >= 2 ? 'pass' : 'warn',
       detail: options.highStakes
         ? `Act II has high-stakes pressure; ${actGoalsCompleted} roadmap goal${actGoalsCompleted === 1 ? '' : 's'} completed.`
         : `Act II still needs high-stakes pressure before it should advance; ${actGoalsCompleted} roadmap goal${actGoalsCompleted === 1 ? '' : 's'} completed.`,
+    });
+  }
+
+  if (options.act >= 3) {
+    checks.push({
+      label: 'Act III readiness',
+      status: options.actAdvance?.allowed ? 'pass' : 'warn',
+      detail: options.actAdvance?.allowed
+        ? 'Act III has enough convergence and resolution evidence to close.'
+        : 'Act III should not close until convergence threads, confrontation, and final resolution are recorded.',
     });
   }
 

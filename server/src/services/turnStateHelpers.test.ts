@@ -148,7 +148,7 @@ test('buildEngineAuditEntry records grounded combat, NPC memory, and co-op spotl
   assert.equal(entry.stateDigest.npcMemoryUpdates, 2);
   assert.equal(entry.stateDigest.actGoalsCompleted, 2);
   assert.ok(entry.checks.some(check => check.label === 'Grounded encounter' && check.status === 'blocked'));
-  assert.ok(entry.checks.some(check => check.label === 'Act II pacing' && check.status === 'warn'));
+  assert.ok(entry.checks.some(check => check.label === 'Act II readiness' && check.status === 'warn'));
   assert.ok(entry.checks.some(check => check.label === 'Act advancement' && check.status === 'blocked' && check.detail.includes('high-stakes')));
   assert.ok(entry.checks.some(check => check.label === 'Co-op spotlight'));
   assert.equal(entry.stateDigest.advanceActProposed, true);

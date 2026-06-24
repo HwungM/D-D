@@ -28,7 +28,23 @@ function requiredGoalCount(total: number, length: CampaignLength | undefined, ac
   if (length === 'one_shot') return Math.min(1, total);
   if (act === 1) return Math.min(1, total);
   if (act === 2) return Math.min(total, Math.max(2, Math.ceil(total * 0.6)));
-  return Math.min(total, Math.max(1, Math.ceil(total * 0.5)));
+  return Math.min(total, Math.max(1, Math.ceil(total * 0.75)));
+}
+
+function hasResolvedCampaignThread(worldState: WorldState, phrase: string): boolean {
+  const lower = phrase.toLowerCase();
+  return [
+    ...(worldState.completedEvents || []),
+    ...(worldState.actGoalsAchieved || []),
+    ...(worldState.sessionNotes || []),
+    ...(worldState.campaignJournal || []).flatMap(entry => [entry.summary, ...(entry.keyDecisions || [])]),
+    ...(worldState.storyLedger || [])
+      .filter(entry => entry.status === 'resolved')
+      .flatMap(entry => [entry.title, entry.summary]),
+  ]
+    .map(value => value.trim().toLowerCase())
+    .filter(value => value.length >= 3)
+    .some(value => value.includes(lower) || lower.includes(value));
 }
 
 export function canAdvanceAct(
@@ -53,15 +69,21 @@ export function canAdvanceAct(
     if (missing.length > 0) {
       return { allowed: false, reason: `Act 1 still needs: ${missing.join(', ')}.` };
     }
+
+    if (!worldState.activeQuests?.some(quest => quest.status === 'active' || quest.status === 'completed') && !(worldState.actGoalsAchieved || []).length) {
+      return { allowed: false, reason: 'Act 1 needs the central hook to become an active quest, completed beat, or roadmap goal before advancing.' };
+    }
   }
 
   const roadmapGoals = actRoadmapGoals(worldBible, act);
   const neededGoals = requiredGoalCount(roadmapGoals.length, worldBible.playerPreferences?.campaignLength, act);
   if (neededGoals > 0) {
     const achieved = new Set(worldState.actGoalsAchieved || []);
-    const completed = roadmapGoals.filter(goal => achieved.has(goal));
+    const completed = roadmapGoals.filter(goal => achieved.has(goal) || (act >= 3 && hasResolvedCampaignThread(worldState, goal)));
     if (completed.length < neededGoals) {
-      const missing = roadmapGoals.filter(goal => !achieved.has(goal)).slice(0, Math.max(1, neededGoals - completed.length));
+      const missing = roadmapGoals
+        .filter(goal => !achieved.has(goal) && !(act >= 3 && hasResolvedCampaignThread(worldState, goal)))
+        .slice(0, Math.max(1, neededGoals - completed.length));
       return {
         allowed: false,
         reason: `Act ${act} needs ${neededGoals} roadmap goal${neededGoals === 1 ? '' : 's'} completed before advancing; still needs: ${missing.join(', ')}.`,
@@ -71,6 +93,35 @@ export function canAdvanceAct(
 
   if (act === 2 && worldBible.playerPreferences?.campaignLength !== 'one_shot' && !worldState.lastHighStakesAction) {
     return { allowed: false, reason: 'Act 2 needs a real high-stakes reversal, danger, or decisive choice before it can advance.' };
+  }
+
+  if (act >= 3) {
+    const convergenceThreads = worldBible.dmRoadmap?.act3ConvergenceThreads || [];
+    const unresolved = convergenceThreads.filter(thread => !hasResolvedCampaignThread(worldState, thread));
+    if (unresolved.length > Math.max(0, convergenceThreads.length - neededGoals)) {
+      return {
+        allowed: false,
+        reason: `Act 3 needs its convergence threads resolved before ending; still unresolved: ${unresolved.slice(0, 3).join(', ')}.`,
+      };
+    }
+
+    if (!worldState.endgamePhase || worldState.endgamePhase === 'approaching') {
+      return { allowed: false, reason: 'Act 3 needs the final confrontation to actually happen before it can resolve.' };
+    }
+
+    if (worldState.combatState?.inCombat) {
+      return { allowed: false, reason: 'Act 3 cannot resolve while combat is still active.' };
+    }
+
+    const finalResolutionText = [
+      ...(worldState.completedEvents || []),
+      ...(worldState.sessionNotes || []),
+      ...(worldState.campaignJournal || []).map(entry => entry.summary),
+    ].join(' ').toLowerCase();
+    const hasResolution = /\b(defeated|redeemed|resolved|saved|destroyed|sealed|freed|ended|confronted|victory|epilogue)\b/.test(finalResolutionText);
+    if (!hasResolution) {
+      return { allowed: false, reason: 'Act 3 needs a concrete final resolution recorded before the campaign can close.' };
+    }
   }
 
   return { allowed: true };
