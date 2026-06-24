@@ -62,7 +62,7 @@ test('ordinary combat rounds do not repeatedly worsen the same relationship', ()
 test('acts cannot advance before minimum pacing or act-one introductions', () => {
   const bible = {
     playerPreferences: { campaignLength: 'medium' },
-    dmRoadmap: { act1MustIntroduce: ['Captain Veyra', 'Ash Gate'] },
+    dmRoadmap: { act1MustIntroduce: ['Captain Veyra', 'Ash Gate'], act1Goals: ['Accept the ash road charge'] },
   } as unknown as WorldBible;
   const early = canAdvanceAct({ actionsInCurrentAct: 4 }, bible, 1);
   assert.equal(early.allowed, false);
@@ -74,8 +74,26 @@ test('acts cannot advance before minimum pacing or act-one introductions', () =>
     actionsInCurrentAct: 12,
     npcMemory: [{ name: 'Captain Veyra', disposition: 'neutral', notes: '' }],
     discoveredLocations: ['Ash Gate'],
+    activeQuests: [{ title: 'Accept the ash road charge', description: 'Find what burned the road.', status: 'active' }],
+    actGoalsAchieved: ['Accept the ash road charge'],
   } as WorldState, bible, 1);
   assert.equal(ready.allowed, true);
+});
+
+test('act one cannot advance without a central hook even after introductions', () => {
+  const bible = {
+    playerPreferences: { campaignLength: 'medium' },
+    dmRoadmap: { act1MustIntroduce: ['Captain Veyra', 'Ash Gate'] },
+  } as unknown as WorldBible;
+
+  const noHook = canAdvanceAct({
+    actionsInCurrentAct: 12,
+    npcMemory: [{ name: 'Captain Veyra', disposition: 'neutral', notes: '' }],
+    discoveredLocations: ['Ash Gate'],
+  } as WorldState, bible, 1);
+
+  assert.equal(noHook.allowed, false);
+  assert.match(noHook.reason || '', /central hook/i);
 });
 
 test('act two requires roadmap progress and a high stakes beat before advancing', () => {
@@ -106,5 +124,49 @@ test('act two requires roadmap progress and a high stakes beat before advancing'
     actGoalsAchieved: ['Expose the smuggler route', 'Force the baron into the open'],
     lastHighStakesAction: 19,
   } as WorldState, bible, 2);
+  assert.equal(ready.allowed, true);
+});
+
+test('act three requires convergence, confrontation, and recorded resolution before ending', () => {
+  const bible = {
+    playerPreferences: { campaignLength: 'medium' },
+    dmRoadmap: {
+      act3ConvergenceThreads: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
+    },
+  } as unknown as WorldBible;
+
+  const unresolvedThreads = canAdvanceAct({
+    actionsInCurrentAct: 8,
+    actGoalsAchieved: ['Break the drowned bell'],
+    endgamePhase: 'none',
+    completedEvents: ['The drowned bell was destroyed in the harbor.'],
+  } as WorldState, bible, 3);
+  assert.equal(unresolvedThreads.allowed, false);
+  assert.match(unresolvedThreads.reason || '', /roadmap goal|convergence/i);
+
+  const noConfrontation = canAdvanceAct({
+    actionsInCurrentAct: 8,
+    actGoalsAchieved: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
+    endgamePhase: 'approaching',
+    completedEvents: ['The Ash Gate was sealed and Captain Veyra was redeemed.'],
+  } as WorldState, bible, 3);
+  assert.equal(noConfrontation.allowed, false);
+  assert.match(noConfrontation.reason || '', /final confrontation/i);
+
+  const noResolution = canAdvanceAct({
+    actionsInCurrentAct: 8,
+    actGoalsAchieved: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
+    endgamePhase: 'none',
+    completedEvents: ['The Ash Gate stands quiet.'],
+  } as WorldState, bible, 3);
+  assert.equal(noResolution.allowed, false);
+  assert.match(noResolution.reason || '', /final resolution/i);
+
+  const ready = canAdvanceAct({
+    actionsInCurrentAct: 8,
+    actGoalsAchieved: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
+    endgamePhase: 'none',
+    completedEvents: ['The drowned bell was destroyed, Captain Veyra was redeemed, and the Ash Gate was sealed in victory.'],
+  } as WorldState, bible, 3);
   assert.equal(ready.allowed, true);
 });

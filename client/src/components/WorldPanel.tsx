@@ -55,7 +55,28 @@ function readinessReport(worldState: WorldState, npcs: NpcMemory[]) {
   if (latestAudit?.checks.some(check => check.status === 'blocked')) issues.push('The last audited turn had a blocked engine rule. Inspect it before calling the test clean.')
   if (worldState.combatState?.inCombat && activeCombatants === 0) issues.push('Combat is active but no individual enemies are tracked.')
   if ((worldState.activeNPC || worldState.combatState?.enemyName) && npcs.length === 0) issues.push('A named person is active, but the People Sheet is still empty.')
-  if (act === 2 && !worldState.lastHighStakesAction) issues.push('Act II has not recorded a high-stakes beat yet.')
+
+  if (act === 1) {
+    if (!worldState.currentLocation && !(worldState.discoveredLocations || []).length) issues.push('Act I has not established a playable location yet.')
+    if (!worldState.activeQuests?.some(quest => quest.status === 'active' || quest.status === 'completed') && !(worldState.actGoalsAchieved || []).length) {
+      issues.push('Act I has not locked in the central hook as a quest, completed beat, or roadmap goal yet.')
+    }
+    if (npcs.length === 0) issues.push('Act I has not saved any meaningful NPCs yet.')
+  } else if (act === 2) {
+    if (!worldState.lastHighStakesAction) issues.push('Act II has not recorded a high-stakes beat yet.')
+    if ((worldState.actGoalsAchieved || []).length < 2) issues.push('Act II has fewer than two roadmap goals recorded.')
+  } else if (act && act >= 3) {
+    if (!worldState.endgamePhase || worldState.endgamePhase === 'approaching') issues.push('Act III has not actually reached the final confrontation yet.')
+    if (worldState.combatState?.inCombat) issues.push('Act III still has active combat; resolve it before treating testing as clean.')
+    const resolutionText = [
+      ...(worldState.completedEvents || []),
+      ...(worldState.sessionNotes || []),
+      ...(worldState.campaignJournal || []).map(entry => entry.summary),
+    ].join(' ').toLowerCase()
+    if (!/\b(defeated|redeemed|resolved|saved|destroyed|sealed|freed|ended|confronted|victory|epilogue)\b/.test(resolutionText)) {
+      issues.push('Act III has not recorded a concrete final resolution yet.')
+    }
+  }
 
   const spotlightCounts = Object.values(worldState.spotlightBalance || {}).filter((value): value is number => typeof value === 'number')
   if (spotlightCounts.length >= 2 && Math.max(...spotlightCounts) - Math.min(...spotlightCounts) >= 4) {
