@@ -9,7 +9,8 @@
     "start": "node dist/server/src/index.js",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/services/*.test.ts",
-    "test:playtest": "tsx --test src/services/scriptedPlaytest.test.ts"
+    "test:playtest": "tsx --test src/services/scriptedPlaytest.test.ts",
+    "smoke": "tsx scripts/smoke-pipeline.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

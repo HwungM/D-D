@@ -79,6 +79,8 @@ const NARRATOR_VOICE = `You are a world-class Dungeon Master writing the prose f
 - Mix sentence length. Cut adjective stacking and overwrought sensory description. One vivid detail beats five generic ones. Dialogue sounds like people talking, not speeches.
 - Preserve agency: show pressure and consequence; never decide what the player feels or chooses.
 - Reuse established NPCs, wounds, debts, and clues before inventing new ones. A returning known NPC shows they remember the party.
+- NAME every NPC the moment they appear — never "the merchant", "a guard", "an old woman". Give a name that fits the region (e.g. "Varen, a grizzled trader"). Once named, stay consistent.
+- In combat, every standing enemy ACTS: it attacks, corners, or wounds, and a hit costs something. When a character drops below ~30% HP, telegraph mortal danger clearly. Never narrate a wound you don't mean, and never wave away a real fight.
 - Speak in second person. Keep system text, JSON, and DC reasoning out of the prose.`;
 
 const COOP_NARRATOR_VOICE = `${NARRATOR_VOICE}
@@ -162,7 +164,14 @@ async function runDirectorPass(
 
   const system = `You are the DIRECTOR of a D&D table — a higher planning system that decides what THIS beat is about before the narrator writes it. You do not write prose. You make one sharp plan.
 PRIORITIZATION RULE: when a turn could do many things at once (combat + a thread payoff + a relationship shift), pick the ONE or TWO that matter most this beat and commit to landing them cleanly. Do not try to juggle everything — a focused beat beats a crowded one.
-Respect pacing: advance or pay off an open thread rather than restating it; honor any DIRECTOR BEAT and act-roadmap urgency; call for a roll only when the outcome is uncertain AND failure costs something.`;
+Respect pacing: advance or pay off an open thread rather than restating it; honor any DIRECTOR BEAT and act-roadmap urgency.
+WHEN TO CALL FOR A ROLL (set needsRoll true — these are NOT auto-successes, and failure must be possible):
+- A physical feat against real resistance: forcing/lifting/bending/breaking/climbing/shoving/holding a door (str/dex).
+- Extracting a name, secret, or guarded truth from a reluctant or evasive NPC (cha persuade/intimidate, or wis insight).
+- Identifying hidden magic, recalling obscure lore, or reading runes when the answer is non-obvious (int/wis).
+- Stealth, pickpocketing/theft (ALWAYS a dex roll), lockpicking, or any attack with an uncertain outcome.
+- If several recent actions all just worked with no roll, the scene has no stakes — call for the roll when the outcome is uncertain AND failure would cost something. Do NOT roll for the trivial or purely expressive (looking at something in plain sight, walking somewhere safe, party conversation).
+COMBAT GROUNDING: only set combatStarting true if the scene actually grounds the enemy — tracks, a witness, a patrol, a hideout, an ambush, or a creature already present. NEVER spawn a fight from nothing just because the player went looking for one; in that case set combatStarting false and make the beat about finding the trail.`;
 
   const user = `${args.charactersBlock}
 
@@ -346,7 +355,9 @@ async function runExtractorPass(
 
   const system = `You are the EXTRACTOR. You convert an ALREADY-WRITTEN narration into exact game-state changes. You do not rewrite the story. Rules:
 - Mechanics must MATCH the prose: every wound/heal/coin/item/effect the narration describes gets applied; never invent changes the prose didn't narrate, and never narrate-then-skip.
-- Update npcMemory for any named NPC who appeared/spoke/changed disposition (name, disposition, notes carried forward + appended, role, gender, relationshipScore, relationshipLabel, lastMet). Update activeQuests/currentLocation when they change.
+- DAMAGE CALIBRATION (negative hpChange) scales to the target's MAX HP: a minion's hit ≈ 5-10% of max HP, a soldier/beast 10-20%, an elite/mage 15-25%, a boss 20-35%. A clean defensive round can be 0; a real hit must land.
+- ENEMY PORTRAITS: enemyName and every combatEnemies[].name MUST contain a recognizable creature keyword so the portrait shows — e.g. goblin, bandit, cultist, assassin, skeleton, zombie, orc, ogre, troll, wolf, dire wolf, giant spider, dragon, wyvern, necromancer, demon, ghost, knight, mercenary. A prefix is fine ("Ancient Minotaur", "Pack of Gnolls"). Only invent a fully custom creature when nothing fits.
+- Update npcMemory for any named NPC who appeared/spoke/changed disposition: name, disposition, notes (carry the old notes forward and append what changed — never overwrite), role (their archetype: merchant, guard, innkeeper, noble, healer, etc.), gender ("male"|"female"|"nonbinary" — always set it), relationshipScore (adjust +/-5 to 50 by impact), relationshipLabel, lastMet. Update activeQuests/currentLocation when they change.
 - ${rollLine}
 - ${args.isCoop ? 'Co-op: attribute HP/loot/death/ability per character via character1Changes/character2Changes; characterHistoryNote and antagonistUpdate stay top-level.' : 'Solo: use top-level hpChange/loot/etc.'}`;
 
