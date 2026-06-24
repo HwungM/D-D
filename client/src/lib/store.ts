@@ -23,6 +23,16 @@ function isNpcMemory(value: unknown): value is NpcMemory {
   return isRecord(value) && typeof value.name === 'string' && typeof value.notes === 'string'
 }
 
+function npcMemoryKey(name: unknown): string {
+  return typeof name === 'string' ? name.trim().toLowerCase() : ''
+}
+
+function npcMemoryEntries(list: NpcMemory[] | undefined): [string, NpcMemory][] {
+  return (list || [])
+    .map((npc): [string, NpcMemory] => [npcMemoryKey(npc.name), npc])
+    .filter((entry): entry is [string, NpcMemory] => entry[0].length > 0)
+}
+
 function isActiveQuest(value: unknown): value is ActiveQuest {
   return isRecord(value) && typeof value.title === 'string' && typeof value.description === 'string'
 }
@@ -124,19 +134,22 @@ export const useGameStore = create<GameState>()((set) => ({
       // npcMemory: upsert by name, preserve metCharacters from both sides
       if (changes.npcMemory) {
         const npcArray = (Array.isArray(changes.npcMemory) ? changes.npcMemory : Object.values(changes.npcMemory)).filter(isNpcMemory);
-        const existing = new Map((current.npcMemory || []).map(n => [n.name, n]));
+        const existing = new Map<string, NpcMemory>(npcMemoryEntries(current.npcMemory));
         for (const npc of npcArray) {
+          const npcKey = npcMemoryKey(npc.name);
+          if (!npcKey) continue;
           // Placeholder reveal: "Mysterious Stranger" -> "Eldrin" merges into the
           // new name instead of leaving both entries behind.
-          const placeholder = npc.replacesName && npc.replacesName !== npc.name ? existing.get(npc.replacesName) : undefined;
-          if (placeholder) existing.delete(npc.replacesName!);
-          const prev = existing.get(npc.name) || placeholder;
+          const replacesKey = npc.replacesName && npcMemoryKey(npc.replacesName) !== npcKey ? npcMemoryKey(npc.replacesName) : '';
+          const placeholder = replacesKey ? existing.get(replacesKey) : undefined;
+          if (placeholder && replacesKey) existing.delete(replacesKey);
+          const prev = existing.get(npcKey) || placeholder;
           const { replacesName: _replacesName, ...npcRest } = npc;
           if (prev) {
             const metChars = Array.from(new Set([...(prev.metCharacters || []), ...(npcRest.metCharacters || [])]));
-            existing.set(npc.name, { ...prev, ...npcRest, metCharacters: metChars });
+            existing.set(npcKey, { ...prev, ...npcRest, metCharacters: metChars });
           } else {
-            existing.set(npc.name, npcRest);
+            existing.set(npcKey, npcRest);
           }
         }
         merged.npcMemory = Array.from(existing.values()).slice(-20);
@@ -223,9 +236,11 @@ export const useGameStore = create<GameState>()((set) => ({
 
       // keyNPCs: merge by name (same upsert logic as npcMemory but never pruned)
       if (changes.keyNPCs) {
-        const existing = new Map((current.keyNPCs || []).map(n => [n.name, n]));
+        const existing = new Map<string, NpcMemory>(npcMemoryEntries(current.keyNPCs));
         for (const npc of changes.keyNPCs) {
-          existing.set(npc.name, { ...existing.get(npc.name), ...npc });
+          const npcKey = npcMemoryKey(npc.name);
+          if (!npcKey) continue;
+          existing.set(npcKey, { ...existing.get(npcKey), ...npc });
         }
         merged.keyNPCs = Array.from(existing.values()).slice(-8);
       }

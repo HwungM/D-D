@@ -210,6 +210,8 @@ export interface EngineAuditEntry {
     actGoalsCompleted: number;
     highStakes: boolean;
     spotlightCharacterId?: string;
+    advanceActProposed?: boolean;
+    advanceActAllowed?: boolean;
   };
 }
 

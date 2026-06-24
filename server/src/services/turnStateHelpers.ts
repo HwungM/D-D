@@ -274,6 +274,7 @@ export function buildEngineAuditEntry(options: {
   highStakes?: boolean;
   spotlightCharacterId?: string;
   directorBeatPending?: boolean;
+  actAdvance?: { proposed: boolean; allowed: boolean; reason?: string };
 }): EngineAuditEntry {
   const checks: EngineAuditCheck[] = [];
   const combatantsTracked = Math.max(0, options.combatantsTracked || 0);
@@ -310,6 +311,16 @@ export function buildEngineAuditEntry(options: {
     });
   }
 
+  if (options.actAdvance?.proposed) {
+    checks.push({
+      label: 'Act advancement',
+      status: options.actAdvance.allowed ? 'pass' : 'blocked',
+      detail: options.actAdvance.allowed
+        ? `Act ${options.act} is eligible to advance.`
+        : `Act ${options.act} advance was blocked: ${options.actAdvance.reason || 'pacing requirements were not met'}`,
+    });
+  }
+
   if (options.spotlightCharacterId) {
     checks.push({
       label: 'Co-op spotlight',
@@ -343,6 +354,8 @@ export function buildEngineAuditEntry(options: {
       actGoalsCompleted,
       highStakes: !!options.highStakes,
       spotlightCharacterId: options.spotlightCharacterId,
+      advanceActProposed: options.actAdvance?.proposed,
+      advanceActAllowed: options.actAdvance?.allowed,
     },
   };
 }

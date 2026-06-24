@@ -1,5 +1,6 @@
 import type { ActionResult, Character, CharacterHistoryEntry, DiceRollResult, InventoryItem, NpcMemory, ShopItem, WorldBible, WorldState } from '../../../shared/types';
 import { getAbilityForLevel } from '../../../shared/classAbilities';
+import { canAdvanceAct } from './actPacingSystem';
 import { ensureCombatEncounterCompleteness, preventUngroundedFight } from './aiContractValidator';
 import {
   advanceActIfAllowed,
@@ -281,6 +282,21 @@ export async function processCoopAction(
   const goalChanges: string[] = [];
   if (aiResponse.actGoalAchieved) goalChanges.push(aiResponse.actGoalAchieved);
 
+  const actAdvancePreview = aiResponse.advanceAct
+    ? canAdvanceAct({
+        ...ws,
+        actionsInCurrentAct: newActionsInCurrentAct,
+        actGoalsAchieved: Array.from(new Set([...(ws.actGoalsAchieved || []), ...goalChanges])),
+        lastHighStakesAction: aiResponse.isHighStakes ? newActionCount : ws.lastHighStakesAction,
+        npcMemory: [
+          ...(ws.npcMemory || []),
+          ...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory),
+          ...autoNpcMemory,
+          ...combatantNpcMemory,
+        ],
+      }, wb, campaign.act || 1)
+    : undefined;
+
   const engineAuditEntry = buildEngineAuditEntry({
     worldState: ws,
     act: campaign.act || 1,
@@ -298,6 +314,9 @@ export async function processCoopAction(
     highStakes: !!aiResponse.isHighStakes || !!ws.lastHighStakesAction,
     spotlightCharacterId,
     directorBeatPending: !!ws.pendingDirectorBeat,
+    actAdvance: aiResponse.advanceAct
+      ? { proposed: true, allowed: !!actAdvancePreview?.allowed, reason: actAdvancePreview?.reason }
+      : undefined,
   });
 
   // Run Story Director every 5 actions to evaluate campaign health
