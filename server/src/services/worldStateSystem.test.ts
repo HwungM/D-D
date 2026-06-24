@@ -46,6 +46,38 @@ test('world state reducer merges quests, notes, and discovered locations without
   assert.equal(merged.activeQuests?.[0].startedAt, 'old');
 });
 
+test('world state reducer keeps a bounded engine audit trail', () => {
+  const current: WorldState = {
+    engineAudit: [{
+      id: 'old',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      actionCount: 1,
+      act: 1,
+      actors: ['Mira'],
+      actionSummary: 'look around',
+      checks: [{ label: 'Grounded encounter', status: 'pass', detail: 'No combat.' }],
+      stateDigest: { combatantsTracked: 0, npcMemoryUpdates: 0, actGoalsCompleted: 0, highStakes: false },
+    }],
+  };
+
+  const merged = mergeWorldStateChanges(current, {
+    engineAudit: Array.from({ length: 35 }, (_, i) => ({
+      id: `new-${i}`,
+      createdAt: `2026-01-01T00:00:${String(i + 1).padStart(2, '0')}.000Z`,
+      actionCount: i + 2,
+      act: 1,
+      actors: ['Mira'],
+      actionSummary: `action ${i}`,
+      checks: [{ label: 'People Sheet updates', status: 'info' as const, detail: 'No update.' }],
+      stateDigest: { combatantsTracked: 0, npcMemoryUpdates: 0, actGoalsCompleted: 0, highStakes: false },
+    })),
+  });
+
+  assert.equal(merged.engineAudit?.length, 30);
+  assert.equal(merged.engineAudit?.[0].id, 'new-5');
+  assert.equal(merged.engineAudit?.[29].id, 'new-34');
+});
+
 test('location graph and campaign spine snapshots expose playable campaign state', () => {
   const worldState: WorldState = {
     currentLocation: 'Ash Gate',

@@ -8,6 +8,7 @@ import {
   buildActiveNpcChange,
   buildAutoNpcMemory,
   buildBackstoryHookChanges,
+  buildEngineAuditEntry,
   buildForeshadowingAndFutureHookChanges,
   buildLocationTracking,
   buildSceneStateUpdate,
@@ -119,4 +120,33 @@ test('buildSpotlightBalanceUpdate uses model spotlight or falls back to less spo
   const fallback = buildSpotlightBalanceUpdate({ char1: 4, char2: 1 }, ['char1', 'char2'], null);
   assert.equal(fallback.spotlightCharacterId, 'char2');
   assert.equal(fallback.spotlightBalance.char2, 2);
+});
+
+test('buildEngineAuditEntry records grounded combat, NPC memory, and co-op spotlight checks', () => {
+  const entry = buildEngineAuditEntry({
+    worldState: { actGoalsAchieved: ['Find the burned map'] },
+    act: 2,
+    actors: ['King', 'Sun Mi'],
+    actions: ['King: look for a fight', 'Sun Mi: watches the alley'],
+    actionCount: 12,
+    location: 'Grey Dock',
+    scenePurpose: 'gather_info',
+    pacingMode: 'tension',
+    ungroundedFightBlocked: true,
+    combatCompletenessFilled: true,
+    combatantsTracked: 2,
+    npcMemoryUpdates: 2,
+    actGoalsAdded: ['Expose the smuggler route'],
+    highStakes: false,
+    spotlightCharacterId: 'sun-mi',
+    directorBeatPending: true,
+  });
+
+  assert.equal(entry.act, 2);
+  assert.equal(entry.stateDigest.combatantsTracked, 2);
+  assert.equal(entry.stateDigest.npcMemoryUpdates, 2);
+  assert.equal(entry.stateDigest.actGoalsCompleted, 2);
+  assert.ok(entry.checks.some(check => check.label === 'Grounded encounter' && check.status === 'blocked'));
+  assert.ok(entry.checks.some(check => check.label === 'Act II pacing' && check.status === 'warn'));
+  assert.ok(entry.checks.some(check => check.label === 'Co-op spotlight'));
 });

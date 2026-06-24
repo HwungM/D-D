@@ -312,6 +312,14 @@ export function mergeWorldStateChanges(current: WorldState, changes: Partial<Wor
     merged.storyLedger = [...all.filter(entry => entry.status !== 'resolved').slice(-30), ...all.filter(entry => entry.status === 'resolved').slice(-20)];
   }
 
+  if (changes.engineAudit) {
+    const existing = new Map(toArr<NonNullable<WorldState['engineAudit']>[number]>(current.engineAudit).map(entry => [entry.id, entry]));
+    for (const entry of toArr<NonNullable<WorldState['engineAudit']>[number]>(changes.engineAudit)) existing.set(entry.id, { ...existing.get(entry.id), ...entry });
+    merged.engineAudit = Array.from(existing.values())
+      .sort((a, b) => (Date.parse(a.createdAt) || 0) - (Date.parse(b.createdAt) || 0))
+      .slice(-30);
+  }
+
   if (changes.mysteryClues) {
     const existing = new Map((current.mysteryClues || []).map(c => [c.id, c]));
     for (const clue of changes.mysteryClues) existing.set(clue.id, { ...existing.get(clue.id), ...clue });

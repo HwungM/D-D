@@ -25,6 +25,7 @@ import {
   buildActiveNpcChange,
   buildAutoNpcMemory,
   buildBackstoryHookChanges,
+  buildEngineAuditEntry,
   buildForeshadowingAndFutureHookChanges,
   buildLocationTracking,
   buildSceneStateUpdate,
@@ -126,8 +127,8 @@ export async function processCoopAction(
   );
   enforceTurnPlanNarration(aiResponse, coopPlan);
   applyContinuityRepairs(aiResponse, characters, coopPlan.rails);
-  preventUngroundedFight(aiResponse, pendingActions.map(pa => pa.action), ws.currentLocation, !!ws.combatState?.inCombat);
-  ensureCombatEncounterCompleteness(aiResponse);
+  const ungroundedFightBlocked = preventUngroundedFight(aiResponse, pendingActions.map(pa => pa.action), ws.currentLocation, !!ws.combatState?.inCombat);
+  const combatCompletenessFilled = ensureCombatEncounterCompleteness(aiResponse);
   if (coopPlan.resolvedRolls.length > 0) {
     aiResponse.awaitingRoll = false;
     aiResponse.rollContext = undefined;
@@ -280,6 +281,25 @@ export async function processCoopAction(
   const goalChanges: string[] = [];
   if (aiResponse.actGoalAchieved) goalChanges.push(aiResponse.actGoalAchieved);
 
+  const engineAuditEntry = buildEngineAuditEntry({
+    worldState: ws,
+    act: campaign.act || 1,
+    actors: characters.map(character => character.name),
+    actions: pendingActions.map(pa => `${pa.characterName}: ${pa.action}`),
+    actionCount: newActionCount,
+    location: newLocation || ws.currentLocation,
+    scenePurpose: newSceneState?.purpose,
+    pacingMode: newSceneState?.pacingMode,
+    ungroundedFightBlocked,
+    combatCompletenessFilled,
+    combatantsTracked: combatState?.enemies?.length || 0,
+    npcMemoryUpdates: toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory).length + autoNpcMemory.length + combatantNpcMemory.length,
+    actGoalsAdded: goalChanges,
+    highStakes: !!aiResponse.isHighStakes || !!ws.lastHighStakesAction,
+    spotlightCharacterId,
+    directorBeatPending: !!ws.pendingDirectorBeat,
+  });
+
   // Run Story Director every 5 actions to evaluate campaign health
   if (newActionCount % 5 === 0) {
     try {
@@ -328,6 +348,7 @@ export async function processCoopAction(
     ...(futureHooksChanges ? { futureHooks: futureHooksChanges } : {}),
     ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
     ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
+    engineAudit: [engineAuditEntry],
     ...(endgamePhase !== ws.endgamePhase ? { endgamePhase } : {}),
     ...(aiResponse.isHighStakes ? { lastHighStakesAction: newActionCount } : {}),
     pendingDirectorBeat: aiResponse.directorBeatExecuted
@@ -454,6 +475,7 @@ export async function processCoopAction(
     achievementUnlocked: aiResponse.achievementUnlocked ?? null,
     railRolls: coopPlan.resolvedRolls,
     spotlightCharacterId,
+    engineAudit: engineAuditEntry,
   };
   const personalTurnMeta = (updated: Character, original: Character, changes: typeof aiResponse.character1Changes, leveledUp: boolean, ability: ReturnType<typeof getAbilityForLevel> | undefined) => ({
     isLevelUp: leveledUp,

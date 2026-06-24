@@ -187,6 +187,32 @@ export interface StoryActionMemory {
   createdAt: string;
 }
 
+export interface EngineAuditCheck {
+  label: string;
+  status: 'pass' | 'warn' | 'blocked' | 'info';
+  detail: string;
+}
+
+export interface EngineAuditEntry {
+  id: string;
+  createdAt: string;
+  actionCount: number;
+  act: number;
+  actors: string[];
+  actionSummary: string;
+  location?: string;
+  scenePurpose?: NonNullable<WorldState['sceneState']>['purpose'];
+  pacingMode?: NonNullable<WorldState['sceneState']>['pacingMode'];
+  checks: EngineAuditCheck[];
+  stateDigest: {
+    combatantsTracked: number;
+    npcMemoryUpdates: number;
+    actGoalsCompleted: number;
+    highStakes: boolean;
+    spotlightCharacterId?: string;
+  };
+}
+
 export interface LocationNode {
   name: string;
   region: string;
@@ -252,6 +278,7 @@ export interface WorldState {
   campaignSpine?: CampaignSpineSnapshot;
   storyLedger?: StoryLedgerEntry[];
   recentPlayerActions?: StoryActionMemory[];
+  engineAudit?: EngineAuditEntry[];
   characterHistory?: CharacterHistoryEntry[];
   antagonistProgress?: Record<string, { stepIndex: number; lastAction: string; knowsPlayers: boolean }>;
   sessionCount?: number;
