@@ -1,4 +1,5 @@
 import type { Character, WorldBible, WorldState } from '../../../shared/types';
+import { actRoleFor, arcNumberFor } from './actPacingSystem';
 import { parseJsonRecord } from './aiResponseParser';
 import { buildStoryTasteProfile, formatTasteDirective } from './storyTaste';
 
@@ -55,12 +56,14 @@ function buildStoryDirectorContext(
   const taste = buildStoryTasteProfile(worldBible, worldState);
 
   const roadmap = worldBible.dmRoadmap;
-  const actGoals = act === 1 ? roadmap?.act1Goals : act === 2 ? roadmap?.act2Goals : roadmap?.act3ConvergenceThreads;
+  const role = actRoleFor(act);
+  const arc = arcNumberFor(act);
+  const actGoals = role === 1 ? roadmap?.act1Goals : role === 2 ? roadmap?.act2Goals : roadmap?.act3ConvergenceThreads;
   const totalGoals = actGoals?.length || 4;
   const goalsComplete = actGoalsAchieved.length;
 
   return `
-Campaign health check for Act ${act}:
+Campaign health check for Act ${act} (Arc ${arc}, ${role === 1 ? 'setup' : role === 2 ? 'escalation' : 'climax'}):
 - Actions in current act: ${actionsInAct}
 - Total actions: ${actionCount}
 - Last scene type (pillar): ${lastPillar}

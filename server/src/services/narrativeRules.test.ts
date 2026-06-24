@@ -151,7 +151,7 @@ test('act three requires convergence, confrontation, and recorded resolution bef
     completedEvents: ['The Ash Gate was sealed and Captain Veyra was redeemed.'],
   } as WorldState, bible, 3);
   assert.equal(noConfrontation.allowed, false);
-  assert.match(noConfrontation.reason || '', /final confrontation/i);
+  assert.match(noConfrontation.reason || '', /final confrontation|campaign finale/i);
 
   const noResolution = canAdvanceAct({
     actionsInCurrentAct: 8,
@@ -160,7 +160,7 @@ test('act three requires convergence, confrontation, and recorded resolution bef
     completedEvents: ['The Ash Gate stands quiet.'],
   } as WorldState, bible, 3);
   assert.equal(noResolution.allowed, false);
-  assert.match(noResolution.reason || '', /final resolution/i);
+  assert.match(noResolution.reason || '', /arc resolution/i);
 
   const ready = canAdvanceAct({
     actionsInCurrentAct: 8,
@@ -169,4 +169,40 @@ test('act three requires convergence, confrontation, and recorded resolution bef
     completedEvents: ['The drowned bell was destroyed, Captain Veyra was redeemed, and the Ash Gate was sealed in victory.'],
   } as WorldState, bible, 3);
   assert.equal(ready.allowed, true);
+});
+
+test('long campaigns can continue after a local climax into a fresh setup arc', () => {
+  const bible = {
+    playerPreferences: { campaignLength: 'long' },
+    dmRoadmap: {
+      act1Goals: ['Take the Moonlit Road'],
+      act2Goals: ['Expose the Hollow Duke', 'Choose a faction ally'],
+      act3ConvergenceThreads: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
+    },
+  } as unknown as WorldBible;
+
+  const localClimaxResolved = canAdvanceAct({
+    actionsInCurrentAct: 20,
+    actGoalsAchieved: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
+    endgamePhase: 'none',
+    completedEvents: ['The drowned bell was destroyed, Captain Veyra was redeemed, and the Ash Gate was sealed in victory.'],
+  } as WorldState, bible, 3);
+  assert.equal(localClimaxResolved.allowed, true);
+
+  const actFourNeedsNewHook = canAdvanceAct({
+    actionsInCurrentAct: 20,
+    actGoalsAchieved: [],
+    activeQuests: [],
+    futureHooks: [],
+  } as WorldState, bible, 4);
+  assert.equal(actFourNeedsNewHook.allowed, false);
+  assert.match(actFourNeedsNewHook.reason || '', /Arc 2 setup/i);
+
+  const actFourReady = canAdvanceAct({
+    actionsInCurrentAct: 20,
+    activeQuests: [{ title: 'Follow the silver comet', description: 'Find where the sealed gate points next.', status: 'active' }],
+    actGoalsAchieved: ['Take the Moonlit Road'],
+    futureHooks: [{ id: 'hook-1', description: 'The sealed gate points to a city under moonlight.', source: 'test', createdAt: 'now', resolved: false }],
+  } as WorldState, bible, 4);
+  assert.equal(actFourReady.allowed, true);
 });

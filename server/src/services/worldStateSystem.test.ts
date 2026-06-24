@@ -126,3 +126,21 @@ test('location graph and campaign spine snapshots expose playable campaign state
   assert.equal(spine?.currentArc.progress, 39);
   assert.ok(spine?.openThreads.includes('Quest: Find the Gate'));
 });
+
+test('campaign spine labels long campaigns as repeating arcs instead of a fixed three-act ending', () => {
+  const worldState: WorldState = {
+    actionsInCurrentAct: 5,
+    activeQuests: [{ title: 'Find the moon road', description: 'Follow the new trail beyond the sealed gate.', status: 'active' }],
+  };
+  const bible = {
+    playerPreferences: { campaignLength: 'open_ended' },
+  } as unknown as WorldBible;
+
+  const arcTwoSetup = buildCampaignSpineSnapshot(worldState, bible, 4);
+  const arcTwoEscalation = buildCampaignSpineSnapshot(worldState, bible, 5);
+  const arcTwoClimax = buildCampaignSpineSnapshot(worldState, bible, 6);
+
+  assert.equal(arcTwoSetup?.currentArc.label, 'Arc 2: The Call');
+  assert.equal(arcTwoEscalation?.currentArc.label, 'Arc 2: The Trial');
+  assert.equal(arcTwoClimax?.currentArc.label, 'Arc 2: The Climax');
+});

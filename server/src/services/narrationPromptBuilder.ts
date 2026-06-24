@@ -2,6 +2,7 @@ import type { Character, WorldState, WorldBible, CampaignJournalEntry, Character
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
 import { COMBAT_AND_NPC_PERSISTENCE_CONTRACT, GROUNDED_ENCOUNTER_CONTRACT, TURN_RESOLUTION_CONTRACT, STYLE_ANTI_REPETITION } from './aiPromptContracts';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
+import { actRoleFor, arcNumberFor } from './actPacingSystem';
 
 // Finds dice notation (e.g. "1d6", "2d8") inside an ability's mechanic text and
 // rolls it with the engine's RNG, so the AI applies an exact, fairly-rolled
@@ -74,6 +75,33 @@ function getCampaignPacingThresholds(length: CampaignLength): { mature: number; 
     default:
       return { mature: 12, overdue: 20, critical: 30 };
   }
+}
+
+function actRoleLabel(role: 1 | 2 | 3): string {
+  if (role === 1) return 'setup';
+  if (role === 2) return 'escalation';
+  return 'climax';
+}
+
+function actRoleRoadmap(
+  roadmap: NonNullable<NarrationCampaignContext['roadmap']>,
+  act: number,
+): { goals: string[]; climaxEvent: string; villainEscalation?: string } {
+  const role = actRoleFor(act);
+  if (role === 1) {
+    return { goals: roadmap.act1Goals || [], climaxEvent: roadmap.act1ClimaxEvent || 'Lock in the next meaningful quest hook.' };
+  }
+  if (role === 2) {
+    return {
+      goals: roadmap.act2Goals || [],
+      climaxEvent: roadmap.act2ClimaxEvent || 'Force a major reversal, danger, or decisive choice.',
+      villainEscalation: roadmap.act2VillainEscalation,
+    };
+  }
+  return {
+    goals: roadmap.act3ConvergenceThreads || [],
+    climaxEvent: roadmap.act3ClimaxEvent || 'Resolve the current arc with a concrete consequence and a clear next doorway.',
+  };
 }
 export const DM_SYSTEM_PROMPT = `You are both Dungeon Master and Game Master for a dynamic, genre-fluid fantasy sandbox RPG.
 Your job is not only to narrate; you run the table. You adjudicate intent, maintain continuity, pace scenes, surface choices, protect player agency, and make the world react honestly.
@@ -468,7 +496,7 @@ MYSTERY LAYER RULES:
 - Drop ONE mystery clue every 3-4 actions. Never more than one per action. Never drop the answer directly.
 - Each clue should raise new questions even as it answers small ones.
 - Red herrings should feel meaningful when discovered but lead to dead ends.
-- When the revelation is ready (Act 3), build to it - the players should feel "of course" not "what?"
+- When the revelation is ready in a climax arc, build to it - the players should feel "of course" not "what?"
 
 FAILURE RULES:
 - Failure is a story accelerant, not a punishment. Never let failure just hurt and stop.
@@ -694,12 +722,18 @@ NARRATIVE TIER: ${campaignContext.act <= 1 && characterLevel <= 3 ? 'EMERGING - 
 
 ${campaignContext?.roadmap ? (() => {
   const actNum = campaignContext.act;
-  const goals = actNum === 1 ? campaignContext.roadmap.act1Goals : actNum === 2 ? campaignContext.roadmap.act2Goals : campaignContext.roadmap.act3ConvergenceThreads;
-  const climaxEvent = actNum === 1 ? campaignContext.roadmap.act1ClimaxEvent : actNum === 2 ? campaignContext.roadmap.act2ClimaxEvent : campaignContext.roadmap.act3ClimaxEvent;
+  const role = actRoleFor(actNum);
+  const arc = arcNumberFor(actNum);
+  const roleLabel = actRoleLabel(role);
+  const { goals, climaxEvent, villainEscalation } = actRoleRoadmap(campaignContext.roadmap, actNum);
   const actionsInAct = campaignContext.actionsInCurrentAct || 0;
   const campaignLength = getCampaignLength(worldBible.playerPreferences?.campaignLength);
   const pacing = getCampaignPacingThresholds(campaignLength);
   const lengthGuidance = CAMPAIGN_LENGTH_GUIDANCE[campaignLength];
+  const longForm = campaignLength === 'long' || campaignLength === 'open_ended';
+  const arcGuidance = longForm
+    ? `\nMulti-arc structure: Act ${actNum} is Arc ${arc} ${roleLabel}. Do not treat every climax act as the whole campaign ending. Close this arc cleanly, keep consequences alive, then open the next front unless the players and endgame state clearly point to a final ending.`
+    : '';
 
   // Must-introduce status for act 1
   const mustIntro = actNum === 1 && campaignContext.roadmap.act1MustIntroduce?.length
@@ -712,11 +746,11 @@ ${campaignContext?.roadmap ? (() => {
   // Escalating urgency based on actions in current act
   let urgency = '';
   if (actionsInAct >= pacing.critical) {
-    urgency = `\nCRITICAL ACT OVERRUN: Act ${actNum} has run ${actionsInAct} actions for a ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. The act climax must happen THIS turn or the next. Do not delay. Execute: "${climaxEvent}" NOW.`;
+    urgency = `\nCRITICAL ACT OVERRUN: Act ${actNum} (${roleLabel}) has run ${actionsInAct} actions for a ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. The arc beat must happen THIS turn or the next. Do not delay. Execute: "${climaxEvent}" NOW.`;
   } else if (actionsInAct >= pacing.overdue) {
-    urgency = `\nACT OVERDUE: ${actionsInAct} actions in Act ${actNum} for a ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. Begin converging all threads toward: "${climaxEvent}" within the next 3 actions.`;
+    urgency = `\nACT OVERDUE: ${actionsInAct} actions in Act ${actNum} (${roleLabel}) for a ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. Begin converging the current arc toward: "${climaxEvent}" within the next 3 actions.`;
   } else if (actionsInAct >= pacing.mature) {
-    urgency = `\nACT MATURING: Act ${actNum} has run ${actionsInAct} actions. Start steering toward the climax: "${climaxEvent}". Unresolved goals and hooks should begin paying off.`;
+    urgency = `\nACT MATURING: Act ${actNum} (${roleLabel}) has run ${actionsInAct} actions. Start steering toward the next major beat: "${climaxEvent}". Unresolved goals and hooks should begin paying off.`;
   }
   const endgameRule = campaignLength === 'open_ended'
     ? '\nOpen-ended pacing: do not force finality. Resolve the current local arc cleanly, then open new fronts unless endgamePhase calls for a final confrontation.'
@@ -726,10 +760,10 @@ ${campaignContext?.roadmap ? (() => {
 
   return `═══ DM ROADMAP ═══
 Campaign length: ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. ${lengthGuidance}
-Act pacing thresholds: mature at ${pacing.mature} actions, overdue at ${pacing.overdue}, critical at ${pacing.critical}.${endgameRule}
-Act ${actNum} goals (steer the story toward these):
+Act pacing thresholds: mature at ${pacing.mature} actions, overdue at ${pacing.overdue}, critical at ${pacing.critical}.${endgameRule}${arcGuidance}
+Act ${actNum} / Arc ${arc} ${roleLabel} goals (steer the story toward these):
 ${goals.map(g => `  ${(campaignContext.actGoalsAchieved || []).includes(g) ? '[✓ DONE]' : '[ ]'} ${g}`).join('\n')}
-${mustIntro}Act ${actNum} climax (this MUST happen before act ends): ${climaxEvent}${actNum === 2 && campaignContext.roadmap.act2VillainEscalation ? `\nAct 2 villain escalation (make this real): ${campaignContext.roadmap.act2VillainEscalation}` : ''}${urgency}
+${mustIntro}Act ${actNum} / Arc ${arc} ${roleLabel} beat (this MUST happen before act advances): ${climaxEvent}${role === 2 && villainEscalation ? `\nEscalation pressure (make this real): ${villainEscalation}` : ''}${urgency}
 ══════════════════`;
 })() : ''}
 
@@ -777,7 +811,7 @@ Clues (drop ONE per 3-4 actions, in order):
 ${worldBible.mysteryLayer.clues.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}
 Red herrings (feel real, lead nowhere):
 ${worldBible.mysteryLayer.redHerrings.map(r => `  - ${r}`).join('\n')}
-Revelation (DO NOT reveal directly - build to it in Act 3): ${worldBible.mysteryLayer.revelation}
+Revelation (DO NOT reveal directly - build to it through a climax act when the players have earned it): ${worldBible.mysteryLayer.revelation}
 ═════════════════════════` : ''}
 ${worldBible.safeHaven ? `SAFE HAVEN: ${worldBible.safeHaven.name} - ${worldBible.safeHaven.flavor}. Kept by ${worldBible.safeHaven.keyNPC}.` : ''}
 ${worldBible.toneBreaks && worldBible.toneBreaks.length > 0 ? `TONAL CONTRAST MOMENTS: ${worldBible.toneBreaks.join(' | ')}` : ''}`;
