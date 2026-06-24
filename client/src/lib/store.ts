@@ -190,6 +190,15 @@ export const useGameStore = create<GameState>()((set) => ({
         merged.actGoalsAchieved = Array.from(new Set([...(current.actGoalsAchieved || []), ...changes.actGoalsAchieved]));
       }
 
+      // engineAudit: merge by id and keep the latest testing breadcrumbs
+      if (changes.engineAudit) {
+        const existing = new Map((current.engineAudit || []).map(entry => [entry.id, entry]));
+        for (const entry of changes.engineAudit) existing.set(entry.id, { ...existing.get(entry.id), ...entry });
+        merged.engineAudit = Array.from(existing.values())
+          .sort((a, b) => (Date.parse(a.createdAt) || 0) - (Date.parse(b.createdAt) || 0))
+          .slice(-30);
+      }
+
       // shopInventory: merge by location key
       if (changes.shopInventory) {
         merged.shopInventory = { ...(current.shopInventory || {}), ...changes.shopInventory };

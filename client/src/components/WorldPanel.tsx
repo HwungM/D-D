@@ -18,6 +18,13 @@ const PRESSURE_STYLE: Record<string, { label: string; color: string }> = {
   climax: { label: 'Climax', color: '#f87171' },
 }
 
+const AUDIT_STYLE: Record<string, { color: string; label: string }> = {
+  pass: { color: '#4ade80', label: 'Pass' },
+  warn: { color: '#f59e0b', label: 'Watch' },
+  blocked: { color: '#f87171', label: 'Blocked' },
+  info: { color: '#94a3b8', label: 'Info' },
+}
+
 function safeStr(value: unknown) {
   if (typeof value === 'string') return value
   if (value === null || value === undefined) return ''
@@ -52,6 +59,11 @@ function uniqueNpcList(worldState: WorldState): NpcMemory[] {
       metCharacters: candidate.metCharacters,
       interactionCount: candidate.interactionCount,
       isKeyNPC: candidate.isKeyNPC,
+      relationshipScore: candidate.relationshipScore,
+      relationshipLabel: candidate.relationshipLabel,
+      role: candidate.role,
+      portrait_url: candidate.portrait_url,
+      gender: candidate.gender,
     })
   }
 
@@ -99,6 +111,7 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
     : []
   const spine = worldState.campaignSpine
   const pressure = spine ? (PRESSURE_STYLE[spine.currentArc.pressure] || PRESSURE_STYLE.low) : null
+  const auditEntries = Array.isArray(worldState.engineAudit) ? worldState.engineAudit.slice(-5).reverse() : []
 
   return (
     <div className="space-y-6 p-4 text-sm text-parchment-100">
@@ -138,6 +151,71 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
           </div>
         </section>
       )}
+
+      <section className="border border-purple-300/16 bg-purple-300/[0.035] p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-purple-200/64">Playtest Engine Audit</p>
+            <p className="mt-1 font-serif text-xs leading-relaxed text-parchment-200/56">
+              Use this while testing to see why the engine allowed, blocked, or remembered things.
+            </p>
+          </div>
+          <span className="shrink-0 border border-purple-200/20 px-2 py-1 font-mono text-[10px] text-purple-100/70">
+            {auditEntries.length}/5
+          </span>
+        </div>
+
+        {auditEntries.length === 0 ? (
+          <div className="mt-3 border border-white/8 bg-black/20 px-3 py-3">
+            <p className="font-serif text-sm italic text-parchment-200/50">
+              No audit entries yet. Take a new action and this panel will start showing engine decisions.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-3 space-y-3">
+            {auditEntries.map(entry => (
+              <article key={entry.id} className="border border-white/10 bg-black/24 px-3 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-purple-100/60">
+                      Act {entry.act} / Action {entry.actionCount}
+                    </p>
+                    <p className="mt-1 truncate font-serif text-sm text-parchment-100">{entry.actionSummary}</p>
+                    <p className="mt-0.5 font-serif text-xs text-parchment-200/42">
+                      {[entry.location, entry.scenePurpose && formatLabel(entry.scenePurpose), entry.pacingMode && formatLabel(entry.pacingMode)].filter(Boolean).join(' / ')}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="font-mono text-[10px] text-parchment-200/52">
+                      {entry.stateDigest.combatantsTracked} foes / {entry.stateDigest.npcMemoryUpdates} NPCs
+                    </p>
+                    {entry.stateDigest.highStakes && (
+                      <p className="mt-1 font-fantasy text-[9px] uppercase tracking-[0.14em] text-amber-200/70">High stakes</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-1.5">
+                  {entry.checks.slice(0, 5).map((check, index) => {
+                    const style = AUDIT_STYLE[check.status] || AUDIT_STYLE.info
+                    return (
+                      <div key={`${check.label}-${index}`} className="border border-white/8 bg-white/[0.025] px-2 py-2">
+                        <div className="flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: style.color, boxShadow: `0 0 8px ${style.color}` }} />
+                          <p className="font-fantasy text-[9px] uppercase tracking-[0.16em]" style={{ color: style.color }}>
+                            {style.label}: {check.label}
+                          </p>
+                        </div>
+                        <p className="mt-1 font-serif text-xs leading-relaxed text-parchment-200/58">{check.detail}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="grid grid-cols-2 gap-2">
         {worldState.currentLocation && (

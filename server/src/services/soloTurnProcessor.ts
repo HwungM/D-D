@@ -29,6 +29,7 @@ import {
   buildActiveNpcChange,
   buildAutoNpcMemory,
   buildBackstoryHookChanges,
+  buildEngineAuditEntry,
   buildForeshadowingAndFutureHookChanges,
   buildLocationTracking,
   buildSceneStateUpdate,
@@ -205,8 +206,8 @@ export async function processAction(
   );
   enforceTurnPlanNarration(aiResponse, turnPlan);
   applyContinuityRepairs(aiResponse, [character as Character], turnPlan.rails);
-  preventUngroundedFight(aiResponse, [action], ws.currentLocation, !!ws.combatState?.inCombat);
-  ensureCombatEncounterCompleteness(aiResponse);
+  const ungroundedFightBlocked = preventUngroundedFight(aiResponse, [action], ws.currentLocation, !!ws.combatState?.inCombat);
+  const combatCompletenessFilled = ensureCombatEncounterCompleteness(aiResponse);
 
   // Explicit rest detection — override AI if player clearly stated rest intent (but not negations)
   const isNegatedRest = /\b(not|don'?t|won'?t|can'?t|no|never|stop|avoid|refuse)\b.{0,20}\b(rest|sleep|camp|recover)\b/i.test(action);
@@ -330,15 +331,33 @@ export async function processAction(
       })
     : [];
 
+  // Track total action count for villain move timing
+  const newActionCount = (ws.actionCount || 0) + 1;
+
+  const engineAuditEntry = buildEngineAuditEntry({
+    worldState: ws,
+    act: campaign.act || 1,
+    actors: [character.name],
+    actions: [action],
+    actionCount: newActionCount,
+    location: newLocation || ws.currentLocation,
+    scenePurpose: newSceneState?.purpose,
+    pacingMode: newSceneState?.pacingMode,
+    ungroundedFightBlocked,
+    combatCompletenessFilled,
+    combatantsTracked: combatState?.enemies?.length || 0,
+    npcMemoryUpdates: toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory).length + autoNpcMemory.length + combatantNpcMemory.length,
+    actGoalsAdded: goalChanges,
+    highStakes: !!aiResponse.isHighStakes || !!ws.lastHighStakesAction,
+    directorBeatPending: !!ws.pendingDirectorBeat,
+  });
+
   const { shopInventoryChange, shopItems } = buildShopInventoryChange(
     ws,
     aiResponse,
     (aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.currentLocation || ws.currentLocation || 'unknown',
   );
   if (shopItems) aiResponse.shopItems = shopItems;
-
-  // Track total action count for villain move timing
-  const newActionCount = (ws.actionCount || 0) + 1;
 
   // Run Story Director every 5 actions to evaluate campaign health
   if (newActionCount % 5 === 0) {
@@ -405,6 +424,7 @@ export async function processAction(
     ...(futureHooksChanges ? { futureHooks: futureHooksChanges } : {}),
     ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
     ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
+    engineAudit: [engineAuditEntry],
     ...(aiResponse.isHighStakes ? { lastHighStakesAction: newActionCount } : {}),
     pendingDirectorBeat: aiResponse.directorBeatExecuted
       ? null
@@ -489,6 +509,7 @@ export async function processAction(
       xpGained,
       suggestedActions: aiResponse.suggestedActions,
       sceneImagePrompt: aiResponse.sceneImagePrompt || null,
+      engineAudit: engineAuditEntry,
     },
   });
 

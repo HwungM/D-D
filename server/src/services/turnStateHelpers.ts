@@ -1,4 +1,4 @@
-import type { BackstoryHook, ForeshadowingEntry, NpcMemory, Recipe, ShopItem, WorldBible, WorldState } from '../../../shared/types';
+import type { BackstoryHook, EngineAuditCheck, EngineAuditEntry, ForeshadowingEntry, NpcMemory, Recipe, ShopItem, WorldBible, WorldState } from '../../../shared/types';
 import type { NarrationResult } from './narrationResponseParser';
 
 export function appendAchievement(
@@ -255,4 +255,94 @@ export function buildSpotlightBalanceUpdate(
     : ((spotlightBalance[characterIds[0]] || 0) <= (spotlightBalance[characterIds[1]] || 0) ? characterIds[0] : characterIds[1]);
   spotlightBalance[spotlightCharacterId] = (spotlightBalance[spotlightCharacterId] || 0) + 1;
   return { spotlightBalance, spotlightCharacterId };
+}
+
+export function buildEngineAuditEntry(options: {
+  worldState: WorldState;
+  act: number;
+  actors: string[];
+  actions: string[];
+  actionCount: number;
+  location?: string;
+  scenePurpose?: NonNullable<WorldState['sceneState']>['purpose'];
+  pacingMode?: NonNullable<WorldState['sceneState']>['pacingMode'];
+  ungroundedFightBlocked?: boolean;
+  combatCompletenessFilled?: boolean;
+  combatantsTracked?: number;
+  npcMemoryUpdates?: number;
+  actGoalsAdded?: string[];
+  highStakes?: boolean;
+  spotlightCharacterId?: string;
+  directorBeatPending?: boolean;
+}): EngineAuditEntry {
+  const checks: EngineAuditCheck[] = [];
+  const combatantsTracked = Math.max(0, options.combatantsTracked || 0);
+  const npcMemoryUpdates = Math.max(0, options.npcMemoryUpdates || 0);
+  const actGoalsCompleted = Math.max(0, (options.worldState.actGoalsAchieved || []).length + (options.actGoalsAdded || []).length);
+
+  checks.push(options.ungroundedFightBlocked
+    ? { label: 'Grounded encounter', status: 'blocked', detail: 'Blocked an ungrounded fight spawn and converted it into investigation pressure.' }
+    : { label: 'Grounded encounter', status: 'pass', detail: 'No ungrounded fight spawn was detected this turn.' });
+
+  if (combatantsTracked > 0) {
+    checks.push({
+      label: 'Combatants tracked',
+      status: options.combatCompletenessFilled ? 'warn' : 'pass',
+      detail: options.combatCompletenessFilled
+        ? `Filled missing combatant records; ${combatantsTracked} enemies are now tracked.`
+        : `${combatantsTracked} enemies are tracked in combat state.`,
+    });
+  } else {
+    checks.push({ label: 'Combatants tracked', status: 'info', detail: 'No active combatants after this turn.' });
+  }
+
+  checks.push(npcMemoryUpdates > 0
+    ? { label: 'People Sheet updates', status: 'pass', detail: `${npcMemoryUpdates} NPC memory update${npcMemoryUpdates === 1 ? '' : 's'} queued.` }
+    : { label: 'People Sheet updates', status: 'info', detail: 'No NPC memory updates were needed this turn.' });
+
+  if (options.act === 2) {
+    checks.push({
+      label: 'Act II pacing',
+      status: options.highStakes && actGoalsCompleted >= 2 ? 'pass' : 'warn',
+      detail: options.highStakes
+        ? `Act II has high-stakes pressure; ${actGoalsCompleted} roadmap goal${actGoalsCompleted === 1 ? '' : 's'} completed.`
+        : `Act II still needs high-stakes pressure before it should advance; ${actGoalsCompleted} roadmap goal${actGoalsCompleted === 1 ? '' : 's'} completed.`,
+    });
+  }
+
+  if (options.spotlightCharacterId) {
+    checks.push({
+      label: 'Co-op spotlight',
+      status: 'pass',
+      detail: `Spotlight credited to ${options.spotlightCharacterId}.`,
+    });
+  }
+
+  if (options.directorBeatPending) {
+    checks.push({
+      label: 'Director pressure',
+      status: 'warn',
+      detail: 'A story-director beat is pending and should be paid off soon.',
+    });
+  }
+
+  return {
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    actionCount: options.actionCount,
+    act: options.act,
+    actors: options.actors,
+    actionSummary: options.actions.map(action => action.trim()).filter(Boolean).join(' | ').slice(0, 240),
+    location: options.location,
+    scenePurpose: options.scenePurpose,
+    pacingMode: options.pacingMode,
+    checks,
+    stateDigest: {
+      combatantsTracked,
+      npcMemoryUpdates,
+      actGoalsCompleted,
+      highStakes: !!options.highStakes,
+      spotlightCharacterId: options.spotlightCharacterId,
+    },
+  };
 }
