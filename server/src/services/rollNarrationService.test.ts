@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Character, WorldState } from '../../../shared/types';
+import type { Character, WorldBible, WorldState } from '../../../shared/types';
 import {
+  buildCoopRollOutcomePrompt,
   buildRollOutcomePrompt,
   generateRollOutcomeFromService,
   getDegreeOfSuccess,
@@ -50,6 +51,12 @@ const worldState: WorldState = {
   currentLocation: 'Candlecrypt Chapel',
   currentSceneSummary: 'A bandit lunges across a ruined chapel as Mira reaches for a relic.',
 };
+
+const worldBible = {
+  era: 'Age of Tests',
+  magicSystem: 'Promises bind magic.',
+  centralConflict: 'The city is closing itself.',
+} as WorldBible;
 
 test('getDegreeOfSuccess distinguishes criticals, near misses, partials, and clean outcomes', () => {
   assert.equal(getDegreeOfSuccess(6, 15, false, true).degree, 'crit_fail');
@@ -101,6 +108,42 @@ test('buildRollOutcomePrompt includes degree guidance and combat consequence con
   assert.match(prompt, /ACTIVE COMBAT - Round 2/);
   assert.match(prompt, /Never narrate a wound without setting hpChange/);
   assert.match(prompt, /Bandit Cutter \(wounded\), Bandit Archer \(healthy\)/);
+});
+
+test('buildCoopRollOutcomePrompt preserves both character actions in a shared roll', () => {
+  const acting = character({ id: 'foliza', name: 'Foliza', class: 'Bard', race: 'Lizardfolk' });
+  const partner = character({ id: 'skirmy', name: 'Skirmy', class: 'Ranger', race: 'Yuan-ti' });
+
+  const { prompt, degree } = buildCoopRollOutcomePrompt({
+    rollResult: 7,
+    rollTotal: 12,
+    dc: 15,
+    success: false,
+    isCritSuccess: false,
+    isCritFail: false,
+    rollContext: rollContext({
+      stat: 'cha',
+      description: 'Foliza and Skirmy perform to draw Jarvis into revealing what he knows',
+      successDescription: 'Jarvis shares what he knows about the diplomat.',
+      failDescription: 'Jarvis keeps his secrets guarded.',
+    }),
+    worldState: { ...worldState, currentLocation: 'Verdant Valley' },
+    worldBible,
+    actingCharacter: acting,
+    partnerCharacter: partner,
+    actions: [
+      { characterId: 'foliza', characterName: 'Foliza', action: 'start a melody to gather the crowd' },
+      { characterId: 'skirmy', characterName: 'Skirmy', action: 'join in and watch Jarvis for tells' },
+    ],
+    recentHistory: ['[NARRATION] Jarvis watched the performers carefully.'],
+  });
+
+  assert.equal(degree, 'near_miss');
+  assert.match(prompt, /ONE SHARED CO-OP dice roll/);
+  assert.match(prompt, /Foliza: start a melody/);
+  assert.match(prompt, /Skirmy: join in/);
+  assert.match(prompt, /Name both Foliza and Skirmy/);
+  assert.match(prompt, /Do not write the partner as passive scenery/);
 });
 
 test('parseRollOutcomeResponse normalizes unsafe or missing AI fields', () => {

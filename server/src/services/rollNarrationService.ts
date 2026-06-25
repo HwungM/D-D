@@ -1,4 +1,4 @@
-import type { Character, WorldState } from '../../../shared/types';
+import type { Character, WorldBible, WorldState } from '../../../shared/types';
 import { STYLE_ANTI_REPETITION } from './aiPromptContracts';
 import { parseJsonRecord } from './aiResponseParser';
 import { characterGenderLine } from './narrationPromptBuilder';
@@ -61,6 +61,14 @@ type RollOutcomeArgs = {
   recentHistory: string[];
   openai: ChatClient;
   logAiCall?: RollOutcomeLog;
+};
+
+type CoopRollOutcomeArgs = Omit<RollOutcomeArgs, 'character' | 'recentHistory'> & {
+  actingCharacter: Character;
+  partnerCharacter: Character;
+  actions: { characterId: string; characterName: string; action: string }[];
+  worldBible: WorldBible;
+  recentHistory: string[];
 };
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -237,6 +245,93 @@ Respond with JSON:
   return { prompt, resultLabel, degree };
 }
 
+function characterSummary(character: Character): string {
+  return `${character.name} (${character.race} ${character.class}, Level ${character.level})${characterGenderLine(character)}
+HP: ${character.hp}/${character.max_hp}
+Inventory: ${character.inventory.slice(0, 5).map(i => i.name).join(', ') || 'nothing special'}
+Available abilities: ${(character.abilities || []).filter(a => !a.currentCooldown || a.currentCooldown <= 0).slice(0, 5).map(a => a.name).join(', ') || 'none'}`;
+}
+
+export function buildCoopRollOutcomePrompt(args: Omit<CoopRollOutcomeArgs, 'openai' | 'logAiCall'>): { prompt: string; resultLabel: string; degree: RollDegree } {
+  const {
+    rollResult,
+    rollTotal,
+    dc,
+    success,
+    isCritSuccess,
+    isCritFail,
+    rollContext,
+    worldState,
+    worldBible,
+    actingCharacter,
+    partnerCharacter,
+    actions,
+    recentHistory,
+  } = args;
+  const { label: resultLabel, degree } = getDegreeOfSuccess(rollTotal, dc, isCritSuccess, isCritFail);
+  const flavorHint = getRollFlavorHint(rollContext, success, isCritSuccess, isCritFail);
+  const combatState = worldState.combatState;
+  const combatStakesBlock = combatState?.inCombat
+    ? `
+ACTIVE COMBAT - Round ${combatState.roundNumber}. Enemies: ${(combatState.enemies || []).filter(e => !e.isDefeated).map(e => `${e.name} (${e.condition})`).join(', ') || `${combatState.enemyName} (${combatState.enemyCondition})`}.
+COMBAT STAKES: the enemies act on this outcome too. On near_miss, clear_fail, or crit_fail, an enemy's counterattack usually LANDS on the rolling character unless the narration clearly positions the partner as the target. Apply acting-character damage via hpChange. Never narrate a wound without setting hpChange.`
+    : '';
+
+  const actionLines = actions.map(action => `- ${action.characterName}: ${action.action}`).join('\n');
+
+  const prompt = `You are a DM resolving ONE SHARED CO-OP dice roll.
+This is not a solo beat. The roll belongs to ${actingCharacter.name}, but the outcome must resolve BOTH players' submitted actions as one coordinated scene.
+
+Roll attempted: ${rollContext.description}
+Rolling character: ${actingCharacter.name}
+Partner character: ${partnerCharacter.name}
+They rolled ${rollResult} + ${rollTotal - rollResult} (${rollContext.stat.toUpperCase()} modifier) = ${rollTotal} vs DC ${dc} - ${resultLabel}.
+Flavor hint for this outcome: "${flavorHint}"
+
+DEGREE OF SUCCESS DIRECTIVE:
+${DEGREE_GUIDANCE[degree]}${combatStakesBlock}
+
+WORLD: ${worldBible.era} | ${worldBible.magicSystem}
+Central conflict: ${worldBible.centralConflict || 'unknown'}
+Location: ${worldState.currentLocation || 'unknown'}
+Scene state: ${worldState.currentSceneSummary || 'use recent history and the roll outcome'}
+
+CHARACTERS:
+${characterSummary(actingCharacter)}
+
+${characterSummary(partnerCharacter)}
+
+SUBMITTED CO-OP ACTIONS TO HONOR:
+${actionLines}
+
+Recent history:
+${recentHistory.slice(-6).join('\n') || '(none)'}
+
+Write vivid outcome narration (120-180 words) that precisely matches the ${resultLabel} degree.
+Requirements:
+- Name both ${actingCharacter.name} and ${partnerCharacter.name}.
+- Resolve the rolling character's check AND show how the partner's submitted action helped, complicated, protected, or changed the outcome.
+- Do not write the partner as passive scenery.
+- If the result fails, the failure should affect the shared scene, not erase the partner's input.
+- Suggested actions should be 3-4 optional ideas grounded in the changed situation after this shared roll.
+
+Respond with JSON:
+{
+  "narration": "string",
+  "worldStateChanges": object | null,
+  "hpChange": number | null,
+  "goldChange": number | null,
+  "suggestedActions": ["3-4 optional action ideas after this roll outcome"],
+  "sceneImagePrompt": "string",
+  "isDeath": boolean,
+  "isVictory": boolean,
+  "isCombat": boolean,
+  "loot": [{"id":"uid","name":"item","description":"desc","quantity":1,"type":"weapon|armor|potion|misc|key","value":10}] | null
+}`;
+
+  return { prompt, resultLabel, degree };
+}
+
 export async function generateRollOutcomeFromService(args: RollOutcomeArgs): Promise<RollOutcomeResult> {
   const { openai, logAiCall, character } = args;
   const { prompt } = buildRollOutcomePrompt(args);
@@ -260,6 +355,39 @@ export async function generateRollOutcomeFromService(args: RollOutcomeArgs): Pro
     model: 'gpt-4o',
     temperature: 0.7,
     prompt,
+    rawResponse: content,
+    parsed,
+  });
+
+  return parsed;
+}
+
+export async function generateCoopRollOutcomeFromService(args: CoopRollOutcomeArgs): Promise<RollOutcomeResult> {
+  const { openai, logAiCall, actingCharacter } = args;
+  const { prompt } = buildCoopRollOutcomePrompt(args);
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: 'You are a master Dungeon Master resolving co-op dice roll outcomes. Honor both players as separate characters in one shared scene. Respond with valid JSON only.' },
+      { role: 'user', content: prompt },
+      { role: 'system', content: STYLE_ANTI_REPETITION },
+    ],
+    temperature: 0.7,
+    response_format: { type: 'json_object' },
+  });
+
+  const content = response.choices[0].message.content || '{}';
+  const parsed = parseRollOutcomeResponse(content);
+
+  logAiCall?.('generateCoopRollOutcome', {
+    character: actingCharacter.id,
+    partner: args.partnerCharacter.id,
+    model: 'gpt-4o',
+    rollResult: args.rollResult,
+    rollTotal: args.rollTotal,
+    dc: args.dc,
+    success: args.success,
     rawResponse: content,
     parsed,
   });

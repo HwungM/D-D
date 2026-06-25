@@ -474,6 +474,9 @@ export default function Game() {
           const matched = matchSceneImage(newEvent.metadata.sceneImagePrompt, useGameStore.getState().worldState?.timeOfDay)
           if (matched) setSceneImage(matched)
         }
+        setDiceModalData(null)
+        setShowDiceModal(false)
+        setCoopWaiting(true)
         setLoading(false)
         return
       }
@@ -712,15 +715,29 @@ export default function Game() {
 
       // Player-driven dice roll
       if (result.awaitingRoll && result.rollContext) {
+        const actingId = result.actingCharacterId
         addEvent({
           id: `temp-dm-${Date.now()}`,
           campaign_id: campaignId,
           character_id: characterId,
           event_type: 'narration',
           content: result.narration,
-          metadata: { awaitingRoll: true, suggestedActions: result.suggestedActions },
+          metadata: {
+            awaitingRoll: true,
+            rollContext: result.rollContext,
+            actingCharacterId: actingId,
+            suggestedActions: result.suggestedActions,
+            sceneImagePrompt: result.sceneImagePrompt || null,
+          },
           created_at: new Date().toISOString(),
         })
+        if (actingId && actingId !== characterId) {
+          setDiceModalData(null)
+          setShowDiceModal(false)
+          setCoopWaiting(true)
+          setLoading(false)
+          return
+        }
         setDiceModalData({ narration: result.narration, rollContext: result.rollContext })
         setShowDiceModal(true)
         setLoading(false)

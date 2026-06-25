@@ -1,7 +1,7 @@
 import type { ActionResult, Character, RollContext, WorldBible, WorldState } from '../../../shared/types';
 import { getAbilityForLevel } from '../../../shared/classAbilities';
 import { applyConsequences, getRecentHistory } from './campaignTurnPersistence';
-import { generateRollOutcome } from './openai';
+import { generateCoopRollOutcome, generateRollOutcome } from './openai';
 import {
   calculateActionXp,
   degreeOfSuccess,
@@ -135,32 +135,127 @@ export async function resolveCoopRollAction(
   const pending = ws.coopPendingRoll;
   if (!pending || pending.actingCharacterId !== characterId) throw new Error('No pending co-op roll for this character');
 
+  const actingAction = pending.actions.find(pa => pa.characterId === characterId);
   const partnerAction = pending.actions.find(pa => pa.characterId !== characterId);
+  if (!actingAction) throw new Error('Co-op rolling character action not found');
   if (!partnerAction) throw new Error('Co-op partner action not found');
 
-  // Resolve the roll for the acting character via the standard roll-outcome flow
-  const result = await resolveRollAction(characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, rollContext);
+  const { data: actingChar, error: actingError } = await supabaseAdmin.from('characters').select('*').eq('id', characterId).single();
+  if (actingError || !actingChar) throw new Error('Co-op rolling character not found');
 
-  // Reward the partner with the same XP for the joint turn and clear the pending roll
   const { data: partnerChar, error: partnerError } = await supabaseAdmin.from('characters').select('*').eq('id', partnerAction.characterId).single();
   if (partnerError || !partnerChar) throw new Error('Co-op partner character not found');
 
-  const { data: refreshedCampaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaignId).single();
-  const wsAfterRoll = (refreshedCampaign?.world_state || result.worldStateChanges || ws) as WorldState;
+  const [actingHistory, partnerHistory] = await Promise.all([
+    getRecentHistory(campaignId, characterId, 10),
+    getRecentHistory(campaignId, partnerAction.characterId, 10),
+  ]);
+  const recentHistory = Array.from(new Set([
+    ...actingHistory,
+    ...partnerHistory,
+    ...pending.actions.map(action => `[ACTION] ${action.characterName}: ${action.action}`),
+  ])).slice(-16);
+
+  const aiResponse = await generateCoopRollOutcome(
+    rollResult,
+    rollTotal,
+    dc,
+    success,
+    isCritSuccess,
+    isCritFail,
+    rollContext,
+    ws,
+    campaign.world_bible as WorldBible,
+    actingChar as Character,
+    partnerChar as Character,
+    pending.actions.map(action => ({
+      characterId: action.characterId,
+      characterName: action.characterName,
+      action: action.action,
+    })),
+    recentHistory,
+  );
+
+  const actingXp = calculateActionXp(
+    (actingChar as Character).level,
+    degreeOfSuccess(rollResult, rollTotal, dc),
+    { combat: !!ws.combatState?.inCombat, dramatic: rollContext.isDramatic, coop: true },
+  );
+  const combatRoll = resolvePlayerCombatRoll(
+    actingChar as Character,
+    ws.combatState,
+    rollContext,
+    rollResult,
+    rollTotal,
+    dc,
+  );
+  const worldStateChanges = {
+    ...(aiResponse.worldStateChanges as Partial<WorldState> | undefined),
+    ...(combatRoll ? { combatState: combatRoll.combatState } : {}),
+    coopPendingRoll: null,
+  };
+
+  const { updatedCharacter, updatedWorldState: wsAfterActingRoll } = await applyConsequences(
+    characterId,
+    {
+      worldStateChanges,
+      isDeath: aiResponse.isDeath,
+      xpGained: actingXp,
+      hpChange: aiResponse.isDeath ? -(actingChar as Character).max_hp : aiResponse.hpChange,
+      goldChange: aiResponse.goldChange,
+      loot: aiResponse.loot as { id: string; name: string; description: string; quantity: number; type: string; value?: number }[] | undefined,
+    },
+    actingChar as Character,
+    { id: campaignId, world_state: ws, act: campaign.act, world_bible: campaign.world_bible as WorldBible }
+  );
+
+  await supabaseAdmin.from('story_events').insert({
+    campaign_id: campaignId,
+    character_id: characterId,
+    event_type: 'dice_roll',
+    content: `Rolled ${rollResult} (total ${rollTotal}) vs DC ${dc} — ${success ? 'SUCCESS' : 'FAILURE'}`,
+    metadata: {
+      coopRound: true,
+      rollResult,
+      rollTotal,
+      dc,
+      success,
+      isCritSuccess,
+      isCritFail,
+      rollContext,
+      actingCharacterId: characterId,
+      partnerCharacterId: partnerAction.characterId,
+      combatDamage: combatRoll?.damage || 0,
+      combatTarget: combatRoll?.target,
+    },
+  });
+
+  await supabaseAdmin.from('story_events').insert({
+    campaign_id: campaignId,
+    character_id: characterId,
+    event_type: 'narration',
+    content: aiResponse.narration,
+    metadata: {
+      coopRound: true,
+      fromRoll: true,
+      suggestedActions: aiResponse.suggestedActions,
+      sceneImagePrompt: aiResponse.sceneImagePrompt || null,
+      isCombat: combatRoll ? !combatRoll.victory : aiResponse.isCombat ?? false,
+      isVictory: combatRoll?.victory || aiResponse.isVictory || false,
+      enemyName: combatRoll?.target || null,
+    },
+  });
 
   const xpGained = calculateActionXp(
     (partnerChar as Character).level,
     degreeOfSuccess(rollResult, rollTotal, dc),
     { combat: !!ws.combatState?.inCombat, dramatic: rollContext.isDramatic, coop: true },
   );
-  // worldStateChanges (not the passed-in snapshot) is what actually persists:
-  // applyConsequences re-fetches the latest world state before writing, so the
-  // pending roll must be cleared via the merge path or it lives in the DB forever.
   const { updatedCharacter: updatedPartner, updatedWorldState } = await applyConsequences(
     partnerAction.characterId,
-    { xpGained, worldStateChanges: { coopPendingRoll: null } },
+    { xpGained },
     partnerChar as Character,
-    { id: campaignId, world_state: { ...wsAfterRoll, coopPendingRoll: null }, act: campaign.act, world_bible: campaign.world_bible as WorldBible }
+    { id: campaignId, world_state: wsAfterActingRoll, act: campaign.act, world_bible: campaign.world_bible as WorldBible }
   );
 
   const partnerLeveledUp = updatedPartner.level > (partnerChar as Character).level;
@@ -172,15 +267,15 @@ export async function resolveCoopRollAction(
     campaign_id: campaignId,
     character_id: partnerAction.characterId,
     event_type: 'narration',
-    content: result.narration,
+    content: aiResponse.narration,
     metadata: {
       coopRound: true,
       fromRoll: true,
-      suggestedActions: result.suggestedActions,
-      sceneImagePrompt: result.sceneImagePrompt || null,
-      isCombat: result.isCombat ?? false,
-      isVictory: result.isVictory ?? false,
-      enemyName: result.enemyName ?? null,
+      suggestedActions: aiResponse.suggestedActions,
+      sceneImagePrompt: aiResponse.sceneImagePrompt || null,
+      isCombat: combatRoll ? !combatRoll.victory : aiResponse.isCombat ?? false,
+      isVictory: combatRoll?.victory || aiResponse.isVictory || false,
+      enemyName: combatRoll?.target || null,
       personal: {
         isLevelUp: partnerLeveledUp,
         level: updatedPartner.level,
@@ -191,8 +286,32 @@ export async function resolveCoopRollAction(
   });
 
   return {
-    ...result,
+    narration: aiResponse.narration,
+    diceRoll: {
+      sides: 20,
+      rolls: [rollResult],
+      modifier: rollTotal - rollResult,
+      total: rollTotal,
+      description: `${rollContext.stat.toUpperCase()} check vs DC ${dc}`,
+    },
     worldStateChanges: updatedWorldState,
+    characterChanges: {
+      hp: updatedCharacter.hp,
+      xp: updatedCharacter.xp,
+      level: updatedCharacter.level,
+      gold: updatedCharacter.gold,
+      inventory: updatedCharacter.inventory,
+      status_effects: updatedCharacter.status_effects,
+    },
+    sceneImagePrompt: aiResponse.sceneImagePrompt,
+    suggestedActions: aiResponse.suggestedActions,
+    isDeath: aiResponse.isDeath,
+    isVictory: combatRoll?.victory || aiResponse.isVictory,
+    isCombat: combatRoll ? !combatRoll.victory : aiResponse.isCombat,
+    combatDamage: combatRoll?.target ? { target: combatRoll.target, amount: combatRoll.damage, defeated: combatRoll.defeated } : undefined,
+    loot: aiResponse.loot as ActionResult['loot'],
+    isLevelUp: false,
+    character2Id: partnerAction.characterId,
     character2Changes: {
       hp: updatedPartner.hp,
       max_hp: updatedPartner.max_hp,
