@@ -33,7 +33,7 @@ import {
 } from './narrationGenerationService';
 import type { NarrationResult } from './narrationResponseParser';
 import type { NarrationCampaignContext } from './narrationPromptBuilder';
-import { generateRollOutcomeFromService, type RollOutcomeContext } from './rollNarrationService';
+import { generateCoopRollOutcomeFromService, generateRollOutcomeFromService, type RollOutcomeContext } from './rollNarrationService';
 
 dotenv.config();
 
@@ -124,6 +124,40 @@ export async function generateRollOutcome(
     rollContext,
     worldState,
     character,
+    recentHistory,
+    openai,
+    logAiCall,
+  });
+}
+
+export async function generateCoopRollOutcome(
+  rollResult: number,
+  rollTotal: number,
+  dc: number,
+  success: boolean,
+  isCritSuccess: boolean,
+  isCritFail: boolean,
+  rollContext: RollOutcomeContext,
+  worldState: WorldState,
+  worldBible: WorldBible,
+  actingCharacter: Character,
+  partnerCharacter: Character,
+  actions: { characterId: string; characterName: string; action: string }[],
+  recentHistory: string[]
+): Promise<{ narration: string; worldStateChanges?: Partial<WorldState>; hpChange?: number; goldChange?: number; suggestedActions: string[]; sceneImagePrompt: string; isDeath?: boolean; isVictory?: boolean; isCombat?: boolean; loot?: unknown[] }> {
+  return generateCoopRollOutcomeFromService({
+    rollResult,
+    rollTotal,
+    dc,
+    success,
+    isCritSuccess,
+    isCritFail,
+    rollContext,
+    worldState,
+    worldBible,
+    actingCharacter,
+    partnerCharacter,
+    actions,
     recentHistory,
     openai,
     logAiCall,
