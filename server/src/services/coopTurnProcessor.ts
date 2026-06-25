@@ -1,4 +1,4 @@
-import type { ActionResult, Character, CharacterHistoryEntry, DiceRollResult, InventoryItem, NpcMemory, ShopItem, WorldBible, WorldState } from '../../../shared/types';
+import type { ActionResult, Character, CharacterHistoryEntry, DiceRollResult, InventoryItem, NpcMemory, RollContext, ShopItem, WorldBible, WorldState } from '../../../shared/types';
 import { getAbilityForLevel } from '../../../shared/classAbilities';
 import { canAdvanceAct } from './actPacingSystem';
 import { ensureCombatEncounterCompleteness, preventUngroundedFight } from './aiContractValidator';
@@ -42,6 +42,46 @@ import {
 
 function toArr<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+type PendingAction = { characterId: string; userId?: string; action: string; characterName: string; submittedAt?: string };
+
+function actionNeedsOwnRoll(action: string): boolean {
+  return /\b(force|lift|bend|break|climb|shove|hold|perform|sing|play|dance|persuad|convince|intimidat|deceiv|lie|extract|secret|guarded|evade|sneak|hide|steal|pickpocket|lockpick|attack|strike|shoot|stab|slash|cast|identify|inspect|decode|rune|recall|track|search)\b/i.test(action);
+}
+
+function inferRollStatForAction(action: string, fallback: RollContext['stat']): RollContext['stat'] {
+  const lower = action.toLowerCase();
+  if (/\b(force|lift|bend|break|shove|hold|smash)\b/.test(lower)) return 'str';
+  if (/\b(sneak|hide|steal|pickpocket|lockpick|slip|dodge|acrobat|shoot)\b/.test(lower)) return 'dex';
+  if (/\b(endure|resist|hold breath|survive)\b/.test(lower)) return 'con';
+  if (/\b(identify|decode|rune|recall|lore|study|investigat)\b/.test(lower)) return 'int';
+  if (/\b(track|search|inspect|notice|perceiv|sense|insight|watch)\b/.test(lower)) return 'wis';
+  if (/\b(perform|sing|play|dance|persuad|convince|intimidat|deceiv|lie|charm|diplomat)\b/.test(lower)) return 'cha';
+  return fallback;
+}
+
+function buildCoopPendingRolls(
+  pendingActions: PendingAction[],
+  actingCharacterId: string,
+  baseRollContext: RollContext,
+): NonNullable<NonNullable<WorldState['coopPendingRoll']>['pendingRolls']> {
+  const rollActions = pendingActions.filter(action => action.characterId === actingCharacterId || actionNeedsOwnRoll(action.action));
+  const unique = Array.from(new Map(rollActions.map(action => [action.characterId, action])).values());
+  return unique.map(action => {
+    const stat = inferRollStatForAction(action.action, baseRollContext.stat as RollContext['stat']);
+    return {
+      characterId: action.characterId,
+      characterName: action.characterName,
+      rollContext: {
+        ...baseRollContext,
+        stat,
+        description: `${action.characterName}: ${action.action}`,
+        successDescription: `${action.characterName}'s part of the shared attempt lands cleanly.`,
+        failDescription: `${action.characterName}'s part of the shared attempt creates a complication.`,
+      },
+    };
+  });
 }
 
 export async function processCoopAction(
@@ -151,6 +191,12 @@ export async function processCoopAction(
       && pendingActions.some(pa => pa.characterId === aiResponse.actingCharacterId)
       ? aiResponse.actingCharacterId
       : pendingActions[0].characterId;
+    const pendingRolls = buildCoopPendingRolls(pendingActions, actingCharacterId, aiResponse.rollContext);
+    const firstPendingRoll = pendingRolls[0] || {
+      characterId: actingCharacterId,
+      characterName: pendingActions.find(pa => pa.characterId === actingCharacterId)?.characterName || 'Player',
+      rollContext: aiResponse.rollContext,
+    };
 
     await Promise.all(pendingActions.map(pa =>
       supabaseAdmin.from('story_events').insert({
@@ -167,21 +213,32 @@ export async function processCoopAction(
         character_id: pa.characterId,
         event_type: 'narration',
         content: aiResponse.narration,
-        metadata: { coopRound: true, awaitingRoll: true, rollContext: aiResponse.rollContext, actingCharacterId, sceneImagePrompt: aiResponse.sceneImagePrompt || null },
+        metadata: { coopRound: true, awaitingRoll: true, rollContext: firstPendingRoll.rollContext, actingCharacterId: firstPendingRoll.characterId, sceneImagePrompt: aiResponse.sceneImagePrompt || null },
       })
     ));
 
     const wsWithChanges = aiResponse.worldStateChanges ? mergeWorldStateChangesFromSystem(ws, aiResponse.worldStateChanges) : ws;
 
     await supabaseAdmin.from('campaigns').update({
-      world_state: { ...wsWithChanges, pendingTurn: null, coopPendingRoll: { actingCharacterId, rollContext: aiResponse.rollContext, actions: pendingActions } }
+      world_state: {
+        ...wsWithChanges,
+        pendingTurn: null,
+        coopPendingRoll: {
+          actingCharacterId: firstPendingRoll.characterId,
+          rollContext: firstPendingRoll.rollContext,
+          actions: pendingActions,
+          setupNarration: aiResponse.narration,
+          sceneImagePrompt: aiResponse.sceneImagePrompt || null,
+          pendingRolls,
+        },
+      }
     }).eq('id', campaignId);
 
     return {
       narration: aiResponse.narration,
       awaitingRoll: true,
-      rollContext: aiResponse.rollContext,
-      actingCharacterId,
+      rollContext: firstPendingRoll.rollContext,
+      actingCharacterId: firstPendingRoll.characterId,
       suggestedActions: [],
       sceneImagePrompt: aiResponse.sceneImagePrompt,
       isDeath: false,
