@@ -20,6 +20,8 @@ import {
 } from './narrationResponseParser';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
 import { formatStoryThreadsBlock, rankStoryThreads } from './storyMemory';
+import { analyzeActionRail } from './storyRails';
+import { buildDndTableProfile, formatDndTableDirectives } from './dndTableSystem';
 
 // ── The turn pipeline ────────────────────────────────────────────────────────
 // Instead of one monolithic call that must narrate, adjudicate, pace, track every
@@ -152,6 +154,7 @@ async function runDirectorPass(
     campaignContext?: NarrationCampaignContext | null;
     isCoop: boolean;
     fallbackActingId?: string;
+    tableDirectives?: string;
   },
 ): Promise<BeatPlan> {
   const { worldState, worldBible, campaignContext } = args;
@@ -184,6 +187,9 @@ ${leanSceneContext(worldState)}
 ${buildEndgameDirectiveBlock(worldState)}
 ${threadsBlock}
 ${buildCampaignContextBlock(campaignContext, worldBible, 1)}
+${campaignContext?.railDirectives ? `\nENGINE RAILS FROM TURN PLANNER:\n${campaignContext.railDirectives}` : ''}
+${campaignContext?.continuityDirectives ? `\nCONTINUITY DIRECTIVES:\n${campaignContext.continuityDirectives}` : ''}
+${args.tableDirectives ? `\n${args.tableDirectives}` : ''}
 ${stall}
 ${escalation}
 
@@ -238,6 +244,7 @@ async function runNarratorPass(
     recentHistory: string[];
     isCoop: boolean;
     coopNames?: string[];
+    tableDirectives?: string;
   },
 ): Promise<{ narration: string; sceneImagePrompt: string }> {
   const { plan, worldState, worldBible } = args;
@@ -267,6 +274,7 @@ WORLD: ${worldBible.era} | ${worldBible.magicSystem}
 ${leanSceneContext(worldState)}
 ${buildLoreContextBlock(worldBible)}
 ${buildNpcQuestMapBlock(worldState)}
+${args.tableDirectives ? `\n${args.tableDirectives}` : ''}
 
 RECENT HISTORY:
 ${args.recentHistory.slice(-6).join('\n') || '(beginning)'}
@@ -303,6 +311,22 @@ function abilitiesForExtractor(character: Character): string {
     return names.length ? `none active (class abilities to come: ${names.join(', ')})` : 'none';
   }
   return abilities.map(a => `${a.name}${a.mechanic ? ` (${a.mechanic})` : ''}`).join('; ');
+}
+
+function buildTableDirectivesForActions(
+  entries: { character: Character; action: string }[],
+  worldState: WorldState,
+  worldBible: WorldBible,
+): string {
+  const rails = entries.map(entry => analyzeActionRail(entry.character, entry.action, worldState, worldBible));
+  return formatDndTableDirectives(buildDndTableProfile({
+    characters: entries.map(entry => entry.character),
+    worldState,
+    worldBible,
+    rails,
+    scenePurpose: worldState.sceneState?.purpose,
+    pacingMode: worldState.sceneState?.pacingMode,
+  }));
 }
 
 const SOLO_EXTRACTOR_SCHEMA = `{
@@ -351,6 +375,7 @@ async function runExtractorPass(
     worldState: WorldState;
     isCoop: boolean;
     actingCharacterId?: string;
+    tableDirectives?: string;
   },
 ): Promise<Record<string, unknown>> {
   const { plan } = args;
@@ -365,6 +390,8 @@ async function runExtractorPass(
 - ENEMY PORTRAITS: enemyName and every combatEnemies[].name MUST contain a recognizable creature keyword so the portrait shows — e.g. goblin, bandit, cultist, assassin, skeleton, zombie, orc, ogre, troll, wolf, dire wolf, giant spider, dragon, wyvern, necromancer, demon, ghost, knight, mercenary. A prefix is fine ("Ancient Minotaur", "Pack of Gnolls"). Only invent a fully custom creature when nothing fits.
 - Update npcMemory for any named NPC who appeared/spoke/changed disposition: name, disposition, notes (carry the old notes forward and append what changed — never overwrite), role (their archetype: merchant, guard, innkeeper, noble, healer, etc.), gender ("male"|"female"|"nonbinary" — always set it), relationshipScore (adjust +/-5 to 50 by impact), relationshipLabel, lastMet. Update activeQuests/currentLocation when they change.
 - ${rollLine}
+- WORLD REACTION: if violence, intimidation, humiliation, theft, rescue, betrayal, mercy, or a hard-won alliance happened, reflect it with meaningful npcMemory relationshipScore/relationshipLabel and factionRepChange when relevant. A defeated or cornered enemy should not remain near-neutral unless the narration explicitly shows mercy/reconciliation.
+- SKILL CHALLENGE: if the table directives include an active skill challenge, extract incremental progress in worldStateChanges.sceneState.skillChallenge when the narration clearly records a success, failure, cost, or objective completion.
 - ${args.isCoop ? 'Co-op: attribute HP/loot/death/ability per character via character1Changes/character2Changes; characterHistoryNote and antagonistUpdate stay top-level.' : 'Solo: use top-level hpChange/loot/etc.'}`;
 
   const user = `BEAT PLAN: priorities=${plan.priorities.join(' | ')}; scenePurpose=${plan.scenePurpose}; pacing=${plan.pacingMode}; needsRoll=${plan.needsRoll}; combat=${plan.combatActive || plan.combatStarting}; highStakes=${plan.isHighStakes}${plan.threadToAdvance ? `; advanced thread="${plan.threadToAdvance}"` : ''}.
@@ -376,6 +403,7 @@ ${args.narration}
 
 MECHANICAL CONTEXT (for exact numbers):
 ${args.mechanicsBlock}
+${args.tableDirectives ? `\nTABLE DIRECTIVES:\n${args.tableDirectives}` : ''}
 
 Combat tracker state: ${args.worldState.combatState?.inCombat ? `round ${args.worldState.combatState.roundNumber}, enemies: ${(args.worldState.combatState.enemies || []).map(e => `${e.name}(${e.condition})`).join(', ') || args.worldState.combatState.enemyName}` : 'not in combat'}.
 
@@ -436,15 +464,17 @@ export async function runSoloTurnPipeline(
   const charactersBlock = `CHARACTER:\n${characterLine(character)}\nNotable inventory: ${character.inventory.slice(0, 6).map(i => i.name).join(', ') || 'nothing special'}\nAbilities: ${abilitiesForExtractor(character)}`;
   const actionsBlock = `═══ PLAYER ACTION ═══\n${character.name}: ${action}`;
 
+  const tableDirectives = buildTableDirectivesForActions([{ character, action }], worldState, worldBible);
+
   const plan = await runDirectorPass(openai, log, {
-    actionsBlock, charactersBlock, worldState, worldBible, campaignContext, isCoop: false,
+    actionsBlock, charactersBlock, worldState, worldBible, campaignContext, isCoop: false, tableDirectives,
   });
   const { narration, sceneImagePrompt } = await runNarratorPass(openai, log, {
-    plan, actionsBlock, charactersBlock, worldState, worldBible, recentHistory, isCoop: false,
+    plan, actionsBlock, charactersBlock, worldState, worldBible, recentHistory, isCoop: false, tableDirectives,
   });
   const mechanicsBlock = `${character.name}: HP ${character.hp}/${character.max_hp}, Gold ${character.gold}, Level ${character.level}. Inventory: ${character.inventory.slice(0, 8).map(i => i.name).join(', ') || 'none'}. Abilities: ${abilitiesForExtractor(character)}.${character.status_effects?.length ? ` Status: ${character.status_effects.map(e => e.name).join(', ')}.` : ''}`;
   const raw = await runExtractorPass(openai, log, {
-    plan, narration, sceneImagePrompt, mechanicsBlock, worldState, isCoop: false,
+    plan, narration, sceneImagePrompt, mechanicsBlock, worldState, isCoop: false, tableDirectives,
   });
   return parseNarrationResponse(raw);
 }
@@ -469,6 +499,7 @@ export async function runCoopTurnPipeline(
   const [a1, a2] = actions;
   const c1 = a1.character;
   const c2 = a2.character;
+  const tableDirectives = buildTableDirectivesForActions(actions, worldState, worldBible);
 
   const charactersBlock = `CHARACTER 1 (id: ${c1.id}):\n${characterLine(c1)}\nInventory: ${c1.inventory.slice(0, 5).map(i => i.name).join(', ') || 'none'} | Abilities: ${abilitiesForExtractor(c1)}
 
@@ -476,7 +507,7 @@ CHARACTER 2 (id: ${c2.id}):\n${characterLine(c2)}\nInventory: ${c2.inventory.sli
   const actionsBlock = `═══ PARTY ACTIONS ═══\nCHARACTER 1 (${c1.name}, id ${c1.id}): ${a1.action}\nCHARACTER 2 (${c2.name}, id ${c2.id}): ${a2.action}`;
 
   const plan = await runDirectorPass(openai, log, {
-    actionsBlock, charactersBlock, worldState, worldBible, campaignContext, isCoop: true, fallbackActingId: c1.id,
+    actionsBlock, charactersBlock, worldState, worldBible, campaignContext, isCoop: true, fallbackActingId: c1.id, tableDirectives,
   });
   // Force the narrator's per-character priorities from the ACTUAL submitted actions.
   // gpt-4o tends to anchor both actions onto the spotlight character; deriving the
@@ -487,11 +518,11 @@ CHARACTER 2 (id: ${c2.id}):\n${characterLine(c2)}\nInventory: ${c2.inventory.sli
     priorities: [`${c1.name} — ${a1.action}`, `${c2.name} — ${a2.action}`],
   };
   const { narration, sceneImagePrompt } = await runNarratorPass(openai, log, {
-    plan: narratorPlan, actionsBlock, charactersBlock, worldState, worldBible, recentHistory, isCoop: true, coopNames: [c1.name, c2.name],
+    plan: narratorPlan, actionsBlock, charactersBlock, worldState, worldBible, recentHistory, isCoop: true, coopNames: [c1.name, c2.name], tableDirectives,
   });
   const mech = (c: Character) => `${c.name} (id ${c.id}): HP ${c.hp}/${c.max_hp}, Gold ${c.gold}, L${c.level}. Inventory: ${c.inventory.slice(0, 8).map(i => i.name).join(', ') || 'none'}. Abilities: ${abilitiesForExtractor(c)}.${c.status_effects?.length ? ` Status: ${c.status_effects.map(e => e.name).join(', ')}.` : ''}`;
   const raw = await runExtractorPass(openai, log, {
-    plan, narration, sceneImagePrompt, mechanicsBlock: `${mech(c1)}\n${mech(c2)}`, worldState, isCoop: true, actingCharacterId: plan.actingCharacterId || c1.id,
+    plan, narration, sceneImagePrompt, mechanicsBlock: `${mech(c1)}\n${mech(c2)}`, worldState, isCoop: true, actingCharacterId: plan.actingCharacterId || c1.id, tableDirectives,
   });
 
   const base = parseNarrationResponse(raw);

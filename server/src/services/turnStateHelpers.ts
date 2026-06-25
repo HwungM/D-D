@@ -114,7 +114,7 @@ export function buildSceneStateUpdate(
   const aiMomentum = aiResponse.sceneMomentum || 'advancing';
   const isTransitioning = aiMomentum === 'transitioning';
   const cluesThisTurn = Math.min(aiResponse.turnOutcome?.informationRevealed?.length ?? 0, 3);
-  return isTransitioning
+  const next = isTransitioning
     ? {
         purpose: aiResponse.scenePurpose || 'explore',
         exchangeCount: 0,
@@ -129,6 +129,10 @@ export function buildSceneStateUpdate(
         pacingMode: aiResponse.pacingMode || previous?.pacingMode || 'exploration',
         cluesThisScene: (previous?.cluesThisScene ?? 0) + cluesThisTurn,
       };
+  if (!isTransitioning && previous?.skillChallenge) {
+    return { ...next, skillChallenge: previous.skillChallenge };
+  }
+  return next;
 }
 
 export function buildActiveNpcChange(

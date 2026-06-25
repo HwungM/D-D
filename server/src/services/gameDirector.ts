@@ -10,6 +10,7 @@ import {
   type ResolvedRailRoll,
 } from './storyRails';
 import { buildStoryTasteProfile, formatTasteDirective, type StoryTasteProfile } from './storyTaste';
+import { buildDndTableProfile, formatDndTableDirectives, maybeBuildSkillChallenge } from './dndTableSystem';
 
 type ScenePurpose = NonNullable<WorldState['sceneState']>['purpose'];
 type PacingMode = NonNullable<WorldState['sceneState']>['pacingMode'];
@@ -165,6 +166,9 @@ function buildWorldPatch(rails: ActionRail[], frame: SceneFrame, worldState: Wor
   const now = new Date().toISOString();
   const priorScene = worldState.sceneState;
   const isTransition = !!railPatch.currentLocation || frame.purpose === 'travel';
+  const skillChallenge = isTransition
+    ? null
+    : maybeBuildSkillChallenge(rails, worldState, { purpose: frame.purpose, objective: frame.objective, stakes: frame.stakes }) || priorScene?.skillChallenge || null;
   return {
     ...railPatch,
     currentLocation: railPatch.currentLocation || frame.location,
@@ -183,6 +187,7 @@ function buildWorldPatch(rails: ActionRail[], frame: SceneFrame, worldState: Wor
       stalledCount: frame.concreteReveal ? 0 : (priorScene?.stalledCount ?? 0),
       pacingMode: frame.pacingMode,
       cluesThisScene: frame.concreteReveal ? (priorScene?.cluesThisScene ?? 0) + 1 : priorScene?.cluesThisScene ?? 0,
+      skillChallenge,
     },
   };
 }
@@ -200,6 +205,15 @@ function buildSuggestedActions(frame: SceneFrame, rails: ActionRail[]): string[]
 
 function buildGuardrails(plan: Omit<EngineTurnPlan, 'guardrails'>): string {
   const frame = plan.sceneFrame;
+  const dndTable = formatDndTableDirectives(buildDndTableProfile({
+    characters: plan.characters,
+    worldState: plan.worldStateForNarration,
+    rails: plan.rails,
+    scenePurpose: frame.purpose,
+    pacingMode: frame.pacingMode,
+    maxSceneExchanges: frame.taste.maxSceneExchanges,
+    skillChallenge: plan.worldStatePatch.sceneState?.skillChallenge || undefined,
+  }));
   const rollBlock = plan.resolvedRolls.length
     ? `\nRESOLVED CHECKS:\n${plan.resolvedRolls.map(r => `- ${r.characterName}: ${r.rollResult} ${r.modifier >= 0 ? '+' : ''}${r.modifier} = ${r.rollTotal} vs DC ${r.dc}; ${r.success ? 'success' : 'failure'} for ${r.reason}`).join('\n')}`
     : '';
@@ -210,6 +224,8 @@ function buildGuardrails(plan: Omit<EngineTurnPlan, 'guardrails'>): string {
   return `${formatRailBlock(plan.rails, plan.resolvedRolls)}
 
 ${formatTasteDirective(frame.taste)}
+
+${dndTable}
 
 GAME ENGINE TURN CONTRACT - NON-NEGOTIABLE:
 - Open at location: ${frame.location}

@@ -307,6 +307,17 @@ export interface WorldState {
     stalledCount: number;
     pacingMode: 'exploration' | 'tension' | 'climax' | 'resolution';
     cluesThisScene?: number; // concrete clues revealed since this scene began; drives clue-to-choice escalation
+    skillChallenge?: {
+      id: string;
+      objective: string;
+      successes: number;
+      failures: number;
+      targetSuccesses: number;
+      maxFailures: number;
+      participantIds: string[];
+      stakes: string;
+      updatedAt: string;
+    } | null;
   };
   combatState?: {
     inCombat: boolean;
