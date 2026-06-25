@@ -616,6 +616,14 @@ export default function Game() {
         setSceneImage(matchSceneImage(result.sceneImagePrompt, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay))
       }
 
+      if (result.awaitingRoll && result.rollContext) {
+        const nextActingId = result.actingCharacterId
+        if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
+        if (nextActingId && nextActingId !== characterId) {
+          setCoopWaiting(true)
+        }
+      }
+
       if (myIsDeath) {
         if (myDeathDescription) setLastActionResult({ ...result, deathDescription: myDeathDescription })
         setTimeout(() => setShowDeathScreen(true), 1200)

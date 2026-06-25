@@ -143,7 +143,19 @@ export async function generateCoopRollOutcome(
   actingCharacter: Character,
   partnerCharacter: Character,
   actions: { characterId: string; characterName: string; action: string }[],
-  recentHistory: string[]
+  recentHistory: string[],
+  rolls?: {
+    characterId: string;
+    characterName: string;
+    stat: string;
+    description: string;
+    rollResult: number;
+    rollTotal: number;
+    dc: number;
+    success: boolean;
+    isCritSuccess?: boolean;
+    isCritFail?: boolean;
+  }[]
 ): Promise<{ narration: string; worldStateChanges?: Partial<WorldState>; hpChange?: number; goldChange?: number; suggestedActions: string[]; sceneImagePrompt: string; isDeath?: boolean; isVictory?: boolean; isCombat?: boolean; loot?: unknown[] }> {
   return generateCoopRollOutcomeFromService({
     rollResult,
@@ -159,6 +171,7 @@ export async function generateCoopRollOutcome(
     partnerCharacter,
     actions,
     recentHistory,
+    rolls,
     openai,
     logAiCall,
   });

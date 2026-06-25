@@ -135,6 +135,10 @@ test('buildCoopRollOutcomePrompt preserves both character actions in a shared ro
       { characterId: 'foliza', characterName: 'Foliza', action: 'start a melody to gather the crowd' },
       { characterId: 'skirmy', characterName: 'Skirmy', action: 'join in and watch Jarvis for tells' },
     ],
+    rolls: [
+      { characterId: 'foliza', characterName: 'Foliza', stat: 'cha', description: 'Foliza starts the melody', rollResult: 7, rollTotal: 12, dc: 15, success: false },
+      { characterId: 'skirmy', characterName: 'Skirmy', stat: 'wis', description: 'Skirmy watches Jarvis', rollResult: 16, rollTotal: 18, dc: 15, success: true },
+    ],
     recentHistory: ['[NARRATION] Jarvis watched the performers carefully.'],
   });
 
@@ -142,6 +146,8 @@ test('buildCoopRollOutcomePrompt preserves both character actions in a shared ro
   assert.match(prompt, /ONE SHARED CO-OP dice roll/);
   assert.match(prompt, /Foliza: start a melody/);
   assert.match(prompt, /Skirmy: join in/);
+  assert.match(prompt, /Foliza: 7 \(CHA total 12\) vs DC 15/);
+  assert.match(prompt, /Skirmy: 16 \(WIS total 18\) vs DC 15/);
   assert.match(prompt, /Name both Foliza and Skirmy/);
   assert.match(prompt, /Do not write the partner as passive scenery/);
 });

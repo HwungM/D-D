@@ -353,6 +353,20 @@ export interface WorldState {
     actingCharacterId: string;
     rollContext: RollContext;
     actions: { characterId: string; userId: string; action: string; characterName: string; submittedAt: string }[];
+    setupNarration?: string;
+    sceneImagePrompt?: string | null;
+    pendingRolls?: {
+      characterId: string;
+      characterName: string;
+      rollContext: RollContext;
+      resolved?: boolean;
+      rollResult?: number;
+      rollTotal?: number;
+      dc?: number;
+      success?: boolean;
+      isCritSuccess?: boolean;
+      isCritFail?: boolean;
+    }[];
   } | null;
 }
 

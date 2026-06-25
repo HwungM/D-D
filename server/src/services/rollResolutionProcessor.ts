@@ -135,6 +135,93 @@ export async function resolveCoopRollAction(
   const pending = ws.coopPendingRoll;
   if (!pending || pending.actingCharacterId !== characterId) throw new Error('No pending co-op roll for this character');
 
+  const queuedRolls = pending.pendingRolls?.length
+    ? pending.pendingRolls
+    : [{
+        characterId,
+        characterName: pending.actions.find(action => action.characterId === characterId)?.characterName || 'Player',
+        rollContext,
+      }];
+  const currentQueuedRoll = queuedRolls.find(roll => roll.characterId === characterId && !roll.resolved)
+    || queuedRolls.find(roll => roll.characterId === characterId);
+  if (!currentQueuedRoll) throw new Error('No queued co-op roll for this character');
+
+  const updatedQueuedRolls = queuedRolls.map(roll => roll.characterId === characterId
+    ? {
+        ...roll,
+        resolved: true,
+        rollResult,
+        rollTotal,
+        dc,
+        success,
+        isCritSuccess,
+        isCritFail,
+      }
+    : roll);
+  const nextRoll = updatedQueuedRolls.find(roll => !roll.resolved);
+
+  await supabaseAdmin.from('story_events').insert({
+    campaign_id: campaignId,
+    character_id: characterId,
+    event_type: 'dice_roll',
+    content: `Rolled ${rollResult} (total ${rollTotal}) vs DC ${dc} — ${success ? 'SUCCESS' : 'FAILURE'}`,
+    metadata: {
+      coopRound: true,
+      rollResult,
+      rollTotal,
+      dc,
+      success,
+      isCritSuccess,
+      isCritFail,
+      rollContext,
+      actingCharacterId: characterId,
+      pendingRollsRemaining: updatedQueuedRolls.filter(roll => !roll.resolved).length,
+    },
+  });
+
+  if (nextRoll) {
+    const nextState = {
+      ...ws,
+      coopPendingRoll: {
+        ...pending,
+        actingCharacterId: nextRoll.characterId,
+        rollContext: nextRoll.rollContext,
+        pendingRolls: updatedQueuedRolls,
+      },
+    };
+    await supabaseAdmin.from('campaigns').update({ world_state: nextState }).eq('id', campaignId);
+    await supabaseAdmin.from('story_events').insert({
+      campaign_id: campaignId,
+      character_id: nextRoll.characterId,
+      event_type: 'narration',
+      content: pending.setupNarration || `The shared attempt hangs on ${nextRoll.characterName}'s roll.`,
+      metadata: {
+        coopRound: true,
+        awaitingRoll: true,
+        rollContext: nextRoll.rollContext,
+        actingCharacterId: nextRoll.characterId,
+        sceneImagePrompt: pending.sceneImagePrompt || null,
+      },
+    });
+
+    return {
+      narration: `${currentQueuedRoll.characterName}'s roll is locked in. Waiting for ${nextRoll.characterName}'s roll to resolve the shared moment.`,
+      awaitingRoll: true,
+      actingCharacterId: nextRoll.characterId,
+      rollContext: nextRoll.rollContext,
+      worldStateChanges: nextState,
+      suggestedActions: [],
+      sceneImagePrompt: pending.sceneImagePrompt || undefined,
+      diceRoll: {
+        sides: 20,
+        rolls: [rollResult],
+        modifier: rollTotal - rollResult,
+        total: rollTotal,
+        description: `${rollContext.stat.toUpperCase()} check vs DC ${dc}`,
+      },
+    };
+  }
+
   const actingAction = pending.actions.find(pa => pa.characterId === characterId);
   const partnerAction = pending.actions.find(pa => pa.characterId !== characterId);
   if (!actingAction) throw new Error('Co-op rolling character action not found');
@@ -174,6 +261,20 @@ export async function resolveCoopRollAction(
       action: action.action,
     })),
     recentHistory,
+    updatedQueuedRolls
+      .filter(roll => roll.resolved && typeof roll.rollResult === 'number' && typeof roll.rollTotal === 'number' && typeof roll.dc === 'number')
+      .map(roll => ({
+        characterId: roll.characterId,
+        characterName: roll.characterName,
+        stat: roll.rollContext.stat,
+        description: roll.rollContext.description,
+        rollResult: roll.rollResult!,
+        rollTotal: roll.rollTotal!,
+        dc: roll.dc!,
+        success: roll.success === true,
+        isCritSuccess: roll.isCritSuccess,
+        isCritFail: roll.isCritFail,
+      })),
   );
 
   const actingXp = calculateActionXp(
@@ -208,27 +309,6 @@ export async function resolveCoopRollAction(
     actingChar as Character,
     { id: campaignId, world_state: ws, act: campaign.act, world_bible: campaign.world_bible as WorldBible }
   );
-
-  await supabaseAdmin.from('story_events').insert({
-    campaign_id: campaignId,
-    character_id: characterId,
-    event_type: 'dice_roll',
-    content: `Rolled ${rollResult} (total ${rollTotal}) vs DC ${dc} — ${success ? 'SUCCESS' : 'FAILURE'}`,
-    metadata: {
-      coopRound: true,
-      rollResult,
-      rollTotal,
-      dc,
-      success,
-      isCritSuccess,
-      isCritFail,
-      rollContext,
-      actingCharacterId: characterId,
-      partnerCharacterId: partnerAction.characterId,
-      combatDamage: combatRoll?.damage || 0,
-      combatTarget: combatRoll?.target,
-    },
-  });
 
   await supabaseAdmin.from('story_events').insert({
     campaign_id: campaignId,

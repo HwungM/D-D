@@ -69,6 +69,18 @@ type CoopRollOutcomeArgs = Omit<RollOutcomeArgs, 'character' | 'recentHistory'> 
   actions: { characterId: string; characterName: string; action: string }[];
   worldBible: WorldBible;
   recentHistory: string[];
+  rolls?: {
+    characterId: string;
+    characterName: string;
+    stat: string;
+    description: string;
+    rollResult: number;
+    rollTotal: number;
+    dc: number;
+    success: boolean;
+    isCritSuccess?: boolean;
+    isCritFail?: boolean;
+  }[];
 };
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -267,6 +279,7 @@ export function buildCoopRollOutcomePrompt(args: Omit<CoopRollOutcomeArgs, 'open
     partnerCharacter,
     actions,
     recentHistory,
+    rolls,
   } = args;
   const { label: resultLabel, degree } = getDegreeOfSuccess(rollTotal, dc, isCritSuccess, isCritFail);
   const flavorHint = getRollFlavorHint(rollContext, success, isCritSuccess, isCritFail);
@@ -278,9 +291,12 @@ COMBAT STAKES: the enemies act on this outcome too. On near_miss, clear_fail, or
     : '';
 
   const actionLines = actions.map(action => `- ${action.characterName}: ${action.action}`).join('\n');
+  const rollLines = rolls && rolls.length > 0
+    ? rolls.map(roll => `- ${roll.characterName}: ${roll.rollResult} (${roll.stat.toUpperCase()} total ${roll.rollTotal}) vs DC ${roll.dc} — ${roll.success ? 'SUCCESS' : 'FAILURE'} for "${roll.description}"`).join('\n')
+    : `- ${actingCharacter.name}: ${rollResult} (${rollContext.stat.toUpperCase()} total ${rollTotal}) vs DC ${dc} — ${success ? 'SUCCESS' : 'FAILURE'}`;
 
   const prompt = `You are a DM resolving ONE SHARED CO-OP dice roll.
-This is not a solo beat. The roll belongs to ${actingCharacter.name}, but the outcome must resolve BOTH players' submitted actions as one coordinated scene.
+This is not a solo beat. The roll outcome must resolve BOTH players' submitted actions as one coordinated scene.
 
 Roll attempted: ${rollContext.description}
 Rolling character: ${actingCharacter.name}
@@ -304,13 +320,16 @@ ${characterSummary(partnerCharacter)}
 SUBMITTED CO-OP ACTIONS TO HONOR:
 ${actionLines}
 
+ROLL RESULTS TO HONOR:
+${rollLines}
+
 Recent history:
 ${recentHistory.slice(-6).join('\n') || '(none)'}
 
 Write vivid outcome narration (120-180 words) that precisely matches the ${resultLabel} degree.
 Requirements:
 - Name both ${actingCharacter.name} and ${partnerCharacter.name}.
-- Resolve the rolling character's check AND show how the partner's submitted action helped, complicated, protected, or changed the outcome.
+- Resolve every roll result listed above AND show how the two submitted actions helped, complicated, protected, or changed the outcome.
 - Do not write the partner as passive scenery.
 - If the result fails, the failure should affect the shared scene, not erase the partner's input.
 - Suggested actions should be 3-4 optional ideas grounded in the changed situation after this shared roll.
