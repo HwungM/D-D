@@ -22,6 +22,7 @@ import { CLASS_ABILITIES } from '../../../shared/classAbilities';
 import { formatStoryThreadsBlock, rankStoryThreads } from './storyMemory';
 import { analyzeActionRail } from './storyRails';
 import { buildDndTableProfile, formatDndTableDirectives } from './dndTableSystem';
+import { runDmQualityGate } from './dmQualityGate';
 
 // ── The turn pipeline ────────────────────────────────────────────────────────
 // Instead of one monolithic call that must narrate, adjudicate, pace, track every
@@ -469,12 +470,23 @@ export async function runSoloTurnPipeline(
   const plan = await runDirectorPass(openai, log, {
     actionsBlock, charactersBlock, worldState, worldBible, campaignContext, isCoop: false, tableDirectives,
   });
-  const { narration, sceneImagePrompt } = await runNarratorPass(openai, log, {
+  const draft = await runNarratorPass(openai, log, {
     plan, actionsBlock, charactersBlock, worldState, worldBible, recentHistory, isCoop: false, tableDirectives,
+  });
+  const quality = await runDmQualityGate(openai, log, {
+    narration: draft.narration,
+    sceneImagePrompt: draft.sceneImagePrompt,
+    plan,
+    actionsBlock,
+    worldState,
+    worldBible,
+    recentHistory,
+    isCoop: false,
+    tableDirectives,
   });
   const mechanicsBlock = `${character.name}: HP ${character.hp}/${character.max_hp}, Gold ${character.gold}, Level ${character.level}. Inventory: ${character.inventory.slice(0, 8).map(i => i.name).join(', ') || 'none'}. Abilities: ${abilitiesForExtractor(character)}.${character.status_effects?.length ? ` Status: ${character.status_effects.map(e => e.name).join(', ')}.` : ''}`;
   const raw = await runExtractorPass(openai, log, {
-    plan, narration, sceneImagePrompt, mechanicsBlock, worldState, isCoop: false, tableDirectives,
+    plan, narration: quality.narration, sceneImagePrompt: quality.sceneImagePrompt, mechanicsBlock, worldState, isCoop: false, tableDirectives,
   });
   return parseNarrationResponse(raw);
 }
@@ -517,12 +529,24 @@ CHARACTER 2 (id: ${c2.id}):\n${characterLine(c2)}\nInventory: ${c2.inventory.sli
     ...plan,
     priorities: [`${c1.name} — ${a1.action}`, `${c2.name} — ${a2.action}`],
   };
-  const { narration, sceneImagePrompt } = await runNarratorPass(openai, log, {
+  const draft = await runNarratorPass(openai, log, {
     plan: narratorPlan, actionsBlock, charactersBlock, worldState, worldBible, recentHistory, isCoop: true, coopNames: [c1.name, c2.name], tableDirectives,
+  });
+  const quality = await runDmQualityGate(openai, log, {
+    narration: draft.narration,
+    sceneImagePrompt: draft.sceneImagePrompt,
+    plan: narratorPlan,
+    actionsBlock,
+    worldState,
+    worldBible,
+    recentHistory,
+    isCoop: true,
+    coopNames: [c1.name, c2.name],
+    tableDirectives,
   });
   const mech = (c: Character) => `${c.name} (id ${c.id}): HP ${c.hp}/${c.max_hp}, Gold ${c.gold}, L${c.level}. Inventory: ${c.inventory.slice(0, 8).map(i => i.name).join(', ') || 'none'}. Abilities: ${abilitiesForExtractor(c)}.${c.status_effects?.length ? ` Status: ${c.status_effects.map(e => e.name).join(', ')}.` : ''}`;
   const raw = await runExtractorPass(openai, log, {
-    plan, narration, sceneImagePrompt, mechanicsBlock: `${mech(c1)}\n${mech(c2)}`, worldState, isCoop: true, actingCharacterId: plan.actingCharacterId || c1.id, tableDirectives,
+    plan, narration: quality.narration, sceneImagePrompt: quality.sceneImagePrompt, mechanicsBlock: `${mech(c1)}\n${mech(c2)}`, worldState, isCoop: true, actingCharacterId: plan.actingCharacterId || c1.id, tableDirectives,
   });
 
   const base = parseNarrationResponse(raw);

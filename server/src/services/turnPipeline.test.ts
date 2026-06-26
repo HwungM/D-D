@@ -4,8 +4,8 @@ import type { Character, WorldBible, WorldState } from '../../../shared/types';
 import { runCoopTurnPipeline, runSoloTurnPipeline, type ChatClient } from './turnPipeline';
 
 // A fake chat client that routes each pass to a canned response by sniffing the
-// system prompt, so the 3-pass plumbing can be tested without a real model.
-function fakeClient(responses: { director: object; narrator: object; extractor: object }): { client: ChatClient; calls: string[] } {
+// system prompt, so the pipeline plumbing can be tested without a real model.
+function fakeClient(responses: { director: object; narrator: object; quality?: object; extractor: object }): { client: ChatClient; calls: string[] } {
   const calls: string[] = [];
   const client: ChatClient = {
     chat: {
@@ -14,6 +14,7 @@ function fakeClient(responses: { director: object; narrator: object; extractor: 
           const system = args.messages.find(m => m.role === 'system')?.content || '';
           let payload: object;
           if (system.includes('DIRECTOR')) { calls.push('director'); payload = responses.director; }
+          else if (system.includes('DM QUALITY CRITIC')) { calls.push('quality'); payload = responses.quality || { pass: true, issues: [], rationale: 'good', revisedNarration: null, revisedSceneImagePrompt: null }; }
           else if (system.includes('EXTRACTOR')) { calls.push('extractor'); payload = responses.extractor; }
           else { calls.push('narrator'); payload = responses.narrator; }
           return { choices: [{ message: { content: JSON.stringify(payload) } }] };
@@ -46,7 +47,7 @@ test('solo pipeline runs director→narrator→extractor and produces a drop-in 
   });
 
   const result = await runSoloTurnPipeline(client, log, 'open the door', worldState, worldBible, makeCharacter('c1', 'King'), []);
-  assert.deepEqual(calls, ['director', 'narrator', 'extractor']);
+  assert.deepEqual(calls, ['director', 'narrator', 'quality', 'extractor']);
   assert.equal(result.narration, 'You shoulder the door open and step into the cold hall.');
   assert.equal(result.sceneImagePrompt, 'a cold stone hall');
   assert.equal(result.scenePurpose, 'explore');
@@ -88,11 +89,31 @@ test('coop pipeline attributes per-character changes and combo bonus', async () 
     [{ character: makeCharacter('c1', 'King'), action: 'draw its attention' }, { character: makeCharacter('c2', 'Sun Mi'), action: 'strike from behind' }],
     { ...worldState }, worldBible, [],
   );
-  assert.deepEqual(calls, ['director', 'narrator', 'extractor']);
+  assert.deepEqual(calls, ['director', 'narrator', 'quality', 'extractor']);
   assert.equal(result.isCombat, true);
   assert.equal(result.comboBonus, true);
   assert.equal(result.character1Changes?.hpChange, -2);
   assert.equal(result.character2Changes?.loot?.[0].name, 'Bandit Coin');
   assert.ok(result.character1SuggestedActions?.[0].includes('sword'));
   assert.equal(result.spotlightCharacterId, 'c2');
+});
+
+test('quality gate revised narration is what extractor and final result receive', async () => {
+  const { client, calls } = fakeClient({
+    director: { priorities: ['Question Varric'], scenePurpose: 'social', pacingMode: 'tension', needsRoll: false, combatActive: false, isHighStakes: false, reason: 'conversation' },
+    narrator: { narration: 'Together, they proceed to have a meaningful conversation about the situation.', sceneImagePrompt: 'generic conversation' },
+    quality: {
+      pass: false,
+      issues: ['stiff summary'],
+      rationale: 'Too summary-like.',
+      revisedNarration: 'King sets one hand on the scarred table. "Varric, give me the name." Varric stops polishing the cup; the old fear in his eyes has a shape now.',
+      revisedSceneImagePrompt: 'a tense tavern table conversation',
+    },
+    extractor: { hpChange: null, activeNPC: 'Varric', suggestedActions: ['Press Varric for the name'], isCombat: false },
+  });
+
+  const result = await runSoloTurnPipeline(client, log, 'ask Varric for the name', worldState, worldBible, makeCharacter('c1', 'King'), []);
+  assert.deepEqual(calls, ['director', 'narrator', 'quality', 'extractor']);
+  assert.equal(result.narration, 'King sets one hand on the scarred table. "Varric, give me the name." Varric stops polishing the cup; the old fear in his eyes has a shape now.');
+  assert.equal(result.sceneImagePrompt, 'a tense tavern table conversation');
 });
