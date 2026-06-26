@@ -281,6 +281,22 @@ export interface WorldState {
   storyLedger?: StoryLedgerEntry[];
   recentPlayerActions?: StoryActionMemory[];
   engineAudit?: EngineAuditEntry[];
+  engineDebug?: {
+    updatedAt: string;
+    checks: EngineAuditCheck[];
+    coopRoll?: {
+      active: boolean;
+      actingCharacterId?: string;
+      unresolvedCount: number;
+      resolvedCount: number;
+      expectedRollers: string[];
+    };
+    pendingTurn?: {
+      active: boolean;
+      submittedCount: number;
+      expiresAt?: string;
+    };
+  };
   characterHistory?: CharacterHistoryEntry[];
   antagonistProgress?: Record<string, { stepIndex: number; lastAction: string; knowsPlayers: boolean }>;
   sessionCount?: number;
