@@ -224,6 +224,40 @@ export const useGameStore = create<GameState>()((set) => ({
         merged.mysteryClues = Array.from(existing.values());
       }
 
+      // characterMemories: upsert by character, preserving bounded facts/stakes/relationships
+      if (changes.characterMemories) {
+        const existing = new Map((current.characterMemories || []).map(memory => [memory.characterId, memory]));
+        for (const memory of changes.characterMemories) {
+          const prev = existing.get(memory.characterId);
+          const relationships = new Map((prev?.relationships || []).map(rel => [rel.npcName.toLowerCase(), rel]));
+          for (const rel of memory.relationships || []) relationships.set(rel.npcName.toLowerCase(), { ...relationships.get(rel.npcName.toLowerCase()), ...rel });
+          existing.set(memory.characterId, {
+            ...prev,
+            ...memory,
+            knownFacts: Array.from(new Set([...(prev?.knownFacts || []), ...(memory.knownFacts || [])])).slice(-14),
+            personalStakes: Array.from(new Set([...(prev?.personalStakes || []), ...(memory.personalStakes || [])])).slice(-10),
+            privateNotes: Array.from(new Set([...(prev?.privateNotes || []), ...(memory.privateNotes || [])])).slice(-8),
+            relationships: Array.from(relationships.values()).slice(-12),
+          });
+        }
+        merged.characterMemories = Array.from(existing.values()).slice(-6);
+      }
+
+      // dmMemory: merge bounded campaign-brain lanes
+      if (changes.dmMemory) {
+        const prev = current.dmMemory;
+        merged.dmMemory = {
+          ...prev,
+          ...changes.dmMemory,
+          recurringMotifs: Array.from(new Set([...(prev?.recurringMotifs || []), ...(changes.dmMemory.recurringMotifs || [])])).slice(-10),
+          tableToneNotes: Array.from(new Set([...(prev?.tableToneNotes || []), ...(changes.dmMemory.tableToneNotes || [])])).slice(-8),
+          unresolvedConsequences: Array.from(new Set([...(prev?.unresolvedConsequences || []), ...(changes.dmMemory.unresolvedConsequences || [])])).slice(-12),
+          runningJokes: Array.from(new Set([...(prev?.runningJokes || []), ...(changes.dmMemory.runningJokes || [])])).slice(-8),
+          promisesToHonor: Array.from(new Set([...(prev?.promisesToHonor || []), ...(changes.dmMemory.promisesToHonor || [])])).slice(-10),
+          lastUpdatedAt: changes.dmMemory.lastUpdatedAt || prev?.lastUpdatedAt || new Date().toISOString(),
+        };
+      }
+
       // activeNPC: direct set
       if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 

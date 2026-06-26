@@ -14,6 +14,7 @@ import {
 } from './characterProgressionSystem';
 import { advanceCombatState as advanceCombatStateFromSystem, newlyDefeatedCombatants } from './combatSystem';
 import { buildAwaitingRollNarration, enforceTurnPlanNarration, planSoloTurn } from './gameDirector';
+import { buildLayeredMemoryChanges, buildMemoryPack } from './layeredMemoryEngine';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
 import { generateNarration, generateSceneSummary, generateVillainMove, runStoryDirector } from './openai';
 import {
@@ -139,6 +140,7 @@ export async function processAction(
     }
   }
 
+  const memoryPack = buildMemoryPack(ws, wb, [character as Character], [action]);
   const campaignContext = {
     journal: ws.campaignJournal || [],
     characterHistory: ws.characterHistory || [],
@@ -160,6 +162,7 @@ export async function processAction(
     futureHooks: (ws.futureHooks || []).filter(h => !h.resolved).slice(-10),
     railDirectives: turnPlan.guardrails,
     continuityDirectives,
+    memoryContext: memoryPack.promptBlock || undefined,
   };
 
   if (turnPlan.awaitingRoll) {
@@ -410,10 +413,21 @@ export async function processAction(
     newActionCount,
     campaignLengthTargetActionsFromSystem(wb),
   );
+  const layeredMemoryChanges = buildLayeredMemoryChanges({
+    worldState: ws,
+    worldBible: wb,
+    characters: [character as Character],
+    actions: [action],
+    narration: aiResponse.narration,
+    aiResponse,
+    location: newLocation,
+    actionCount: newActionCount,
+  });
 
   const worldStateChangesWithTracking: Partial<WorldState> = {
     ...(aiResponse.worldStateChanges as Partial<WorldState> || {}),
     ...turnPlan.worldStatePatch,
+    ...layeredMemoryChanges,
     ...(autoNpcMemory.length > 0 || combatantNpcMemory.length > 0
       ? {
           npcMemory: [

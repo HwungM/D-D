@@ -187,6 +187,31 @@ export interface StoryActionMemory {
   createdAt: string;
 }
 
+export interface CharacterMemory {
+  characterId: string;
+  characterName: string;
+  knownFacts: string[];
+  personalStakes: string[];
+  relationships: {
+    npcName: string;
+    summary: string;
+    score?: number;
+    label?: string;
+    lastUpdatedAt: string;
+  }[];
+  privateNotes?: string[];
+  lastUpdatedAt: string;
+}
+
+export interface DmCampaignMemory {
+  recurringMotifs: string[];
+  tableToneNotes: string[];
+  unresolvedConsequences: string[];
+  runningJokes: string[];
+  promisesToHonor: string[];
+  lastUpdatedAt: string;
+}
+
 export interface EngineAuditCheck {
   label: string;
   status: 'pass' | 'warn' | 'blocked' | 'info';
@@ -280,6 +305,8 @@ export interface WorldState {
   campaignSpine?: CampaignSpineSnapshot;
   storyLedger?: StoryLedgerEntry[];
   recentPlayerActions?: StoryActionMemory[];
+  characterMemories?: CharacterMemory[];
+  dmMemory?: DmCampaignMemory;
   engineAudit?: EngineAuditEntry[];
   engineDebug?: {
     updatedAt: string;

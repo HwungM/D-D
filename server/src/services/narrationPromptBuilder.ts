@@ -711,6 +711,7 @@ export type NarrationCampaignContext = {
   futureHooks?: { id: string; description: string; source: string }[];
   railDirectives?: string;
   continuityDirectives?: string;
+  memoryContext?: string;
 };
 
 export function buildCampaignContextBlock(campaignContext: NarrationCampaignContext | null | undefined, worldBible: WorldBible, characterLevel: number): string {
@@ -719,6 +720,11 @@ JOURNAL: ${campaignContext.journal.slice(-3).map(j => `[Act ${j.actNumber}] ${j.
 HISTORY: ${campaignContext.characterHistory.slice(-5).map(h => `${h.description} → ${h.impact}`).join(' | ') || 'none'}
 ANTAGONISTS: ${campaignContext.antagonists.map(a => `${a.isRevealed ? a.name : '[UNKNOWN]'}: ${a.agenda}`).join(' | ') || 'none'}
 NARRATIVE TIER: ${campaignContext.act <= 1 && characterLevel <= 3 ? 'EMERGING - local stakes' : characterLevel <= 6 ? 'KNOWN - regional threats' : characterLevel <= 10 ? 'FEARED - major powers react' : 'LEGENDARY'}` : ''}
+
+${campaignContext?.memoryContext ? `═══ LAYERED DM MEMORY ═══
+${campaignContext.memoryContext}
+Use this memory as continuity, not rails: let NPCs react to what they personally know, let player characters remember what they witnessed, and bring back one relevant consequence/thread when it fits the current action.
+══════════════════════════` : ''}
 
 ${campaignContext?.roadmap ? (() => {
   const actNum = campaignContext.act;
