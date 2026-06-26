@@ -4,6 +4,7 @@ import type { CombatEnemy, NpcMemory, WorldBible, WorldState } from '../../../sh
 import { canAdvanceAct } from './actPacingSystem';
 import { ensureCombatEncounterCompleteness, preventUngroundedFight } from './aiContractValidator';
 import { advanceCombatState, newlyDefeatedCombatants } from './combatSystem';
+import { evaluateExperienceFrame } from './experienceEvalSystem';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
 import { buildEngineAuditEntry, buildSpotlightBalanceUpdate } from './turnStateHelpers';
 import { mergeWorldStateChanges } from './worldStateSystem';
@@ -193,4 +194,18 @@ test('scripted final playtest covers combat grounding, People Sheet memory, life
   const spotlight = buildSpotlightBalanceUpdate({ king: 5, sunMi: 1 }, ['king', 'sunMi'], null);
   assert.equal(spotlight.spotlightCharacterId, 'sunMi');
   assert.equal(spotlight.spotlightBalance.sunMi, 2);
+
+  const readiness = evaluateExperienceFrame({
+    label: 'scripted final readiness',
+    narration: 'King follows the tollhouse tracks while Sun Mi watches the ridge, and together they find Rusk and his partner counting stolen coin beside the ruined stones. After the fight, both bandits remember being cornered and spared, Captain Veyra remains tied to the Ash Gate, and the next road stays open instead of skipping to a finale.',
+    isCoop: true,
+    characters: [{ id: 'king', name: 'King' }, { id: 'sunMi', name: 'Sun Mi' }],
+    suggestedActions: ['Question Rusk about the stolen coin', 'Ask Captain Veyra about the Ash Gate', 'Let Sun Mi inspect the ridge tracks'],
+    worldBible: bible,
+    worldStateAfter: worldState,
+    expectedNpcMemoryNames: ['Rusk', 'Bandit 2'],
+    expectConsequenceMemory: true,
+    expectNoActRush: true,
+  });
+  assert.equal(readiness.ready, true, readiness.issues.map(i => `${i.code}: ${i.message}`).join('\n'));
 });
