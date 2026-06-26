@@ -61,6 +61,7 @@ function readinessReport(worldState: WorldState, npcs: NpcMemory[]) {
   const act = worldState.campaignSpine?.currentArc.act
   const role = actRoleFor(act)
   const arc = arcNumberFor(act)
+  const actionCount = typeof worldState.actionCount === 'number' ? worldState.actionCount : 0
 
   if (audit.length === 0) issues.push('Take one fresh turn so the engine audit can verify this campaign state.')
   if (latestAudit?.checks.some(check => check.status === 'blocked')) issues.push('The last audited turn had a blocked engine rule. Inspect it before calling the test clean.')
@@ -94,10 +95,86 @@ function readinessReport(worldState: WorldState, npcs: NpcMemory[]) {
     issues.push('Co-op spotlight is skewed by four or more turns.')
   }
 
+  const coopRoll = worldState.coopPendingRoll
+  const pendingRolls = Array.isArray(coopRoll?.pendingRolls) ? coopRoll.pendingRolls : []
+  const unresolvedRolls = pendingRolls.filter(roll => !roll.resolved)
+  const expectedRollers = worldState.engineDebug?.coopRoll?.expectedRollers || []
+  if (coopRoll) {
+    if (pendingRolls.length === 0 && !coopRoll.actingCharacterId) {
+      issues.push('A co-op roll queue is active, but no active roller or pending rollers are tracked.')
+    }
+    if (pendingRolls.length > 0 && unresolvedRolls.length === 0) {
+      issues.push('All co-op rolls are resolved, but the co-op roll queue is still active.')
+    }
+    if (unresolvedRolls.length > 0 && !unresolvedRolls.some(roll => roll.characterId === coopRoll.actingCharacterId)) {
+      issues.push('The active co-op roller does not match any unresolved roll in the queue.')
+    }
+    if (unresolvedRolls.length > 0 && expectedRollers.length === 0) {
+      issues.push('A co-op roll is waiting, but engine debug is not listing expected rollers.')
+    }
+  }
+
+  const pendingTurn = worldState.pendingTurn
+  if (pendingTurn?.expiresAt) {
+    const expiresAt = Date.parse(pendingTurn.expiresAt)
+    if (Number.isFinite(expiresAt) && expiresAt < Date.now()) {
+      issues.push('A co-op action round appears expired but is still waiting for submissions.')
+    }
+  }
+
+  if (actionCount >= 3 && !worldState.dmMemory) {
+    issues.push('DM campaign memory has not populated after several turns.')
+  }
+  if (actionCount >= 3 && (!Array.isArray(worldState.characterMemories) || worldState.characterMemories.length === 0)) {
+    issues.push('Player character memory has not populated after several turns.')
+  }
+
   const score = Math.max(0, 100 - issues.length * 20)
   const label = score >= 90 ? 'Final-test ready' : score >= 70 ? 'Almost ready' : score >= 40 ? 'Needs attention' : 'Not ready'
   const color = score >= 90 ? '#4ade80' : score >= 70 ? '#f59e0b' : score >= 40 ? '#f97316' : '#f87171'
   return { issues, score, label, color }
+}
+
+function shortTime(value?: string) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+function coOpRollSnapshot(worldState: WorldState) {
+  const coopRoll = worldState.coopPendingRoll
+  const pendingRolls = Array.isArray(coopRoll?.pendingRolls) ? coopRoll.pendingRolls : []
+  const unresolved = pendingRolls.filter(roll => !roll.resolved)
+  const resolved = pendingRolls.filter(roll => roll.resolved)
+  const currentRoller = unresolved.find(roll => roll.characterId === coopRoll?.actingCharacterId) || unresolved[0]
+  const expectedRollers = worldState.engineDebug?.coopRoll?.expectedRollers || unresolved.map(roll => roll.characterName)
+  const queueHealthy = !coopRoll
+    || (pendingRolls.length === 0 && Boolean(coopRoll.actingCharacterId))
+    || (unresolved.length > 0 && (!coopRoll.actingCharacterId || unresolved.some(roll => roll.characterId === coopRoll.actingCharacterId)))
+
+  return {
+    active: Boolean(coopRoll),
+    description: coopRoll?.rollContext?.description || currentRoller?.rollContext.description || '',
+    currentRollerName: currentRoller?.characterName || '',
+    expectedRollers,
+    pendingRolls,
+    unresolved,
+    resolved,
+    queueHealthy,
+  }
+}
+
+function dmMemoryItemCount(worldState: WorldState) {
+  const memory = worldState.dmMemory
+  if (!memory) return 0
+  return [
+    ...(memory.recurringMotifs || []),
+    ...(memory.tableToneNotes || []),
+    ...(memory.unresolvedConsequences || []),
+    ...(memory.runningJokes || []),
+    ...(memory.promisesToHonor || []),
+  ].length
 }
 
 function uniqueNpcList(worldState: WorldState): NpcMemory[] {
@@ -169,6 +246,11 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
   const pressure = spine ? (PRESSURE_STYLE[spine.currentArc.pressure] || PRESSURE_STYLE.low) : null
   const auditEntries = Array.isArray(worldState.engineAudit) ? worldState.engineAudit.slice(-5).reverse() : []
   const readiness = readinessReport(worldState, npcs)
+  const coopSnapshot = coOpRollSnapshot(worldState)
+  const pendingTurnActions = worldState.pendingTurn?.actions || []
+  const engineDebugChecks = worldState.engineDebug?.checks || []
+  const characterMemories = Array.isArray(worldState.characterMemories) ? worldState.characterMemories : []
+  const dmMemoryCount = dmMemoryItemCount(worldState)
 
   return (
     <div className="space-y-6 p-4 text-sm text-parchment-100">
@@ -231,6 +313,116 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
                 <p className="font-serif text-sm leading-relaxed text-parchment-200/68">{issue}</p>
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section className="border border-cyan-200/16 bg-cyan-300/[0.035] p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-cyan-200/66">Live Engine State</p>
+            <p className="mt-1 font-serif text-xs leading-relaxed text-parchment-200/56">
+              This is the quick truth panel for co-op turns, roll queues, and campaign memory while you test.
+            </p>
+          </div>
+          <span className="shrink-0 border border-cyan-200/20 px-2 py-1 font-mono text-[10px] text-cyan-100/70">
+            {worldState.engineDebug?.updatedAt ? shortTime(worldState.engineDebug.updatedAt) : 'live'}
+          </span>
+        </div>
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="border border-white/8 bg-black/22 px-3 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-fantasy text-[9px] uppercase tracking-[0.2em] text-parchment-200/50">Co-op Turn</p>
+              <span className={`font-fantasy text-[9px] uppercase tracking-[0.14em] ${pendingTurnActions.length ? 'text-amber-200/76' : 'text-emerald-200/70'}`}>
+                {pendingTurnActions.length ? 'Waiting' : 'Clear'}
+              </span>
+            </div>
+            <p className="mt-2 font-serif text-sm text-parchment-100">
+              {pendingTurnActions.length ? `${pendingTurnActions.length} submitted action${pendingTurnActions.length === 1 ? '' : 's'}` : 'No pending party action round.'}
+            </p>
+            {pendingTurnActions.length > 0 && (
+              <p className="mt-1 font-serif text-xs text-parchment-200/46">
+                Expires {shortTime(worldState.pendingTurn?.expiresAt)}
+              </p>
+            )}
+          </div>
+
+          <div className="border border-white/8 bg-black/22 px-3 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-fantasy text-[9px] uppercase tracking-[0.2em] text-parchment-200/50">Roll Queue</p>
+              <span className={`font-fantasy text-[9px] uppercase tracking-[0.14em] ${coopSnapshot.active ? (coopSnapshot.queueHealthy ? 'text-amber-200/76' : 'text-red-200/80') : 'text-emerald-200/70'}`}>
+                {coopSnapshot.active ? (coopSnapshot.queueHealthy ? 'Active' : 'Check') : 'Clear'}
+              </span>
+            </div>
+            <p className="mt-2 font-serif text-sm text-parchment-100">
+              {coopSnapshot.active
+                ? `${coopSnapshot.unresolved.length} unresolved / ${coopSnapshot.resolved.length} resolved`
+                : 'No pending roll.'}
+            </p>
+            {coopSnapshot.currentRollerName && (
+              <p className="mt-1 font-serif text-xs text-parchment-200/48">Now waiting on {coopSnapshot.currentRollerName}</p>
+            )}
+          </div>
+        </div>
+
+        {coopSnapshot.active && (
+          <div className="mt-3 border border-white/8 bg-black/18 px-3 py-3">
+            {coopSnapshot.description && (
+              <p className="font-serif text-xs leading-relaxed text-parchment-200/60">{coopSnapshot.description}</p>
+            )}
+            {coopSnapshot.expectedRollers.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {coopSnapshot.expectedRollers.map((name, index) => (
+                  <span key={`${name}-${index}`} className="border border-cyan-200/18 bg-cyan-200/[0.06] px-2 py-1 font-fantasy text-[9px] uppercase tracking-[0.13em] text-cyan-100/72">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            )}
+            {coopSnapshot.pendingRolls.length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                {coopSnapshot.pendingRolls.map(roll => (
+                  <div key={roll.characterId} className="flex items-center justify-between gap-3 border border-white/8 bg-white/[0.025] px-2 py-2">
+                    <span className="font-serif text-xs text-parchment-100">{roll.characterName}</span>
+                    <span className={`font-mono text-[10px] ${roll.resolved ? 'text-emerald-200/70' : 'text-amber-200/74'}`}>
+                      {roll.resolved ? `rolled ${roll.rollTotal ?? roll.rollResult ?? '?'}` : `${roll.rollContext.stat.toUpperCase()} DC ${roll.dc ?? roll.rollContext.dc}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="border border-white/8 bg-white/[0.025] px-3 py-2">
+            <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-purple-200/58">NPC Memory</p>
+            <p className="mt-1 font-mono text-sm text-parchment-100">{npcs.length}</p>
+          </div>
+          <div className="border border-white/8 bg-white/[0.025] px-3 py-2">
+            <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-purple-200/58">Hero Memory</p>
+            <p className="mt-1 font-mono text-sm text-parchment-100">{characterMemories.length}</p>
+          </div>
+          <div className="border border-white/8 bg-white/[0.025] px-3 py-2">
+            <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-purple-200/58">DM Memory</p>
+            <p className="mt-1 font-mono text-sm text-parchment-100">{dmMemoryCount}</p>
+          </div>
+        </div>
+
+        {engineDebugChecks.length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            {engineDebugChecks.slice(-3).map((check, index) => {
+              const style = AUDIT_STYLE[check.status] || AUDIT_STYLE.info
+              return (
+                <div key={`${check.label}-${index}`} className="border border-white/8 bg-black/18 px-2 py-2">
+                  <p className="font-fantasy text-[9px] uppercase tracking-[0.16em]" style={{ color: style.color }}>
+                    {style.label}: {check.label}
+                  </p>
+                  <p className="mt-1 font-serif text-xs leading-relaxed text-parchment-200/56">{check.detail}</p>
+                </div>
+              )
+            })}
           </div>
         )}
       </section>
