@@ -2,6 +2,7 @@ import type { Character, WorldBible, WorldState } from '../../../shared/types';
 import { STYLE_ANTI_REPETITION } from './aiPromptContracts';
 import { parseJsonRecord } from './aiResponseParser';
 import { characterGenderLine } from './narrationPromptBuilder';
+import { runRollOutcomeQualityGate } from './rollOutcomeQualityGate';
 
 type ChatClient = {
   chat: {
@@ -368,6 +369,12 @@ export async function generateRollOutcomeFromService(args: RollOutcomeArgs): Pro
 
   const content = response.choices[0].message.content || '{}';
   const parsed = parseRollOutcomeResponse(content);
+  const gated = await runRollOutcomeQualityGate(openai, logAiCall, {
+    ...args,
+    result: parsed,
+    isCoop: false,
+    actorNames: [character.name],
+  });
 
   logAiCall?.('generateRollOutcome', {
     character: character.id,
@@ -375,10 +382,10 @@ export async function generateRollOutcomeFromService(args: RollOutcomeArgs): Pro
     temperature: 0.7,
     prompt,
     rawResponse: content,
-    parsed,
+    parsed: gated,
   });
 
-  return parsed;
+  return gated;
 }
 
 export async function generateCoopRollOutcomeFromService(args: CoopRollOutcomeArgs): Promise<RollOutcomeResult> {
@@ -398,6 +405,13 @@ export async function generateCoopRollOutcomeFromService(args: CoopRollOutcomeAr
 
   const content = response.choices[0].message.content || '{}';
   const parsed = parseRollOutcomeResponse(content);
+  const gated = await runRollOutcomeQualityGate(openai, logAiCall, {
+    ...args,
+    result: parsed,
+    isCoop: true,
+    actorNames: [args.actingCharacter.name, args.partnerCharacter.name],
+    rolls: args.rolls,
+  });
 
   logAiCall?.('generateCoopRollOutcome', {
     character: actingCharacter.id,
@@ -408,8 +422,8 @@ export async function generateCoopRollOutcomeFromService(args: CoopRollOutcomeAr
     dc: args.dc,
     success: args.success,
     rawResponse: content,
-    parsed,
+    parsed: gated,
   });
 
-  return parsed;
+  return gated;
 }

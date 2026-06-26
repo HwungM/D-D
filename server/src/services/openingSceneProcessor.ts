@@ -1,5 +1,6 @@
 import type { ActionResult, Character, WorldBible, WorldState } from '../../../shared/types';
 import { enforceTurnPlanNarration, planOpeningTurn } from './gameDirector';
+import { applyOpeningSceneQualityGate } from './openingSceneQualityGate';
 import { generateCoopNarration, generateNarration, generateVillainMove } from './openai';
 import { supabaseAdmin } from './supabase';
 import {
@@ -65,7 +66,7 @@ export async function getOpeningScene(
     ? `SUCCESSOR_ENTRY: A new hero enters the world. The previous hero ${fallenHeroes[fallenHeroes.length - 1].name} (${fallenHeroes[fallenHeroes.length - 1].race} ${fallenHeroes[fallenHeroes.length - 1].class}, level ${fallenHeroes[fallenHeroes.length - 1].level}) fell — ${fallenHeroes[fallenHeroes.length - 1].cause}. The new hero is ${character.name}, ${character.race} ${character.class}. Acknowledge the fallen in a way that fits the world. NPCs who knew the previous hero may reference them.${villainMovePreamble}`
     : `OPENING_SCENE${villainMovePreamble}`;
 
-  const aiResponse = await generateNarration(
+  const rawAiResponse = await generateNarration(
     openingAction,
     openingPlan.worldStateForNarration,
     openingWb,
@@ -73,6 +74,12 @@ export async function getOpeningScene(
     [],
     openingContext
   );
+  const aiResponse = applyOpeningSceneQualityGate({
+    result: rawAiResponse,
+    worldBible: openingWb,
+    characters: [character as Character],
+    isCoop: false,
+  });
   enforceTurnPlanNarration(aiResponse, openingPlan);
 
   const openingChanges: Partial<WorldState> = {
@@ -215,7 +222,7 @@ export async function getCoopOpeningScene(
   const openingDirective = `OPENING_SCENE — this is the campaign's first beat, not a player action. Open ONE shared scene that brings ${p1.name} and ${p2.name} together in the same place at the same moment. Establish where they are and why they are together, give each a concrete presence, and end on a hook or first choice. Single camera: no "Meanwhile", no splitting them across separate locations.${villainMovePreamble}`;
   const partnerDirective = `Same opening scene — ${p2.name} is present alongside ${p1.name} in this one shared moment.`;
 
-  const aiResponse = await generateCoopNarration(
+  const rawAiResponse = await generateCoopNarration(
     [
       { character: p1, action: openingDirective },
       { character: p2, action: partnerDirective },
@@ -225,6 +232,12 @@ export async function getCoopOpeningScene(
     [],
     openingContext
   );
+  const aiResponse = applyOpeningSceneQualityGate({
+    result: rawAiResponse,
+    worldBible: openingWb,
+    characters: party,
+    isCoop: true,
+  });
 
   // Persist any world state the opening established (location, NPCs met, active
   // NPC) so both players share a consistent world from turn one.

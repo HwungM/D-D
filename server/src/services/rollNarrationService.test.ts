@@ -188,6 +188,20 @@ test('generateRollOutcomeFromService calls the model with the roll contract and 
         }) => {
           assert.equal(args.model, 'gpt-4o');
           assert.deepEqual(args.response_format, { type: 'json_object' });
+          if (args.messages[0]?.content.includes('ROLL OUTCOME QUALITY CRITIC')) {
+            return {
+              choices: [{
+                message: {
+                  content: JSON.stringify({
+                    pass: true,
+                    issues: [],
+                    rationale: 'Good roll outcome.',
+                    revised: null,
+                  }),
+                },
+              }],
+            };
+          }
           capturedPrompt = args.messages.find(message => message.role === 'user')?.content || '';
           return {
             choices: [{
@@ -225,6 +239,6 @@ test('generateRollOutcomeFromService calls the model with the roll contract and 
   assert.match(capturedPrompt, /Mira vaults over the altar/);
   assert.equal(result.narration, 'Mira clips the altar, recovers, and sends the relic spinning toward cover.');
   assert.equal(result.isCombat, true);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].character, 'char-1');
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].character, 'char-1');
 });
