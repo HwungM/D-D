@@ -80,6 +80,7 @@ test('normalizeGeneratedWorldBible preserves existing roster entries while addin
 
   assert.deepEqual(normalized.antagonistRoster.map(a => a.name), ['The First Shadow', 'Existing Rival', 'Glass Warden']);
   assert.equal(normalized.geography[0].name, 'Real City');
-  assert.deepEqual(normalized.openingHooks, ['Generated omen']);
+  assert.equal(normalized.openingHooks[0], 'Generated omen');
+  assert.equal(normalized.openingHooks.length, 3);
   assert.deepEqual(normalized.toneRules, ['Generated tone']);
 });

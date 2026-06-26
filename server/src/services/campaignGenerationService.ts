@@ -1,5 +1,6 @@
 import type { StorySeedOption, WorldBible } from '../../../shared/types';
 import { parseJsonValueOrFallback } from './aiResponseParser';
+import { repairWorldBibleQuality } from './campaignQualityGate';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
 
 export type CampaignLength = 'one_shot' | 'short' | 'medium' | 'long' | 'open_ended';
@@ -101,7 +102,7 @@ export function normalizeGeneratedWorldBible(
     characterConcepts: playerPreferences?.characterConcepts || parsed.playerPreferences?.characterConcepts || [],
   };
 
-  return parsed;
+  return repairWorldBibleQuality(parsed, playerPreferences);
 }
 
 export function parseStorySeeds(content: string | null | undefined): StorySeedOption[] {
