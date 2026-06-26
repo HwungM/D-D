@@ -7,6 +7,7 @@ import { generateEpilogue } from '../services/openai';
 import type { WorldState, WorldBible, Character } from '../../../shared/types';
 import { z } from 'zod';
 import { aiRateLimit } from '../middleware/rateLimit';
+import { repairWorldStateForGameplay } from '../services/coopStateIntegrity';
 
 const router = Router();
 const COOP_TURN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -33,6 +34,20 @@ const actionSchema = z.object({
   action: z.string().min(1).max(500),
   requestId: z.string().uuid().optional(),
 });
+
+async function loadRepairedWorldState(campaignId: string): Promise<WorldState | null> {
+  const { data: campaign } = await supabaseAdmin
+    .from('campaigns')
+    .select('world_state')
+    .eq('id', campaignId)
+    .single();
+  if (!campaign) return null;
+  const repaired = repairWorldStateForGameplay(campaign.world_state as WorldState);
+  if (repaired.report.changed) {
+    await supabaseAdmin.from('campaigns').update({ world_state: repaired.worldState }).eq('id', campaignId);
+  }
+  return repaired.worldState;
+}
 
 router.post('/action', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
   const parse = actionSchema.safeParse(req.body);
@@ -69,18 +84,28 @@ router.post('/action', requireAuth, aiRateLimit, async (req: AuthRequest, res: R
 
     if (activePlayerCount > 1) {
       await withCampaignLock(campaignId, async () => {
-      const { data: campaign } = await supabaseAdmin
-        .from('campaigns')
-        .select('world_state')
-        .eq('id', campaignId)
-        .single();
-
-      if (!campaign) {
+      const ws = await loadRepairedWorldState(campaignId);
+      if (!ws) {
         res.status(404).json({ error: 'Campaign not found' });
         return;
       }
 
-      const ws = campaign.world_state as WorldState;
+      if (ws.coopPendingRoll) {
+        const isMyRoll = ws.coopPendingRoll.actingCharacterId === characterId;
+        res.status(isMyRoll ? 200 : 409).json(isMyRoll
+          ? {
+              awaitingRoll: true,
+              narration: ws.coopPendingRoll.setupNarration || 'The table is waiting on your roll.',
+              rollContext: ws.coopPendingRoll.rollContext,
+              actingCharacterId: ws.coopPendingRoll.actingCharacterId,
+              suggestedActions: [],
+              sceneImagePrompt: ws.coopPendingRoll.sceneImagePrompt || undefined,
+              worldStateChanges: ws,
+            }
+          : { error: 'A co-op roll is still pending. Wait for your partner to roll.', worldState: ws });
+        return;
+      }
+
       const pendingCreatedAt = ws.pendingTurn?.createdAt || ws.pendingTurn?.actions?.[0]?.submittedAt;
       const pendingStartedAt = pendingCreatedAt ? Date.parse(pendingCreatedAt) : NaN;
       const pendingIsStale = Number.isFinite(pendingStartedAt) && Date.now() - pendingStartedAt > COOP_TURN_TIMEOUT_MS;
@@ -218,12 +243,8 @@ router.post('/resolve-roll', requireAuth, aiRateLimit, async (req: AuthRequest, 
 
   try {
     await withCampaignLock(campaignId, async () => {
-      const { data: campaignRow } = await supabaseAdmin
-        .from('campaigns')
-        .select('world_state')
-        .eq('id', campaignId)
-        .single();
-      const pendingCoopRoll = (campaignRow?.world_state as WorldState | undefined)?.coopPendingRoll;
+      const repairedWs = await loadRepairedWorldState(campaignId);
+      const pendingCoopRoll = repairedWs?.coopPendingRoll;
 
       if (pendingCoopRoll && pendingCoopRoll.actingCharacterId !== characterId) {
         res.status(409).json({ error: 'Your partner holds the dice for this turn. Wait for their roll.' });
@@ -609,20 +630,16 @@ router.get('/scene/:campaignId/:characterId', requireAuth, async (req: AuthReque
     .limit(1)
     .single();
 
-  const { data: campaign } = await supabaseAdmin
-    .from('campaigns')
-    .select('world_state')
-    .eq('id', campaignId)
-    .single();
+  const repairedWs = await loadRepairedWorldState(campaignId);
 
-  if (!campaign) {
+  if (!repairedWs) {
     res.status(404).json({ error: 'Campaign or character not found' });
     return;
   }
 
   // "Previously on..." recap when returning after a long break
   let recap: { summary: string; keyDecisions: string[]; sessionNumber: number; gapHours: number } | null = null;
-  const ws = (campaign.world_state || {}) as WorldState;
+  const ws = repairedWs;
   if (lastEvent?.created_at) {
     const gapHours = (Date.now() - new Date(lastEvent.created_at).getTime()) / (1000 * 60 * 60);
     if (gapHours >= 3) {
@@ -640,7 +657,7 @@ router.get('/scene/:campaignId/:characterId', requireAuth, async (req: AuthReque
 
   res.json({
     lastEvent,
-    worldState: campaign.world_state,
+    worldState: ws,
     character,
     recap,
   });

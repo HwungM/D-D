@@ -8,6 +8,7 @@ import {
   resolvePlayerCombatRoll,
 } from './rulesEngine';
 import { supabaseAdmin } from './supabase';
+import { assertCanResolveCoopRoll, repairWorldStateForGameplay } from './coopStateIntegrity';
 
 export async function resolveRollAction(
   characterId: string,
@@ -131,9 +132,12 @@ export async function resolveCoopRollAction(
   const { data: campaign, error: campError } = await supabaseAdmin.from('campaigns').select('*').eq('id', campaignId).single();
   if (campError || !campaign) throw new Error('Campaign not found');
 
-  const ws = campaign.world_state as WorldState;
-  const pending = ws.coopPendingRoll;
-  if (!pending || pending.actingCharacterId !== characterId) throw new Error('No pending co-op roll for this character');
+  const repaired = repairWorldStateForGameplay(campaign.world_state as WorldState);
+  const ws = repaired.worldState;
+  if (repaired.report.changed) {
+    await supabaseAdmin.from('campaigns').update({ world_state: ws }).eq('id', campaignId);
+  }
+  const { pending } = assertCanResolveCoopRoll(ws, characterId);
 
   const queuedRolls = pending.pendingRolls?.length
     ? pending.pendingRolls
@@ -142,8 +146,7 @@ export async function resolveCoopRollAction(
         characterName: pending.actions.find(action => action.characterId === characterId)?.characterName || 'Player',
         rollContext,
       }];
-  const currentQueuedRoll = queuedRolls.find(roll => roll.characterId === characterId && !roll.resolved)
-    || queuedRolls.find(roll => roll.characterId === characterId);
+  const currentQueuedRoll = queuedRolls.find(roll => roll.characterId === characterId && !roll.resolved);
   if (!currentQueuedRoll) throw new Error('No queued co-op roll for this character');
 
   const updatedQueuedRolls = queuedRolls.map(roll => roll.characterId === characterId

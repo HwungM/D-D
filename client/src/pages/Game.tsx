@@ -219,10 +219,21 @@ export default function Game() {
         setWorldState(data.worldState)
         const pendingTurn = data.worldState.pendingTurn
         const coopRoll = data.worldState.coopPendingRoll
+        const selfRolling = !!(coopRoll?.actingCharacterId && coopRoll.actingCharacterId === characterId && coopRoll.rollContext)
         const partnerRolling = !!(coopRoll?.actingCharacterId && coopRoll.actingCharacterId !== characterId)
-        if (partnerRolling) {
+        if (selfRolling) {
+          setCoopWaiting(false)
+          setLoading(false)
+          setDiceModalData({
+            narration: coopRoll.setupNarration || 'The table is waiting on your roll.',
+            rollContext: coopRoll.rollContext as RollContext,
+          })
+          setShowDiceModal(true)
+        } else if (partnerRolling) {
           // Partner holds the dice - keep this player's input locked until the
           // roll resolves (their resolution narration unlocks us via realtime).
+          setDiceModalData(null)
+          setShowDiceModal(false)
           setCoopWaiting(true)
           setLoading(false)
         } else if (pendingTurn?.actions?.length) {
@@ -620,6 +631,8 @@ export default function Game() {
         const nextActingId = result.actingCharacterId
         if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
         if (nextActingId && nextActingId !== characterId) {
+          setShowDiceModal(false)
+          setDiceModalData(null)
           setCoopWaiting(true)
         }
       }
@@ -640,6 +653,7 @@ export default function Game() {
       }
     } catch (err) {
       console.error(err)
+      syncSceneState()
       throw err
     } finally { setLoading(false) }
   }
@@ -1330,6 +1344,22 @@ export default function Game() {
               submittedIds={pendingCharacterIds}
               expiresAt={coopExpiresAt}
             />
+          )}
+
+          {campaignType === 'testing' && worldState?.engineDebug && (
+            <div className="mx-3 my-1 border border-cyan-200/18 bg-cyan-500/[0.045] px-4 py-3 font-serif text-xs text-cyan-100/72">
+              <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-cyan-100/72">Engine Preflight</p>
+              <p className="mt-1">
+                Pending turn: {worldState.engineDebug.pendingTurn?.active ? `${worldState.engineDebug.pendingTurn.submittedCount} submitted` : 'none'}
+                {' · '}
+                Co-op roll: {worldState.engineDebug.coopRoll?.active
+                  ? `${worldState.engineDebug.coopRoll.unresolvedCount} unresolved${worldState.engineDebug.coopRoll.expectedRollers?.length ? ` (${worldState.engineDebug.coopRoll.expectedRollers.join(', ')})` : ''}`
+                  : 'none'}
+              </p>
+              {worldState.engineDebug.checks?.slice(-2).map((check, index) => (
+                <p key={`${check.label}-${index}`} className="mt-1 text-cyan-100/52">{check.status.toUpperCase()}: {check.detail}</p>
+              ))}
+            </div>
           )}
 
           {/* Error recovery banner */}
