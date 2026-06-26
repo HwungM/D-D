@@ -9,6 +9,7 @@ import {
 } from './rulesEngine';
 import { supabaseAdmin } from './supabase';
 import { assertCanResolveCoopRoll, repairWorldStateForGameplay } from './coopStateIntegrity';
+import { applyCoopRollToQueue, buildNextCoopPendingRoll } from './coopRollFlow';
 
 export async function resolveRollAction(
   characterId: string,
@@ -139,29 +140,17 @@ export async function resolveCoopRollAction(
   }
   const { pending } = assertCanResolveCoopRoll(ws, characterId);
 
-  const queuedRolls = pending.pendingRolls?.length
-    ? pending.pendingRolls
-    : [{
-        characterId,
-        characterName: pending.actions.find(action => action.characterId === characterId)?.characterName || 'Player',
-        rollContext,
-      }];
-  const currentQueuedRoll = queuedRolls.find(roll => roll.characterId === characterId && !roll.resolved);
-  if (!currentQueuedRoll) throw new Error('No queued co-op roll for this character');
-
-  const updatedQueuedRolls = queuedRolls.map(roll => roll.characterId === characterId
-    ? {
-        ...roll,
-        resolved: true,
-        rollResult,
-        rollTotal,
-        dc,
-        success,
-        isCritSuccess,
-        isCritFail,
-      }
-    : roll);
-  const nextRoll = updatedQueuedRolls.find(roll => !roll.resolved);
+  const transition = applyCoopRollToQueue(pending, characterId, {
+    rollResult,
+    rollTotal,
+    dc,
+    success,
+    isCritSuccess,
+    isCritFail,
+  });
+  const currentQueuedRoll = transition.currentRoll;
+  const updatedQueuedRolls = transition.pendingRolls;
+  const nextRoll = transition.nextRoll;
 
   await supabaseAdmin.from('story_events').insert({
     campaign_id: campaignId,
@@ -178,19 +167,15 @@ export async function resolveCoopRollAction(
       isCritFail,
       rollContext,
       actingCharacterId: characterId,
-      pendingRollsRemaining: updatedQueuedRolls.filter(roll => !roll.resolved).length,
+      pendingRollsRemaining: transition.remainingCount,
     },
   });
 
   if (nextRoll) {
+    const nextPendingRoll = buildNextCoopPendingRoll(pending, transition)!;
     const nextState = {
       ...ws,
-      coopPendingRoll: {
-        ...pending,
-        actingCharacterId: nextRoll.characterId,
-        rollContext: nextRoll.rollContext,
-        pendingRolls: updatedQueuedRolls,
-      },
+      coopPendingRoll: nextPendingRoll,
     };
     await supabaseAdmin.from('campaigns').update({ world_state: nextState }).eq('id', campaignId);
     await supabaseAdmin.from('story_events').insert({
