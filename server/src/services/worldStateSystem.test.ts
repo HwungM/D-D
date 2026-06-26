@@ -46,6 +46,49 @@ test('world state reducer merges NPC memory case-insensitively', () => {
   assert.equal(merged.keyNPCs?.[0].name, 'captain roe');
 });
 
+test('world state reducer merges layered character and DM memory', () => {
+  const merged = mergeWorldStateChanges({
+    characterMemories: [{
+      characterId: 'c1',
+      characterName: 'Foliza',
+      knownFacts: ['Jarvis fears the diplomat.'],
+      personalStakes: ['Her songs bind old oaths.'],
+      relationships: [{ npcName: 'Jarvis', summary: 'Wary informant.', label: 'wary informant', lastUpdatedAt: 'then' }],
+      lastUpdatedAt: 'then',
+    }],
+    dmMemory: {
+      recurringMotifs: ['songs as contracts'],
+      tableToneNotes: ['warm mystery'],
+      unresolvedConsequences: ['Jarvis is being watched'],
+      runningJokes: [],
+      promisesToHonor: ['Jarvis owes one answer'],
+      lastUpdatedAt: 'then',
+    },
+  }, {
+    characterMemories: [{
+      characterId: 'c1',
+      characterName: 'Foliza',
+      knownFacts: ['The diplomat bought names.'],
+      personalStakes: ['Her songs bind old oaths.'],
+      relationships: [{ npcName: 'Jarvis', summary: 'Helped under pressure.', label: 'nervous informant', score: 10, lastUpdatedAt: 'now' }],
+      lastUpdatedAt: 'now',
+    }],
+    dmMemory: {
+      recurringMotifs: ['songs as contracts', 'green seals'],
+      tableToneNotes: ['warm mystery'],
+      unresolvedConsequences: ['Jarvis is being watched', 'The diplomat escalates'],
+      runningJokes: ['the suspicious goose'],
+      promisesToHonor: ['Jarvis owes one answer'],
+      lastUpdatedAt: 'now',
+    },
+  });
+
+  assert.deepEqual(merged.characterMemories?.[0].knownFacts, ['Jarvis fears the diplomat.', 'The diplomat bought names.']);
+  assert.equal(merged.characterMemories?.[0].relationships[0].label, 'nervous informant');
+  assert.deepEqual(merged.dmMemory?.recurringMotifs, ['songs as contracts', 'green seals']);
+  assert.deepEqual(merged.dmMemory?.unresolvedConsequences, ['Jarvis is being watched', 'The diplomat escalates']);
+});
+
 test('world state reducer merges quests, notes, and discovered locations without duplicates', () => {
   const merged = mergeWorldStateChanges(
     {

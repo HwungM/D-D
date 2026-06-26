@@ -1,4 +1,4 @@
-import type { ActiveQuest, BackstoryHook, ForeshadowingEntry, LocationNode, NpcMemory, StoryLedgerEntry, WorldBible, WorldState } from '../../../shared/types';
+import type { ActiveQuest, BackstoryHook, CharacterMemory, ForeshadowingEntry, LocationNode, NpcMemory, StoryLedgerEntry, WorldBible, WorldState } from '../../../shared/types';
 import { actRoleFor, arcNumberFor } from './actPacingSystem';
 
 function toArr<T>(value: unknown): T[] {
@@ -29,6 +29,25 @@ function npcMemoryEntries(list: unknown): [string, NpcMemory][] {
 
 function isActiveQuest(value: unknown): value is ActiveQuest {
   return isRecord(value) && typeof value.title === 'string' && typeof value.description === 'string';
+}
+
+function isCharacterMemory(value: unknown): value is CharacterMemory {
+  return isRecord(value) && typeof value.characterId === 'string' && typeof value.characterName === 'string';
+}
+
+function uniqueBoundedStrings(values: unknown[], limit: number): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    if (typeof value !== 'string') continue;
+    const cleaned = value.trim();
+    if (!cleaned) continue;
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(cleaned);
+  }
+  return result.slice(-limit);
 }
 
 export function campaignLengthTargetActions(worldBible?: WorldBible): number {
@@ -330,6 +349,38 @@ export function mergeWorldStateChanges(current: WorldState, changes: Partial<Wor
     for (const entry of toArr<StoryLedgerEntry>(changes.storyLedger)) existing.set(entry.id, { ...existing.get(entry.id), ...entry });
     const all = Array.from(existing.values());
     merged.storyLedger = [...all.filter(entry => entry.status !== 'resolved').slice(-30), ...all.filter(entry => entry.status === 'resolved').slice(-20)];
+  }
+
+  if (changes.characterMemories) {
+    const existing = new Map(toArr<CharacterMemory>(current.characterMemories).map(memory => [memory.characterId, memory]));
+    for (const memory of toArr<CharacterMemory>(changes.characterMemories).filter(isCharacterMemory)) {
+      const prev = existing.get(memory.characterId);
+      const relationships = new Map((prev?.relationships || []).map(rel => [rel.npcName.toLowerCase(), rel]));
+      for (const rel of memory.relationships || []) relationships.set(rel.npcName.toLowerCase(), { ...relationships.get(rel.npcName.toLowerCase()), ...rel });
+      existing.set(memory.characterId, {
+        ...prev,
+        ...memory,
+        knownFacts: uniqueBoundedStrings([...(prev?.knownFacts || []), ...(memory.knownFacts || [])], 14),
+        personalStakes: uniqueBoundedStrings([...(prev?.personalStakes || []), ...(memory.personalStakes || [])], 10),
+        privateNotes: uniqueBoundedStrings([...(prev?.privateNotes || []), ...(memory.privateNotes || [])], 8),
+        relationships: Array.from(relationships.values()).slice(-12),
+      });
+    }
+    merged.characterMemories = Array.from(existing.values()).slice(-6);
+  }
+
+  if (changes.dmMemory) {
+    const prev = current.dmMemory;
+    merged.dmMemory = {
+      ...prev,
+      ...changes.dmMemory,
+      recurringMotifs: uniqueBoundedStrings([...(prev?.recurringMotifs || []), ...(changes.dmMemory.recurringMotifs || [])], 10),
+      tableToneNotes: uniqueBoundedStrings([...(prev?.tableToneNotes || []), ...(changes.dmMemory.tableToneNotes || [])], 8),
+      unresolvedConsequences: uniqueBoundedStrings([...(prev?.unresolvedConsequences || []), ...(changes.dmMemory.unresolvedConsequences || [])], 12),
+      runningJokes: uniqueBoundedStrings([...(prev?.runningJokes || []), ...(changes.dmMemory.runningJokes || [])], 8),
+      promisesToHonor: uniqueBoundedStrings([...(prev?.promisesToHonor || []), ...(changes.dmMemory.promisesToHonor || [])], 10),
+      lastUpdatedAt: changes.dmMemory.lastUpdatedAt || prev?.lastUpdatedAt || new Date().toISOString(),
+    };
   }
 
   if (changes.engineAudit) {
