@@ -1,5 +1,5 @@
 import type { Character, WorldBible, WorldState } from '../../../shared/types';
-import { STYLE_ANTI_REPETITION } from './aiPromptContracts';
+import { PLAYER_AUTHORSHIP_CONTRACT, STYLE_ANTI_REPETITION } from './aiPromptContracts';
 import { parseJsonRecord } from './aiResponseParser';
 import { characterGenderLine } from './narrationPromptBuilder';
 import { runRollOutcomeQualityGate } from './rollOutcomeQualityGate';
@@ -222,6 +222,7 @@ COMBAT STAKES: the enemies act on this outcome too. On near_miss, clear_fail, or
     : '';
 
   const prompt = `You are a DM resolving the outcome of a dice roll.
+${PLAYER_AUTHORSHIP_CONTRACT}
 The player attempted: ${rollContext.description}
 They rolled ${rollResult} + ${rollTotal - rollResult} (${rollContext.stat.toUpperCase()} modifier) = ${rollTotal} vs DC ${dc} - ${resultLabel}.
 Flavor hint for this outcome: "${flavorHint}"
@@ -237,7 +238,7 @@ Scene state: ${worldState.currentSceneSummary || 'use recent history and the rol
 Recent history:
 ${recentHistory.slice(-4).join('\n')}
 
-Write vivid outcome narration (100-150 words) that precisely matches the ${resultLabel} degree.
+Write concise outcome narration (70-120 words) that precisely matches the ${resultLabel} degree. Resolve only the attempted action and its immediate consequence, then stop at the first new decision.
 The near miss and partial success cases are the most narratively rich - use them to keep the story moving with texture rather than just pass/fail.
 Suggested actions should be 3-4 optional ideas grounded in the changed situation after the roll. Include a concrete scene feature, NPC, item, ability, ally, threat, clue, or exit when relevant. Avoid generic ideas.
 
@@ -297,6 +298,7 @@ COMBAT STAKES: the enemies act on this outcome too. On near_miss, clear_fail, or
     : `- ${actingCharacter.name}: ${rollResult} (${rollContext.stat.toUpperCase()} total ${rollTotal}) vs DC ${dc} — ${success ? 'SUCCESS' : 'FAILURE'}`;
 
   const prompt = `You are a DM resolving ONE SHARED CO-OP dice roll.
+${PLAYER_AUTHORSHIP_CONTRACT}
 This is not a solo beat. The roll outcome must resolve BOTH players' submitted actions as one coordinated scene.
 
 Roll attempted: ${rollContext.description}
@@ -327,12 +329,13 @@ ${rollLines}
 Recent history:
 ${recentHistory.slice(-6).join('\n') || '(none)'}
 
-Write vivid outcome narration (120-180 words) that precisely matches the ${resultLabel} degree.
+Write concise outcome narration (90-150 words) that precisely matches the ${resultLabel} degree.
 Requirements:
 - Name both ${actingCharacter.name} and ${partnerCharacter.name}.
 - Resolve every roll result listed above AND show how the two submitted actions helped, complicated, protected, or changed the outcome.
-- Do not write the partner as passive scenery.
+- Show how each submitted action affects the result, but do not invent extra dialogue, body language, emotion, movement, or follow-up for either hero.
 - If the result fails, the failure should affect the shared scene, not erase the partner's input.
+- Stop at the first new decision point; do not play the next action for the party.
 - Suggested actions should be 3-4 optional ideas grounded in the changed situation after this shared roll.
 
 Respond with JSON:

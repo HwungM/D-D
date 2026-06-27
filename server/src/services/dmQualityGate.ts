@@ -58,6 +58,89 @@ function actionFragments(actionsBlock: string): string[] {
     .slice(0, 16);
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function submittedActions(actionsBlock: string, coopNames?: string[]): Map<string, string> {
+  const actions = new Map<string, string>();
+  for (const line of actionsBlock.split('\n').map(value => value.trim()).filter(Boolean)) {
+    const coop = line.match(/^CHARACTER\s+\d+\s+\(([^,)]+)[^)]*\):\s*(.+)$/i);
+    if (coop) {
+      actions.set(coop[1].trim(), coop[2].trim());
+      continue;
+    }
+    const solo = line.match(/^([A-Z][A-Za-z0-9 '\-]{0,40}):\s*(.+)$/);
+    if (solo && !/^CHARACTER\s+\d+$/i.test(solo[1])) actions.set(solo[1].trim(), solo[2].trim());
+  }
+  for (const name of coopNames || []) {
+    if (actions.has(name)) continue;
+    const match = actionsBlock.match(new RegExp(`\\(${escapeRegExp(name)}(?:,|\\))[^\\n]*?:\\s*([^\\n]+)`, 'i'));
+    if (match) actions.set(name, match[1].trim());
+  }
+  return actions;
+}
+
+function actionAllows(action: string, verbs: string[]): boolean {
+  const lower = action.toLowerCase();
+  return verbs.some(verb => lower.includes(verb));
+}
+
+function playerAuthorshipIssues(narration: string, actionsBlock: string, coopNames?: string[]): DmQualityIssue[] {
+  const issues: DmQualityIssue[] = [];
+  const actions = submittedActions(actionsBlock, coopNames);
+  const speechVerbs = 'say|says|said|ask|asks|asked|reply|replies|replied|whisper|whispers|whispered|shout|shouts|shouted|rumble|rumbles|rumbled|warn|warns|warned|quip|quips|quipped';
+  const voluntaryPatterns: { pattern: string; verbs: string[]; label: string }[] = [
+    { pattern: 'nod(?:s|ded)?|smil(?:e|es|ed)|grin(?:s|ned)?|shrug(?:s|ged)?|laugh(?:s|ed)?|smirk(?:s|ed)?|agree(?:s|d)?|hesitat(?:e|es|ed)', verbs: ['nod', 'smil', 'grin', 'shrug', 'laugh', 'smirk', 'agree', 'hesitat'], label: 'reaction' },
+    { pattern: 'reach(?:es|ed)?|prod(?:s|ded)?|touch(?:es|ed)?|pick(?:s|ed)?\s+up|inspect(?:s|ed)?|follow(?:s|ed)?', verbs: ['reach', 'prod', 'touch', 'pick', 'inspect', 'follow'], label: 'follow-up action' },
+    { pattern: 'set(?:s)?\s+off|head(?:s|ed)?\s+(?:toward|for|to)|leave(?:s|d)?|depart(?:s|ed)?|walk(?:s|ed)?\s+(?:out|away)|make(?:s)?\s+(?:his|her|their)\s+way', verbs: ['set off', 'head', 'leave', 'depart', 'walk', 'make my way', 'make his way', 'make her way', 'make their way', 'go to', 'travel', 'exit'], label: 'scene transition' },
+  ];
+
+  for (const [name, action] of actions) {
+    const escaped = escapeRegExp(name);
+    const suppliedDialogue = /["“”]/.test(action);
+    const quotedBeforeSpeaker = new RegExp(`["“][^"”]{1,180}["”][^.!?]{0,45}\\b${escaped}\\b[^.!?]{0,45}\\b(?:${speechVerbs})\\b`, 'i');
+    const quotedAfterSpeaker = new RegExp(`\\b${escaped}\\b[^.!?]{0,45}\\b(?:${speechVerbs})\\b[^.!?]{0,60}["“]`, 'i');
+    if (!suppliedDialogue && (quotedBeforeSpeaker.test(narration) || quotedAfterSpeaker.test(narration))) {
+      issues.push(issue('invented_player_dialogue', `The narration puts exact words in ${name}'s mouth even though the player submitted only an action or intent.`));
+    }
+    for (const candidate of voluntaryPatterns) {
+      const match = narration.match(new RegExp(`\\b${escaped}\\b[^.!?]{0,90}\\b(${candidate.pattern})\\b`, 'i'));
+      if (match && !actionAllows(action, candidate.verbs)) {
+        issues.push(issue(`invented_player_${candidate.label.replace(/\s+/g, '_')}`, `The narration invents a voluntary ${candidate.label} for ${name} beyond the submitted action.`));
+        break;
+      }
+    }
+  }
+
+  if (/\b(exchange|share)(?:s|d)?\s+(?:a\s+)?(?:knowing|meaningful|wary|excited)?\s*(?:look|glance)|\bready\s+for\s+(?:the\s+)?(?:adventure|journey)|\bcuriosity\s+(?:is\s+)?piqued\b/i.test(narration)) {
+    const authorized = [...actions.values()].some(action => /\b(glance|look at|signal|react|ready|curious)\b/i.test(action));
+    if (!authorized) issues.push(issue('invented_player_reaction', 'The narration authors a shared glance, readiness, curiosity, or similar hero reaction that no player declared.'));
+  }
+
+  const travelAuthorized = [...actions.values()].some(action => /\b(go|leave|depart|travel|head|set off|walk out|exit|continue on|make .* way)\b/i.test(action));
+  if (!travelAuthorized && /\b(?:the party|the duo|they|together,? they|[A-Z][A-Za-z'\-]+)\b[^.!?]{0,80}\b(?:set off|head(?:s|ed)? (?:toward|for|to)|leave(?:s|d)?|depart(?:s|ed)?|make(?:s)? their way|step(?:s|ped)? out into the street)\b/i.test(narration)) {
+    issues.push(issue('unauthorized_scene_transition', 'The narration moves the heroes onward even though no player chose to leave or travel.'));
+  }
+  return issues;
+}
+
+function npcIdentityIssues(narration: string, worldState: WorldState): DmQualityIssue[] {
+  const issues: DmQualityIssue[] = [];
+  const seen = new Set<string>();
+  for (const npc of [...(worldState.npcMemory || []), ...(worldState.keyNPCs || [])]) {
+    if (!npc?.name || !npc.gender || seen.has(npc.name.toLowerCase())) continue;
+    seen.add(npc.name.toLowerCase());
+    const name = escapeRegExp(npc.name);
+    const wrong = npc.gender === 'male' ? 'she|her|hers' : npc.gender === 'female' ? 'he|him|his' : '';
+    if (!wrong) continue;
+    if (new RegExp(`\\b${name}\\b(?:(?![,;.!?]).){0,60}\\b(?:${wrong})\\b`, 'i').test(narration)) {
+      issues.push(issue('npc_identity_violation', `${npc.name} is canonically ${npc.gender}, but the narration uses contradictory pronouns.`));
+    }
+  }
+  return issues;
+}
+
 function overlapsRecentOpening(narration: string, recentHistory: string[]): boolean {
   const opening = firstSentence(narration).toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/).filter(w => w.length > 3);
   if (opening.length < 5) return false;
@@ -80,6 +163,11 @@ export function assessDmQuality(args: QualityGateArgs): DmQualityIssue[] {
     issues.push(issue('too_thin', 'The narration is too thin for a resolved beat; it likely lacks table texture, NPC reaction, or a concrete playable change.', 'warn'));
   }
 
+  const maxNormalWords = args.isCoop ? 170 : 140;
+  if (args.plan.pacingMode !== 'climax' && wordCount > maxNormalWords) {
+    issues.push(issue('overlong_table_turn', `The ${wordCount}-word response is too long for an ordinary table exchange; resolve the action and return control sooner.`));
+  }
+
   if (/\b(dc|skill check|ability check|roll a|rolled|modifier|advantage|disadvantage|mechanic|json)\b/i.test(narration)) {
     issues.push(issue('mechanics_leak', 'The player-facing narration exposes mechanics/system language instead of staying in fiction.'));
   }
@@ -98,6 +186,9 @@ export function assessDmQuality(args: QualityGateArgs): DmQualityIssue[] {
   if (/\b(you feel|you are filled with|you cannot help but|you realize with|you know in your heart|fear grips you|hope rises in you)\b/i.test(narration)) {
     issues.push(issue('agency_violation', 'The narration assigns inner feelings or conclusions to the player instead of presenting pressure and letting the player decide.'));
   }
+
+  issues.push(...playerAuthorshipIssues(narration, args.actionsBlock, args.coopNames));
+  issues.push(...npcIdentityIssues(narration, args.worldState));
 
   if (/\b(the party|the group|the duo|they both|together, they)\b/i.test(firstSentence(narration)) && args.isCoop) {
     issues.push(issue('stiff_coop_summary', 'The co-op opening summarizes the party instead of opening on a named character action, NPC reaction, or concrete table moment.', 'warn'));
@@ -148,7 +239,7 @@ export async function runDmQualityGate(
   const campaignLength = args.worldBible.playerPreferences?.campaignLength || 'medium';
   const system = `You are the DM QUALITY CRITIC for a D&D game. You are not the narrator. Your job is to decide whether the draft is actually good enough to show players.
 Be strict. Passing means the scene feels like a strong human DM at the table: responsive, tone-matched, coherent with recent story, not rushed, not stiff, not melodramatic unless the campaign asks for it, and mechanically honest.
-If it fails, revise ONLY the narration and optional sceneImagePrompt. Preserve the beat plan, roll state, player agency, and facts. Do not add resolved outcomes when a roll is pending.
+If it fails, revise ONLY the narration and optional sceneImagePrompt. Preserve the beat plan, roll state, player agency, and facts. Do not add resolved outcomes when a roll is pending. The DM controls NPCs and the world; players exclusively control their heroes' voluntary speech, emotions, gestures, movement, decisions, and follow-up actions.
 Return JSON only.`;
 
   const user = `CAMPAIGN TASTE:
@@ -187,7 +278,10 @@ Judge with this checklist:
 5. If co-op, every player character has distinct named presence.
 6. If a roll is pending, it stops before outcome.
 7. Uses established NPC/world memory when relevant.
-8. Feels like vivid table narration, not a stiff summary.
+8. Does not invent exact hero dialogue, body language, reactions, travel, or a next action that was not submitted.
+9. Stops at the first new decision point instead of playing through it.
+10. Every known NPC's identity and pronouns match canon.
+11. Is concise enough for table conversation; vivid table narration, not a miniature novel.
 
 Respond JSON:
 {
@@ -210,7 +304,7 @@ Respond JSON:
     });
     const content = response.choices[0].message.content || '{}';
     const parsed = parseJsonRecord(content);
-    const criticPassed = parsed.pass === true && deterministicIssues.filter(i => i.severity === 'fail').length === 0;
+    let criticPassed = parsed.pass === true && deterministicIssues.filter(i => i.severity === 'fail').length === 0;
     const revisedNarration = asString(parsed.revisedNarration);
     const revisedSceneImagePrompt = asString(parsed.revisedSceneImagePrompt);
     const modelIssues = Array.isArray(parsed.issues)
@@ -220,11 +314,48 @@ Respond JSON:
       ...deterministicIssues,
       ...modelIssues.map(label => issue(`critic_${label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'issue'}`, label, 'fail')),
     ];
-    const shouldRevise = !criticPassed && !!revisedNarration;
+    let shouldRevise = !criticPassed && !!revisedNarration;
+    let finalNarration: string = shouldRevise && revisedNarration ? revisedNarration : args.narration;
+    let finalSceneImagePrompt = shouldRevise ? (revisedSceneImagePrompt || args.sceneImagePrompt) : args.sceneImagePrompt;
+    let postRevisionIssues = shouldRevise
+      ? assessDmQuality({ ...args, narration: finalNarration })
+      : [];
+
+    // The critic is itself an AI and can "fix" one problem by inventing player
+    // dialogue or another continuity error. Re-check its revision and give it one
+    // focused retry before anything reaches the players.
+    if (shouldRevise && postRevisionIssues.some(item => item.severity === 'fail')) {
+      const retryResponse = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system' as const, content: system },
+          { role: 'user' as const, content: `${user}\n\nYOUR FIRST REVISION STILL FAILED THESE DETERMINISTIC CHECKS:\n${formatIssues(postRevisionIssues)}\n\nFIRST REVISION:\n"""\n${finalNarration}\n"""\nRewrite it again. Preserve facts and mechanics, but obey player authorship, NPC canon, the first-decision stopping point, and concise table pacing. Return the same JSON shape.` },
+        ],
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+      });
+      const retryContent = retryResponse.choices[0].message.content || '{}';
+      const retryParsed = parseJsonRecord(retryContent);
+      const retryNarration = asString(retryParsed.revisedNarration);
+      if (retryNarration) {
+        const retryIssues = assessDmQuality({ ...args, narration: retryNarration });
+        const retryFails = retryIssues.filter(item => item.severity === 'fail').length;
+        const priorFails = postRevisionIssues.filter(item => item.severity === 'fail').length;
+        if (retryFails < priorFails) {
+          finalNarration = retryNarration;
+          finalSceneImagePrompt = asString(retryParsed.revisedSceneImagePrompt) || finalSceneImagePrompt;
+          postRevisionIssues = retryIssues;
+        }
+      }
+      log('pipeline.qualityGate.retry', { isCoop: args.isCoop, remainingIssues: postRevisionIssues, rawResponse: retryContent });
+    }
+
+    criticPassed = postRevisionIssues.filter(item => item.severity === 'fail').length === 0
+      && (parsed.pass === true || shouldRevise);
     const result: DmQualityGateResult = {
-      narration: shouldRevise ? revisedNarration : args.narration,
-      sceneImagePrompt: shouldRevise ? (revisedSceneImagePrompt || args.sceneImagePrompt) : args.sceneImagePrompt,
-      issues,
+      narration: finalNarration,
+      sceneImagePrompt: finalSceneImagePrompt,
+      issues: [...issues, ...postRevisionIssues],
       revised: shouldRevise,
       criticPassed,
       criticRationale: asString(parsed.rationale),

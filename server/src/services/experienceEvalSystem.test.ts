@@ -57,6 +57,25 @@ test('experience eval catches roll outcomes that ignore a roller or contradict d
   assert.ok(report.issues.some(issue => issue.code === 'roll_actor_missing' && issue.message.includes('Skirmy')));
 });
 
+test('experience eval catches hero puppeting and recurring NPC identity drift', () => {
+  const report = evaluateExperienceFrame({
+    label: 'puppeted shop scene',
+    narration: 'Ryliss adjusts her cap. Gol and Saty exchange a knowing look. Together, they set off toward the Gilded Glade.',
+    actions: ['Gol asks Ryliss for more information', 'Saty asks Ryliss for more information'],
+    characters: [character('gol', 'Gol'), character('saty', 'Saty')],
+    isCoop: true,
+    suggestedActions: ['Inspect the letter', 'Ask about the silver moth', 'Watch the alley door'],
+    worldStateBefore: {
+      npcMemory: [{ name: 'Ryliss', disposition: 'friendly', notes: 'Nervous shopkeeper.', gender: 'male' }],
+    },
+  });
+
+  assert.equal(report.ready, false);
+  assert.ok(report.issues.some(issue => issue.code === 'player_agency_violation'));
+  assert.ok(report.issues.some(issue => issue.code === 'unauthorized_scene_transition'));
+  assert.ok(report.issues.some(issue => issue.code === 'npc_identity_violation'));
+});
+
 test('experience eval passes a healthy co-op memory beat', () => {
   const worldStateBefore: WorldState = {
     currentLocation: 'Verdant Valley',

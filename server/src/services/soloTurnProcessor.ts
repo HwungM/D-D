@@ -209,7 +209,7 @@ export async function processAction(
     campaignContext
   );
   enforceTurnPlanNarration(aiResponse, turnPlan);
-  applyContinuityRepairs(aiResponse, [character as Character], turnPlan.rails);
+  applyContinuityRepairs(aiResponse, [character as Character], turnPlan.rails, ws);
   const ungroundedFightBlocked = preventUngroundedFight(aiResponse, [action], ws.currentLocation, !!ws.combatState?.inCombat);
   const combatCompletenessFilled = ensureCombatEncounterCompleteness(aiResponse);
 

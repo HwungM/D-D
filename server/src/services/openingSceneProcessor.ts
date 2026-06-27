@@ -63,8 +63,8 @@ export async function getOpeningScene(
 
   const fallenHeroes = openingWs.fallenHeroes || [];
   const openingAction = fallenHeroes.length > 0
-    ? `SUCCESSOR_ENTRY: A new hero enters the world. The previous hero ${fallenHeroes[fallenHeroes.length - 1].name} (${fallenHeroes[fallenHeroes.length - 1].race} ${fallenHeroes[fallenHeroes.length - 1].class}, level ${fallenHeroes[fallenHeroes.length - 1].level}) fell — ${fallenHeroes[fallenHeroes.length - 1].cause}. The new hero is ${character.name}, ${character.race} ${character.class}. Acknowledge the fallen in a way that fits the world. NPCs who knew the previous hero may reference them.${villainMovePreamble}`
-    : `OPENING_SCENE${villainMovePreamble}`;
+    ? `SUCCESSOR_ENTRY: Frame ${character.name}, a new ${character.race} ${character.class}, already arriving at the first playable situation after the fall of ${fallenHeroes[fallenHeroes.length - 1].name} (${fallenHeroes[fallenHeroes.length - 1].race} ${fallenHeroes[fallenHeroes.length - 1].class}, level ${fallenHeroes[fallenHeroes.length - 1].level}) — ${fallenHeroes[fallenHeroes.length - 1].cause}. NPCs may acknowledge the fallen. Do not invent ${character.name}'s dialogue, emotions, gestures, decisions, or first voluntary action. End by asking what the player does.${villainMovePreamble}`
+    : `OPENING_SCENE: Establish the immediate place, NPC/world activity, pressure, and visible opportunities around ${character.name}. The hero is present but has not acted yet. Do not invent their dialogue, emotions, gestures, movement, decision, or opening action. Stop at the first choice and return control.${villainMovePreamble}`;
 
   const rawAiResponse = await generateNarration(
     openingAction,
@@ -219,8 +219,8 @@ export async function getCoopOpeningScene(
   };
 
   const [p1, p2] = party;
-  const openingDirective = `OPENING_SCENE — this is the campaign's first beat, not a player action. Open ONE shared scene that brings ${p1.name} and ${p2.name} together in the same place at the same moment. Establish where they are and why they are together, give each a concrete presence, and end on a hook or first choice. Single camera: no "Meanwhile", no splitting them across separate locations.${villainMovePreamble}`;
-  const partnerDirective = `Same opening scene — ${p2.name} is present alongside ${p1.name} in this one shared moment.`;
+  const openingDirective = `OPENING_SCENE — this is the campaign's first beat, not a player action. Frame ${p1.name} and ${p2.name} already together in ONE shared place and moment. Establish what they can perceive, what NPCs/the world are doing, and the first pressure or opportunity. Neither hero has acted yet: invent no dialogue, emotions, gestures, movement, agreement, or decision for either one. End at the first shared choice and return control. Single camera: no "Meanwhile" or split locations.${villainMovePreamble}`;
+  const partnerDirective = `Same opening scene — ${p2.name} is present alongside ${p1.name}, but has not taken a voluntary action yet. Do not perform the hero for the player.`;
 
   const rawAiResponse = await generateCoopNarration(
     [

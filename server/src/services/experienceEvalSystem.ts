@@ -99,8 +99,12 @@ export function evaluateExperienceFrame(frame: ExperienceEvalFrame): ExperienceE
   const narration = frame.narration || '';
   const lower = narration.toLowerCase();
 
-  if (wordCount(narration) < (frame.isCoop ? 80 : 45) && !frame.awaitingRoll) {
+  const words = wordCount(narration);
+  if (words < (frame.isCoop ? 80 : 45) && !frame.awaitingRoll) {
     issues.push(issue('thin_narration', 'Narration is too thin to establish consequence, reaction, and a next playable state.', 'warn'));
+  }
+  if (!frame.awaitingRoll && words > (frame.isCoop ? 170 : 140)) {
+    issues.push(issue('overlong_table_turn', 'Narration is too long for an ordinary table exchange and delays the next player decision.'));
   }
 
   if (/\b(dc|skill check|ability check|modifier|json|system prompt)\b/i.test(narration)) {
@@ -114,6 +118,28 @@ export function evaluateExperienceFrame(frame: ExperienceEvalFrame): ExperienceE
     }
     if (/\b(meanwhile|elsewhere|in another part|across town|on the other side of)\b/i.test(narration)) {
       issues.push(issue('split_camera', 'Co-op frame split the party instead of playing one shared table moment.'));
+    }
+  }
+
+  if (frame.actions?.length) {
+    const submitted = frame.actions.join(' | ');
+    if (/\b(exchange|share)(?:s|d)?\s+(?:a\s+)?(?:knowing|meaningful|wary|excited)?\s*(?:look|glance)|\bcuriosity\s+(?:is\s+)?piqued|\bready\s+for\s+(?:the\s+)?(?:adventure|journey)\b/i.test(narration)
+      && !/\b(glance|look at|signal|react|ready|curious)\b/i.test(submitted)) {
+      issues.push(issue('player_agency_violation', 'Frame invents a hero reaction that no player submitted.'));
+    }
+    if (!/\b(go|leave|depart|travel|head|set off|walk out|exit|continue on)\b/i.test(submitted)
+      && /\b(?:the party|the duo|they|together,? they)\b[^.!?]{0,80}\b(?:set off|head(?:s|ed)? (?:toward|for|to)|leave(?:s|d)?|depart(?:s|ed)?|make(?:s)? their way)\b/i.test(narration)) {
+      issues.push(issue('unauthorized_scene_transition', 'Frame moves the heroes onward without a submitted travel choice.'));
+    }
+  }
+
+  const seenNpcs = new Set<string>();
+  for (const npc of [...(frame.worldStateBefore?.npcMemory || []), ...(frame.worldStateBefore?.keyNPCs || []), ...(frame.worldStateAfter?.npcMemory || []), ...(frame.worldStateAfter?.keyNPCs || [])]) {
+    if (!npc.name || !npc.gender || seenNpcs.has(npc.name.toLowerCase())) continue;
+    seenNpcs.add(npc.name.toLowerCase());
+    const wrong = npc.gender === 'male' ? 'she|her|hers' : npc.gender === 'female' ? 'he|him|his' : '';
+    if (wrong && new RegExp(`\\b${escapeRegExp(npc.name)}\\b(?:(?![,;.!?]).){0,60}\\b(?:${wrong})\\b`, 'i').test(narration)) {
+      issues.push(issue('npc_identity_violation', `${npc.name}'s pronouns contradict established NPC canon.`));
     }
   }
 

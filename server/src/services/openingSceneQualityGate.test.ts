@@ -103,3 +103,23 @@ test('applyOpeningSceneQualityGate repairs missing presence and weak suggestions
   assert.ok(result.suggestedActions.length >= 3);
   assert.ok(result.character2SuggestedActions?.length && result.character2SuggestedActions.length >= 3);
 });
+
+test('opening quality rejects performing a hero before the first player choice', () => {
+  const issues = assessOpeningSceneQuality({
+    result: {
+      narration: 'Foliza stands in Verdant Valley market. Foliza smiles at Skirmy and says, "Let us follow the music." Skirmy nods and heads toward the sealed tent.',
+      diceRequired: false,
+      suggestedActions: ['Ask Jarvis about the seal', 'Inspect the sealed tent', 'Listen to the altered song'],
+      sceneImagePrompt: '',
+      isLevelUp: false,
+      isDeath: false,
+      isCombat: false,
+      isVictory: false,
+    },
+    worldBible,
+    characters: [character('c1', 'Foliza'), character('c2', 'Skirmy')],
+    isCoop: true,
+  });
+
+  assert.ok(issues.some(issue => issue.code === 'opening_player_authorship'));
+});

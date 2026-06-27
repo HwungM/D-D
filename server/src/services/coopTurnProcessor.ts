@@ -170,7 +170,7 @@ export async function processCoopAction(
     campaignContext
   );
   enforceTurnPlanNarration(aiResponse, coopPlan);
-  applyContinuityRepairs(aiResponse, characters, coopPlan.rails);
+  applyContinuityRepairs(aiResponse, characters, coopPlan.rails, ws);
   const ungroundedFightBlocked = preventUngroundedFight(aiResponse, pendingActions.map(pa => pa.action), ws.currentLocation, !!ws.combatState?.inCombat);
   const combatCompletenessFilled = ensureCombatEncounterCompleteness(aiResponse);
   if (coopPlan.resolvedRolls.length > 0) {
