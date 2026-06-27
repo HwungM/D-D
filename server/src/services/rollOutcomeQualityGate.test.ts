@@ -66,6 +66,34 @@ test('assessRollOutcomeQuality catches success/failure contradiction', () => {
   assert.ok(issues.some(issue => issue.code === 'failure_reads_as_success'));
 });
 
+test('roll quality catches invented hero speech, unchosen travel, and NPC pronoun drift', () => {
+  const issues = assessRollOutcomeQuality(baseArgs({
+    result: {
+      narration: '"We should leave now," Foliza says. Ryliss adjusts her cap. They set off toward the Gilded Glade.',
+      suggestedActions: ['Inspect the letter', 'Ask Ryliss about the seal', 'Watch the alley door'],
+      sceneImagePrompt: '',
+    },
+    rollContext: {
+      stat: 'cha',
+      description: 'Foliza asks Ryliss to reveal who delivered the letter',
+      successDescription: 'Ryliss reveals the courier.',
+      failDescription: 'Ryliss stays guarded.',
+    },
+    worldState: {
+      ...worldState,
+      npcMemory: [{ name: 'Ryliss', disposition: 'friendly', notes: 'Nervous shopkeeper.', gender: 'male' }],
+    },
+    actorNames: ['Foliza'],
+    isCoop: false,
+    rolls: undefined,
+  }));
+
+  const codes = issues.map(issue => issue.code);
+  assert.ok(codes.includes('invented_player_dialogue'));
+  assert.ok(codes.includes('unauthorized_scene_transition'));
+  assert.ok(codes.includes('npc_identity_violation'));
+});
+
 test('cleanRollSuggestedActions replaces generic suggestions with grounded fallbacks', () => {
   const actions = cleanRollSuggestedActions(['Continue', 'Look around', 'Ask Jarvis about the diplomat'], baseArgs());
 

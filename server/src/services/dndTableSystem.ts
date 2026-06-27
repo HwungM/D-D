@@ -66,7 +66,7 @@ function buildIdentityLines(characters: Character[], worldState: WorldState): st
       .map(([name, score]) => `${name} ${score} (${relationBand(score)})`)
       .join(', ');
     return [
-      `${character.name}: ${character.race} ${character.class}${character.subclass ? ` (${character.subclass})` : ''}, strongest ${strongestStats(character)}, weakest ${weakestStat(character)}.`,
+      `${character.name}: ${character.gender || 'gender unspecified'} ${character.race} ${character.class}${character.subclass ? ` (${character.subclass})` : ''}, strongest ${strongestStats(character)}, weakest ${weakestStat(character)}.`,
       compact(character.backstory) ? `Backstory cue: ${compact(character.backstory)}` : undefined,
       hook ? `Live hook: ${hook.hook} (${hook.status}).` : undefined,
       personalHistory ? `Remembered deeds: ${personalHistory}.` : undefined,
@@ -199,6 +199,8 @@ ROLL ADJUDICATION:
 - ${profile.rollDirective}
 - Ask for rolls only when the outcome is uncertain and failure would change the situation. Failure should move the story with cost/complication, not dead-end.
 - In co-op, never resolve a final outcome until all required player-facing rolls for the submitted actions are resolved.
+- The DM controls NPCs, opposition, facts, and consequences. Players control every voluntary word, feeling, gesture, movement, and follow-up action of their own heroes.
+- Resolve only submitted hero actions, then stop at the first new decision point. Do not invent exact hero dialogue, shared glances, agreement, travel, or the next likely move.
 
 CHARACTER IDENTITY & SPOTLIGHT:
 ${profile.identityLines.map(line => `- ${line}`).join('\n') || '- No character identity profile available.'}

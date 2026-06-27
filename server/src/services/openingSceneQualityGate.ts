@@ -76,6 +76,14 @@ export function assessOpeningSceneQuality(args: {
     issues.push(issue('split_camera_opening', 'The co-op opening appears to split the party instead of starting in one shared scene.'));
   }
 
+  for (const character of args.characters) {
+    const name = escapeRegExp(character.name);
+    const authoredBehavior = new RegExp(`\\b${name}\\b[^.!?]{0,80}\\b(?:says?|asks?|replies|nods?|smiles?|grins?|laughs?|agrees?|decides?|reaches?|touches?|follows?|sets? off|heads? (?:toward|for|to))\\b`, 'i');
+    if (authoredBehavior.test(narration)) {
+      issues.push(issue('opening_player_authorship', `The opening performs dialogue, emotion, gesture, or a voluntary action for ${character.name} before the player has acted.`));
+    }
+  }
+
   if (/\b(weeks pass|days pass|after a long journey|eventually|the next act|final confrontation)\b/i.test(narration)) {
     issues.push(issue('opening_rushes_time', 'The opening fast-forwards instead of playing the first table moment.'));
   }

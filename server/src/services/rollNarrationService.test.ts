@@ -108,6 +108,8 @@ test('buildRollOutcomePrompt includes degree guidance and combat consequence con
   assert.match(prompt, /ACTIVE COMBAT - Round 2/);
   assert.match(prompt, /Never narrate a wound without setting hpChange/);
   assert.match(prompt, /Bandit Cutter \(wounded\), Bandit Archer \(healthy\)/);
+  assert.match(prompt, /PLAYER AUTHORSHIP/);
+  assert.match(prompt, /70-120 words/);
 });
 
 test('buildCoopRollOutcomePrompt preserves both character actions in a shared roll', () => {
@@ -149,7 +151,9 @@ test('buildCoopRollOutcomePrompt preserves both character actions in a shared ro
   assert.match(prompt, /Foliza: 7 \(CHA total 12\) vs DC 15/);
   assert.match(prompt, /Skirmy: 16 \(WIS total 18\) vs DC 15/);
   assert.match(prompt, /Name both Foliza and Skirmy/);
-  assert.match(prompt, /Do not write the partner as passive scenery/);
+  assert.match(prompt, /do not invent extra dialogue/);
+  assert.match(prompt, /90-150 words/);
+  assert.match(prompt, /Stop at the first new decision point/);
 });
 
 test('parseRollOutcomeResponse normalizes unsafe or missing AI fields', () => {

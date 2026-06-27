@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { Character, WorldBible, WorldState } from '../../../shared/types';
 import {
   buildNarrationMessages,
+  buildNpcQuestMapBlock,
   buildStatHints,
   characterGenderLine,
   DM_SYSTEM_PROMPT,
@@ -67,4 +68,34 @@ test('buildNarrationMessages includes system prompt, character facts, and hard c
   assert.match(joined, /Moon Dock/);
   assert.match(joined, /Find the Bell/);
   assert.match(joined, /ABSOLUTE TURN RESOLUTION CONTRACT/);
+  assert.match(joined, /PLAYER AUTHORSHIP/);
+});
+
+test('NPC prompt context carries binding gender and pronouns', () => {
+  const block = buildNpcQuestMapBlock({
+    currentLocation: 'Whimsical Knick-Knack Shop',
+    npcMemory: [{
+      name: 'Ryliss',
+      disposition: 'friendly',
+      notes: 'Nervous gnome shopkeeper who knows the toy kingdom.',
+      role: 'merchant',
+      gender: 'male',
+    }],
+  });
+
+  assert.match(block, /Ryliss/);
+  assert.match(block, /male, he\/him/);
+});
+
+test('DM system prompt treats roadmap beats as adaptive pressure, not a forced script', () => {
+  assert.match(DM_SYSTEM_PROMPT, /not a predetermined scene/);
+  assert.match(DM_SYSTEM_PROMPT, /Do not teleport the party/);
+  assert.doesNotMatch(DM_SYSTEM_PROMPT, /DM ROADMAP shows exactly what the act climax is/);
+});
+
+test('race and class awareness changes world reactions without assigning hero personality', () => {
+  assert.match(DM_SYSTEM_PROMPT, /NEVER automatic personality traits/);
+  assert.match(DM_SYSTEM_PROMPT, /Do not automatically make the character hedonistic/);
+  assert.match(DM_SYSTEM_PROMPT, /The player decides how the warlock interprets or answers that pressure/);
+  assert.match(DM_SYSTEM_PROMPT, /Do not assume urban discomfort/);
 });

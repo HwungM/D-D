@@ -132,6 +132,19 @@ export function buildContinuityDirective(
     const p = pronounsFor(character);
     return `- ${character.name}: ${character.gender || 'unspecified'} ${character.race} ${character.class}; use ${p.label} only (${p.subject}/${p.object}/${p.possessive}).`;
   });
+  const seenNpcs = new Set<string>();
+  const npcCanon = [...(worldState.keyNPCs || []), ...(worldState.npcMemory || [])]
+    .filter(npc => {
+      const key = npc.name.toLowerCase();
+      if (seenNpcs.has(key)) return false;
+      seenNpcs.add(key);
+      return true;
+    })
+    .slice(-14)
+    .map(npc => {
+      const pronouns = npc.gender === 'male' ? 'he/him/his' : npc.gender === 'female' ? 'she/her/her' : npc.gender === 'nonbinary' ? 'they/them/their' : 'unspecified pronouns';
+      return `- ${npc.name}: ${npc.gender || 'gender unspecified'} (${pronouns}), ${npc.role || 'role unknown'}; ${npc.notes || npc.disposition}.`;
+    });
   const ledger = pressingLedger(worldState);
   const warnings = [repeatedLocationWarning(rails, worldState), repeatedIntentWarning(rails, worldState)].filter((v): v is string => !!v);
   const location = worldState.currentLocation || worldState.locationGraph?.currentLocation || worldBible.campaignBrief?.whereToStart || 'Unknown';
@@ -139,13 +152,16 @@ export function buildContinuityDirective(
   return `CONTINUITY LEDGER - HARD TABLE MEMORY:
 Character canon:
 ${canon.join('\n')}
+NPC canon:
+${npcCanon.length ? npcCanon.join('\n') : '- No recurring NPC canon recorded yet.'}
 Current committed location: ${location}
 ${ledger.length > 0 ? `Open story obligations:\n${ledger.map(entry => `- [${entry.urgency}/${entry.kind}] ${entry.title}: ${entry.summary}${entry.anchorLocation ? ` (location: ${entry.anchorLocation})` : ''}${entry.anchorNpc ? ` (NPC: ${entry.anchorNpc})` : ''}`).join('\n')}` : 'Open story obligations: none yet.'}
 ${warnings.length > 0 ? `Immediate continuity warnings:\n${warnings.map(w => `- ${w}`).join('\n')}` : 'Immediate continuity warnings: none.'}
 Rules:
 - If the player repeats a destination, question, or pressure tactic, escalate or resolve. Never loop the same hint.
 - If an open obligation is relevant to this action, pay it off, complicate it, or give a concrete next step this turn.
-- Do not change a character's pronouns, race, class, or agency to fit the narration.`;
+- Do not change a character's pronouns, race, class, or agency to fit the narration.
+- NPC gender, pronouns, role, personality, knowledge, and remembered history above are binding canon.`;
 }
 
 export function buildContinuityPatch(
@@ -238,22 +254,34 @@ export function buildContinuityPatch(
   return { storyLedger: [...open, ...resolved], recentPlayerActions };
 }
 
-export function applyContinuityRepairs<T extends NarrationResult>(response: T, characters: Character[], rails: ActionRail[]): T {
-  for (const character of characters) {
-    if (!character.gender || !response.narration.includes(character.name)) continue;
-    const p = pronounsFor(character);
-    const sentences = response.narration.split(/(?<=[.!?])\s+/).map(sentence => {
-      if (!sentence.includes(character.name)) return sentence;
-      if (character.gender === 'male') {
-        return sentence.replace(/\bShe\b/g, 'He').replace(/\bshe\b/g, 'he').replace(/\bHer(?=\s+\w)/g, 'His').replace(/\bher(?=\s+\w)/g, 'his').replace(/\bHer\b/g, 'Him').replace(/\bher\b/g, 'him');
-      }
-      if (character.gender === 'female') {
-        return sentence.replace(/\bHe\b/g, 'She').replace(/\bhe\b/g, 'she').replace(/\bHis(?=\s+\w)/g, 'Her').replace(/\bhis(?=\s+\w)/g, 'her').replace(/\bHim\b/g, 'Her').replace(/\bhim\b/g, 'her');
-      }
-      return sentence.replace(/\bHe\b|\bShe\b/g, 'They').replace(/\bhe\b|\bshe\b/g, p.subject).replace(/\bhim\b|\bher\b/g, p.object).replace(/\bhis\b|\bher\b/g, p.possessive);
-    });
-    response.narration = sentences.join(' ');
-  }
+export function applyContinuityRepairs<T extends NarrationResult>(response: T, characters: Character[], rails: ActionRail[], worldState?: WorldState): T {
+  const seen = new Set<string>();
+  const people = [
+    ...characters.filter(character => !!character.gender).map(character => ({ name: character.name, gender: character.gender! })),
+    ...[...(worldState?.keyNPCs || []), ...(worldState?.npcMemory || [])]
+      .filter(npc => !!npc.gender)
+      .map(npc => ({ name: npc.name, gender: npc.gender! })),
+  ].filter(person => {
+    const key = person.name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  response.narration = response.narration.split(/(?<=[.!?])\s+/).map(sentence => {
+    const named = people.filter(person => new RegExp(`\\b${person.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(sentence));
+    // Pronouns become ambiguous when multiple known people share a sentence;
+    // leave those to the quality critic rather than corrupting the wrong person.
+    if (named.length !== 1) return sentence;
+    const person = named[0];
+    if (person.gender === 'male') {
+      return sentence.replace(/\bShe\b/g, 'He').replace(/\bshe\b/g, 'he').replace(/\bHer(?=\s+\w)/g, 'His').replace(/\bher(?=\s+\w)/g, 'his').replace(/\bHer\b/g, 'Him').replace(/\bher\b/g, 'him');
+    }
+    if (person.gender === 'female') {
+      return sentence.replace(/\bHe\b/g, 'She').replace(/\bhe\b/g, 'she').replace(/\bHis(?=\s+\w)/g, 'Her').replace(/\bhis(?=\s+\w)/g, 'her').replace(/\bHim\b/g, 'Her').replace(/\bhim\b/g, 'her');
+    }
+    return sentence.replace(/\bHe\b|\bShe\b/g, 'They').replace(/\bhe\b|\bshe\b/g, 'they').replace(/\bHim\b|\bHer\b/g, 'Them').replace(/\bhim\b|\bher\b/g, 'them').replace(/\bHis\b|\bHer(?=\s+\w)/g, 'Their').replace(/\bhis\b|\bher(?=\s+\w)/g, 'their');
+  }).join(' ');
 
   const targetLocation = [...rails].reverse().find(r => r.targetLocation)?.targetLocation;
   if (targetLocation && !response.narration.toLowerCase().includes(targetLocation.toLowerCase())) {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Character, WorldBible, WorldState } from '../../../shared/types';
-import { runCoopTurnPipeline, runSoloTurnPipeline, type ChatClient } from './turnPipeline';
+import { narrationLengthGuide, runCoopTurnPipeline, runSoloTurnPipeline, type ChatClient } from './turnPipeline';
 
 // A fake chat client that routes each pass to a canned response by sniffing the
 // system prompt, so the pipeline plumbing can be tested without a real model.
@@ -106,7 +106,7 @@ test('quality gate revised narration is what extractor and final result receive'
       pass: false,
       issues: ['stiff summary'],
       rationale: 'Too summary-like.',
-      revisedNarration: 'King sets one hand on the scarred table. "Varric, give me the name." Varric stops polishing the cup; the old fear in his eyes has a shape now.',
+      revisedNarration: 'Varric stops polishing the cup when King asks for the name. He slides a folded note across the scarred table: the envoy signed it Adrian.',
       revisedSceneImagePrompt: 'a tense tavern table conversation',
     },
     extractor: { hpChange: null, activeNPC: 'Varric', suggestedActions: ['Press Varric for the name'], isCombat: false },
@@ -114,6 +114,12 @@ test('quality gate revised narration is what extractor and final result receive'
 
   const result = await runSoloTurnPipeline(client, log, 'ask Varric for the name', worldState, worldBible, makeCharacter('c1', 'King'), []);
   assert.deepEqual(calls, ['director', 'narrator', 'quality', 'extractor']);
-  assert.equal(result.narration, 'King sets one hand on the scarred table. "Varric, give me the name." Varric stops polishing the cup; the old fear in his eyes has a shape now.');
+  assert.equal(result.narration, 'Varric stops polishing the cup when King asks for the name. He slides a folded note across the scarred table: the envoy signed it Adrian.');
   assert.equal(result.sceneImagePrompt, 'a tense tavern table conversation');
+});
+
+test('table narration length guidance keeps ordinary exchanges concise', () => {
+  assert.match(narrationLengthGuide(true, 'exploration'), /80-150/);
+  assert.match(narrationLengthGuide(false, 'exploration'), /60-110/);
+  assert.match(narrationLengthGuide(true, 'climax'), /120-190/);
 });

@@ -1,5 +1,5 @@
 import type { Character, RollContext, WorldBible, WorldState } from '../../../shared/types';
-import { CO_OP_SINGLE_CAMERA_RULE } from './aiPromptContracts';
+import { CO_OP_SINGLE_CAMERA_RULE, PLAYER_AUTHORSHIP_CONTRACT } from './aiPromptContracts';
 import { parseJsonRecord } from './aiResponseParser';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
 import {
@@ -81,16 +81,24 @@ const NARRATOR_VOICE = `You are a world-class Dungeon Master writing the prose f
 - Respond to the player's declared action first. Make the situation concretely change by the end: a fact revealed, a price paid, a door opened, an NPC commits, the party moves or learns something specific. Never end on pure anticipation ("secrets just within reach", "a turning point") — that is stalling.
 - Vary your opening. Do NOT open on weather/sky/atmosphere. Open on action, dialogue, a reaction, or a sudden change.
 - Mix sentence length. Cut adjective stacking and overwrought sensory description. One vivid detail beats five generic ones. Dialogue sounds like people talking, not speeches.
-- Preserve agency: show pressure and consequence; never decide what the player feels or chooses.
+- Preserve agency: show pressure and consequence; never decide what the player says, feels, gestures, chooses, or does next beyond the submitted action.
 - Reuse established NPCs, wounds, debts, and clues before inventing new ones. A returning known NPC shows they remember the party.
 - NAME every NPC the moment they appear — never "the merchant", "a guard", "an old woman". Give a name that fits the region (e.g. "Varen, a grizzled trader"). Once named, stay consistent.
 - In combat, every standing enemy ACTS: it attacks, corners, or wounds, and a hit costs something. When a character drops below ~30% HP, telegraph mortal danger clearly. Never narrate a wound you don't mean, and never wave away a real fight.
-- Speak in second person. Keep system text, JSON, and DC reasoning out of the prose.`;
+- Speak in second person when it reads naturally. Keep system text, JSON, and DC reasoning out of the prose.
+${PLAYER_AUTHORSHIP_CONTRACT}`;
 
 const COOP_NARRATOR_VOICE = `${NARRATOR_VOICE}
 - CO-OP: Character 1 and Character 2 are TWO SEPARATE PEOPLE with different names, standing side by side in ONE shared scene. Refer to EACH BY NAME and act out EACH ONE's submitted action as their own. NEVER merge them into a single actor, never write one character performing the other's action, and never write phrases like "his other self" or "they both" to cover a move only one made. If Character 1 distracts and Character 2 flanks, show Character 1 distracting AND Character 2 flanking, each named.
-- ONE shared scene, single camera: both occupy the same moment, see and react to each other. NEVER write "Meanwhile" or split them into two parallel threads. Give each character concrete presence — an action, a reaction, a line of body language — every turn. Their bond is story material; leave openings for banter but let the players author their own words and feelings.
+- ONE shared scene, single camera: both occupy the same moment. NEVER write "Meanwhile" or split them into parallel threads. Give each character presence only through their submitted action or an unavoidable consequence. Do not invent body language, dialogue, emotions, agreement, or reactions to make them seem connected.
 ${CO_OP_SINGLE_CAMERA_RULE}`;
+
+export function narrationLengthGuide(isCoop: boolean, pacingMode: PacingMode): string {
+  if (isCoop) return pacingMode === 'climax' ? '120-190 words, urgent; no padding' : '80-150 words; ordinary dialogue may be shorter';
+  if (pacingMode === 'climax') return '100-160 words, urgent';
+  if (pacingMode === 'tension') return '70-120 words';
+  return '60-110 words; ordinary dialogue may be shorter';
+}
 
 function leanSceneContext(worldState: WorldState): string {
   const cs = worldState.combatState;
@@ -171,7 +179,7 @@ async function runDirectorPass(
 
   const system = `You are the DIRECTOR of a D&D table — a higher planning system that decides what THIS beat is about before the narrator writes it. You do not write prose. You make one sharp plan.
 PRIORITIZATION RULE: when a turn could do many things at once (combat + a thread payoff + a relationship shift), pick the ONE or TWO that matter most this beat and commit to landing them cleanly. Do not try to juggle everything — a focused beat beats a crowded one.
-Respect pacing: advance or pay off an open thread rather than restating it; honor any DIRECTOR BEAT and act-roadmap urgency.
+Respect pacing: advance or pay off an open thread rather than restating it; honor any DIRECTOR BEAT and act-roadmap pressure. Pacing may move NPCs, threats, clocks, and consequences, but it never authorizes you to move a hero, accept a hook for them, choose a route, or complete their next action.
 WHEN TO CALL FOR A ROLL (set needsRoll true — these are NOT auto-successes, and failure must be possible):
 - A physical feat against real resistance: forcing/lifting/bending/breaking/climbing/shoving/holding a door (str/dex).
 - Extracting a name, secret, or guarded truth from a reluctant or evasive NPC (cha persuade/intimidate, or wis insight).
@@ -179,7 +187,7 @@ WHEN TO CALL FOR A ROLL (set needsRoll true — these are NOT auto-successes, an
 - Stealth, pickpocketing/theft (ALWAYS a dex roll), lockpicking, or any attack with an uncertain outcome.
 - If several recent actions all just worked with no roll, the scene has no stakes — call for the roll when the outcome is uncertain AND failure would cost something. Do NOT roll for the trivial or purely expressive (looking at something in plain sight, walking somewhere safe, party conversation).
 COMBAT GROUNDING: only set combatStarting true if an enemy is ALREADY established in the scene (named in recent history, the active NPC turning hostile, or a creature the narration has already placed here). A bare intent like "look for a fight", "find something to kill", or "go hunting trouble" with no enemy yet present MUST set combatStarting false — make the beat about discovering a sign, trail, witness, or lead that points toward a real encounter next. Do not conjure an enemy out of nowhere to satisfy the action.${args.isCoop ? `
-CO-OP: there are TWO distinct player characters with different names and ids. BOTH submitted actions are mandatory — include one priority for EACH character's action, named (e.g. "King draws the guard's eye" AND "Sun Mi slips the lock"). The focus rule does NOT let you drop, merge, or reassign either player's action; co-op always keeps both present. spotlightCharacterId and actingCharacterId must be a real character id from the actions below.` : ''}`;
+CO-OP: there are TWO distinct player characters with different names and ids. BOTH submitted actions are mandatory — include one priority for EACH character's declared action. Do not add a reaction, gesture, quote, movement, or follow-up that the player did not submit. The focus rule does NOT let you drop, merge, or reassign either action; spotlightCharacterId and actingCharacterId must be a real character id from the actions below.` : ''}`;
 
   const user = `${args.charactersBlock}
 
@@ -246,6 +254,7 @@ async function runNarratorPass(
     isCoop: boolean;
     coopNames?: string[];
     tableDirectives?: string;
+    campaignContext?: NarrationCampaignContext | null;
   },
 ): Promise<{ narration: string; sceneImagePrompt: string }> {
   const { plan, worldState, worldBible } = args;
@@ -255,7 +264,7 @@ async function runNarratorPass(
   const combatDirective = plan.combatActive || plan.combatStarting
     ? `Combat is live. Every standing enemy acts and a hit must cost something; narrate wounds that the mechanics will then apply.`
     : '';
-  const lengthGuide = args.isCoop ? '200-300 words, both characters present' : plan.pacingMode === 'climax' ? '80-120 words, urgent' : plan.pacingMode === 'tension' ? '100-150 words' : '150-250 words';
+  const lengthGuide = narrationLengthGuide(args.isCoop, plan.pacingMode);
 
   const system = args.isCoop ? COOP_NARRATOR_VOICE : NARRATOR_VOICE;
   const user = `BEAT PLAN (write prose that lands exactly this — nothing more):
@@ -274,14 +283,17 @@ ${args.charactersBlock}
 WORLD: ${worldBible.era} | ${worldBible.magicSystem}
 ${leanSceneContext(worldState)}
 ${buildLoreContextBlock(worldBible)}
-${buildNpcQuestMapBlock(worldState)}
+${buildNpcQuestMapBlock(worldState, args.campaignContext)}
 ${args.tableDirectives ? `\n${args.tableDirectives}` : ''}
+${args.campaignContext?.continuityDirectives ? `\nCONTINUITY DIRECTIVES:\n${args.campaignContext.continuityDirectives}` : ''}
+${args.campaignContext?.memoryContext ? `\nCAMPAIGN MEMORY:\n${args.campaignContext.memoryContext}` : ''}
 
 RECENT HISTORY:
 ${args.recentHistory.slice(-6).join('\n') || '(beginning)'}
 
 ${args.actionsBlock}
-${args.isCoop && args.coopNames?.length === 2 ? `\nHARD REQUIREMENT: ${args.coopNames[0]} AND ${args.coopNames[1]} are two different people. BOTH must appear by name and perform their OWN submitted action in this one shared scene. Do NOT attribute ${args.coopNames[1]}'s action to ${args.coopNames[0]}, never write "his other self" or "the other ${args.coopNames[0]}", and never call ${args.coopNames[1]} by ${args.coopNames[0]}'s name.` : ''}
+PLAYER AUTHORSHIP BOUNDARY: The only voluntary hero actions authorized for this response are exactly the submitted actions above. Resolve their immediate effects, then stop at the first new decision. Do not invent exact hero dialogue unless it was submitted verbatim.
+${args.isCoop && args.coopNames?.length === 2 ? `\nHARD REQUIREMENT: ${args.coopNames[0]} AND ${args.coopNames[1]} are two different people. BOTH must appear by name and perform only their OWN submitted action in this one shared scene. Do NOT attribute ${args.coopNames[1]}'s action to ${args.coopNames[0]}, and do not invent a reaction or next move for either character.` : ''}
 
 Write the prose (${lengthGuide}). Respond with JSON: {"narration": "the story text the players see", "sceneImagePrompt": "a brief vivid scene description for image generation"}`;
 
@@ -471,7 +483,7 @@ export async function runSoloTurnPipeline(
     actionsBlock, charactersBlock, worldState, worldBible, campaignContext, isCoop: false, tableDirectives,
   });
   const draft = await runNarratorPass(openai, log, {
-    plan, actionsBlock, charactersBlock, worldState, worldBible, recentHistory, isCoop: false, tableDirectives,
+    plan, actionsBlock, charactersBlock, worldState, worldBible, recentHistory, isCoop: false, tableDirectives, campaignContext,
   });
   const quality = await runDmQualityGate(openai, log, {
     narration: draft.narration,
@@ -530,7 +542,7 @@ CHARACTER 2 (id: ${c2.id}):\n${characterLine(c2)}\nInventory: ${c2.inventory.sli
     priorities: [`${c1.name} — ${a1.action}`, `${c2.name} — ${a2.action}`],
   };
   const draft = await runNarratorPass(openai, log, {
-    plan: narratorPlan, actionsBlock, charactersBlock, worldState, worldBible, recentHistory, isCoop: true, coopNames: [c1.name, c2.name], tableDirectives,
+    plan: narratorPlan, actionsBlock, charactersBlock, worldState, worldBible, recentHistory, isCoop: true, coopNames: [c1.name, c2.name], tableDirectives, campaignContext,
   });
   const quality = await runDmQualityGate(openai, log, {
     narration: draft.narration,

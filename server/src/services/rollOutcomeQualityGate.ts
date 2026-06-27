@@ -156,8 +156,12 @@ export function assessRollOutcomeQuality(args: RollOutcomeQualityArgs): RollOutc
   const lower = narration.toLowerCase();
   const issues: RollOutcomeQualityIssue[] = [];
 
-  if (wordCount(narration) < (args.isCoop ? 80 : 55)) {
-    issues.push(issue('too_thin', 'The roll outcome is too thin to carry the table consequence, character reaction, and changed situation.', 'warn'));
+  const words = wordCount(narration);
+  if (words < (args.isCoop ? 70 : 45)) {
+    issues.push(issue('too_thin', 'The roll outcome is too thin to carry the table consequence and changed situation.', 'warn'));
+  }
+  if (words > (args.isCoop ? 160 : 130)) {
+    issues.push(issue('overlong_roll_outcome', 'The roll outcome continues too long instead of resolving the attempt and returning control.'));
   }
 
   if (MECHANICS_WORDS.test(narration)) {
@@ -184,6 +188,30 @@ export function assessRollOutcomeQuality(args: RollOutcomeQualityArgs): RollOutc
     const missing = args.actorNames.filter(name => !includesName(narration, name));
     if (missing.length > 0) {
       issues.push(issue('coop_character_missing', `The co-op roll outcome dropped character(s): ${missing.join(', ')}.`));
+    }
+  }
+
+  const submittedDialogue = /["“”]/.test(args.rollContext.description || '');
+  const speechVerbs = 'say|says|said|ask|asks|asked|reply|replies|replied|whisper|whispers|shout|shouts|quip|quips';
+  for (const name of args.actorNames) {
+    const escaped = escapeRegExp(name);
+    const quotedBefore = new RegExp(`["“][^"”]{1,180}["”][^.!?]{0,45}\\b${escaped}\\b[^.!?]{0,45}\\b(?:${speechVerbs})\\b`, 'i');
+    const quotedAfter = new RegExp(`\\b${escaped}\\b[^.!?]{0,45}\\b(?:${speechVerbs})\\b[^.!?]{0,60}["“]`, 'i');
+    if (!submittedDialogue && (quotedBefore.test(narration) || quotedAfter.test(narration))) {
+      issues.push(issue('invented_player_dialogue', `The roll outcome invents exact dialogue for ${name}.`));
+    }
+  }
+
+  const travelAttempted = /\b(go|leave|depart|travel|head|set off|walk out|exit|flee|escape|cross)\b/i.test(args.rollContext.description || '');
+  if (!travelAttempted && /\b(?:the party|the duo|they|[A-Z][A-Za-z'\-]+)\b[^.!?]{0,80}\b(?:set off|head(?:s|ed)? (?:toward|for|to)|leave(?:s|d)?|depart(?:s|ed)?|make(?:s)? their way)\b/i.test(narration)) {
+    issues.push(issue('unauthorized_scene_transition', 'The roll outcome moves the heroes into an unchosen follow-up action.'));
+  }
+
+  for (const npc of [...(args.worldState.npcMemory || []), ...(args.worldState.keyNPCs || [])]) {
+    if (!npc.name || !npc.gender) continue;
+    const wrong = npc.gender === 'male' ? 'she|her|hers' : npc.gender === 'female' ? 'he|him|his' : '';
+    if (wrong && new RegExp(`\\b${escapeRegExp(npc.name)}\\b(?:(?![,;.!?]).){0,60}\\b(?:${wrong})\\b`, 'i').test(narration)) {
+      issues.push(issue('npc_identity_violation', `${npc.name}'s pronouns contradict established NPC canon.`));
     }
   }
 
@@ -249,7 +277,7 @@ export async function runRollOutcomeQualityGate(
   const hasFail = deterministicIssues.some(i => i.severity === 'fail');
 
   const system = `You are the ROLL OUTCOME QUALITY CRITIC for a D&D game. You are not rolling dice and you are not changing the result.
-Your job: decide if the draft outcome honestly matches the dice, respects every co-op player, preserves agency, and leaves useful next choices.
+Your job: decide if the draft outcome honestly matches the dice, respects every co-op player, preserves agency, and leaves useful next choices. Players own their heroes' voluntary dialogue, emotion, gestures, movement, decisions, and follow-up actions.
 If it fails, revise only the player-facing JSON fields needed to make it table-ready. Preserve mechanics and the actual success/failure facts. Return JSON only.`;
 
   const user = `ROLL FACTS:
@@ -278,7 +306,10 @@ Checklist:
 3. Co-op outcomes name and respect every involved character and every submitted/resolved roll.
 4. No mechanics leak into narration.
 5. Suggested actions are concrete, scene-grounded, and useful for the next player choice.
-6. The result feels like a strong human DM resolving a live table moment.
+6. It resolves only the attempted action and unavoidable consequences, then stops at the first new decision.
+7. It invents no hero dialogue, emotion, gesture, travel, or follow-up action.
+8. Known NPC identity and pronouns remain canonical.
+9. The result feels like a concise human DM resolving a live table moment.
 
 Respond JSON:
 {

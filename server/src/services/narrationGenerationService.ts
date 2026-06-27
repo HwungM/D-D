@@ -1,5 +1,5 @@
 import type { Character, WorldState, WorldBible } from '../../../shared/types';
-import { CO_OP_SINGLE_CAMERA_RULE, STYLE_ANTI_REPETITION, TURN_RESOLUTION_CONTRACT } from './aiPromptContracts';
+import { CO_OP_SINGLE_CAMERA_RULE, PLAYER_AUTHORSHIP_CONTRACT, STYLE_ANTI_REPETITION, TURN_RESOLUTION_CONTRACT } from './aiPromptContracts';
 import { parseJsonRecord } from './aiResponseParser';
 import { repairNarrationDraftIfNeeded, type AiTurnRepairMessage } from './aiTurnRepairSystem';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
@@ -168,10 +168,10 @@ STAT CONTEXT (factor into suggestedActions): ${buildStatHints(s) || 'balanced st
   const spotlightDiff = char1Spotlights - char2Spotlights
 
   const spotlightDirective = spotlightDiff > 2
-    ? `SPOTLIGHT NOTE: ${c1.name} has had significantly more spotlight moments (${char1Spotlights} vs ${char2Spotlights}). This scene should lean toward ${c2.name} - their action drives the outcome, or the scene's emotional center lands on their backstory, expertise, or relationships. A quiet beat built around ${c2.name} counts as much as a heroic one. Make their contribution feel decisive.`
+    ? `SPOTLIGHT NOTE: ${c1.name} has had significantly more spotlight moments (${char1Spotlights} vs ${char2Spotlights}). Let ${c2.name}'s submitted action create the more consequential world response this turn. Do not invent additional behavior, emotion, or dialogue for either hero.`
     : spotlightDiff < -2
-    ? `SPOTLIGHT NOTE: ${c2.name} has had significantly more spotlight moments (${char2Spotlights} vs ${char1Spotlights}). This scene should lean toward ${c1.name} - their action drives the outcome, or the scene's emotional center lands on their backstory, expertise, or relationships. A quiet beat built around ${c1.name} counts as much as a heroic one. Make their contribution feel decisive.`
-    : `SPOTLIGHT NOTE: Spotlight balance is even (${char1Spotlights} vs ${char2Spotlights}). Keep it that way: give each character a distinct, personal contribution this scene - if one gets the decisive action beat, give the other the emotional, social, or clever beat.`
+    ? `SPOTLIGHT NOTE: ${c2.name} has had significantly more spotlight moments (${char2Spotlights} vs ${char1Spotlights}). Let ${c1.name}'s submitted action create the more consequential world response this turn. Do not invent additional behavior, emotion, or dialogue for either hero.`
+    : `SPOTLIGHT NOTE: Spotlight balance is even (${char1Spotlights} vs ${char2Spotlights}). Resolve both submitted actions distinctly. Balance impact through NPC/world consequences, not invented hero reactions.`
 
   const worldContext = `WORLD: ${worldBible.era} | ${worldBible.magicSystem}
 Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
@@ -205,7 +205,7 @@ ${campaignContext?.continuityDirectives ? `\n${campaignContext.continuityDirecti
 CHARACTER 1 (${c1.name}, id: ${c1.id}) ACTION: ${a1.action}
 CHARACTER 2 (${c2.name}, id: ${c2.id}) ACTION: ${a2.action}
 ${spotlightDirective ? `\n${spotlightDirective}` : ''}
-Write ONE unified narration (200-300 words) weaving both actions together. Apply the CO-OP NARRATION RULES.
+  Write ONE concise unified narration, usually 80-150 words, resolving both submitted actions in the shared scene. Ordinary dialogue may be shorter. Apply the CO-OP NARRATION RULES and stop at the first new player decision.
 
 DICE ROLLS & COMBAT APPLY HERE TOO - same as solo play:
 - If either character's action requires a skill check (including pickpocketing/theft - this ALWAYS requires a roll), set awaitingRoll: true, populate rollContext, and set actingCharacterId to whichever character (id) is making that roll. Write a tense setup narration that builds to the roll without resolving it - DO NOT resolve either character's action's outcome in this case.
@@ -220,7 +220,7 @@ DICE ROLLS & COMBAT APPLY HERE TOO - same as solo play:
 - WEATHER & TIME OF DAY RULES apply here too - factor timeOfDay/weather into difficulty, NPC availability, and pacing for both characters.
 - SHOP/MERCHANT RULES apply here too - if either character encounters a merchant, set isMerchant: true and populate shopItems with 4-8 items appropriate to the setting (varied types: weapons, armor, potions, curiosities). Never stock a merchant with a single item.
 - NPC conversation tracking applies here too - set activeNPC to the name of whichever NPC either character is actively talking to, or null if the conversation ended or the party moved on.
-- QUIET CHARACTER MOMENTS and PARTY BOND & ROMANCE BEATS apply here too. If the moment is calm and the players are engaging with each other (talking, teasing, planning, an affectionate gesture), let that BE the scene - weave it warmly, give the world one small reaction, and do not interrupt it with a manufactured threat. Both characters must have concrete presence in every narration.
+- QUIET CHARACTER MOMENTS and PARTY BOND & ROMANCE BEATS apply here too. If the players submitted talking, teasing, planning, or affection, let that be the scene and do not interrupt it with a manufactured threat. Preserve their submitted words and gestures exactly; do not add new ones.
 - IMPORTANT: If any named NPC appears, speaks, is referenced as a contact, gives information, changes disposition, or becomes the active conversation partner, update worldStateChanges.npcMemory with that NPC's name, disposition, notes, lastMet, metCharacters, interactionCount, role, gender, relationshipScore, and relationshipLabel. Adjust relationshipScore based on the interaction (+/- 5 to 50 depending on impact). When updating a known NPC, carry their established notes forward and append what changed (notes REPLACE the old ones). Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.
 
 COMBO MOVES:
@@ -342,7 +342,7 @@ Respond with JSON:
   }
 }`;
 
-  const coopContractBlock = TURN_RESOLUTION_CONTRACT + '\n' + CO_OP_SINGLE_CAMERA_RULE + '\n' + STYLE_ANTI_REPETITION;
+  const coopContractBlock = PLAYER_AUTHORSHIP_CONTRACT + '\n' + TURN_RESOLUTION_CONTRACT + '\n' + CO_OP_SINGLE_CAMERA_RULE + '\n' + STYLE_ANTI_REPETITION;
   const messages = [
     { role: 'system', content: DM_SYSTEM_PROMPT },
     { role: 'user', content: worldContext },
@@ -364,7 +364,7 @@ Respond with JSON:
     isCoop: true,
     action: `${a1.action} || ${a2.action}`,
     messages,
-    buildRepairInstruction: issues => `The previous response failed quality validation because it did not concretely resolve the players' actions:\n- ${issues.join('\n- ')}\n\nRewrite while preserving continuity. Do not add vague mystery language. Do not open with weather or ambient atmosphere. You MUST reveal a specific fact OR call for a roll OR change the situation. Keep both characters in ONE shared scene. Return the SAME JSON object with the same mechanical values (hpChange, loot, goldChange, awaitingRoll, etc.), changing only the narration, suggestedActions, and turnOutcome as needed.`,
+    buildRepairInstruction: issues => `The previous response failed quality validation:\n- ${issues.join('\n- ')}\n\nRewrite while preserving continuity and the PLAYER AUTHORSHIP boundary. Resolve only the submitted actions, do not invent hero dialogue/body language/movement/decisions, and stop at the first new decision point. Do not add vague mystery language or weather filler. Keep both characters in ONE shared scene. Return the SAME JSON object with the same mechanical values (hpChange, loot, goldChange, awaitingRoll, etc.), changing only the narration, suggestedActions, and turnOutcome as needed.`,
     requestRepair: async repairMessages => {
       const retry = await openai.chat.completions.create({
         model: 'gpt-4o',

@@ -94,3 +94,14 @@ test('detectNarrationIssues allows guarded uncertainty when a roll is requested'
 
   assert.deepEqual(issues, []);
 });
+
+test('detectNarrationIssues catches hero puppeting and unchosen scene transitions', () => {
+  const issues = detectNarrationIssues(
+    'Gol and Saty exchange a knowing look. Together, they set off toward the Gilded Glade.',
+    true,
+    { action: 'Ask Ryliss for more information' },
+  );
+
+  assert.ok(issues.some(item => item.includes('invented a hero reaction')));
+  assert.ok(issues.some(item => item.includes('unchosen scene transition')));
+});

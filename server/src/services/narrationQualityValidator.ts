@@ -90,6 +90,21 @@ export function detectNarrationIssues(
     issues.push('You split the party with parallel narration ("Meanwhile"/"Elsewhere"). Rewrite as ONE shared scene: both characters in the same place and moment, reacting to each other and the same NPCs. Never cut away to a separate conversation.');
   }
 
+  const words = narration.trim().split(/\s+/).filter(Boolean).length;
+  if (isCoop && words > 170) {
+    issues.push(`The ${words}-word co-op response is a miniature story chapter. Rewrite in roughly 80-150 words: resolve both submitted actions, show the world response, and return control.`);
+  }
+
+  if (/\b(exchange|share)(?:s|d)?\s+(?:a\s+)?(?:knowing|meaningful|wary|excited)?\s*(?:look|glance)|\bcuriosity\s+(?:is\s+)?piqued|\bready\s+for\s+(?:the\s+)?(?:adventure|journey)\b/i.test(narration)
+    && !/\b(glance|look at|signal|react|ready|curious)\b/i.test(action)) {
+    issues.push('You invented a hero reaction (shared glance, curiosity, readiness, or similar) that the players did not submit. Remove it; players author their characters.');
+  }
+
+  if (!/\b(go|leave|depart|travel|head|set off|walk out|exit|continue on)\b/i.test(action)
+    && /\b(?:the party|the duo|they|together,? they)\b[^.!?]{0,80}\b(?:set off|head(?:s|ed)? (?:toward|for|to)|leave(?:s|d)?|depart(?:s|ed)?|make(?:s)? their way)\b/i.test(narration)) {
+    issues.push('You moved the heroes into an unchosen scene transition. Stop at the new lead, exit, or decision and let the players choose whether to go.');
+  }
+
   // B. Weather / atmosphere opener crutch
   const opener = lower.slice(0, 170);
   if (/(overcast|clouded (?:sky|heaven)|grey sk|gray sk|the air (?:seems|is|hangs|grows|was|filled|thick)|muted (?:glow|light|filter)|sunlight (?:filter|stream|dappl)|sky (?:casts|adds|looms|offers)|skies loom|beneath the .{0,20}sky|under the .{0,20}sky|the (?:market|crowd|square) (?:buzz|bustl|hum))/.test(opener)) {
