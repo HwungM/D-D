@@ -3,8 +3,9 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
 import { generateStorySeed, generateWorldBible } from '../services/openai';
 import { z } from 'zod';
-import type { LocationGraph, WorldBible, WorldState } from '../../../shared/types';
+import type { LocationGraph, PartyComposition, WorldBible, WorldState } from '../../../shared/types';
 import { aiRateLimit } from '../middleware/rateLimit';
+import { generateStartingCompanions } from '../services/companionGenerationService';
 
 const router = Router();
 
@@ -69,7 +70,6 @@ router.post('/', requireAuth, aiRateLimit, async (req: AuthRequest, res: Respons
     | {
         playMode?: 'solo' | 'collaborative';
         partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now';
-        campaignLength?: 'one_shot' | 'short' | 'medium' | 'long' | 'open_ended';
         tone?: string;
         artStyle?: string;
         favoritePillars?: string[];
@@ -77,6 +77,7 @@ router.post('/', requireAuth, aiRateLimit, async (req: AuthRequest, res: Respons
         targetPlayerCount?: number;
         waitForParty?: boolean;
         characterConcepts?: string[];
+        partyComposition?: PartyComposition;
       }
     | undefined;
 
@@ -84,6 +85,7 @@ router.post('/', requireAuth, aiRateLimit, async (req: AuthRequest, res: Respons
     const worldBible = await generateWorldBible(storySeed, playerPreferences);
     const openingLocation = worldBible.geography[0]?.name || 'Unknown';
     const locationGraph = initialLocationGraph(worldBible);
+    const companions = generateStartingCompanions(worldBible, playerPreferences?.partyComposition);
     const initialWorldState: WorldState = {
       currentLocation: openingLocation,
       timeOfDay: 'day',
@@ -94,6 +96,7 @@ router.post('/', requireAuth, aiRateLimit, async (req: AuthRequest, res: Respons
       discoveredLocations: [openingLocation],
       locationGraph,
       globalFlags: {},
+      ...(companions.length > 0 ? { companions } : {}),
     };
 
     const { data: campaign, error } = await supabaseAdmin

@@ -3,11 +3,8 @@ import type { WorldBible, WorldState } from '../../../shared/types';
 type ScenePurpose = NonNullable<WorldState['sceneState']>['purpose'];
 type PacingMode = NonNullable<WorldState['sceneState']>['pacingMode'];
 
-type CampaignLength = NonNullable<WorldBible['playerPreferences']>['campaignLength'];
-
 export interface StoryTasteProfile {
   tone: string;
-  campaignLength: CampaignLength;
   favoritePillars: string[];
   desiredSceneMix: Record<ScenePurpose, number>;
   clueCadence: 'fast' | 'steady' | 'slow' | 'living_world';
@@ -31,10 +28,6 @@ const DEFAULT_MIX: Record<ScenePurpose, number> = {
   rest: 0.35,
   climax: 0.2,
 };
-
-function getCampaignLength(value: CampaignLength | undefined): CampaignLength {
-  return value || 'medium';
-}
 
 function hasPillar(pillars: string[], needle: string): boolean {
   return pillars.some(p => p.toLowerCase().includes(needle));
@@ -81,12 +74,11 @@ function purposeFromRecentBalance(mix: Record<ScenePurpose, number>, worldState:
   return candidates[0]?.purpose || 'explore';
 }
 
-function maxSceneExchanges(length: CampaignLength, preferredPurpose: ScenePurpose): number {
-  const base =
-    length === 'one_shot' ? 2 :
-    length === 'short' ? 3 :
-    length === 'long' || length === 'open_ended' ? 5 :
-    4;
+// Every campaign is a continuous open-ended saga now, so this always uses the
+// old "long/open_ended" pacing: generous scene exchanges before forcing a
+// transition, since arcs chain forever rather than compressing toward an ending.
+function maxSceneExchanges(preferredPurpose: ScenePurpose): number {
+  const base = 5;
   if (preferredPurpose === 'social' || preferredPurpose === 'gather_info') return base + 1;
   if (preferredPurpose === 'combat') return Math.max(2, base - 1);
   return base;
@@ -95,7 +87,6 @@ function maxSceneExchanges(length: CampaignLength, preferredPurpose: ScenePurpos
 export function buildStoryTasteProfile(worldBible: WorldBible, worldState: WorldState): StoryTasteProfile {
   const prefs = worldBible.playerPreferences;
   const tone = prefs?.tone || 'Anything Goes';
-  const campaignLength = getCampaignLength(prefs?.campaignLength);
   const favoritePillars = prefs?.favoritePillars?.length ? prefs.favoritePillars : ['All of it equally'];
   const desiredSceneMix = buildSceneMix(favoritePillars);
   const preferredNextPurpose = purposeFromRecentBalance(desiredSceneMix, worldState);
@@ -107,21 +98,12 @@ export function buildStoryTasteProfile(worldBible: WorldBible, worldState: World
     tone.toLowerCase().includes('heroic') ? 'heroic' :
     tone.toLowerCase().includes('anything') ? 'flexible' :
     'measured';
-  const clueCadence =
-    campaignLength === 'one_shot' || campaignLength === 'short' ? 'fast' :
-    campaignLength === 'long' ? 'slow' :
-    campaignLength === 'open_ended' ? 'living_world' :
-    'steady';
-  const transitionPressure =
-    campaignLength === 'one_shot' || campaignLength === 'short' ? 'high' :
-    campaignLength === 'long' || campaignLength === 'open_ended' ? 'low' :
-    'medium';
-  const downtimeAllowance =
-    hasPillar(favoritePillars, 'roleplay') || campaignLength === 'long' || campaignLength === 'open_ended'
-      ? 'generous'
-      : campaignLength === 'one_shot'
-        ? 'brief'
-        : 'regular';
+  // Every campaign is a continuous open-ended saga now (no length tiers), so
+  // pacing always uses the old "open_ended" behavior: living-world clue cadence,
+  // low transition pressure, and generous downtime.
+  const clueCadence = 'living_world' as const;
+  const transitionPressure = 'low' as const;
+  const downtimeAllowance = 'generous' as const;
 
   const preferredPacingMode: PacingMode =
     worldState.endgamePhase === 'confrontation' ? 'climax' :
@@ -130,18 +112,17 @@ export function buildStoryTasteProfile(worldBible: WorldBible, worldState: World
     'exploration';
 
   const directiveLines = [
-    `Campaign taste: ${tone}; ${campaignLength || 'medium'} length; favorite pillars: ${favoritePillars.join(', ')}.`,
+    `Campaign taste: ${tone}; an ongoing open-ended saga (no fixed length); favorite pillars: ${favoritePillars.join(', ')}.`,
     `Runtime scene bias: prefer ${preferredNextPurpose} soon unless the players clearly choose otherwise.`,
     `Clue cadence: ${clueCadence}. Do not hoard necessary clues beyond this cadence.`,
-    `Transition pressure: ${transitionPressure}. ${transitionPressure === 'high' ? 'Move scenes decisively after a payoff or obstacle.' : transitionPressure === 'low' ? 'Allow character moments and place texture, but still end on a playable change.' : 'Balance momentum with breathing room.'}`,
-    `Downtime allowance: ${downtimeAllowance}. ${downtimeAllowance === 'generous' ? 'Let sincere party banter, care, romance, and quiet choices matter as real scenes.' : 'Keep downtime useful and tied to a decision, recovery, or relationship shift.'}`,
+    `Transition pressure: ${transitionPressure}. Allow character moments and place texture, but still end on a playable change.`,
+    `Downtime allowance: ${downtimeAllowance}. Let sincere party banter, care, romance, and quiet choices matter as real scenes.`,
     `Danger appetite: ${dangerAppetite}. ${dangerAppetite === 'deadly' ? 'Let danger cost resources, position, trust, or HP when provoked.' : dangerAppetite === 'heroic' ? 'Make victories bold, but preserve risk and consequence.' : 'Keep risk fair and legible.'}`,
     `Mystery density: ${mysteryDensity}; social density: ${socialDensity}.`,
   ];
 
   return {
     tone,
-    campaignLength,
     favoritePillars,
     desiredSceneMix,
     clueCadence,
@@ -152,7 +133,7 @@ export function buildStoryTasteProfile(worldBible: WorldBible, worldState: World
     socialDensity,
     preferredNextPurpose,
     preferredPacingMode,
-    maxSceneExchanges: maxSceneExchanges(campaignLength, preferredNextPurpose),
+    maxSceneExchanges: maxSceneExchanges(preferredNextPurpose),
     directiveLines,
   };
 }

@@ -1,14 +1,11 @@
-import type { StorySeedOption, WorldBible } from '../../../shared/types';
+import type { PartyComposition, StorySeedOption, WorldBible } from '../../../shared/types';
 import { parseJsonValueOrFallback } from './aiResponseParser';
 import { repairWorldBibleQuality } from './campaignQualityGate';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
 
-export type CampaignLength = 'one_shot' | 'short' | 'medium' | 'long' | 'open_ended';
-
 export type CampaignGenerationPlayerPreferences = {
   playMode?: 'solo' | 'collaborative';
   partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now';
-  campaignLength?: CampaignLength;
   tone?: string;
   artStyle?: string;
   favoritePillars?: string[];
@@ -16,6 +13,7 @@ export type CampaignGenerationPlayerPreferences = {
   targetPlayerCount?: number;
   waitForParty?: boolean;
   characterConcepts?: string[];
+  partyComposition?: PartyComposition;
 };
 
 type ChatClient = {
@@ -31,43 +29,16 @@ type ChatClient = {
   };
 };
 
-const CAMPAIGN_LENGTH_GUIDANCE: Record<CampaignLength, string> = {
-  one_shot: 'One-shot: compress the whole adventure into one focused arc with an immediate hook, a visible antagonist or threat, 3-6 major scenes, fast clues, and a satisfying ending. Avoid slow-burn mysteries unless they are sequel hooks.',
-  short: 'Short adventure: aim for a compact 2-3 act story over a few sessions. Reveal information quickly, keep travel purposeful, and make every faction/NPC serve the main arc.',
-  medium: 'Medium campaign: pace as a full campaign arc with room for travel, twists, downtime, character growth, and recurring NPCs. Use this as the balanced default.',
-  long: 'Long campaign: build for 30-60+ sessions with slow-burn mysteries, recurring rivals, faction turns, evolving locations, downtime, personal arcs, and delayed payoffs that still move forward each session.',
-  open_ended: 'Open-ended saga: create a living world with modular arcs and no forced final ending. Resolve local arcs cleanly, then open new fronts until the players choose to pursue an endgame.',
-};
-
-const CAMPAIGN_LENGTH_LABELS: Record<CampaignLength, string> = {
-  one_shot: 'One-Shot',
-  short: 'Short Adventure',
-  medium: 'Medium Campaign',
-  long: 'Long Campaign',
-  open_ended: 'Open-Ended Saga',
-};
-
-export function getCampaignLength(value?: string): CampaignLength {
-  if (value === 'one_shot' || value === 'short' || value === 'medium' || value === 'long' || value === 'open_ended') {
-    return value;
-  }
-  return 'medium';
-}
-
-export function getCampaignLengthGuidance(length: CampaignLength): string {
-  return CAMPAIGN_LENGTH_GUIDANCE[length];
-}
-
-export function getCampaignLengthLabel(length: CampaignLength): string {
-  return CAMPAIGN_LENGTH_LABELS[length];
-}
+// Every campaign is now one continuous, open-ended, multi-arc saga (no more
+// one_shot/short/medium/long tiers) — arcs chain forever like Critical Role's
+// Vox Machina campaign. This is the single guidance string used for all campaigns.
+export const OPEN_ENDED_CAMPAIGN_GUIDANCE =
+  'Open-ended saga: create a living world with modular arcs and no forced final ending. Resolve local arcs cleanly, then open new fronts (a new job, a new threat, a new mystery) forever, using the same characters and world, until the players themselves choose to stop.';
 
 export function normalizeGeneratedWorldBible(
   parsed: WorldBible,
   playerPreferences?: CampaignGenerationPlayerPreferences,
 ): WorldBible {
-  const campaignLength = getCampaignLength(playerPreferences?.campaignLength);
-
   const roster: import('../../../shared/types').Antagonist[] = [];
   if (parsed.primaryAntagonist) roster.push(parsed.primaryAntagonist);
   if (parsed.lieutenant) roster.push(parsed.lieutenant as import('../../../shared/types').Antagonist);
@@ -95,7 +66,6 @@ export function normalizeGeneratedWorldBible(
   parsed.playerPreferences = {
     ...(parsed.playerPreferences || {}),
     ...(playerPreferences || {}),
-    campaignLength,
     tone: playerPreferences?.tone || parsed.playerPreferences?.tone || 'Anything Goes',
     favoritePillars: playerPreferences?.favoritePillars || parsed.playerPreferences?.favoritePillars || ['All of it equally'],
     playerCount: playerPreferences?.playerCount || parsed.playerPreferences?.playerCount || 1,
@@ -113,16 +83,17 @@ export function parseStorySeeds(content: string | null | undefined): StorySeedOp
 function buildPlayerPreferenceContext(playerPreferences?: CampaignGenerationPlayerPreferences): string {
   if (!playerPreferences) return '';
 
-  const campaignLength = getCampaignLength(playerPreferences.campaignLength);
-  const campaignLengthLine = playerPreferences.campaignLength
-    ? `- Campaign length: ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. ${CAMPAIGN_LENGTH_GUIDANCE[campaignLength]}`
+  const composition = playerPreferences.partyComposition;
+  const companionSlotCount = composition?.slots?.filter(slot => slot.kind === 'ai_companion').length || 0;
+  const partyCompositionLine = composition
+    ? `- Starting party: ${composition.startingSize} member(s)${companionSlotCount > 0 ? `, including ${companionSlotCount} AI-controlled companion(s) who need their own names, races, classes, and personalities fitting this world` : ''}.`
     : '';
 
   return `
 PLAYER PREFERENCES (use these to tailor the campaign):
 ${playerPreferences.playMode ? `- Human play mode: ${playerPreferences.playMode}. Solo means one human player; collaborative means real human party members may join.` : ''}
 ${playerPreferences.partyIntent ? `- Party setup intent: ${playerPreferences.partyIntent}. If collaborative, prepare shared spotlight moments and invite-friendly hooks. If solo_ai_companions, leave room for AI companions but do not assume they already exist.` : ''}
-${campaignLengthLine}
+${partyCompositionLine}
 ${playerPreferences.tone ? `- Desired tone: ${playerPreferences.tone} - let this calibrate the toneRules and overall feel.` : ''}
 ${playerPreferences.artStyle ? `- Visual art style: ${playerPreferences.artStyle}. Keep this as the campaign's art bible foundation.` : ''}
 ${playerPreferences.favoritePillars?.length ? `- What they love most: ${playerPreferences.favoritePillars.join(', ')} - weight spotlightDesign.encounterCurve and suggested encounters toward these.` : ''}
@@ -309,7 +280,7 @@ Return JSON matching this exact schema. Every field must be substantive and spec
       "Thread 2 converging - how the central mystery connects to the current arc climax",
       "Thread 3 converging - how a choice the players made in Act 2 shapes the ending"
     ],
-    "act3ClimaxEvent": "The current arc climax - describe its shape, location, and what makes it climactic. For long/open-ended campaigns this should resolve the local arc without forcing the whole campaign to end.",
+    "act3ClimaxEvent": "The current arc climax - describe its shape, location, and what makes it climactic. This resolves the local arc without forcing the whole campaign to end - the saga continues into a new arc afterward.",
     "act3ResolutionOptions": [
       "Victory option: specific to this campaign's themes",
       "Pyrrhic victory option: the immediate threat ends but something irreversible has changed",
@@ -319,7 +290,7 @@ Return JSON matching this exact schema. Every field must be substantive and spec
 }
 
 Requirements:
-- The dmRoadmap MUST match the requested campaign length. One-shot = immediate threat and compressed payoffs. Short = compact 2-3 act arc. Medium = balanced full campaign. Long = slow-burn saga with recurring payoffs and durable factions. Open-ended = modular arcs with no forced final ending until players pursue one.
+- ${OPEN_ENDED_CAMPAIGN_GUIDANCE} The dmRoadmap describes this arc's three acts, but design it knowing the campaign never truly ends - build in durable factions, recurring rivals, and slow-burn threads that can carry into future arcs.
 - 5-7 geography entries (varied: city, dungeon, wilderness, landmark, region)
 - 5-6 gods in pantheon with genuine theological conflicts
 - Exactly 4 tone rules - specific to THIS premise, not boilerplate fantasy

@@ -47,12 +47,62 @@ export interface ShopItem {
 }
 
 
+// Pet/familiar-style bonded creature — distinct from a full CompanionCharacter
+// party member. This is a narrative flavor companion (see worldState.companion)
+// that can assist in combat at higher bond levels but does not have its own
+// character sheet.
 export interface Companion {
   name: string;
   species: string;
   description: string;
   bondLevel: number;
   abilityHint?: string;
+}
+
+// A full party member controlled by the DM rather than a human player. Has a
+// real character sheet (reusing the same stats/abilities/inventory shapes as a
+// human Character) plus a bond/loyalty score toward the party. Companions can
+// be generated at campaign creation or recruited/lost organically mid-campaign,
+// and can die permanently (with narrative plot-armor, not casual death).
+export interface CompanionCharacter {
+  id: string;
+  name: string;
+  race: string;
+  class: string;
+  level: number;
+  xp: number;
+  hp: number;
+  max_hp: number;
+  stats: CharacterStats;
+  abilities: Ability[];
+  inventory: InventoryItem[];
+  // -100 (about to abandon the party) to 100 (devoted, would die for them), 0 = neutral.
+  // Same convention as NpcMemory.relationshipScore.
+  bondLevel: number;
+  is_alive: boolean;
+  deathNote?: string;
+  recruitedAt: string;
+  lastSeenAt?: string;
+  portrait_url?: string;
+}
+
+// A single seat in the party: either a human player (filled or still invited)
+// or an AI-controlled companion. Companions can be met/recruited/lost mid-campaign,
+// so this describes the starting composition, not a permanent roster lock.
+export interface PartySlot {
+  id: string;
+  kind: 'human' | 'ai_companion';
+  // For kind 'human': is this seat filled by a joined player, or still an open invite?
+  status: 'filled' | 'invited' | 'open';
+  userId?: string;          // set once a human fills this slot
+  companionId?: string;     // links to a CompanionCharacter.id once generated/assigned
+}
+
+// Chosen at campaign creation: how big the starting party is and which seats
+// are human vs. AI companion. At least one human slot is required.
+export interface PartyComposition {
+  startingSize: number;
+  slots: PartySlot[];
 }
 
 export interface Recipe {
@@ -374,8 +424,10 @@ export interface WorldState {
     bossPhase?: number;
   } | null;
   activeNPC?: string | null;
-  // Future-friendly stub for a structured mystery/clue ledger. Not yet driven by
-  // a full system — the immediate pacing fix lives in the turn-resolution contract.
+  // The clue bank: the DM's ledger of concrete mystery clues, referenced every
+  // turn to decide what can be revealed next. Every entry must trace back to
+  // something WorldBible.mysteryLayer actually seeded (its centralQuestion,
+  // clues, or redHerrings) — no throwaway noise invented on the fly.
   mysteryClues?: {
     id: string;
     status: 'undiscovered' | 'revealed' | 'resolved';
@@ -396,6 +448,10 @@ export interface WorldState {
   unlockedAchievements?: UnlockedAchievement[];
   knownRecipes?: Recipe[];
   companion?: Companion | null;
+  // Full AI-controlled party members with real character sheets (distinct from
+  // the pet-like `companion` above). Populated at campaign creation according
+  // to PartyComposition, and can grow/shrink as companions are recruited or lost.
+  companions?: CompanionCharacter[];
   lastPillarUsed?: string[];  // last 5 scene pillars used, for three-pillar balance tracking
   pendingTurn?: {
     actions: { characterId: string; userId: string; action: string; characterName: string; submittedAt: string }[];
@@ -470,7 +526,6 @@ export interface WorldBible {
   playerPreferences?: {
     playMode?: 'solo' | 'collaborative';
     partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now';
-    campaignLength?: 'one_shot' | 'short' | 'medium' | 'long' | 'open_ended';
     tone: string;
     artStyle?: string;
     favoritePillars: string[];
@@ -478,6 +533,8 @@ export interface WorldBible {
     targetPlayerCount?: number;
     waitForParty?: boolean;
     characterConcepts: string[];
+    // Starting party size + human/AI-companion seat breakdown, chosen at creation.
+    partyComposition?: PartyComposition;
   };
 }
 

@@ -42,7 +42,6 @@ const worldBible: WorldBible = {
     favoritePillars: ['Roleplay', 'Mysteries'],
     playerCount: 2,
     characterConcepts: [],
-    campaignLength: 'medium',
   },
 };
 

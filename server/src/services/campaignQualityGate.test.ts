@@ -22,7 +22,6 @@ function thinWorldBible(): WorldBible {
 test('auditWorldBibleQuality flags missing playable campaign scaffolding', () => {
   const issues = auditWorldBibleQuality(thinWorldBible(), {
     playMode: 'collaborative',
-    campaignLength: 'long',
     favoritePillars: ['Mystery', 'Roleplay'],
     playerCount: 2,
   });
@@ -36,7 +35,6 @@ test('auditWorldBibleQuality flags missing playable campaign scaffolding', () =>
 test('repairWorldBibleQuality adds the missing campaign DNA needed before play', () => {
   const repaired = repairWorldBibleQuality(thinWorldBible(), {
     playMode: 'collaborative',
-    campaignLength: 'open_ended',
     tone: 'Warm mystery',
     favoritePillars: ['Mystery', 'Exploration'],
     playerCount: 2,
@@ -51,5 +49,4 @@ test('repairWorldBibleQuality adds the missing campaign DNA needed before play',
   assert.ok((repaired.spotlightDesign?.sharedMoments.length || 0) >= 2);
   assert.ok(repaired.futureHookSeeds?.length && repaired.futureHookSeeds.length >= 4);
   assert.ok(repaired.dmRoadmap?.act1Goals.length && repaired.dmRoadmap.act1Goals.length >= 3);
-  assert.equal(repaired.playerPreferences?.campaignLength, 'open_ended');
 });

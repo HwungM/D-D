@@ -50,23 +50,19 @@ function uniqueBoundedStrings(values: unknown[], limit: number): string[] {
   return result.slice(-limit);
 }
 
-export function campaignLengthTargetActions(worldBible?: WorldBible): number {
-  const length = worldBible?.playerPreferences?.campaignLength;
-  if (length === 'one_shot') return 8;
-  if (length === 'short') return 18;
-  if (length === 'long') return 60;
-  if (length === 'open_ended') return 75;
-  return 35;
+// Every campaign is a continuous, open-ended, multi-arc saga now (no more
+// length tiers), so the target always uses the old "open_ended" number.
+export function campaignTargetActions(_worldBible?: WorldBible): number {
+  return 75;
 }
 
-function getActLabel(worldBible: WorldBible | undefined, act: number): string {
+function getActLabel(_worldBible: WorldBible | undefined, act: number): string {
   const role = actRoleFor(act);
   const arc = arcNumberFor(act);
-  const longForm = worldBible?.playerPreferences?.campaignLength === 'long' || worldBible?.playerPreferences?.campaignLength === 'open_ended';
-  const prefix = longForm && arc > 1 ? `Arc ${arc}: ` : '';
+  const prefix = arc > 1 ? `Arc ${arc}: ` : '';
   if (role === 1) return `${prefix}The Call`;
   if (role === 2) return `${prefix}The Trial`;
-  return `${prefix}${longForm ? 'The Climax' : 'The Reckoning'}`;
+  return `${prefix}The Climax`;
 }
 
 function normalizeLocationName(value: unknown): string {
@@ -185,7 +181,7 @@ export function buildLocationGraphSnapshot(worldState: WorldState, worldBible: W
 }
 
 export function buildCampaignSpineSnapshot(worldState: WorldState, worldBible: WorldBible | undefined, act = 1): WorldState['campaignSpine'] {
-  const targetActions = campaignLengthTargetActions(worldBible);
+  const targetActions = campaignTargetActions(worldBible);
   const actionsInArc = Math.max(0, worldState.actionsInCurrentAct || 0);
   const progress = Math.max(0, Math.min(100, Math.round((actionsInArc / targetActions) * 100)));
   const pressure = worldState.endgamePhase === 'confrontation'

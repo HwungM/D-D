@@ -152,7 +152,6 @@ test('location graph and campaign spine snapshots expose playable campaign state
     actionsInCurrentAct: 7,
   };
   const bible = {
-    playerPreferences: { campaignLength: 'short' },
     geography: [
       { name: 'Ash Gate', type: 'landmark', description: 'A scorched arch.' },
       { name: 'Old Road', type: 'wilderness', description: 'A broken road.' },
@@ -166,18 +165,16 @@ test('location graph and campaign spine snapshots expose playable campaign state
   assert.ok(graph?.nodes.find(node => node.name === 'Ash Gate')?.tags.includes('current'));
   assert.ok(graph?.nodes.find(node => node.name === 'Ash Gate')?.npcsPresent.includes('Veyra'));
   assert.equal(spine?.currentArc.label, 'The Call');
-  assert.equal(spine?.currentArc.progress, 39);
+  assert.equal(spine?.currentArc.progress, 9);
   assert.ok(spine?.openThreads.includes('Quest: Find the Gate'));
 });
 
-test('campaign spine labels long campaigns as repeating arcs instead of a fixed three-act ending', () => {
+test('campaign spine labels open-ended campaigns as repeating arcs instead of a fixed three-act ending', () => {
   const worldState: WorldState = {
     actionsInCurrentAct: 5,
     activeQuests: [{ title: 'Find the moon road', description: 'Follow the new trail beyond the sealed gate.', status: 'active' }],
   };
-  const bible = {
-    playerPreferences: { campaignLength: 'open_ended' },
-  } as unknown as WorldBible;
+  const bible = {} as unknown as WorldBible;
 
   const arcTwoSetup = buildCampaignSpineSnapshot(worldState, bible, 4);
   const arcTwoEscalation = buildCampaignSpineSnapshot(worldState, bible, 5);

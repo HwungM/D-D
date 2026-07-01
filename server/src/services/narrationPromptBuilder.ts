@@ -36,45 +36,14 @@ function timeAgo(isoTimestamp: string): string {
   return `${Math.floor(diffHr / 24)}d ago`;
 }
 
-type CampaignLength = 'one_shot' | 'short' | 'medium' | 'long' | 'open_ended';
+// Every campaign is now one continuous, open-ended, multi-arc saga (no more
+// one_shot/short/medium/long tiers) — arcs chain forever, so guidance and
+// pacing thresholds always use the old "open_ended" behavior.
+const OPEN_ENDED_CAMPAIGN_GUIDANCE = 'Open-ended saga: create a living world with modular arcs and no forced final ending. Resolve local arcs cleanly, then open new fronts (a new job, a new threat, a new mystery) forever, using the same characters and world, until the players themselves choose to pursue an endgame.';
+const OPEN_ENDED_CAMPAIGN_LABEL = 'Open-Ended Saga';
 
-const CAMPAIGN_LENGTH_GUIDANCE: Record<CampaignLength, string> = {
-  one_shot: 'One-shot: compress the whole adventure into one focused arc with an immediate hook, a visible antagonist or threat, 3-6 major scenes, fast clues, and a satisfying ending. Avoid slow-burn mysteries unless they are sequel hooks.',
-  short: 'Short adventure: aim for a compact 2-3 act story over a few sessions. Reveal information quickly, keep travel purposeful, and make every faction/NPC serve the main arc.',
-  medium: 'Medium campaign: pace as a full campaign arc with room for travel, twists, downtime, character growth, and recurring NPCs. Use this as the balanced default.',
-  long: 'Long campaign: build for 30-60+ sessions with slow-burn mysteries, recurring rivals, faction turns, evolving locations, downtime, personal arcs, and delayed payoffs that still move forward each session.',
-  open_ended: 'Open-ended saga: create a living world with modular arcs and no forced final ending. Resolve local arcs cleanly, then open new fronts until the players choose to pursue an endgame.',
-};
-
-const CAMPAIGN_LENGTH_LABELS: Record<CampaignLength, string> = {
-  one_shot: 'One-Shot',
-  short: 'Short Adventure',
-  medium: 'Medium Campaign',
-  long: 'Long Campaign',
-  open_ended: 'Open-Ended Saga',
-};
-
-function getCampaignLength(value?: string): CampaignLength {
-  if (value === 'one_shot' || value === 'short' || value === 'medium' || value === 'long' || value === 'open_ended') {
-    return value;
-  }
-  return 'medium';
-}
-
-function getCampaignPacingThresholds(length: CampaignLength): { mature: number; overdue: number; critical: number } {
-  switch (length) {
-    case 'one_shot':
-      return { mature: 2, overdue: 4, critical: 6 };
-    case 'short':
-      return { mature: 5, overdue: 8, critical: 12 };
-    case 'long':
-      return { mature: 24, overdue: 40, critical: 60 };
-    case 'open_ended':
-      return { mature: 30, overdue: 55, critical: 80 };
-    case 'medium':
-    default:
-      return { mature: 12, overdue: 20, critical: 30 };
-  }
+function getCampaignPacingThresholds(): { mature: number; overdue: number; critical: number } {
+  return { mature: 30, overdue: 55, critical: 80 };
 }
 
 function actRoleLabel(role: 1 | 2 | 3): string {
@@ -736,13 +705,8 @@ ${campaignContext?.roadmap ? (() => {
   const roleLabel = actRoleLabel(role);
   const { goals, climaxEvent, villainEscalation } = actRoleRoadmap(campaignContext.roadmap, actNum);
   const actionsInAct = campaignContext.actionsInCurrentAct || 0;
-  const campaignLength = getCampaignLength(worldBible.playerPreferences?.campaignLength);
-  const pacing = getCampaignPacingThresholds(campaignLength);
-  const lengthGuidance = CAMPAIGN_LENGTH_GUIDANCE[campaignLength];
-  const longForm = campaignLength === 'long' || campaignLength === 'open_ended';
-  const arcGuidance = longForm
-    ? `\nMulti-arc structure: Act ${actNum} is Arc ${arc} ${roleLabel}. Do not treat every climax act as the whole campaign ending. Close this arc cleanly, keep consequences alive, then open the next front unless the players and endgame state clearly point to a final ending.`
-    : '';
+  const pacing = getCampaignPacingThresholds();
+  const arcGuidance = `\nMulti-arc structure: Act ${actNum} is Arc ${arc} ${roleLabel}. Do not treat every climax act as the whole campaign ending. Close this arc cleanly, keep consequences alive, then open the next front unless the players and endgame state clearly point to a final ending.`;
 
   // Must-introduce status for act 1
   const mustIntro = actNum === 1 && campaignContext.roadmap.act1MustIntroduce?.length
@@ -755,20 +719,16 @@ ${campaignContext?.roadmap ? (() => {
   // Escalating urgency based on actions in current act
   let urgency = '';
   if (actionsInAct >= pacing.critical) {
-    urgency = `\nCRITICAL ACT PRESSURE: Act ${actNum} (${roleLabel}) has run ${actionsInAct} actions for a ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. Bring the consequences, antagonist pressure, or opportunity behind "${climaxEvent}" into the current situation now. Do not declare the party's response or complete the climax without their action.`;
+    urgency = `\nCRITICAL ACT PRESSURE: Act ${actNum} (${roleLabel}) has run ${actionsInAct} actions for an ongoing saga. Bring the consequences, antagonist pressure, or opportunity behind "${climaxEvent}" into the current situation now. Do not declare the party's response or complete the climax without their action.`;
   } else if (actionsInAct >= pacing.overdue) {
-    urgency = `\nACT PRESSURE RISING: ${actionsInAct} actions in Act ${actNum} (${roleLabel}) for a ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. Let "${climaxEvent}" create visible pressure, a costly development, or a reachable opportunity within the next 3 actions, while preserving the party's route and decision.`;
+    urgency = `\nACT PRESSURE RISING: ${actionsInAct} actions in Act ${actNum} (${roleLabel}) for an ongoing saga. Let "${climaxEvent}" create visible pressure, a costly development, or a reachable opportunity within the next 3 actions, while preserving the party's route and decision.`;
   } else if (actionsInAct >= pacing.mature) {
     urgency = `\nACT MATURING: Act ${actNum} (${roleLabel}) has run ${actionsInAct} actions. Start steering toward the next major beat: "${climaxEvent}". Unresolved goals and hooks should begin paying off.`;
   }
-  const endgameRule = campaignLength === 'open_ended'
-    ? '\nOpen-ended pacing: do not force finality. Resolve the current local arc cleanly, then open new fronts unless endgamePhase calls for a final confrontation.'
-    : campaignLength === 'one_shot'
-      ? '\nOne-shot pacing: compress scenes, pay off hooks fast, and avoid dangling mysteries except a deliberate sequel hook.'
-      : '';
+  const endgameRule = '\nOpen-ended pacing: do not force finality. Resolve the current local arc cleanly, then open new fronts unless endgamePhase calls for a final confrontation.';
 
   return `═══ DM ROADMAP ═══
-Campaign length: ${CAMPAIGN_LENGTH_LABELS[campaignLength]}. ${lengthGuidance}
+Campaign: ${OPEN_ENDED_CAMPAIGN_LABEL}. ${OPEN_ENDED_CAMPAIGN_GUIDANCE}
 Act pacing thresholds: mature at ${pacing.mature} actions, overdue at ${pacing.overdue}, critical at ${pacing.critical}.${endgameRule}${arcGuidance}
 Act ${actNum} / Arc ${arc} ${roleLabel} goals (steer the story toward these):
 ${goals.map(g => `  ${(campaignContext.actGoalsAchieved || []).includes(g) ? '[✓ DONE]' : '[ ]'} ${g}`).join('\n')}

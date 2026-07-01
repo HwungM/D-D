@@ -55,7 +55,6 @@ function defaultAntagonist(worldBible: WorldBible) {
 
 export function auditWorldBibleQuality(worldBible: WorldBible, preferences?: CampaignGenerationPlayerPreferences): CampaignQualityIssue[] {
   const issues: CampaignQualityIssue[] = [];
-  const length = preferences?.campaignLength || worldBible.playerPreferences?.campaignLength || 'medium';
 
   if (!meaningful(worldBible.era)) issues.push(issue('thin_era', 'The campaign era needs an evocative identity.'));
   if (!meaningful(worldBible.magicSystem)) issues.push(issue('thin_magic', 'The magic system needs cost, rarity, or a distinctive rule.'));
@@ -79,8 +78,8 @@ export function auditWorldBibleQuality(worldBible: WorldBible, preferences?: Cam
   if (!roadmap || !hasItems(roadmap.act3ConvergenceThreads, 2) || !hasItems(roadmap.act3ResolutionOptions, 2)) {
     issues.push(issue('weak_late_roadmap', 'The later roadmap needs convergence threads and multiple resolution shapes.'));
   }
-  if ((length === 'long' || length === 'open_ended') && !hasItems(worldBible.futureHookSeeds, 4)) {
-    issues.push(issue('long_campaign_needs_future_hooks', 'Long/open-ended campaigns need future hooks beyond a three-act local arc.', 'warn'));
+  if (!hasItems(worldBible.futureHookSeeds, 4)) {
+    issues.push(issue('open_ended_campaign_needs_future_hooks', 'Open-ended campaigns need future hooks beyond a three-act local arc so the saga can keep extending.', 'warn'));
   }
 
   if (prefersMystery(preferences) && (!worldBible.mysteryLayer || !hasItems(worldBible.mysteryLayer.clues, 4))) {
@@ -247,7 +246,6 @@ export function repairWorldBibleQuality(worldBible: WorldBible, preferences?: Ca
   repaired.playerPreferences = {
     ...(repaired.playerPreferences || {}),
     ...(preferences || {}),
-    campaignLength: preferences?.campaignLength || repaired.playerPreferences?.campaignLength || 'medium',
     tone: preferences?.tone || repaired.playerPreferences?.tone || 'Anything Goes',
     favoritePillars: preferences?.favoritePillars || repaired.playerPreferences?.favoritePillars || ['All of it equally'],
     playerCount: preferences?.playerCount || repaired.playerPreferences?.playerCount || 1,

@@ -52,7 +52,6 @@ test('parseStorySeeds falls back to an empty list for malformed output', () => {
 
 test('normalizeGeneratedWorldBible ensures roster, defaults, art bible, and preferences', () => {
   const normalized = normalizeGeneratedWorldBible(minimalWorldBible(), {
-    campaignLength: 'short',
     tone: 'Warm mystery',
     favoritePillars: ['Roleplay', 'Exploration'],
     playerCount: 2,
@@ -63,7 +62,6 @@ test('normalizeGeneratedWorldBible ensures roster, defaults, art bible, and pref
   assert.equal(normalized.geography[0].name, 'The Starting Town');
   assert.equal(normalized.openingHooks.length, 3);
   assert.equal(normalized.artBible?.masterPrompt, EVERREALM_ART_BIBLE.masterPrompt);
-  assert.equal(normalized.playerPreferences?.campaignLength, 'short');
   assert.equal(normalized.playerPreferences?.tone, 'Warm mystery');
   assert.equal(normalized.playerPreferences?.playerCount, 2);
   assert.deepEqual(normalized.playerPreferences?.characterConcepts, ['A bard who fears silence']);

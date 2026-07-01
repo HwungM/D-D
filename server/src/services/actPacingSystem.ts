@@ -1,6 +1,5 @@
 import type { WorldBible, WorldState } from '../../../shared/types';
 
-type CampaignLength = NonNullable<WorldBible['playerPreferences']>['campaignLength'];
 export type ActRole = 1 | 2 | 3;
 
 export function actRoleFor(act: number): ActRole {
@@ -12,27 +11,19 @@ export function arcNumberFor(act: number): number {
   return Math.floor((Math.max(1, Math.floor(act || 1)) - 1) / 3) + 1;
 }
 
-function isLongForm(length: CampaignLength | undefined): boolean {
-  return length === 'long' || length === 'open_ended';
-}
-
-export function isFinaleAct(worldState: WorldState, worldBible: WorldBible, act: number): boolean {
+// Every campaign is now one continuous, open-ended, multi-arc saga (no more
+// length tiers) — arcs chain forever the way 'open_ended' used to work, so a
+// "finale" act only ends the campaign once endgamePhase actually calls for it.
+export function isFinaleAct(worldState: WorldState, _worldBible: WorldBible, act: number): boolean {
   const role = actRoleFor(act);
   if (role !== 3) return false;
-  const length = worldBible.playerPreferences?.campaignLength;
-  if (!isLongForm(length)) return true;
   return worldState.endgamePhase === 'approaching' || worldState.endgamePhase === 'confrontation';
 }
 
-export function minimumActActions(length: CampaignLength | undefined, act: number): number {
-  const minimumByLength: Record<string, number> = {
-    one_shot: 2,
-    short: 5,
-    medium: 10,
-    long: 20,
-    open_ended: 24,
-  };
-  const base = minimumByLength[length || 'medium'] || 10;
+// Pacing minimums always use the old "open_ended" numbers now that every
+// campaign chains arcs forever instead of scaling to a length tier.
+export function minimumActActions(act: number): number {
+  const base = 24;
   const role = actRoleFor(act);
   if (role === 2) return Math.max(base + 2, Math.ceil(base * 1.3));
   return role === 3 ? Math.max(2, Math.floor(base * 0.7)) : base;
@@ -47,10 +38,9 @@ function actRoadmapGoals(worldBible: WorldBible, act: number): string[] {
   return roadmap.act3ConvergenceThreads || [];
 }
 
-function requiredGoalCount(total: number, length: CampaignLength | undefined, act: number): number {
+function requiredGoalCount(total: number, act: number): number {
   const role = actRoleFor(act);
   if (total <= 0) return 0;
-  if (length === 'one_shot') return Math.min(1, total);
   if (role === 1) return Math.min(1, total);
   if (role === 2) return Math.min(total, Math.max(2, Math.ceil(total * 0.6)));
   return Math.min(total, Math.max(1, Math.ceil(total * 0.75)));
@@ -77,7 +67,7 @@ export function canAdvanceAct(
   worldBible: WorldBible,
   act: number,
 ): { allowed: boolean; reason?: string } {
-  const minimum = minimumActActions(worldBible.playerPreferences?.campaignLength, act);
+  const minimum = minimumActActions(act);
   const actions = worldState.actionsInCurrentAct || 0;
   if (actions < minimum) {
     return { allowed: false, reason: `Act ${act} needs at least ${minimum} meaningful actions; only ${actions} are complete.` };
@@ -113,7 +103,7 @@ export function canAdvanceAct(
   }
 
   const roadmapGoals = actRoadmapGoals(worldBible, act);
-  const neededGoals = requiredGoalCount(roadmapGoals.length, worldBible.playerPreferences?.campaignLength, act);
+  const neededGoals = requiredGoalCount(roadmapGoals.length, act);
   if (neededGoals > 0) {
     const achieved = new Set(worldState.actGoalsAchieved || []);
     const completed = roadmapGoals.filter(goal => achieved.has(goal) || (role === 3 && hasResolvedCampaignThread(worldState, goal)));
@@ -128,7 +118,7 @@ export function canAdvanceAct(
     }
   }
 
-  if (role === 2 && worldBible.playerPreferences?.campaignLength !== 'one_shot' && !worldState.lastHighStakesAction) {
+  if (role === 2 && !worldState.lastHighStakesAction) {
     return { allowed: false, reason: `Act ${act} needs a real high-stakes reversal, danger, or decisive choice before it can advance.` };
   }
 

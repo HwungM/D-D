@@ -236,7 +236,6 @@ export async function runDmQualityGate(
   const deterministicIssues = assessDmQuality(args);
   const tone = args.worldBible.playerPreferences?.tone || 'Anything Goes';
   const pillars = args.worldBible.playerPreferences?.favoritePillars?.join(', ') || 'All of it equally';
-  const campaignLength = args.worldBible.playerPreferences?.campaignLength || 'medium';
   const system = `You are the DM QUALITY CRITIC for a D&D game. You are not the narrator. Your job is to decide whether the draft is actually good enough to show players.
 Be strict. Passing means the scene feels like a strong human DM at the table: responsive, tone-matched, coherent with recent story, not rushed, not stiff, not melodramatic unless the campaign asks for it, and mechanically honest.
 If it fails, revise ONLY the narration and optional sceneImagePrompt. Preserve the beat plan, roll state, player agency, and facts. Do not add resolved outcomes when a roll is pending. The DM controls NPCs and the world; players exclusively control their heroes' voluntary speech, emotions, gestures, movement, decisions, and follow-up actions.
@@ -245,7 +244,7 @@ Return JSON only.`;
   const user = `CAMPAIGN TASTE:
 - Tone: ${tone}
 - Favorite pillars: ${pillars}
-- Campaign length: ${campaignLength}
+- Campaign: one continuous open-ended, multi-arc saga (no fixed length)
 - World conflict: ${args.worldBible.centralConflict || 'unknown'}
 
 CURRENT SCENE:

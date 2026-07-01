@@ -40,7 +40,7 @@ import {
   resolveEndgamePhase,
 } from './turnStateHelpers';
 import {
-  campaignLengthTargetActions as campaignLengthTargetActionsFromSystem,
+  campaignTargetActions as campaignTargetActionsFromSystem,
   mergeWorldStateChanges as mergeWorldStateChangesFromSystem,
 } from './worldStateSystem';
 
@@ -411,7 +411,7 @@ export async function processAction(
     ws,
     wb,
     newActionCount,
-    campaignLengthTargetActionsFromSystem(wb),
+    campaignTargetActionsFromSystem(wb),
   );
   const layeredMemoryChanges = buildLayeredMemoryChanges({
     worldState: ws,

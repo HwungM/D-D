@@ -15,7 +15,6 @@ function rivals(worldState: WorldState): NpcMemory[] {
 
 test('scripted final playtest covers combat grounding, People Sheet memory, lifecycle gates, and co-op spotlight', () => {
   const bible = {
-    playerPreferences: { campaignLength: 'medium' },
     dmRoadmap: {
       act1MustIntroduce: ['Captain Veyra', 'Ash Gate'],
       act1Goals: ['Accept the ash road charge'],
@@ -26,7 +25,7 @@ test('scripted final playtest covers combat grounding, People Sheet memory, life
 
   let worldState: WorldState = {
     currentLocation: 'Old Road',
-    actionsInCurrentAct: 12,
+    actionsInCurrentAct: 24,
     actionCount: 1,
     npcMemory: [{ name: 'Captain Veyra', disposition: 'neutral', notes: 'Met at the Ash Gate.' }],
     discoveredLocations: ['Ash Gate'],
@@ -139,7 +138,7 @@ test('scripted final playtest covers combat grounding, People Sheet memory, life
 
   const actTwoThin: WorldState = {
     ...worldState,
-    actionsInCurrentAct: 20,
+    actionsInCurrentAct: 32,
     actGoalsAchieved: ['Expose the smuggler route'],
     lastHighStakesAction: 18,
   };
@@ -147,7 +146,7 @@ test('scripted final playtest covers combat grounding, People Sheet memory, life
 
   const actTwoReady: WorldState = {
     ...worldState,
-    actionsInCurrentAct: 20,
+    actionsInCurrentAct: 32,
     actGoalsAchieved: ['Expose the smuggler route', 'Force the baron into the open'],
     lastHighStakesAction: 19,
   };
@@ -155,7 +154,7 @@ test('scripted final playtest covers combat grounding, People Sheet memory, life
 
   const actThreeNotResolved: WorldState = {
     ...worldState,
-    actionsInCurrentAct: 8,
+    actionsInCurrentAct: 16,
     actGoalsAchieved: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
     endgamePhase: 'approaching',
   };
@@ -163,7 +162,7 @@ test('scripted final playtest covers combat grounding, People Sheet memory, life
 
   const actThreeReady: WorldState = {
     ...worldState,
-    actionsInCurrentAct: 8,
+    actionsInCurrentAct: 16,
     actGoalsAchieved: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
     endgamePhase: 'none',
     completedEvents: ['The drowned bell was destroyed, Captain Veyra was redeemed, and the Ash Gate was sealed in victory.'],
@@ -171,7 +170,6 @@ test('scripted final playtest covers combat grounding, People Sheet memory, life
   assert.equal(canAdvanceAct(actThreeReady, bible, 3).allowed, true);
 
   const openEndedBible = {
-    playerPreferences: { campaignLength: 'open_ended' },
     dmRoadmap: {
       act1Goals: ['Choose the next road'],
       act2Goals: ['Force a faction choice', 'Survive a hard reversal'],
