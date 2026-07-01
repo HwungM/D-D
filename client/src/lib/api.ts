@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from './store'
+import type { PartyComposition } from '../../../shared/types'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -43,7 +44,6 @@ export const campaignApi = {
   create: (name: string, storySeed: string, campaignType?: 'adventure' | 'testing', playerPreferences?: {
     playMode?: 'solo' | 'collaborative'
     partyIntent?: 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now'
-    campaignLength?: 'one_shot' | 'short' | 'medium' | 'long' | 'open_ended'
     tone: string
     artStyle?: string
     favoritePillars: string[]
@@ -51,6 +51,7 @@ export const campaignApi = {
     targetPlayerCount?: number
     waitForParty?: boolean
     characterConcepts: string[]
+    partyComposition?: PartyComposition
   }) =>
     api.post('/campaigns', { name, storySeed, campaignType, playerPreferences }),
   list: () => api.get('/campaigns'),

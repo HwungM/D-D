@@ -111,6 +111,7 @@ export default function CampaignBrief() {
 
   const brief = campaign.world_bible?.campaignBrief
   const safeHaven = campaign.world_bible?.safeHaven
+  const companions = campaign.world_state?.companions || []
 
   // -------------------------------------------------------------------------
   // Main render
@@ -270,6 +271,45 @@ export default function CampaignBrief() {
           <div className="w-1.5 h-1.5 rotate-45" style={{ background: '#c8922a', opacity: 0.4 }} />
           <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(200,146,42,0.25))' }} />
         </div>
+
+        {/* Starting companions - AI-controlled party members generated with the world */}
+        {companions.length > 0 && (
+          <div className="mb-8 p-5" style={{
+            border: '1px solid rgba(34,211,238,0.2)',
+            background: 'rgba(34,211,238,0.04)',
+          }}>
+            <div className="flex items-start gap-3 mb-4">
+              <span className="text-lg mt-0.5" style={{ color: 'rgba(34,211,238,0.7)' }}>*</span>
+              <div>
+                <h3 className="font-fantasy text-lg text-parchment-200 mb-1">Your Companions</h3>
+                <p className="font-serif text-sm" style={{ color: 'rgba(180,160,120,0.6)' }}>
+                  These allies are already waiting for you at the start of the saga.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {companions.map(companion => (
+                <div key={companion.id} className="flex items-center justify-between gap-3 p-3" style={{
+                  background: 'rgba(0,0,0,0.22)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                }}>
+                  <div className="min-w-0">
+                    <p className="font-fantasy text-base truncate" style={{ color: '#d4c5a0' }}>{companion.name}</p>
+                    <p className="font-serif text-xs truncate" style={{ color: 'rgba(180,160,120,0.55)' }}>
+                      Level {companion.level} {companion.race} {companion.class}
+                    </p>
+                    <p className="mt-1 font-serif text-xs italic" style={{ color: 'rgba(180,160,120,0.45)' }}>
+                      {companion.abilities?.[0]?.description || 'Bonded to the party and ready for whatever comes.'}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-serif text-xs" style={{ color: 'rgba(191,244,255,0.72)' }}>
+                    {companion.hp}/{companion.max_hp} HP
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Invite Party section - shown for collaborative campaigns */}
         {isCollaborative && (
