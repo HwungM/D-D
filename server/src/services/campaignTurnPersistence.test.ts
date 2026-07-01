@@ -37,3 +37,27 @@ test('activateBackstoryHooksForAct only resets the counter when no hook matches'
   assert.equal(hooksChanged, false);
   assert.deepEqual(worldStateUpdates, { actionsInCurrentAct: 0 });
 });
+
+test('activateBackstoryHooksForAct clears endgamePhase when a new arc setup act begins', () => {
+  const worldState: WorldState = {
+    actionsInCurrentAct: 16,
+    endgamePhase: 'confrontation',
+  };
+
+  // Act 4 is arc 2's setup act (role 1) — the previous arc's climax (act 3)
+  // just closed, so the old arc's endgamePhase must not leak into the new arc.
+  const { worldStateUpdates } = activateBackstoryHooksForAct(worldState, 4);
+  assert.equal(worldStateUpdates.endgamePhase, 'none');
+});
+
+test('activateBackstoryHooksForAct leaves endgamePhase untouched inside the same arc', () => {
+  const worldState: WorldState = {
+    actionsInCurrentAct: 32,
+    endgamePhase: 'approaching',
+  };
+
+  // Act 2 (role 2, still arc 1) is not a new arc opening, so endgamePhase should
+  // not be reset here.
+  const { worldStateUpdates } = activateBackstoryHooksForAct(worldState, 2);
+  assert.equal(worldStateUpdates.endgamePhase, undefined);
+});

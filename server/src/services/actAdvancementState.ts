@@ -17,10 +17,17 @@ export function activateBackstoryHooksForAct(
     return h;
   });
 
+  // Entering a new arc's setup act (role 1) means the previous arc's climax
+  // just closed. endgamePhase tracks proximity to the *current arc's* climax,
+  // not "the campaign is ending" — so it must not leak into the new arc and
+  // silently skip that arc's own setup/escalation pacing.
+  const enteringNewArcSetup = role === 1 && worldState.endgamePhase && worldState.endgamePhase !== 'none';
+
   return {
     worldStateUpdates: {
       actionsInCurrentAct: 0,
       ...(hooksChanged ? { backstoryHooks: updatedHooks } : {}),
+      ...(enteringNewArcSetup ? { endgamePhase: 'none' as const } : {}),
     },
     hooksChanged,
   };

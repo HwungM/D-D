@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { WorldBible, WorldState } from '../../../shared/types';
-import { canAdvanceAct } from './actPacingSystem';
+import { canAdvanceAct, needsNextArcRoadmap } from './actPacingSystem';
 import { combatantMemoryPatch, relationshipLabel } from './npcMemorySystem';
 import {
   hasGroundedEncounterSetup,
@@ -203,4 +203,66 @@ test('campaigns can continue after a local climax into a fresh setup arc', () =>
     futureHooks: [{ id: 'hook-1', description: 'The sealed gate points to a city under moonlight.', source: 'test', createdAt: 'now', resolved: false }],
   } as WorldState, bible, 4);
   assert.equal(actFourReady.allowed, true);
+});
+
+test('an arc climax cannot close while a high-urgency story ledger thread is still open', () => {
+  const bible = {
+    dmRoadmap: {
+      act3ConvergenceThreads: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
+    },
+  } as unknown as WorldBible;
+
+  const openHighUrgency = canAdvanceAct({
+    actionsInCurrentAct: 16,
+    actGoalsAchieved: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
+    endgamePhase: 'none',
+    completedEvents: ['The drowned bell was destroyed, Captain Veyra was redeemed, and the Ash Gate was sealed in victory.'],
+    storyLedger: [
+      { id: 'l1', kind: 'threat', title: 'The baron\'s hired killer', summary: 'Still hunting the party.', status: 'pressing', urgency: 'high', createdAt: 'now' },
+    ],
+  } as WorldState, bible, 3);
+  assert.equal(openHighUrgency.allowed, false);
+  assert.match(openHighUrgency.reason || '', /high-urgency/i);
+
+  const resolvedHighUrgency = canAdvanceAct({
+    actionsInCurrentAct: 16,
+    actGoalsAchieved: ['Break the drowned bell', 'Redeem Captain Veyra', 'Seal the Ash Gate'],
+    endgamePhase: 'none',
+    completedEvents: ['The drowned bell was destroyed, Captain Veyra was redeemed, and the Ash Gate was sealed in victory.'],
+    storyLedger: [
+      { id: 'l1', kind: 'threat', title: 'The baron\'s hired killer', summary: 'Caught and dealt with.', status: 'resolved', urgency: 'high', createdAt: 'now' },
+    ],
+  } as WorldState, bible, 3);
+  assert.equal(resolvedHighUrgency.allowed, true);
+});
+
+test('needsNextArcRoadmap is true for a fresh arc 2+ until its own segment is generated', () => {
+  const bible = {
+    dmRoadmap: {
+      act1Goals: ['Take the Moonlit Road'],
+    },
+  } as unknown as WorldBible;
+
+  assert.equal(needsNextArcRoadmap(bible, 1), false); // arc 1 always uses the base roadmap
+  assert.equal(needsNextArcRoadmap(bible, 4), true); // arc 2's setup act, no segment generated yet
+
+  const withSegment: WorldBible = {
+    ...bible,
+    dmRoadmap: {
+      ...bible.dmRoadmap!,
+      arcSegments: [{
+        arcNumber: 2,
+        act1Goals: ['Chase the silver comet'],
+        act1MustIntroduce: [],
+        act1ClimaxEvent: 'The comet reveals a hidden city.',
+        act2Goals: ['Broker peace between two factions'],
+        act2VillainEscalation: 'The returning antagonist reveals a new plan.',
+        act2ClimaxEvent: 'A faction betrays the party.',
+        act3ConvergenceThreads: ['The hidden city and the faction betrayal collide'],
+        act3ClimaxEvent: 'The party confronts the antagonist in the hidden city.',
+        act3ResolutionOptions: ['The city is saved and the antagonist is exposed.'],
+      }],
+    },
+  };
+  assert.equal(needsNextArcRoadmap(withSegment, 4), false);
 });

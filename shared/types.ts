@@ -28,6 +28,27 @@ export interface DmRoadmap {
   act3ConvergenceThreads: string[];
   act3ClimaxEvent: string;
   act3ResolutionOptions: string[];
+  // Additional arcs beyond the opening one. The campaign is a single continuous
+  // saga (Critical Role-style): once arc 1's climax resolves, the story opens a
+  // fresh 3-act arc rather than ending. arcSegments[0] is arc 2, arcSegments[1]
+  // is arc 3, etc. Segments are generated lazily (see actAdvancementState.ts /
+  // campaignGenerationService.ts) as each prior arc closes, so this can be
+  // shorter than the number of arcs actually played.
+  arcSegments?: DmRoadmapArcSegment[];
+}
+
+export interface DmRoadmapArcSegment {
+  arcNumber: number;
+  antagonistName?: string;
+  act1Goals: string[];
+  act1MustIntroduce: string[];
+  act1ClimaxEvent: string;
+  act2Goals: string[];
+  act2VillainEscalation: string;
+  act2ClimaxEvent: string;
+  act3ConvergenceThreads: string[];
+  act3ClimaxEvent: string;
+  act3ResolutionOptions: string[];
 }
 
 export interface StatusEffect {

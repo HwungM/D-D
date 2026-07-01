@@ -1,12 +1,12 @@
 import type { Character, CharacterHistoryEntry, DiceRollResult, WorldBible, WorldState } from '../../../shared/types';
 import { activateBackstoryHooksForAct } from './actAdvancementState';
-import { canAdvanceAct } from './actPacingSystem';
+import { actRoleFor, arcNumberFor, canAdvanceAct, needsNextArcRoadmap } from './actPacingSystem';
 import {
   appendCharacterHistory,
   appendFallenHero,
   applyCharacterConsequences,
 } from './consequenceSystem';
-import { extractFutureHooks } from './openai';
+import { extractFutureHooks, generateNextArcRoadmap } from './openai';
 import { supabaseAdmin } from './supabase';
 import {
   buildCampaignSpineSnapshot,
@@ -141,9 +141,46 @@ export async function advanceActIfAllowed(
     advancedWorldState.locationGraph = buildLocationGraphSnapshot(advancedWorldState, worldBible);
     advancedWorldState.campaignSpine = buildCampaignSpineSnapshot(advancedWorldState, worldBible, newAct);
     await supabaseAdmin.from('campaigns').update({ world_state: advancedWorldState }).eq('id', campaignId);
+
+    // Closing an arc's climax opens the next arc's setup rather than ending the
+    // campaign. If that new arc doesn't have its own mini roadmap yet, generate
+    // a lightweight addendum in the background so the arc feels organic instead
+    // of silently reusing arc 1's goals forever.
+    if (actRoleFor(newAct) === 1 && needsNextArcRoadmap(worldBible, newAct)) {
+      queueNextArcRoadmapGeneration(campaignId, worldBible, advancedWorldState, arcNumberFor(newAct));
+    }
   }
 
   return true;
+}
+
+function queueNextArcRoadmapGeneration(
+  campaignId: string,
+  worldBible: WorldBible,
+  worldState: WorldState,
+  arcNumber: number,
+): void {
+  generateNextArcRoadmap(worldBible, worldState, arcNumber)
+    .then(async segment => {
+      const { data: freshCamp } = await supabaseAdmin.from('campaigns').select('world_bible').eq('id', campaignId).single();
+      const latestWorldBible = (freshCamp?.world_bible as WorldBible) || worldBible;
+      if (!needsNextArcRoadmap(latestWorldBible, (arcNumber - 1) * 3 + 1)) return; // another writer already generated it
+      const baseRoadmap: NonNullable<WorldBible['dmRoadmap']> = latestWorldBible.dmRoadmap || {
+        act1Goals: [], act1MustIntroduce: [], act1ClimaxEvent: '',
+        act2Goals: [], act2VillainEscalation: '', act2ClimaxEvent: '',
+        act3ConvergenceThreads: [], act3ClimaxEvent: '', act3ResolutionOptions: [],
+      };
+      const segments = baseRoadmap.arcSegments || [];
+      const updatedSegments = [...segments];
+      updatedSegments[arcNumber - 2] = segment;
+      await supabaseAdmin.from('campaigns').update({
+        world_bible: {
+          ...latestWorldBible,
+          dmRoadmap: { ...baseRoadmap, arcSegments: updatedSegments },
+        },
+      }).eq('id', campaignId);
+    })
+    .catch(() => {});
 }
 
 export function queueFutureHookExtraction(

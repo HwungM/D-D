@@ -5,6 +5,7 @@ import path from 'path';
 import { supabaseAdmin } from './supabase';
 import type { Character, WorldState, WorldBible, StorySeedOption } from '../../../shared/types';
 import {
+  generateNextArcRoadmapSegment as generateNextArcRoadmapSegmentFromService,
   generateStorySeed as generateStorySeedFromService,
   generateWorldBible as generateWorldBibleFromService,
   type CampaignGenerationPlayerPreferences,
@@ -219,6 +220,13 @@ export async function generateWorldBible(
   playerPreferences?: CampaignGenerationPlayerPreferences,
 ): Promise<WorldBible> {
   return generateWorldBibleFromService(openai, storySeed, playerPreferences);
+}
+export async function generateNextArcRoadmap(
+  worldBible: WorldBible,
+  worldState: WorldState,
+  arcNumber: number,
+): Promise<import('../../../shared/types').DmRoadmapArcSegment> {
+  return generateNextArcRoadmapSegmentFromService(openai, worldBible, worldState, arcNumber);
 }
 export async function runStoryDirector(
   worldState: WorldState,

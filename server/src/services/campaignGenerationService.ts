@@ -1,4 +1,4 @@
-import type { PartyComposition, StorySeedOption, WorldBible } from '../../../shared/types';
+import type { DmRoadmapArcSegment, PartyComposition, StorySeedOption, WorldBible, WorldState } from '../../../shared/types';
 import { parseJsonValueOrFallback } from './aiResponseParser';
 import { repairWorldBibleQuality } from './campaignQualityGate';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
@@ -359,4 +359,97 @@ export async function generateWorldBible(
   }
 
   return normalizeGeneratedWorldBible(parsed, playerPreferences);
+}
+
+function normalizeArcSegment(parsed: Record<string, unknown> | undefined, arcNumber: number, fallbackAntagonist?: string): DmRoadmapArcSegment {
+  const asStringArray = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0) : [];
+  const asString = (value: unknown, fallback: string): string =>
+    typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+
+  return {
+    arcNumber,
+    antagonistName: typeof parsed?.antagonistName === 'string' && parsed.antagonistName.trim().length > 0
+      ? parsed.antagonistName
+      : fallbackAntagonist,
+    act1Goals: asStringArray(parsed?.act1Goals).length ? asStringArray(parsed?.act1Goals) : ['Answer the new call this arc opened with.'],
+    act1MustIntroduce: asStringArray(parsed?.act1MustIntroduce),
+    act1ClimaxEvent: asString(parsed?.act1ClimaxEvent, 'The new front reveals its first real danger.'),
+    act2Goals: asStringArray(parsed?.act2Goals).length ? asStringArray(parsed?.act2Goals) : ['Escalate the new arc toward a decisive choice.'],
+    act2VillainEscalation: asString(parsed?.act2VillainEscalation, 'The antagonist behind this arc tightens their grip.'),
+    act2ClimaxEvent: asString(parsed?.act2ClimaxEvent, 'A costly reversal forces the party to commit.'),
+    act3ConvergenceThreads: asStringArray(parsed?.act3ConvergenceThreads).length
+      ? asStringArray(parsed?.act3ConvergenceThreads)
+      : ['The arc\'s central threat converges with a personal stake.'],
+    act3ClimaxEvent: asString(parsed?.act3ClimaxEvent, 'This arc reaches a decisive confrontation that resolves it without ending the saga.'),
+    act3ResolutionOptions: asStringArray(parsed?.act3ResolutionOptions).length
+      ? asStringArray(parsed?.act3ResolutionOptions)
+      : ['Victory resolves this arc and opens a new front.'],
+  };
+}
+
+// Generates a lightweight addendum to the DM roadmap for the *next* arc once
+// the current arc's climax has closed — a fresh mini 3-act structure (new
+// escalation, possibly a new/returning antagonist from antagonistRoster) that
+// keeps the tone consistent with the world bible, without regenerating the
+// whole world bible. This is what makes arc-chaining feel organic instead of
+// every later arc silently reusing arc 1's goals forever.
+export async function generateNextArcRoadmapSegment(
+  client: ChatClient,
+  worldBible: WorldBible,
+  worldState: WorldState,
+  arcNumber: number,
+): Promise<DmRoadmapArcSegment> {
+  const fallbackAntagonist = worldBible.antagonistRoster?.find(a => !a.isRevealed)?.name
+    || worldBible.primaryAntagonist?.name;
+
+  const recentEvents = [
+    ...(worldState.completedEvents || []).slice(-6),
+    ...(worldState.campaignJournal || []).slice(-3).map(entry => entry.summary),
+  ].join(' | ') || 'The previous arc resolved without much detail recorded.';
+  const openFutureHooks = (worldState.futureHooks || []).filter(h => !h.resolved).slice(-6).map(h => h.description).join(' | ') || 'none';
+  const roster = (worldBible.antagonistRoster || []).map(a => `${a.name} (${a.type}, ${a.isRevealed ? 'revealed' : 'hidden'}): ${a.agenda}`).join(' | ') || 'none';
+
+  try {
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a DM planning the next arc of an ongoing, open-ended fantasy campaign (Critical Role style: same characters and world, chained 3-act arcs forever). Write a fresh mini roadmap for the new arc only. Respond with valid JSON only.',
+        },
+        {
+          role: 'user',
+          content: `CAMPAIGN ERA: ${worldBible.era || 'unknown'}
+CENTRAL CONFLICT: ${worldBible.centralConflict || 'unknown'}
+ANTAGONIST ROSTER: ${roster}
+PREVIOUS ARC'S RESOLUTION (recent events): ${recentEvents}
+UNRESOLVED FUTURE HOOKS carried forward: ${openFutureHooks}
+
+This is arc ${arcNumber}. The previous arc's climax just resolved cleanly. Design a new local 3-act arc (setup, escalation, climax) that grows out of that fallout — reuse an existing antagonist from the roster if one fits (revealed ones can return with a new plan; hidden ones can finally step forward), or introduce a new pressure source consistent with the world's tone if none fits. Keep it playable and specific, not generic.
+
+Return JSON:
+{
+  "antagonistName": "name from the roster this arc centers on, or a new name",
+  "act1Goals": ["3-4 concrete setup goals for the new arc"],
+  "act1MustIntroduce": ["0-3 new NPCs/locations this arc's setup should introduce, or leave empty if none are needed"],
+  "act1ClimaxEvent": "what closes this arc's setup act",
+  "act2Goals": ["3-4 escalation goals"],
+  "act2VillainEscalation": "how the antagonist escalates in this arc",
+  "act2ClimaxEvent": "what closes the escalation act",
+  "act3ConvergenceThreads": ["2-3 threads that converge at this arc's climax"],
+  "act3ClimaxEvent": "the decisive confrontation of this arc",
+  "act3ResolutionOptions": ["2-3 possible shapes this arc's ending could take"]
+}`,
+        },
+      ],
+      temperature: 0.85,
+      response_format: { type: 'json_object' },
+    });
+
+    const parsed = parseJsonValueOrFallback<Record<string, unknown> | undefined>(response.choices[0].message.content || '{}', undefined);
+    return normalizeArcSegment(parsed, arcNumber, fallbackAntagonist);
+  } catch {
+    return normalizeArcSegment(undefined, arcNumber, fallbackAntagonist);
+  }
 }
