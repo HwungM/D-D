@@ -16,7 +16,9 @@ import { advanceCombatState as advanceCombatStateFromSystem, newlyDefeatedCombat
 import { applyCompanionChanges, departCompanion, guardCompanionDeaths, recruitCompanion } from './companionSystem';
 import { buildAwaitingRollNarration, enforceTurnPlanNarration, planSoloTurn } from './gameDirector';
 import { buildLayeredMemoryChanges, buildMemoryPack } from './layeredMemoryEngine';
+import { resolveMysteryClueChanges } from './mysteryClueSystem';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
+import { buildSceneInteractables } from './sceneInteractableSystem';
 import { generateNarration, generateSceneSummary, generateVillainMove, runStoryDirector } from './openai';
 import {
   calculateActionXp,
@@ -315,6 +317,12 @@ export async function processAction(
 
   const { ledgerChanges, futureHooksChanges } = buildForeshadowingAndFutureHookChanges(aiResponse, ws, campaign.act || 1);
 
+  // Clue bank: seed from WorldBible.mysteryLayer the first time it's needed,
+  // then flip any ids this beat's narration concretely revealed to 'revealed'.
+  // Never grants a clue the AI didn't earn/report — untouched clues simply
+  // stay 'undiscovered', which is how a skipped scene "costs, not blocks".
+  const mysteryClueChanges = resolveMysteryClueChanges(ws, wb, aiResponse.revealedClueIds);
+
   const hookChanges = buildBackstoryHookChanges(aiResponse, ws.backstoryHooks);
 
   // Track act goal achievements
@@ -472,6 +480,7 @@ export async function processAction(
     ...(futureHooksChanges ? { futureHooks: futureHooksChanges } : {}),
     ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
     ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
+    ...(mysteryClueChanges ? { mysteryClues: mysteryClueChanges } : {}),
     engineAudit: [engineAuditEntry],
     ...(aiResponse.isHighStakes ? { lastHighStakesAction: newActionCount } : {}),
     pendingDirectorBeat: aiResponse.directorBeatExecuted

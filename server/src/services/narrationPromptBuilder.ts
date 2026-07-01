@@ -4,6 +4,7 @@ import { COMBAT_AND_NPC_PERSISTENCE_CONTRACT, COMPANION_PARTY_CONTRACT, GROUNDED
 import { buildCompanionsPromptBlock } from './companionSystem';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
 import { actRoleFor, arcNumberFor } from './actPacingSystem';
+import { buildClueBankBlock } from './mysteryClueSystem';
 
 // Finds dice notation (e.g. "1d6", "2d8") inside an ability's mechanic text and
 // rolls it with the engine's RNG, so the AI applies an exact, fairly-rolled
@@ -665,7 +666,8 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "spotlightCharacterId": "characterId being spotlighted this turn, or null",
   "companionChanges": "[{id,hpChange,xpGained,bondLevelChange,isDeath,deathDescription}] | null - id must match a COMPANIONS id given in context",
   "companionRecruit": "{name,race,class} | null - a new ally who joined the party as a full companion this turn",
-  "companionDeparture": "{id,reason} | null - an existing companion (by id) who left the party without dying"
+  "companionDeparture": "{id,reason} | null - an existing companion (by id) who left the party without dying",
+  "revealedClueIds": "[exact ids from the MYSTERY CLUE BANK given in context that this turn concretely revealed] | null - never invent an id not listed there"
 }`;
 
 export type NarrationCampaignContext = {
@@ -778,7 +780,7 @@ You MUST execute this beat this turn or next turn. Set directorBeatExecuted:true
 ═════════════════════════════` : ''}`;
 }
 
-export function buildLoreContextBlock(worldBible: WorldBible): string {
+export function buildLoreContextBlock(worldBible: WorldBible, worldState?: WorldState): string {
   return `${worldBible.mysteryLayer ? `
 ═══ THE CENTRAL MYSTERY ═══
 Question players are investigating: ${worldBible.mysteryLayer.centralQuestion}
@@ -788,6 +790,7 @@ Red herrings (feel real, lead nowhere):
 ${worldBible.mysteryLayer.redHerrings.map(r => `  - ${r}`).join('\n')}
 Revelation (DO NOT reveal directly - build to it through a climax act when the players have earned it): ${worldBible.mysteryLayer.revelation}
 ═════════════════════════` : ''}
+${worldState ? buildClueBankBlock(worldState) : ''}
 ${worldBible.safeHaven ? `SAFE HAVEN: ${worldBible.safeHaven.name} - ${worldBible.safeHaven.flavor}. Kept by ${worldBible.safeHaven.keyNPC}.` : ''}
 ${worldBible.toneBreaks && worldBible.toneBreaks.length > 0 ? `TONAL CONTRAST MOMENTS: ${worldBible.toneBreaks.join(' | ')}` : ''}`;
 }
@@ -998,7 +1001,7 @@ WORLD BIBLE:
 - Factions: ${worldBible.factions.map(f => f.name).join(', ')}
 - Tone: ${worldBible.toneRules.slice(0, 2).join('; ')}
 - Visual style: ${worldBible.artBible?.masterPrompt || EVERREALM_ART_BIBLE.masterPrompt}
-${buildLoreContextBlock(worldBible)}
+${buildLoreContextBlock(worldBible, worldState)}
 
 WORLD STATE:
 - Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}

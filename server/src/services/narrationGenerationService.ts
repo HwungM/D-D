@@ -178,7 +178,7 @@ STAT CONTEXT (factor into suggestedActions): ${buildStatHints(s) || 'balanced st
 Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
 Central conflict: ${worldBible.centralConflict || ''}
 Visual style: ${worldBible.artBible?.masterPrompt || EVERREALM_ART_BIBLE.masterPrompt}
-${buildLoreContextBlock(worldBible)}
+${buildLoreContextBlock(worldBible, worldState)}
 ${buildNpcQuestMapBlock(worldState, campaignContext)}
 ${buildEndgameDirectiveBlock(worldState)}
 ${buildCombatBlock(worldState.combatState, `Party HP: ${c1.name} ${c1.hp}/${c1.max_hp} | ${c2.name} ${c2.hp}/${c2.max_hp}`)}
@@ -344,7 +344,8 @@ Respond with JSON:
   },
   "companionChanges": [{"id": "string", "hpChange": number, "xpGained": number, "bondLevelChange": number, "isDeath": boolean, "deathDescription": "string"}] | null,
   "companionRecruit": {"name": "string", "race": "string", "class": "string"} | null,
-  "companionDeparture": {"id": "string", "reason": "string"} | null
+  "companionDeparture": {"id": "string", "reason": "string"} | null,
+  "revealedClueIds": ["exact ids from the MYSTERY CLUE BANK given in context that this turn concretely revealed"] | null
 }`;
 
   const coopContractBlock = PLAYER_AUTHORSHIP_CONTRACT + '\n' + TURN_RESOLUTION_CONTRACT + '\n' + CO_OP_SINGLE_CAMERA_RULE + '\n' + STYLE_ANTI_REPETITION + '\n' + COMPANION_PARTY_CONTRACT;

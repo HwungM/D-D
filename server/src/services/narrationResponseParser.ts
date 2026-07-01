@@ -66,6 +66,10 @@ export type NarrationResult = {
   companionChanges?: Record<string, CompanionChangeEntry>;
   companionRecruit?: { name?: string; race?: string; class?: string };
   companionDeparture?: { id: string; reason?: string };
+  // Exact ids (from the MYSTERY CLUE BANK given in context) that this beat's
+  // narration concretely revealed. Never a freeform clue description — only
+  // ids from the pre-seeded bank are honored (see mysteryClueSystem.ts).
+  revealedClueIds?: string[];
 };
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -293,7 +297,7 @@ function cleanChoiceCards(value: unknown): NarrationResult['choiceCards'] | unde
   return cards.length >= 2 ? cards : undefined;
 }
 
-function cleanRollContext(value: unknown): RollContext | undefined {
+export function cleanRollContext(value: unknown): RollContext | undefined {
   const record = asRecord(value);
   if (!record) return undefined;
   const stat = asString(record.stat)?.toLowerCase();
@@ -407,5 +411,6 @@ export function parseNarrationResponse(parsed: Record<string, unknown>): Narrati
     companionChanges: cleanCompanionChanges(parsed.companionChanges),
     companionRecruit: cleanCompanionRecruit(parsed.companionRecruit),
     companionDeparture: cleanCompanionDeparture(parsed.companionDeparture),
+    revealedClueIds: cleanStringArray(parsed.revealedClueIds, 5),
   };
 }

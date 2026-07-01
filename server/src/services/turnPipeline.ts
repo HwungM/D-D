@@ -24,6 +24,7 @@ import { formatStoryThreadsBlock, rankStoryThreads } from './storyMemory';
 import { analyzeActionRail } from './storyRails';
 import { buildDndTableProfile, formatDndTableDirectives } from './dndTableSystem';
 import { runDmQualityGate } from './dmQualityGate';
+import { buildClueBankBlock } from './mysteryClueSystem';
 
 // ── The turn pipeline ────────────────────────────────────────────────────────
 // Instead of one monolithic call that must narrate, adjudicate, pace, track every
@@ -286,7 +287,7 @@ ${args.charactersBlock}
 
 WORLD: ${worldBible.era} | ${worldBible.magicSystem}
 ${leanSceneContext(worldState)}
-${buildLoreContextBlock(worldBible)}
+${buildLoreContextBlock(worldBible, worldState)}
 ${buildNpcQuestMapBlock(worldState, args.campaignContext)}
 ${args.tableDirectives ? `\n${args.tableDirectives}` : ''}
 ${args.campaignContext?.continuityDirectives ? `\nCONTINUITY DIRECTIVES:\n${args.campaignContext.continuityDirectives}` : ''}
@@ -373,7 +374,8 @@ const SOLO_EXTRACTOR_SCHEMA = `{
   "awaitingRoll": "boolean", "rollContext": "{stat,dc,diceType:d20,description,successDescription,failDescription,critSuccessDescription,critFailDescription,isDramatic,modifier} | null",
   "companionChanges": "[{id,hpChange,xpGained,bondLevelChange,isDeath,deathDescription}] | null — id must match a COMPANIONS id given in context; only for companions who changed this beat",
   "companionRecruit": "{name,race,class} | null — a new ally who joined the party as a full companion this beat, if narrated",
-  "companionDeparture": "{id,reason} | null — an existing companion (by id) who left the party without dying, if narrated"
+  "companionDeparture": "{id,reason} | null — an existing companion (by id) who left the party without dying, if narrated",
+  "revealedClueIds": "[exact ids from the MYSTERY CLUE BANK given in context that this beat concretely revealed] | null — never invent an id not listed there"
 }`;
 
 const COOP_EXTRACTOR_EXTRA = `,
@@ -426,6 +428,7 @@ ${args.narration}
 MECHANICAL CONTEXT (for exact numbers):
 ${args.mechanicsBlock}
 ${args.tableDirectives ? `\nTABLE DIRECTIVES:\n${args.tableDirectives}` : ''}
+${buildClueBankBlock(args.worldState)}
 
 Combat tracker state: ${args.worldState.combatState?.inCombat ? `round ${args.worldState.combatState.roundNumber}, enemies: ${(args.worldState.combatState.enemies || []).map(e => `${e.name}(${e.condition})`).join(', ') || args.worldState.combatState.enemyName}` : 'not in combat'}.
 

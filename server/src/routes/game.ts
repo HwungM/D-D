@@ -3,11 +3,15 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
 import { processAction, getOpeningScene, getCoopOpeningScene, resolveRollAction, resolveCoopRollAction, processCoopAction, compressToJournalEntry } from '../services/gameEngine';
 import { getStatModifier } from '../services/characterProgressionSystem';
-import { generateEpilogue } from '../services/openai';
-import type { WorldState, WorldBible, Character } from '../../../shared/types';
+import { generateEpilogue, generateMicroActionReaction } from '../services/openai';
+import type { WorldState, WorldBible, Character, RollContext } from '../../../shared/types';
 import { z } from 'zod';
 import { aiRateLimit } from '../middleware/rateLimit';
 import { repairWorldStateForGameplay } from '../services/coopStateIntegrity';
+import { buildSceneInteractables } from '../services/sceneInteractableSystem';
+import { appendFreeRoamEntry, buildAdvanceActionText } from '../services/advanceTurnService';
+import { resolveMysteryClueChanges } from '../services/mysteryClueSystem';
+import { narrateMicroActionRollOutcome } from '../services/microActionService';
 
 const router = Router();
 const COOP_TURN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -311,7 +315,13 @@ router.post('/resolve-roll', requireAuth, aiRateLimit, async (req: AuthRequest, 
         const isCritFail = rollResult === 1;
         const authoritativeContext = { ...rollContext, modifier };
 
-        const result = pendingCoopRoll
+        // A micro-action's roll never runs the heavy macro-turn pipeline (no
+        // act advancement, no quality gates) — it just narrates the resolved
+        // check using the same success/fail text the fast-path call already
+        // authored, and logs it against the free-roam ledger.
+        const result = pendingMetadata?.microAction === true
+          ? await resolveMicroActionRollAndPersist(campaignId, characterId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext)
+          : pendingCoopRoll
           ? await resolveCoopRollAction(campaignId, characterId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext)
           : await resolveRollAction(characterId, campaignId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext);
 
@@ -822,6 +832,349 @@ router.post('/epilogue/:campaignId/:characterId', requireAuth, aiRateLimit, asyn
   } catch (err) {
     console.error('Epilogue generation failed:', err);
     res.status(500).json({ error: 'Failed to generate epilogue' });
+  }
+});
+
+// Resolves a roll requested by the micro-action fast path. Deliberately does
+// NOT call the heavy macro-turn pipeline (resolveRollAction/resolveCoopRollAction)
+// — no act advancement, no XP, no quality gates — it just narrates the
+// already-authored success/fail text and logs the outcome to the free-roam
+// ledger, exactly like any other micro-action.
+async function resolveMicroActionRollAndPersist(
+  campaignId: string,
+  characterId: string,
+  rollResult: number,
+  rollTotal: number,
+  dc: number,
+  success: boolean,
+  isCritSuccess: boolean,
+  isCritFail: boolean,
+  rollContext: RollContext,
+) {
+  const { data: campaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaignId).single();
+  const ws = (campaign?.world_state || {}) as WorldState;
+  const narration = narrateMicroActionRollOutcome(rollContext, success, isCritSuccess, isCritFail);
+  const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, rollContext.description, narration);
+
+  await supabaseAdmin.from('campaigns').update({ world_state: { ...ws, freeRoam } }).eq('id', campaignId);
+  await supabaseAdmin.from('story_events').insert({
+    campaign_id: campaignId,
+    character_id: characterId,
+    event_type: 'narration',
+    content: narration,
+    metadata: { microAction: true, resolvedRoll: true },
+  });
+
+  return {
+    narration,
+    awaitingRoll: false,
+    diceRoll: { sides: 20, rolls: [rollResult], modifier: rollContext.modifier, total: rollTotal, description: rollContext.description },
+    success,
+    isCritSuccess,
+    isCritFail,
+  };
+}
+
+const microActionSchema = z.object({
+  characterId: z.string().uuid(),
+  campaignId: z.string().uuid(),
+  action: z.string().min(1).max(300),
+});
+
+// Free-roam fast path: reacts to ONE small in-scene action without running
+// the macro-turn pipeline (no act-advancement math, no quality gates, no
+// pacing pressure). See server/src/services/microActionService.ts.
+//
+// Request:  { characterId, campaignId, action }
+// Response (no roll needed — the common case):
+//   { reaction, awaitingRoll: false, discoveredObject?, npcDispositionNudge?,
+//     revealedClueIds, minorLoot?, minorHpChange?, minorGoldChange?,
+//     sceneInteractables, freeRoamCount }
+// Response (action was risky enough to need a roll):
+//   { reaction, awaitingRoll: true, rollContext, sceneInteractables }
+//   — resolve it via the EXISTING POST /api/game/resolve-roll endpoint
+//     (that endpoint recognizes the pending roll's microAction:true metadata
+//     and resolves it through the lightweight path above, not the full
+//     macro-turn engine).
+router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
+  const parse = microActionSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: parse.error.errors });
+    return;
+  }
+  const { characterId, campaignId, action } = parse.data;
+
+  const { data: character } = await supabaseAdmin
+    .from('characters')
+    .select('*')
+    .eq('id', characterId)
+    .eq('user_id', req.user!.id)
+    .single();
+
+  if (!character || character.campaign_id !== campaignId) {
+    res.status(403).json({ error: 'Character not found or not yours' });
+    return;
+  }
+  if (character.is_alive === false) {
+    res.status(400).json({ error: 'This character can no longer act' });
+    return;
+  }
+
+  try {
+    await withCampaignLock(campaignId, async () => {
+      const { data: campaign } = await supabaseAdmin
+        .from('campaigns')
+        .select('world_state, world_bible')
+        .eq('id', campaignId)
+        .single();
+      if (!campaign) {
+        res.status(404).json({ error: 'Campaign not found' });
+        return;
+      }
+
+      const ws = campaign.world_state as WorldState;
+      const wb = campaign.world_bible as WorldBible;
+      const sceneInteractables = ws.sceneInteractables && ws.sceneInteractables.length > 0
+        ? ws.sceneInteractables
+        : buildSceneInteractables(ws);
+
+      const reaction = await generateMicroActionReaction(
+        action,
+        character as Character,
+        ws,
+        wb,
+        sceneInteractables,
+        ws.freeRoam?.actions,
+      );
+
+      if (reaction.awaitingRoll && reaction.rollContext) {
+        await supabaseAdmin.from('story_events').insert({
+          campaign_id: campaignId,
+          character_id: characterId,
+          event_type: 'action',
+          content: action,
+          metadata: { microAction: true },
+        });
+        await supabaseAdmin.from('story_events').insert({
+          campaign_id: campaignId,
+          character_id: characterId,
+          event_type: 'narration',
+          content: reaction.reaction,
+          metadata: { microAction: true, awaitingRoll: true, rollContext: reaction.rollContext },
+        });
+        res.json({
+          reaction: reaction.reaction,
+          awaitingRoll: true,
+          rollContext: reaction.rollContext,
+          sceneInteractables,
+        });
+        return;
+      }
+
+      // Never grants an act-advancing or major consequence — only the small
+      // flavor touches the fast-path service allows (see MicroActionResult).
+      const mysteryClueChanges = resolveMysteryClueChanges(ws, wb, reaction.revealedClueIds);
+      const npcMemoryChange = reaction.npcDispositionNudge
+        ? (ws.npcMemory || []).map(npc => npc.name === reaction.npcDispositionNudge!.name
+            ? { ...npc, relationshipScore: Math.max(-100, Math.min(100, (npc.relationshipScore || 0) + reaction.npcDispositionNudge!.delta)) }
+            : npc)
+        : undefined;
+      const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, action, reaction.reaction);
+
+      const updatedWorldState: WorldState = {
+        ...ws,
+        ...(mysteryClueChanges ? { mysteryClues: mysteryClueChanges } : {}),
+        ...(npcMemoryChange ? { npcMemory: npcMemoryChange } : {}),
+        sceneInteractables,
+        freeRoam,
+      };
+      await supabaseAdmin.from('campaigns').update({ world_state: updatedWorldState }).eq('id', campaignId);
+
+      if (reaction.minorHpChange || reaction.minorGoldChange || reaction.minorLoot) {
+        const newHp = reaction.minorHpChange
+          ? Math.max(1, Math.min(character.max_hp, character.hp + reaction.minorHpChange))
+          : character.hp;
+        const newGold = reaction.minorGoldChange
+          ? Math.max(0, character.gold + reaction.minorGoldChange)
+          : character.gold;
+        const newInventory = reaction.minorLoot
+          ? [...(character.inventory || []), ...reaction.minorLoot]
+          : character.inventory;
+        await supabaseAdmin.from('characters').update({ hp: newHp, gold: newGold, inventory: newInventory }).eq('id', characterId);
+      }
+
+      await supabaseAdmin.from('story_events').insert({
+        campaign_id: campaignId,
+        character_id: characterId,
+        event_type: 'action',
+        content: action,
+        metadata: { microAction: true },
+      });
+      await supabaseAdmin.from('story_events').insert({
+        campaign_id: campaignId,
+        character_id: characterId,
+        event_type: 'narration',
+        content: reaction.reaction,
+        metadata: { microAction: true },
+      });
+
+      res.json({
+        reaction: reaction.reaction,
+        awaitingRoll: false,
+        discoveredObject: reaction.discoveredObject,
+        npcDispositionNudge: reaction.npcDispositionNudge,
+        revealedClueIds: reaction.revealedClueIds,
+        minorLoot: reaction.minorLoot,
+        minorHpChange: reaction.minorHpChange,
+        minorGoldChange: reaction.minorGoldChange,
+        sceneInteractables,
+        freeRoamCount: freeRoam.actions.length,
+      });
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Micro-action failed';
+    res.status(500).json({ error: message });
+  }
+});
+
+const advanceSchema = z.object({
+  characterId: z.string().uuid(),
+  campaignId: z.string().uuid(),
+  action: z.string().max(500).optional(),
+});
+
+// Explicitly moves the story forward — always callable, no gate or blocking
+// condition (see actPacingSystem.canAdvanceAct, which only ever gates whether
+// the AI's requested act-advance is HONORED, never whether a turn can be
+// taken at all). Runs the EXISTING macro-turn pipeline via processAction /
+// processCoopAction — same engine as POST /api/game/action — but folds the
+// accumulated free-roam micro-action log (WorldState.freeRoam) in as context
+// via the submitted action text, then that pipeline's own persistence
+// (campaignTurnPersistence.applyConsequences) clears freeRoam and refreshes
+// sceneInteractables for the new scene.
+//
+// Request:  { characterId, campaignId, action? } — action is an optional
+//   "moving forward" framing line; free-roam history is folded in regardless.
+// Response: identical shape to POST /api/game/action's response (ActionResult).
+router.post('/advance', requireAuth, aiRateLimit, async (req: AuthRequest, res: Response): Promise<void> => {
+  const parse = advanceSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: parse.error.errors });
+    return;
+  }
+  const { characterId, campaignId, action: framingAction } = parse.data;
+
+  const { data: character } = await supabaseAdmin
+    .from('characters')
+    .select('user_id, name, campaign_id, is_alive')
+    .eq('id', characterId)
+    .eq('user_id', req.user!.id)
+    .single();
+
+  if (!character || character.campaign_id !== campaignId) {
+    res.status(403).json({ error: 'Character not found or not yours' });
+    return;
+  }
+  if (character.is_alive === false) {
+    res.status(400).json({ error: 'This character can no longer act' });
+    return;
+  }
+
+  try {
+    const { data: activeCharacters } = await supabaseAdmin
+      .from('characters')
+      .select('id, user_id')
+      .eq('campaign_id', campaignId)
+      .eq('is_alive', true);
+    const activePlayerCount = new Set((activeCharacters || []).map(c => c.user_id)).size;
+
+    if (activePlayerCount > 1) {
+      await withCampaignLock(campaignId, async () => {
+        const ws = await loadRepairedWorldState(campaignId);
+        if (!ws) {
+          res.status(404).json({ error: 'Campaign not found' });
+          return;
+        }
+
+        if (ws.coopPendingRoll) {
+          const isMyRoll = ws.coopPendingRoll.actingCharacterId === characterId;
+          res.status(isMyRoll ? 200 : 409).json(isMyRoll
+            ? {
+                awaitingRoll: true,
+                narration: ws.coopPendingRoll.setupNarration || 'The table is waiting on your roll.',
+                rollContext: ws.coopPendingRoll.rollContext,
+                actingCharacterId: ws.coopPendingRoll.actingCharacterId,
+                suggestedActions: [],
+                sceneImagePrompt: ws.coopPendingRoll.sceneImagePrompt || undefined,
+                worldStateChanges: ws,
+              }
+            : { error: 'A co-op roll is still pending. Wait for your partner to roll.', worldState: ws });
+          return;
+        }
+
+        const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction);
+
+        const pendingCreatedAt = ws.pendingTurn?.createdAt || ws.pendingTurn?.actions?.[0]?.submittedAt;
+        const pendingStartedAt = pendingCreatedAt ? Date.parse(pendingCreatedAt) : NaN;
+        const pendingIsStale = Number.isFinite(pendingStartedAt) && Date.now() - pendingStartedAt > COOP_TURN_TIMEOUT_MS;
+        const activePendingTurn = pendingIsStale ? null : ws.pendingTurn;
+        const roundId = activePendingTurn?.roundId || crypto.randomUUID();
+        const pendingActions = activePendingTurn?.actions || [];
+        const createdAt = activePendingTurn?.createdAt || new Date().toISOString();
+        const expiresAt = new Date(Date.parse(createdAt) + COOP_TURN_TIMEOUT_MS).toISOString();
+
+        if (pendingActions.some(a => a.characterId === characterId)) {
+          res.status(409).json({ error: 'Already submitted for this round' });
+          return;
+        }
+
+        const newActions = [...pendingActions, {
+          characterId,
+          userId: req.user!.id,
+          action: advanceActionText,
+          characterName: (character as { name: string }).name,
+          submittedAt: new Date().toISOString(),
+        }];
+
+        if (newActions.length < activePlayerCount) {
+          await supabaseAdmin.from('campaigns').update({
+            world_state: { ...ws, pendingTurn: { actions: newActions, roundId, createdAt, expiresAt } }
+          }).eq('id', campaignId);
+          res.json({
+            status: 'waiting',
+            waitingFor: 'partner',
+            roundId,
+            submittedCount: newActions.length,
+            neededCount: activePlayerCount,
+            expiresAt,
+          });
+          return;
+        }
+
+        await supabaseAdmin.from('campaigns').update({
+          world_state: { ...ws, pendingTurn: null }
+        }).eq('id', campaignId);
+
+        const result = await processCoopAction(campaignId, newActions);
+        res.json({ status: 'complete', ...result });
+      });
+      return;
+    }
+
+    await withCampaignLock(campaignId, async () => {
+      const { data: campaign } = await supabaseAdmin
+        .from('campaigns')
+        .select('world_state')
+        .eq('id', campaignId)
+        .single();
+      const ws = (campaign?.world_state || {}) as WorldState;
+      const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction);
+      const result = await processAction(characterId, advanceActionText, campaignId);
+      res.json(result);
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Advance failed';
+    res.status(500).json({ error: message });
   }
 });
 

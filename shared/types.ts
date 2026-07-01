@@ -371,6 +371,19 @@ export interface ActiveQuest {
   startedAt?: string;
 }
 
+// What/who is currently present and interactable at the player's current
+// location — the free-roam layer's map of the room. Built from existing
+// location/NPC presence data (LocationGraph.currentLocation's node,
+// npcMemory, activeNPC) rather than a parallel tracking system, and
+// regenerated whenever the location or scene context changes.
+export interface SceneInteractable {
+  kind: 'npc' | 'object' | 'exit';
+  name: string;
+  // One-line hook: what this NPC might know/offer, what's notable about this
+  // object/feature, or where this exit leads.
+  hook: string;
+}
+
 export interface WorldState {
   currentLocation?: string;
   timeOfDay?: 'dawn' | 'day' | 'dusk' | 'night';
@@ -456,6 +469,19 @@ export interface WorldState {
     bossPhase?: number;
   } | null;
   activeNPC?: string | null;
+  // What/who is present and interactable in the current scene — reused by the
+  // micro-action free-roam layer so it knows who/what the player can poke at
+  // without running the full macro-turn pacing engine. See SceneInteractable.
+  sceneInteractables?: SceneInteractable[];
+  // Free-roam ledger: micro-actions taken since the last Advance (macro-turn),
+  // given to the next Advance call as "what the DM already knows happened"
+  // context. Cleared whenever a macro-turn (Advance, or the legacy single
+  // action route) resolves and a new scene begins.
+  freeRoam?: {
+    startedAt: string;
+    location?: string;
+    actions: { action: string; reaction: string; createdAt: string }[];
+  } | null;
   // The clue bank: the DM's ledger of concrete mystery clues, referenced every
   // turn to decide what can be revealed next. Every entry must trace back to
   // something WorldBible.mysteryLayer actually seeded (its centralQuestion,

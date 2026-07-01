@@ -7,6 +7,7 @@ import {
   applyCharacterConsequences,
 } from './consequenceSystem';
 import { extractFutureHooks, generateNextArcRoadmap } from './openai';
+import { buildSceneInteractables } from './sceneInteractableSystem';
 import { supabaseAdmin } from './supabase';
 import {
   buildCampaignSpineSnapshot,
@@ -92,6 +93,12 @@ export async function applyConsequences(
   // Single atomic world state write — eliminates co-op race conditions.
   newWorldState.locationGraph = buildLocationGraphSnapshot(newWorldState, campaign.world_bible);
   newWorldState.campaignSpine = buildCampaignSpineSnapshot(newWorldState, campaign.world_bible, campaign.act ?? 1);
+  // A macro-turn (this is the only path that reaches applyConsequences) always
+  // resolves the current scene: refresh the free-roam interactable map for
+  // wherever the party ended up, and close out the free-roam window that fed
+  // this turn — the next micro-actions start a fresh log against the new scene.
+  newWorldState.sceneInteractables = buildSceneInteractables(newWorldState);
+  newWorldState.freeRoam = null;
   await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
 
   if (Object.keys(updates).length > 0) {

@@ -16,6 +16,7 @@ import { advanceCombatState as advanceCombatStateFromSystem, newlyDefeatedCombat
 import { applyCompanionChanges, departCompanion, guardCompanionDeaths, recruitCompanion } from './companionSystem';
 import { enforceTurnPlanNarration, planCoopTurn } from './gameDirector';
 import { buildLayeredMemoryChanges, buildMemoryPack } from './layeredMemoryEngine';
+import { resolveMysteryClueChanges } from './mysteryClueSystem';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
 import { generateCoopNarration, generateSceneSummary, generateVillainMove, runStoryDirector } from './openai';
 import { calculateNarrativeXp } from './rulesEngine';
@@ -352,6 +353,8 @@ export async function processCoopAction(
 
   const hookChanges = buildBackstoryHookChanges(aiResponse, ws.backstoryHooks);
 
+  const mysteryClueChanges = resolveMysteryClueChanges(ws, wb, aiResponse.revealedClueIds);
+
   // Track act goal achievements
   const goalChanges: string[] = [];
   if (aiResponse.actGoalAchieved) goalChanges.push(aiResponse.actGoalAchieved);
@@ -452,6 +455,7 @@ export async function processCoopAction(
     ...(futureHooksChanges ? { futureHooks: futureHooksChanges } : {}),
     ...(hookChanges.length > 0 ? { backstoryHooks: hookChanges } : {}),
     ...(goalChanges.length > 0 ? { actGoalsAchieved: goalChanges } : {}),
+    ...(mysteryClueChanges ? { mysteryClues: mysteryClueChanges } : {}),
     engineAudit: [engineAuditEntry],
     ...(endgamePhase !== ws.endgamePhase ? { endgamePhase } : {}),
     ...(aiResponse.isHighStakes ? { lastHighStakesAction: newActionCount } : {}),
