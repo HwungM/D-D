@@ -2,9 +2,11 @@ import type { WorldState, Ability, CombatEnemy } from '../../../shared/types'
 
 interface Props {
   combatState: WorldState['combatState']
-  abilities: Ability[]
-  onAction: (action: string) => void
-  disabled: boolean
+  // Used only to surface a cooldown hint here — the actual ability/attack/
+  // defend/hide/flee BUTTONS now live in ActionPanel's contextual combat row
+  // (they fire micro-actions with live dice/HP consequences instead of the
+  // old macro-turn Advance path). This panel is pure enemy status now.
+  abilities?: Ability[]
 }
 
 const ARCHETYPE_ICONS: Record<string, string> = {
@@ -80,10 +82,9 @@ function EnemyBar({ enemy }: { enemy: CombatEnemy }) {
   )
 }
 
-export default function CombatPanel({ combatState, abilities, onAction, disabled }: Props) {
+export default function CombatPanel({ combatState, abilities = [] }: Props) {
   if (!combatState?.inCombat) return null
 
-  const availableAbilities = abilities.filter(a => !a.currentCooldown || a.currentCooldown <= 0)
   const onCooldown = abilities.filter(a => a.currentCooldown && a.currentCooldown > 0)
   const enemies = combatState.enemies || [
     { name: combatState.enemyName, archetype: 'soldier' as const, maxHp: 30, condition: combatState.enemyCondition, isDefeated: false },
@@ -114,51 +115,16 @@ export default function CombatPanel({ combatState, abilities, onAction, disabled
         </div>
       </div>
 
-      {/* Abilities */}
-      {availableAbilities.length > 0 && (
-        <>
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginBottom: 10 }} />
-          <div>
-            <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-amber-200/58 mb-2">
-              Available Abilities
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {availableAbilities.map(ability => (
-                <button
-                  key={ability.name}
-                  disabled={disabled}
-                  onClick={() => onAction(`Use ${ability.name}`)}
-                  title={ability.description}
-                  className="border px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.14em] transition-all disabled:cursor-not-allowed disabled:opacity-40"
-                  style={{
-                    background: 'rgba(200,146,42,0.08)',
-                    border: '1px solid rgba(200,146,42,0.25)',
-                    color: 'rgba(200,146,42,0.85)',
-                  }}
-                  onMouseEnter={e => {
-                    if (!disabled) {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(200,146,42,0.18)'
-                      ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,146,42,0.5)'
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(200,146,42,0.08)'
-                    ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,146,42,0.25)'
-                  }}
-                >
-                  {ability.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Cooldowns hint */}
+      {/* Cooldowns hint — the action buttons themselves live in the composer's
+          contextual combat row below (ActionPanel), which fires micro-actions
+          with live dice/HP consequences instead of the old macro-turn path. */}
       {onCooldown.length > 0 && (
-        <p className="font-serif text-xs mt-1.5" style={{ color: 'rgba(160,120,80,0.35)', fontSize: 10 }}>
-          On cooldown: {onCooldown.map(a => `${a.name} (${a.currentCooldown})`).join(' / ')}
-        </p>
+        <>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginTop: 10, marginBottom: 8 }} />
+          <p className="font-serif text-xs" style={{ color: 'rgba(160,120,80,0.35)', fontSize: 10 }}>
+            On cooldown: {onCooldown.map(a => `${a.name} (${a.currentCooldown})`).join(' / ')}
+          </p>
+        </>
       )}
     </div>
   )

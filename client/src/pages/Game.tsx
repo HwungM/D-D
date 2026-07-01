@@ -37,7 +37,7 @@ import RestModal from '../components/RestModal'
 import JournalPanel from '../components/JournalPanel'
 import ClueBankPanel from '../components/ClueBankPanel'
 import { audioManager } from '../lib/audio'
-import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType, RollContext } from '../../../shared/types'
+import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType, RollContext, WorldState } from '../../../shared/types'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
@@ -626,6 +626,33 @@ export default function Game() {
       if (myChanges) setCharacter({ ...currentCharacter!, ...myChanges } as Character)
       if (result.worldStateChanges) mergeWorldState(result.worldStateChanges)
 
+      // Live combat micro-action roll (attack/defend/hide/flee/negotiate while
+      // combatState.inCombat): the server applies enemy HP/defeat, player HP,
+      // companion changes, and tension-meter pause directly, and returns the
+      // updated combatState here rather than a full worldStateChanges patch.
+      // Merge it immediately for instant feedback, then refetch the
+      // authoritative character/world state (HP, gold, loot, companions,
+      // tension) since those were persisted server-side.
+      const microCombat = result as ActionResult & {
+        combatState?: WorldState['combatState']
+        victory?: boolean
+        defeatedEnemies?: string[]
+        paused?: boolean
+      }
+      if (microCombat.combatState !== undefined) {
+        mergeWorldState({ combatState: microCombat.combatState })
+        audioManager.playCombat()
+        if (microCombat.victory) {
+          audioManager.playVictory()
+          setInCombat(false)
+        }
+        if (microCombat.defeatedEnemies && microCombat.defeatedEnemies.length > 0) {
+          setEnemyPopupName(microCombat.defeatedEnemies[0])
+          setShowEnemyPopup(true)
+        }
+        syncSceneState()
+      }
+
       if (result.sceneImagePrompt) {
         setSceneImage(matchSceneImage(result.sceneImagePrompt, result.worldStateChanges?.timeOfDay || worldState?.timeOfDay))
       }
@@ -954,6 +981,16 @@ export default function Game() {
       const { data } = await gameApi.microAction(characterId, campaignId, trimmed)
 
       if (data.sceneInteractables) mergeWorldState({ sceneInteractables: data.sceneInteractables })
+
+      // Tension re-trigger: the party was hiding/fled and this action (even an
+      // unrelated one) caused the threat to find them again — combat resumes
+      // server-side and comes back on this micro-action's response instead of
+      // through Advance. Make sure the combat banner/CombatPanel reappear.
+      if (data.combatResumed && data.combatState) {
+        mergeWorldState({ combatState: data.combatState, tensionMeter: null })
+        setInCombat(true)
+        audioManager.playCombat()
+      }
 
       if (data.awaitingRoll && data.rollContext) {
         addEvent({
@@ -1525,8 +1562,6 @@ export default function Game() {
             <CombatPanel
               combatState={worldState?.combatState}
               abilities={currentCharacter.abilities || []}
-              onAction={handleAdvance}
-              disabled={isLoading || isTyping || coopWaiting}
             />
           )}
           {!inCombat && !coopWaiting && currentCharacter?.is_alive !== false && (
@@ -1553,6 +1588,9 @@ export default function Game() {
             pacingMode={worldState?.sceneState?.pacingMode}
             inCombat={inCombat}
             isCoop={partyMembersHere.length > 0}
+            combatState={worldState?.combatState}
+            abilities={currentCharacter?.abilities}
+            tensionActive={!!worldState?.tensionMeter?.active}
           />
         </div>
 

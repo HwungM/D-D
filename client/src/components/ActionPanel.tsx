@@ -1,5 +1,5 @@
 import { useRef, useState, FormEvent, KeyboardEvent } from 'react'
-import type { SceneInteractable } from '../../../shared/types'
+import type { SceneInteractable, WorldState, Ability } from '../../../shared/types'
 
 interface ActionPanelProps {
   suggestedActions: string[]
@@ -18,6 +18,15 @@ interface ActionPanelProps {
   onAdvance?: (framingAction?: string) => void
   advanceDisabled?: boolean
   freeRoamCount?: number
+  // Live combat/danger: while combatState.inCombat is true, contextual
+  // Attack/Defend/Hide/Flee + ability buttons appear here and fire real
+  // micro-actions (onAction) with real dice/HP consequences, instead of
+  // routing through the old macro-turn Advance path.
+  combatState?: WorldState['combatState']
+  abilities?: Ability[]
+  // Party is hiding/fled from a live threat that hasn't fully resolved —
+  // a subtle danger cue near the composer, consistent with the combat accent.
+  tensionActive?: boolean
 }
 
 const INTERACTABLE_ICON: Record<string, string> = { npc: 'talk', object: 'look', exit: 'go' }
@@ -26,6 +35,7 @@ export default function ActionPanel({
   suggestedActions, onAction, disabled, disabledReason,
   location, pacingMode, inCombat, isCoop,
   sceneInteractables = [], onAdvance, advanceDisabled, freeRoamCount = 0,
+  combatState, abilities = [], tensionActive,
 }: ActionPanelProps) {
   const [input, setInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -48,6 +58,16 @@ export default function ActionPanel({
     const phrase = item.kind === 'npc' ? `Talk to ${item.name}` : item.kind === 'exit' ? `Head toward ${item.name}` : `Look closely at ${item.name}`
     onAction(phrase)
   }
+
+  function fireCombatAction(phrase: string) {
+    if (disabled) return
+    onAction(phrase)
+  }
+
+  const livingEnemies = combatState?.inCombat
+    ? (combatState.enemies?.filter(e => !e.isDefeated) ?? (combatState.enemyName ? [{ name: combatState.enemyName }] : []))
+    : []
+  const readyAbilities = abilities.filter(a => !a.currentCooldown || a.currentCooldown <= 0)
 
   function handleAdvanceClick() {
     if (advanceDisabled || !onAdvance) return
@@ -115,6 +135,76 @@ export default function ActionPanel({
             </div>
           )}
         </div>
+
+        {/* Live combat/danger: contextual Attack/Defend/Hide/Flee + ability
+            shortcuts, firing real micro-actions with live dice/HP consequences. */}
+        {combatState?.inCombat && (
+          <div className="flex flex-wrap gap-1.5">
+            {livingEnemies.map((enemy, i) => (
+              <button
+                key={`attack-${i}`}
+                type="button"
+                onClick={() => fireCombatAction(`Attack ${enemy.name}`)}
+                disabled={disabled}
+                className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                style={{ border: '1px solid rgba(248,113,113,0.34)', background: 'rgba(239,68,68,0.08)', color: 'rgba(254,202,202,0.88)' }}
+              >
+                <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(248,113,113,0.62)' }}>atk</span>
+                Attack {enemy.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => fireCombatAction('Defend and brace for the next attack')}
+              disabled={disabled}
+              className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+              style={{ border: '1px solid rgba(200,146,42,0.32)', background: 'rgba(200,146,42,0.07)', color: 'rgba(240,210,150,0.85)' }}
+            >
+              Defend
+            </button>
+            <button
+              type="button"
+              onClick={() => fireCombatAction('Try to hide from the fight')}
+              disabled={disabled}
+              className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+              style={{ border: '1px solid rgba(34,211,238,0.24)', background: 'rgba(34,211,238,0.05)', color: 'rgba(191,244,255,0.78)' }}
+            >
+              Hide
+            </button>
+            <button
+              type="button"
+              onClick={() => fireCombatAction('Flee the fight')}
+              disabled={disabled}
+              className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+              style={{ border: '1px solid rgba(34,211,238,0.24)', background: 'rgba(34,211,238,0.05)', color: 'rgba(191,244,255,0.78)' }}
+            >
+              Flee
+            </button>
+            {readyAbilities.map(ability => (
+              <button
+                key={ability.name}
+                type="button"
+                onClick={() => fireCombatAction(`Use ${ability.name}`)}
+                disabled={disabled}
+                title={ability.description}
+                className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                style={{ border: '1px solid rgba(200,146,42,0.28)', background: 'rgba(200,146,42,0.06)', color: 'rgba(240,210,150,0.85)' }}
+              >
+                {ability.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Tension cue: party hid/fled but the threat hasn't fully lost interest */}
+        {tensionActive && !combatState?.inCombat && (
+          <div className="flex items-center gap-2 px-0.5">
+            <div className="h-1.5 w-1.5 shrink-0 border border-red-200/40 bg-red-400/80" style={{ animation: 'pulse 1.4s ease-in-out infinite' }} />
+            <span className="font-serif text-xs italic" style={{ color: 'rgba(252,165,165,0.6)' }}>
+              Something may still be looking for you...
+            </span>
+          </div>
+        )}
 
         {/* Scene interactables: quick-tap in-scene shortcuts */}
         {interactables.length > 0 && (
@@ -195,9 +285,9 @@ export default function ActionPanel({
               boxShadow: '0 0 20px rgba(139,92,246,0.12)',
             }}
           >
-            <span>Advance the Story</span>
+            <span>Move the Story Forward</span>
             <span className="font-serif text-[10px] normal-case italic" style={{ color: 'rgba(221,214,254,0.62)' }}>
-              {freeRoamCount > 0 ? `${freeRoamCount} in-scene action${freeRoamCount === 1 ? '' : 's'} noted - calls for the next DM turn` : 'Calls for the next DM turn'}
+              {freeRoamCount > 0 ? `${freeRoamCount} in-scene action${freeRoamCount === 1 ? '' : 's'} noted - moves time and scene ahead` : 'Moves time and scene ahead, once the moment has settled'}
             </span>
           </button>
         )}
