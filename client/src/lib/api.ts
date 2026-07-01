@@ -104,6 +104,10 @@ export const gameApi = {
     api.post(`/game/session/${campaignId}/end`, { characterId }),
   resolveRoll: (data: { characterId: string; campaignId: string }) =>
     api.post('/game/resolve-roll', data),
+  microAction: (characterId: string, campaignId: string, action: string) =>
+    api.post('/game/micro-action', { characterId, campaignId, action }),
+  advance: (characterId: string, campaignId: string, action?: string) =>
+    api.post('/game/advance', { characterId, campaignId, action }),
   devKill: (characterId: string) => api.post(`/game/dev-kill/${characterId}`),
   devClearCombat: (campaignId: string) => api.post(`/game/dev-clear-combat/${campaignId}`),
   devPatch: (campaignId: string, patch: { worldState?: Record<string, unknown>; act?: number }) =>

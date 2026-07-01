@@ -35,6 +35,7 @@ import TurnIndicator from '../components/TurnIndicator'
 import BossPhaseTransition from '../components/BossPhaseTransition'
 import RestModal from '../components/RestModal'
 import JournalPanel from '../components/JournalPanel'
+import ClueBankPanel from '../components/ClueBankPanel'
 import { audioManager } from '../lib/audio'
 import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType, RollContext } from '../../../shared/types'
 
@@ -93,7 +94,7 @@ export default function Game() {
   const [started, setStarted] = useState(false)
   const [showDice, setShowDice] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
-  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'map' | 'world' | 'people' | 'journal' | 'achievements'>('character')
+  const [sidebarTab, setSidebarTab] = useState<'character' | 'quests' | 'map' | 'world' | 'people' | 'journal' | 'achievements' | 'clues'>('character')
   const narratorRef = useRef<HTMLDivElement>(null)
   const historicalIds = useRef<Set<string>>(new Set())
   const coopWaitingRef = useRef(false)
@@ -135,7 +136,9 @@ export default function Game() {
   const [showBossPhase, setShowBossPhase] = useState(false)
   const [bossPhaseInfo, setBossPhaseInfo] = useState<{ phase: number; name: string } | null>(null)
   const [showRest, setShowRest] = useState(false)
-  const [lastError, setLastError] = useState<{ message: string; action: string } | null>(null)
+  const [lastError, setLastError] = useState<{ message: string; action: string; retry?: () => void } | null>(null)
+  const [microActionLoading, setMicroActionLoading] = useState(false)
+  const [freeRoamCount, setFreeRoamCount] = useState(0)
 
   const [showDiceModal, setShowDiceModal] = useState(false)
   const [diceModalData, setDiceModalData] = useState<{ narration: string; rollContext: RollContext } | null>(null)
@@ -180,7 +183,7 @@ export default function Game() {
         gapHours: 0,
       })
     } catch (err) {
-      setLastError({ message: getErrorMessage(err), action: 'End session' })
+      setLastError({ message: getErrorMessage(err), action: 'End session', retry: () => handleEndSession() })
     } finally {
       setEndingSession(false)
     }
@@ -686,8 +689,17 @@ export default function Game() {
     finally { setLoading(false) }
   }
 
-  async function handleAction(action: string) {
-    if (!campaignId || !characterId || isLoading || isTyping) return
+  // Shared macro-turn submission path: both the legacy single-action route
+  // (still used for the opening scene / anything that must run the full DM
+  // pipeline immediately, e.g. combat abilities, resting, high-stakes choices)
+  // and the new Advance control funnel through here. Handles the full
+  // ActionResult response shape (level-ups, combat, loot, act transitions,
+  // high stakes, etc.) identically regardless of which endpoint produced it.
+  async function submitMacroTurn(
+    apiCall: () => Promise<{ data: unknown }>,
+    optimisticActionText: string | null,
+  ): Promise<boolean> {
+    if (!campaignId || !characterId || isLoading || isTyping) return false
     setLoading(true)
     setShowDice(false)
     setShowHighStakes(false)
@@ -696,25 +708,25 @@ export default function Game() {
     setLastActionResult(null)
     setHighStakesData(null)
 
-    const finalAction = action
-
     // Only switch scene immediately based on location - not action text (avoids wrong images)
     const immediateScene = matchSceneImage(worldState?.currentLocation || '', worldState?.timeOfDay)
     if (immediateScene) setSceneImage(immediateScene)
 
     const clientRequestId = `action-${Date.now()}-${Math.random().toString(36).slice(2)}`
     const optimisticActionId = `temp-${clientRequestId}`
-    addEvent({
-      id: optimisticActionId,
-      campaign_id: campaignId,
-      character_id: characterId,
-      event_type: 'action',
-      content: finalAction,
-      metadata: { optimistic: true, clientRequestId },
-      created_at: new Date().toISOString(),
-    })
+    if (optimisticActionText) {
+      addEvent({
+        id: optimisticActionId,
+        campaign_id: campaignId,
+        character_id: characterId,
+        event_type: 'action',
+        content: optimisticActionText,
+        metadata: { optimistic: true, clientRequestId },
+        created_at: new Date().toISOString(),
+      })
+    }
     try {
-      const { data } = await gameApi.action(characterId, campaignId, finalAction)
+      const { data } = await apiCall()
       const result = data as ActionResult & { status?: string; submittedCount?: number; neededCount?: number; expiresAt?: string }
       setLastActionResult(result)
 
@@ -725,7 +737,7 @@ export default function Game() {
         setCoopNeededCount(typeof result.neededCount === 'number' ? result.neededCount : Math.max(2, partyMembers.length))
         setCoopExpiresAt(typeof result.expiresAt === 'string' ? result.expiresAt : null)
         setLoading(false)
-        return
+        return true
       }
       // Co-op complete - partner submitted, we got the combined narration
       if (result.status === 'complete') {
@@ -758,12 +770,12 @@ export default function Game() {
           setShowDiceModal(false)
           setCoopWaiting(true)
           setLoading(false)
-          return
+          return true
         }
         setDiceModalData({ narration: result.narration, rollContext: result.rollContext })
         setShowDiceModal(true)
         setLoading(false)
-        return
+        return true
       }
 
       // In co-op, the result carries data for both characters - figure out which is "mine"
@@ -882,16 +894,113 @@ export default function Game() {
       }
 
       refreshParty()
+      return true
     } catch (err) {
       console.error(err)
       const message = getErrorMessage(err)
-      const currentEvents = useGameStore.getState().events
-      setEvents(currentEvents.filter(event => event.id !== optimisticActionId))
+      if (optimisticActionText) {
+        const currentEvents = useGameStore.getState().events
+        setEvents(currentEvents.filter(event => event.id !== optimisticActionId))
+      }
       setCoopWaiting(false)
       setIsTyping(false)
-      setLastError({ message, action: finalAction })
+      setLastError({
+        message,
+        action: optimisticActionText || 'Advance the story',
+        retry: () => { submitMacroTurn(apiCall, optimisticActionText) },
+      })
+      return false
     }
     finally { setLoading(false) }
+  }
+
+  // Always-callable "move the story forward" control: runs the full macro-turn
+  // DM pipeline (same engine/response shape the old single-action route
+  // produced) via POST /api/game/advance, folding in whatever free-roam
+  // micro-actions happened since the last turn. framingAction is an optional
+  // final line the player adds; free-roam history is included by the server
+  // regardless. This is what combat abilities, resting, high-stakes choices,
+  // and crafting now call — anything that deserves the full DM turn.
+  async function handleAdvance(framingAction?: string) {
+    if (!characterId || !campaignId) return
+    const trimmed = framingAction?.trim() || undefined
+    const ok = await submitMacroTurn(() => gameApi.advance(characterId, campaignId, trimmed), trimmed || null)
+    if (ok) setFreeRoamCount(0)
+  }
+
+  // Free-roam fast path: reacts to ONE small in-scene action without the
+  // macro-turn pipeline. Deliberately does not touch isLoading/isTyping (the
+  // gates that block the composer during a full DM turn) so the player can
+  // fire these off quickly and repeatedly between Advance calls.
+  async function handleMicroAction(action: string) {
+    if (!campaignId || !characterId || isLoading || isTyping || microActionLoading || coopWaiting) return
+    const trimmed = action.trim()
+    if (!trimmed) return
+    setMicroActionLoading(true)
+    setLastError(null)
+
+    const optimisticId = `temp-micro-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    addEvent({
+      id: optimisticId,
+      campaign_id: campaignId,
+      character_id: characterId,
+      event_type: 'action',
+      content: trimmed,
+      metadata: { optimistic: true, microAction: true },
+      created_at: new Date().toISOString(),
+    })
+
+    try {
+      const { data } = await gameApi.microAction(characterId, campaignId, trimmed)
+
+      if (data.sceneInteractables) mergeWorldState({ sceneInteractables: data.sceneInteractables })
+
+      if (data.awaitingRoll && data.rollContext) {
+        addEvent({
+          id: `temp-micro-roll-${Date.now()}`,
+          campaign_id: campaignId,
+          character_id: characterId,
+          event_type: 'narration',
+          content: data.reaction,
+          metadata: { microAction: true, awaitingRoll: true, rollContext: data.rollContext },
+          created_at: new Date().toISOString(),
+        })
+        setDiceModalData({ narration: data.reaction, rollContext: data.rollContext })
+        setShowDiceModal(true)
+        return
+      }
+
+      if (currentCharacter && (data.minorHpChange || data.minorGoldChange || (data.minorLoot && data.minorLoot.length > 0))) {
+        const newHp = data.minorHpChange
+          ? Math.max(1, Math.min(currentCharacter.max_hp, currentCharacter.hp + data.minorHpChange))
+          : currentCharacter.hp
+        const newGold = data.minorGoldChange
+          ? Math.max(0, currentCharacter.gold + data.minorGoldChange)
+          : currentCharacter.gold
+        const newInventory = data.minorLoot && data.minorLoot.length > 0
+          ? [...currentCharacter.inventory, ...(data.minorLoot as InventoryItem[])]
+          : currentCharacter.inventory
+        setCharacter({ ...currentCharacter, hp: newHp, gold: newGold, inventory: newInventory } as Character)
+        if (data.minorLoot && data.minorLoot.length > 0) audioManager.playItemPickup()
+      }
+
+      addEvent({
+        id: `temp-micro-reaction-${Date.now()}`,
+        campaign_id: campaignId,
+        character_id: characterId,
+        event_type: 'narration',
+        content: data.reaction,
+        metadata: { microAction: true },
+        created_at: new Date().toISOString(),
+      })
+      if (typeof data.freeRoamCount === 'number') setFreeRoamCount(data.freeRoamCount)
+    } catch (err) {
+      const currentEvents = useGameStore.getState().events
+      setEvents(currentEvents.filter(event => event.id !== optimisticId))
+      setLastError({ message: getErrorMessage(err), action: trimmed, retry: () => { handleMicroAction(trimmed) } })
+    } finally {
+      setMicroActionLoading(false)
+    }
   }
 
   async function handleDevClearCombat() {
@@ -1070,7 +1179,7 @@ export default function Game() {
     currentCharacter?.name,
     ...partyMembersHere.map(member => member.character?.name),
   ].filter(Boolean) as string[]
-  const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', map: 'Realm Map', world: 'World', people: 'People & Relations', journal: 'Journal', achievements: 'Achievements' } as const
+  const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', map: 'Realm Map', world: 'World', people: 'People & Relations', clues: 'Clue Bank', journal: 'Journal', achievements: 'Achievements' } as const
   const sceneArtUrl = visibleSceneArt(currentSceneImage)
 
   // -- Main game layout ------------------------------------------------------
@@ -1154,8 +1263,8 @@ export default function Game() {
               {endingSession ? 'Saving...' : `End S${activeSessionNumber}`}
             </button>
           )}
-          {(['character', 'quests', 'people', 'map', 'world', 'journal', 'achievements'] as const).map(tab => {
-            const labels = { character: 'Sheet', quests: 'Quests', map: 'Map', world: 'World', people: 'People', journal: 'Log', achievements: 'Awards' }
+          {(['character', 'quests', 'people', 'map', 'world', 'clues', 'journal', 'achievements'] as const).map(tab => {
+            const labels = { character: 'Sheet', quests: 'Quests', map: 'Map', world: 'World', people: 'People', clues: 'Clues', journal: 'Log', achievements: 'Awards' }
             const isActive = showSidebar && sidebarTab === tab
             return (
               <button
@@ -1233,8 +1342,8 @@ export default function Game() {
             />
           </div>
 
-          {/* Party panel below scene */}
-          {otherPartyMembers.length > 0 && (
+          {/* Party panel below scene - human members and AI companions alike */}
+          {(otherPartyMembers.length > 0 || (worldState?.companions?.length || 0) > 0) && (
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
               <PartyPanel members={partyMembers} currentUserId={user?.id || ''} worldState={worldState} />
             </div>
@@ -1296,17 +1405,19 @@ export default function Game() {
                   const partyMember = isOtherPlayer ? partyMembers.find(m => m.character?.id === event.character_id) : null
                   const isMyAction = event.event_type === 'action' && event.character_id === characterId
                   const mood = event.event_type === 'narration' ? inferMood(event.content) : 'serious'
+                  const isMicroAction = !!event.metadata?.microAction
                   return (
                     <NarratorBox
                       key={event.id || i}
                       text={event.content}
                       mood={mood}
                       isPlayerAction={event.event_type === 'action'}
-                      instant={isInstant}
+                      instant={isInstant || isMicroAction}
+                      microAction={isMicroAction}
                       playerName={partyMember?.username}
                       playerPortrait={isMyAction ? currentCharacter?.portrait_url || undefined : partyMember?.character?.portrait_url || undefined}
                       narratorPortrait={narratorPortrait}
-                      onComplete={isLast && !isInstant ? () => {
+                      onComplete={isLast && !isInstant && !isMicroAction ? () => {
                         setIsTyping(false)
                         historicalIds.current.add(event.id)
                       } : undefined}
@@ -1373,8 +1484,8 @@ export default function Game() {
                 <p className="mt-1 font-serif text-sm italic" style={{ color: 'rgba(220,180,160,0.68)' }}>{lastError.message}</p>
               </div>
               <button
-                onClick={() => { setLastError(null); handleAction(lastError.action) }}
-                disabled={isLoading}
+                onClick={() => { const retry = lastError.retry; setLastError(null); retry?.() }}
+                disabled={isLoading || microActionLoading}
                 className="shrink-0 px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all disabled:opacity-40"
                 style={{ border: '1px solid rgba(239,68,68,0.4)', color: 'rgba(248,113,113,0.85)', background: 'rgba(239,68,68,0.08)' }}
               >
@@ -1414,7 +1525,7 @@ export default function Game() {
             <CombatPanel
               combatState={worldState?.combatState}
               abilities={currentCharacter.abilities || []}
-              onAction={handleAction}
+              onAction={handleAdvance}
               disabled={isLoading || isTyping || coopWaiting}
             />
           )}
@@ -1431,8 +1542,12 @@ export default function Game() {
           )}
           <ActionPanel
             suggestedActions={lastActionResult?.suggestedActions || []}
-            onAction={handleAction}
-            disabled={isLoading || isTyping || currentCharacter?.is_alive === false || coopWaiting}
+            onAction={handleMicroAction}
+            onAdvance={handleAdvance}
+            advanceDisabled={isLoading || isTyping || microActionLoading || currentCharacter?.is_alive === false || coopWaiting}
+            freeRoamCount={freeRoamCount}
+            sceneInteractables={worldState?.sceneInteractables}
+            disabled={isLoading || isTyping || microActionLoading || currentCharacter?.is_alive === false || coopWaiting}
             disabledReason={coopWaiting ? 'Your action is locked in. Waiting for the party to submit.' : undefined}
             location={worldState?.currentLocation}
             pacingMode={worldState?.sceneState?.pacingMode}
@@ -1479,7 +1594,7 @@ export default function Game() {
                     crafting={isLoading}
                     onCraft={(recipe) => {
                       const materials = recipe.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')
-                      handleAction(`Craft a ${recipe.resultItem.name} using ${materials}`)
+                      handleAdvance(`Craft a ${recipe.resultItem.name} using ${materials}`)
                     }}
                   />
                 )}
@@ -1487,6 +1602,7 @@ export default function Game() {
                 {sidebarTab === 'people' && <NPCCodex npcMemory={worldState?.npcMemory || []} keyNPCs={worldState?.keyNPCs} campaignId={campaignId!} />}
                 {sidebarTab === 'map' && <MapPanel worldState={worldState} />}
                 {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
+                {sidebarTab === 'clues' && <ClueBankPanel worldState={worldState} />}
                 {sidebarTab === 'journal' && <JournalPanel worldState={worldState} />}
                 {sidebarTab === 'achievements' && <AchievementGallery achievements={worldState?.unlockedAchievements} />}
               </SidebarErrorBoundary>
@@ -1533,7 +1649,7 @@ export default function Game() {
                     crafting={isLoading}
                     onCraft={(recipe) => {
                       const materials = recipe.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')
-                      handleAction(`Craft a ${recipe.resultItem.name} using ${materials}`)
+                      handleAdvance(`Craft a ${recipe.resultItem.name} using ${materials}`)
                     }}
                   />
                 )}
@@ -1541,6 +1657,7 @@ export default function Game() {
                 {sidebarTab === 'people' && <NPCCodex npcMemory={worldState?.npcMemory || []} keyNPCs={worldState?.keyNPCs} campaignId={campaignId!} />}
                 {sidebarTab === 'map' && <MapPanel worldState={worldState} />}
                 {sidebarTab === 'world' && <WorldPanel worldState={worldState} />}
+                {sidebarTab === 'clues' && <ClueBankPanel worldState={worldState} />}
                 {sidebarTab === 'journal' && <JournalPanel worldState={worldState} />}
                 {sidebarTab === 'achievements' && <AchievementGallery achievements={worldState?.unlockedAchievements} />}
               </SidebarErrorBoundary>
@@ -1658,7 +1775,7 @@ export default function Game() {
           onChoose={(choiceTitle) => {
             setShowHighStakes(false)
             setHighStakesData(null)
-            handleAction(choiceTitle)
+            handleAdvance(choiceTitle)
           }}
           onCustom={() => {
             setShowHighStakes(false)
@@ -1679,7 +1796,7 @@ export default function Game() {
           playerGold={currentCharacter.gold}
           hpPercent={(currentCharacter.hp / currentCharacter.max_hp) * 100}
           inCombat={inCombat}
-          onRest={(action) => handleAction(action)}
+          onRest={(action) => handleAdvance(action)}
           onClose={() => setShowRest(false)}
         />
       )}

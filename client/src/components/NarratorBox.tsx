@@ -12,6 +12,9 @@ interface NarratorBoxProps {
   playerPortrait?: string
   narratorPortrait: string
   onComplete?: () => void
+  // In-scene micro-action reaction rather than a full DM narration beat —
+  // rendered as a compact, quieter aside so it reads as flavor, not story.
+  microAction?: boolean
 }
 
 const NARRATOR_COUNT = 10
@@ -37,7 +40,7 @@ const MOOD_ACCENT: Record<Mood, string> = {
 
 export default function NarratorBox({
   text, mood = 'neutral', isPlayerAction = false, instant = false,
-  playerName, playerPortrait, narratorPortrait, onComplete,
+  playerName, playerPortrait, narratorPortrait, onComplete, microAction = false,
 }: NarratorBoxProps) {
   const [displayed, setDisplayed] = useState('')
   const [typing, setTyping] = useState(false)
@@ -96,10 +99,33 @@ export default function NarratorBox({
           {isOtherPlayer && (
             <p className="mb-0.5 font-fantasy text-[10px] uppercase tracking-[0.2em] text-violet-200/80">{playerName}</p>
           )}
+          {microAction && (
+            <p className="mb-0.5 font-fantasy text-[9px] uppercase tracking-[0.2em] text-amber-200/45">In-scene</p>
+          )}
           <p className="font-serif text-sm italic leading-relaxed" style={{ color: 'rgba(240,228,200,0.88)' }}>
             {displayed}
             {typing && (
               <span className="ml-0.5 inline-block h-3.5 w-0.5 align-middle bg-cyan-300/70"
+                style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />
+            )}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Compact micro-action reaction ───────────────────────────────────────────
+  // A fast in-scene reaction, not a full DM story beat — smaller, quieter, no
+  // portrait pomp, so it visually reads as an aside rather than a narration.
+  if (microAction) {
+    return (
+      <div className="animate-fade-in flex items-start gap-2.5 px-1 py-0.5 sm:px-2">
+        <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: 'rgba(200,146,42,0.55)' }} />
+        <div className="relative flex-1 border-l-2 px-3 py-1.5" style={{ borderColor: 'rgba(200,146,42,0.3)', background: 'rgba(200,146,42,0.03)' }}>
+          <p className="font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(220,200,160,0.72)' }}>
+            {displayed}
+            {typing && (
+              <span className="ml-0.5 inline-block h-3 w-0.5 align-middle bg-amber-300/60"
                 style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />
             )}
           </p>

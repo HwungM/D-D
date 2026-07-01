@@ -1,4 +1,5 @@
 import { useRef, useState, FormEvent, KeyboardEvent } from 'react'
+import type { SceneInteractable } from '../../../shared/types'
 
 interface ActionPanelProps {
   suggestedActions: string[]
@@ -9,11 +10,22 @@ interface ActionPanelProps {
   pacingMode?: string
   inCombat?: boolean
   isCoop?: boolean
+  // Micro-action support: what/who is in the scene right now (quick-tap
+  // shortcuts that fire a small in-scene reaction immediately), plus the
+  // always-visible Advance control that moves the story forward with the
+  // full DM turn.
+  sceneInteractables?: SceneInteractable[]
+  onAdvance?: (framingAction?: string) => void
+  advanceDisabled?: boolean
+  freeRoamCount?: number
 }
+
+const INTERACTABLE_ICON: Record<string, string> = { npc: 'talk', object: 'look', exit: 'go' }
 
 export default function ActionPanel({
   suggestedActions, onAction, disabled, disabledReason,
   location, pacingMode, inCombat, isCoop,
+  sceneInteractables = [], onAdvance, advanceDisabled, freeRoamCount = 0,
 }: ActionPanelProps) {
   const [input, setInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -21,11 +33,26 @@ export default function ActionPanel({
   const suggestions = suggestedActions.slice(0, 4)
   const hasSuggestions = suggestions.length > 0
   const hasInput = input.trim().length > 0
+  const interactables = sceneInteractables.slice(0, 8)
 
   function submitAction(action: string) {
     const trimmed = action.trim()
     if (!trimmed || disabled) return
     onAction(trimmed)
+    setInput('')
+    setShowSuggestions(false)
+  }
+
+  function fireInteractable(item: SceneInteractable) {
+    if (disabled) return
+    const phrase = item.kind === 'npc' ? `Talk to ${item.name}` : item.kind === 'exit' ? `Head toward ${item.name}` : `Look closely at ${item.name}`
+    onAction(phrase)
+  }
+
+  function handleAdvanceClick() {
+    if (advanceDisabled || !onAdvance) return
+    const trimmed = input.trim()
+    onAdvance(trimmed || undefined)
     setInput('')
     setShowSuggestions(false)
   }
@@ -89,6 +116,32 @@ export default function ActionPanel({
           )}
         </div>
 
+        {/* Scene interactables: quick-tap in-scene shortcuts */}
+        {interactables.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {interactables.map((item, i) => (
+              <button
+                key={`${item.kind}-${item.name}-${i}`}
+                type="button"
+                onClick={() => fireInteractable(item)}
+                disabled={disabled}
+                title={item.hook}
+                className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                style={{
+                  border: '1px solid rgba(34,211,238,0.22)',
+                  background: 'rgba(34,211,238,0.05)',
+                  color: 'rgba(191,244,255,0.72)',
+                }}
+              >
+                <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(34,211,238,0.5)' }}>
+                  {INTERACTABLE_ICON[item.kind] || 'look'}
+                </span>
+                {item.name}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Input row */}
         <form onSubmit={handleSubmit} className="flex gap-2 items-end">
           <div className="flex-1 relative">
@@ -102,7 +155,7 @@ export default function ActionPanel({
               className="w-full resize-none px-3 py-2.5 font-serif text-sm leading-relaxed outline-none transition-all duration-200"
               placeholder={disabled
                 ? (disabledReason || 'Your character cannot act...')
-                : 'Describe what you try, say, inspect, cast, risk, or ask. Enter to act.'}
+                : 'Describe what you try, say, inspect, cast, risk, or ask. Enter to react in the scene.'}
               style={{
                 background: 'rgba(255,245,225,0.05)',
                 border: `1px solid ${hasInput ? 'rgba(200,146,42,0.5)' : 'rgba(255,255,255,0.1)'}`,
@@ -127,6 +180,27 @@ export default function ActionPanel({
             Act
           </button>
         </form>
+
+        {/* Advance: always-visible control that moves the full story forward */}
+        {onAdvance && (
+          <button
+            type="button"
+            onClick={handleAdvanceClick}
+            disabled={advanceDisabled}
+            className="flex w-full items-center justify-between gap-3 px-4 py-2.5 font-fantasy text-xs uppercase tracking-[0.2em] transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+              background: 'linear-gradient(90deg, rgba(139,92,246,0.14), rgba(34,211,238,0.1))',
+              border: '1px solid rgba(167,139,250,0.42)',
+              color: '#ede9fe',
+              boxShadow: '0 0 20px rgba(139,92,246,0.12)',
+            }}
+          >
+            <span>Advance the Story</span>
+            <span className="font-serif text-[10px] normal-case italic" style={{ color: 'rgba(221,214,254,0.62)' }}>
+              {freeRoamCount > 0 ? `${freeRoamCount} in-scene action${freeRoamCount === 1 ? '' : 's'} noted - calls for the next DM turn` : 'Calls for the next DM turn'}
+            </span>
+          </button>
+        )}
 
         {/* Suggestions row */}
         <div className="flex items-center justify-between gap-3">
