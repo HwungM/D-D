@@ -13,6 +13,7 @@ import {
   rollDice as rollDiceFromSystem,
 } from './characterProgressionSystem';
 import { advanceCombatState as advanceCombatStateFromSystem, newlyDefeatedCombatants } from './combatSystem';
+import { applyCompanionChanges, departCompanion, guardCompanionDeaths, recruitCompanion } from './companionSystem';
 import { buildAwaitingRollNarration, enforceTurnPlanNarration, planSoloTurn } from './gameDirector';
 import { buildLayeredMemoryChanges, buildMemoryPack } from './layeredMemoryEngine';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
@@ -286,6 +287,21 @@ export async function processAction(
   // Update combat state
   const { combatState, forcedVictory } = advanceCombatStateFromSystem(ws.combatState ?? null, aiResponse, [action]);
 
+  // Companion party members: apply HP/XP/bond changes, gate death behind an
+  // earned high-stakes/combat/critical-failure moment, then handle organic
+  // recruitment or departure. Mirrors the PC consequence flow but stays
+  // self-contained since companions aren't tracked in the characters table.
+  const companionCriticalFailure = !!diceResult && diceResult.rolls[0] === 1;
+  const { changes: guardedCompanionChanges } = guardCompanionDeaths(aiResponse.companionChanges, {
+    inCombat: !!combatState?.inCombat,
+    isHighStakes: !!aiResponse.isHighStakes,
+    isCriticalFailure: companionCriticalFailure,
+  });
+  const companionHpXp = applyCompanionChanges(ws.companions, guardedCompanionChanges);
+  const companionRecruitResult = recruitCompanion(companionHpXp.companions, aiResponse.companionRecruit, character.level);
+  const companionDepartResult = departCompanion(companionRecruitResult.companions, aiResponse.companionDeparture);
+  const finalCompanions = companionDepartResult.companions;
+
   // Scene summary — regenerate every 4 actions (cheap GPT-4o-mini call)
   const actionCount = (ws.actionsSinceLastSummary || 0) + 1;
   let currentSceneSummary = ws.currentSceneSummary;
@@ -442,6 +458,7 @@ export async function processAction(
     ...activeNPCChange,
     ...shopInventoryChange,
     combatState,
+    companions: finalCompanions,
     currentSceneSummary,
     actionsSinceLastSummary,
     sceneState: newSceneState,
@@ -576,5 +593,8 @@ export async function processAction(
     characterHistoryNote: aiResponse.characterHistoryNote as ActionResult['characterHistoryNote'],
     antagonistUpdate: aiResponse.antagonistUpdate,
     achievementUnlocked: aiResponse.achievementUnlocked,
+    companionChanges: Object.keys(companionHpXp.appliedChanges).length > 0 ? companionHpXp.appliedChanges : undefined,
+    newCompanion: companionRecruitResult.recruited,
+    companionDeparted: companionDepartResult.departed,
   };
 }

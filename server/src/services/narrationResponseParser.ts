@@ -1,4 +1,4 @@
-import type { WorldState, RollContext, CombatEnemy, Recipe, Companion } from '../../../shared/types';
+import type { WorldState, RollContext, CombatEnemy, Recipe, Companion, CompanionChangeEntry } from '../../../shared/types';
 import { cleanTurnOutcome, type TurnOutcome } from './narrationQualityValidator';
 
 export type NarrationResult = {
@@ -61,6 +61,11 @@ export type NarrationResult = {
   character1Changes?: { hpChange?: number; loot?: NarrationResult['loot']; statusEffectChanges?: NarrationResult['statusEffectChanges']; goldChange?: number; isDeath?: boolean; deathDescription?: string; isRest?: boolean; abilityUsed?: string; consumedItems?: string[] };
   character2Changes?: { hpChange?: number; loot?: NarrationResult['loot']; statusEffectChanges?: NarrationResult['statusEffectChanges']; goldChange?: number; isDeath?: boolean; deathDescription?: string; isRest?: boolean; abilityUsed?: string; consumedItems?: string[] };
   actingCharacterId?: string;
+  // Raw per-companion deltas keyed by CompanionCharacter.id, as reported by the
+  // extractor for this beat (before the death-plot-armor guard is applied).
+  companionChanges?: Record<string, CompanionChangeEntry>;
+  companionRecruit?: { name?: string; race?: string; class?: string };
+  companionDeparture?: { id: string; reason?: string };
 };
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -188,6 +193,41 @@ function cleanCompanion(value: unknown): Companion | null | undefined {
     bondLevel: clampNumber(record.bondLevel, 1, 5) || 1,
     abilityHint: asString(record.abilityHint),
   };
+}
+
+function cleanCompanionChanges(value: unknown): Record<string, CompanionChangeEntry> | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const result: Record<string, CompanionChangeEntry> = {};
+  for (const item of value) {
+    const record = asRecord(item);
+    const id = record && asString(record.id);
+    if (!record || !id) continue;
+    const entry: CompanionChangeEntry = {
+      hpChange: clampNumber(record.hpChange, -1000, 1000),
+      xpGained: clampNumber(record.xpGained, 0, 5000),
+      bondLevelChange: clampNumber(record.bondLevelChange, -20, 20),
+      isDeath: asBoolean(record.isDeath),
+      deathDescription: asString(record.deathDescription),
+    };
+    result[id] = entry;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function cleanCompanionRecruit(value: unknown): { name?: string; race?: string; class?: string } | undefined {
+  const record = asRecord(value);
+  if (!record) return undefined;
+  const name = asString(record.name);
+  if (!name) return undefined;
+  return { name, race: asString(record.race), class: asString(record.class) };
+}
+
+function cleanCompanionDeparture(value: unknown): { id: string; reason?: string } | undefined {
+  const record = asRecord(value);
+  if (!record) return undefined;
+  const id = asString(record.id);
+  if (!id) return undefined;
+  return { id, reason: asString(record.reason) };
 }
 
 function cleanFactionRepChange(value: unknown): { faction: string; delta: number } | undefined {
@@ -364,5 +404,8 @@ export function parseNarrationResponse(parsed: Record<string, unknown>): Narrati
     bossPhaseAdvance: asBoolean(parsed.bossPhaseAdvance),
     directorBeatExecuted: asBoolean(parsed.directorBeatExecuted),
     spotlightCharacterId: asString(parsed.spotlightCharacterId),
+    companionChanges: cleanCompanionChanges(parsed.companionChanges),
+    companionRecruit: cleanCompanionRecruit(parsed.companionRecruit),
+    companionDeparture: cleanCompanionDeparture(parsed.companionDeparture),
   };
 }

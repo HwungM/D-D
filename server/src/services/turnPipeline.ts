@@ -1,5 +1,6 @@
 import type { Character, RollContext, WorldBible, WorldState } from '../../../shared/types';
-import { CO_OP_SINGLE_CAMERA_RULE, PLAYER_AUTHORSHIP_CONTRACT } from './aiPromptContracts';
+import { CO_OP_SINGLE_CAMERA_RULE, COMPANION_PARTY_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT } from './aiPromptContracts';
+import { buildCompanionsPromptBlock } from './companionSystem';
 import { parseJsonRecord } from './aiResponseParser';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
 import {
@@ -86,7 +87,8 @@ const NARRATOR_VOICE = `You are a world-class Dungeon Master writing the prose f
 - NAME every NPC the moment they appear — never "the merchant", "a guard", "an old woman". Give a name that fits the region (e.g. "Varen, a grizzled trader"). Once named, stay consistent.
 - In combat, every standing enemy ACTS: it attacks, corners, or wounds, and a hit costs something. When a character drops below ~30% HP, telegraph mortal danger clearly. Never narrate a wound you don't mean, and never wave away a real fight.
 - Speak in second person when it reads naturally. Keep system text, JSON, and DC reasoning out of the prose.
-${PLAYER_AUTHORSHIP_CONTRACT}`;
+${PLAYER_AUTHORSHIP_CONTRACT}
+${COMPANION_PARTY_CONTRACT}`;
 
 const COOP_NARRATOR_VOICE = `${NARRATOR_VOICE}
 - CO-OP: Character 1 and Character 2 are TWO SEPARATE PEOPLE with different names, standing side by side in ONE shared scene. Refer to EACH BY NAME and act out EACH ONE's submitted action as their own. NEVER merge them into a single actor, never write one character performing the other's action, and never write phrases like "his other self" or "they both" to cover a move only one made. If Character 1 distracts and Character 2 flanks, show Character 1 distracting AND Character 2 flanking, each named.
@@ -108,6 +110,7 @@ function leanSceneContext(worldState: WorldState): string {
     worldState.activeNPC ? `Active NPC (only this NPC speaks unless the scene changes): ${worldState.activeNPC}` : null,
     cs?.inCombat ? `In combat: ${cs.enemyName || 'enemies present'} (${cs.enemyCondition || 'unknown'})` : null,
     worldState.currentSceneSummary ? `Current situation: ${worldState.currentSceneSummary}` : null,
+    buildCompanionsPromptBlock(worldState.companions) || null,
   ].filter(Boolean).join('\n');
 }
 
@@ -186,7 +189,8 @@ WHEN TO CALL FOR A ROLL (set needsRoll true — these are NOT auto-successes, an
 - Identifying hidden magic, recalling obscure lore, or reading runes when the answer is non-obvious (int/wis).
 - Stealth, pickpocketing/theft (ALWAYS a dex roll), lockpicking, or any attack with an uncertain outcome.
 - If several recent actions all just worked with no roll, the scene has no stakes — call for the roll when the outcome is uncertain AND failure would cost something. Do NOT roll for the trivial or purely expressive (looking at something in plain sight, walking somewhere safe, party conversation).
-COMBAT GROUNDING: only set combatStarting true if an enemy is ALREADY established in the scene (named in recent history, the active NPC turning hostile, or a creature the narration has already placed here). A bare intent like "look for a fight", "find something to kill", or "go hunting trouble" with no enemy yet present MUST set combatStarting false — make the beat about discovering a sign, trail, witness, or lead that points toward a real encounter next. Do not conjure an enemy out of nowhere to satisfy the action.${args.isCoop ? `
+COMBAT GROUNDING: only set combatStarting true if an enemy is ALREADY established in the scene (named in recent history, the active NPC turning hostile, or a creature the narration has already placed here). A bare intent like "look for a fight", "find something to kill", or "go hunting trouble" with no enemy yet present MUST set combatStarting false — make the beat about discovering a sign, trail, witness, or lead that points toward a real encounter next. Do not conjure an enemy out of nowhere to satisfy the action.
+${COMPANION_PARTY_CONTRACT}${args.isCoop ? `
 CO-OP: there are TWO distinct player characters with different names and ids. BOTH submitted actions are mandatory — include one priority for EACH character's declared action. Do not add a reaction, gesture, quote, movement, or follow-up that the player did not submit. The focus rule does NOT let you drop, merge, or reassign either action; spotlightCharacterId and actingCharacterId must be a real character id from the actions below.` : ''}`;
 
   const user = `${args.charactersBlock}
@@ -366,7 +370,10 @@ const SOLO_EXTRACTOR_SCHEMA = `{
   "actGoalAchieved": "exact act-goal text|null", "advanceAct": "boolean",
   "sceneMomentum": "advancing|stalling|transitioning", "directorBeatExecuted": "boolean",
   "triggerFinalConfrontation": "boolean", "endgameResolved": "boolean",
-  "awaitingRoll": "boolean", "rollContext": "{stat,dc,diceType:d20,description,successDescription,failDescription,critSuccessDescription,critFailDescription,isDramatic,modifier} | null"
+  "awaitingRoll": "boolean", "rollContext": "{stat,dc,diceType:d20,description,successDescription,failDescription,critSuccessDescription,critFailDescription,isDramatic,modifier} | null",
+  "companionChanges": "[{id,hpChange,xpGained,bondLevelChange,isDeath,deathDescription}] | null — id must match a COMPANIONS id given in context; only for companions who changed this beat",
+  "companionRecruit": "{name,race,class} | null — a new ally who joined the party as a full companion this beat, if narrated",
+  "companionDeparture": "{id,reason} | null — an existing companion (by id) who left the party without dying, if narrated"
 }`;
 
 const COOP_EXTRACTOR_EXTRA = `,
@@ -405,9 +412,11 @@ async function runExtractorPass(
 - ${rollLine}
 - WORLD REACTION: if violence, intimidation, humiliation, theft, rescue, betrayal, mercy, or a hard-won alliance happened, reflect it with meaningful npcMemory relationshipScore/relationshipLabel and factionRepChange when relevant. A defeated or cornered enemy should not remain near-neutral unless the narration explicitly shows mercy/reconciliation.
 - SKILL CHALLENGE: if the table directives include an active skill challenge, extract incremental progress in worldStateChanges.sceneState.skillChallenge when the narration clearly records a success, failure, cost, or objective completion.
-- ${args.isCoop ? 'Co-op: attribute HP/loot/death/ability per character via character1Changes/character2Changes; characterHistoryNote and antagonistUpdate stay top-level.' : 'Solo: use top-level hpChange/loot/etc.'}`;
+- ${args.isCoop ? 'Co-op: attribute HP/loot/death/ability per character via character1Changes/character2Changes; characterHistoryNote and antagonistUpdate stay top-level.' : 'Solo: use top-level hpChange/loot/etc.'}
+- ${COMPANION_PARTY_CONTRACT}`;
 
   const user = `BEAT PLAN: priorities=${plan.priorities.join(' | ')}; scenePurpose=${plan.scenePurpose}; pacing=${plan.pacingMode}; needsRoll=${plan.needsRoll}; combat=${plan.combatActive || plan.combatStarting}; highStakes=${plan.isHighStakes}${plan.threadToAdvance ? `; advanced thread="${plan.threadToAdvance}"` : ''}.
+${buildCompanionsPromptBlock(args.worldState.companions)}
 
 NARRATION JUST WRITTEN (extract state from THIS, do not change it):
 """

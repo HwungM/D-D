@@ -13,6 +13,7 @@ import {
   rollDice as rollDiceFromSystem,
 } from './characterProgressionSystem';
 import { advanceCombatState as advanceCombatStateFromSystem, newlyDefeatedCombatants } from './combatSystem';
+import { applyCompanionChanges, departCompanion, guardCompanionDeaths, recruitCompanion } from './companionSystem';
 import { enforceTurnPlanNarration, planCoopTurn } from './gameDirector';
 import { buildLayeredMemoryChanges, buildMemoryPack } from './layeredMemoryEngine';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
@@ -315,6 +316,19 @@ export async function processCoopAction(
 
   // Update combat state (shared with the solo path)
   const { combatState, forcedVictory } = advanceCombatStateFromSystem(ws.combatState ?? null, aiResponse, pendingActions.map(pa => pa.action));
+
+  // Companion party members: same guard/apply/recruit/depart flow as solo play.
+  const companionCriticalFailure = !!diceResult && diceResult.rolls[0] === 1;
+  const { changes: guardedCompanionChanges } = guardCompanionDeaths(aiResponse.companionChanges, {
+    inCombat: !!combatState?.inCombat,
+    isHighStakes: !!aiResponse.isHighStakes,
+    isCriticalFailure: companionCriticalFailure,
+  });
+  const companionHpXp = applyCompanionChanges(ws.companions, guardedCompanionChanges);
+  const companionPartyLevel = Math.max(characters[0]?.level || 1, characters[1]?.level || 1);
+  const companionRecruitResult = recruitCompanion(companionHpXp.companions, aiResponse.companionRecruit, companionPartyLevel);
+  const companionDepartResult = departCompanion(companionRecruitResult.companions, aiResponse.companionDeparture);
+  const finalCompanions = companionDepartResult.companions;
   const combatSignals = actionSignals(pendingActions.map(pa => pa.action));
   const newCombatEncounter = !ws.combatState?.inCombat && !!combatState?.inCombat;
   const combatantEnemies = combatState?.enemies || aiResponse.combatEnemies || ws.combatState?.enemies;
@@ -449,6 +463,7 @@ export async function processCoopAction(
     actionCount: newActionCount,
     actionsInCurrentAct: newActionsInCurrentAct,
     combatState,
+    companions: finalCompanions,
     ...locationTracking,
     ...buildContinuityPatch(characters, coopPlan.rails, ws, aiResponse, newActionCount, newLocation),
     currentSceneSummary,
@@ -676,5 +691,8 @@ export async function processCoopAction(
       loot: aiResponse.character2Changes?.loot as InventoryItem[] | undefined,
       statusEffectChanges: aiResponse.character2Changes?.statusEffectChanges as ActionResult['statusEffectChanges'],
     },
+    companionChanges: Object.keys(companionHpXp.appliedChanges).length > 0 ? companionHpXp.appliedChanges : undefined,
+    newCompanion: companionRecruitResult.recruited,
+    companionDeparted: companionDepartResult.departed,
   };
 }

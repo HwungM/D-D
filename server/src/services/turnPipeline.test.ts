@@ -123,3 +123,61 @@ test('table narration length guidance keeps ordinary exchanges concise', () => {
   assert.match(narrationLengthGuide(false, 'exploration'), /60-110/);
   assert.match(narrationLengthGuide(true, 'climax'), /120-190/);
 });
+
+test('solo pipeline includes living companions in the director/narrator/extractor prompt context and round-trips companion changes', async () => {
+  // The quality gate is a separate narration-review critic that doesn't need
+  // companion party state, so only director/narrator/extractor prompts are
+  // asserted on.
+  const relevantUserPrompts: string[] = [];
+  const client: ChatClient = {
+    chat: {
+      completions: {
+        async create(args: { messages: { role: string; content: string }[] }) {
+          const system = args.messages.find(m => m.role === 'system')?.content || '';
+          const user = args.messages.find(m => m.role === 'user')?.content || '';
+          if (system.includes('DIRECTOR')) {
+            relevantUserPrompts.push(user);
+            return { choices: [{ message: { content: JSON.stringify({ priorities: ['Fight the wolf'], scenePurpose: 'combat', pacingMode: 'climax', needsRoll: false, combatActive: true, isHighStakes: false, reason: 'combat' }) } }] };
+          }
+          if (system.includes('DM QUALITY CRITIC')) {
+            return { choices: [{ message: { content: JSON.stringify({ pass: true, issues: [], rationale: 'good', revisedNarration: null, revisedSceneImagePrompt: null }) } }] };
+          }
+          if (system.includes('EXTRACTOR')) {
+            relevantUserPrompts.push(user);
+            return {
+              choices: [{
+                message: {
+                  content: JSON.stringify({
+                    isCombat: true,
+                    companionChanges: [{ id: 'comp-1', hpChange: -4, xpGained: 10, bondLevelChange: 5 }],
+                  }),
+                },
+              }],
+            };
+          }
+          relevantUserPrompts.push(user);
+          return { choices: [{ message: { content: JSON.stringify({ narration: 'Brynn the companion takes a bite from the wolf and grits her teeth.', sceneImagePrompt: 'a wolf fight' }) } }] };
+        },
+      },
+    },
+  };
+
+  const worldStateWithCompanion: WorldState = {
+    ...worldState,
+    companions: [{
+      id: 'comp-1', name: 'Brynn', race: 'Dwarf', class: 'Fighter', level: 2, xp: 0,
+      hp: 20, max_hp: 20, stats: { str: 14, dex: 10, con: 14, int: 8, wis: 10, cha: 8 },
+      abilities: [], inventory: [], bondLevel: 20, is_alive: true, recruitedAt: new Date().toISOString(),
+    }],
+  } as WorldState;
+
+  const result = await runSoloTurnPipeline(client, log, 'fight the wolf', worldStateWithCompanion, worldBible, makeCharacter('c1', 'King'), []);
+
+  // Every prompt pass should have seen the companion's id and name so the AI
+  // can voice them and key companionChanges back to the right party member.
+  assert.ok(relevantUserPrompts.length === 3, `expected 3 captured prompts, got ${relevantUserPrompts.length}`);
+  assert.ok(relevantUserPrompts.every(prompt => prompt.includes('comp-1') && prompt.includes('Brynn')), 'companion id/name missing from a prompt pass');
+  assert.equal(result.companionChanges?.['comp-1'].hpChange, -4);
+  assert.equal(result.companionChanges?.['comp-1'].xpGained, 10);
+  assert.equal(result.companionChanges?.['comp-1'].bondLevelChange, 5);
+});

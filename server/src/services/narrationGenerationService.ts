@@ -1,5 +1,6 @@
 import type { Character, WorldState, WorldBible } from '../../../shared/types';
-import { CO_OP_SINGLE_CAMERA_RULE, PLAYER_AUTHORSHIP_CONTRACT, STYLE_ANTI_REPETITION, TURN_RESOLUTION_CONTRACT } from './aiPromptContracts';
+import { CO_OP_SINGLE_CAMERA_RULE, COMPANION_PARTY_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, STYLE_ANTI_REPETITION, TURN_RESOLUTION_CONTRACT } from './aiPromptContracts';
+import { buildCompanionsPromptBlock } from './companionSystem';
 import { parseJsonRecord } from './aiResponseParser';
 import { repairNarrationDraftIfNeeded, type AiTurnRepairMessage } from './aiTurnRepairSystem';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
@@ -185,6 +186,7 @@ ${worldState.activeQuests && worldState.activeQuests.filter(q => q.status === 'a
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
 ${worldState.companion ? `companion: ${worldState.companion.name} the ${worldState.companion.species} (bond level ${worldState.companion.bondLevel}) - ${worldState.companion.description}` : ''}
+${buildCompanionsPromptBlock(worldState.companions)}
 ${worldState.factionStandings && Object.keys(worldState.factionStandings).length > 0 ? `faction standings: ${Object.entries(worldState.factionStandings).map(([f, v]) => `${f} (${v})`).join(', ')}` : ''}
 Scene purpose: ${worldState.sceneState?.purpose || 'explore'} | Exchanges in scene: ${worldState.sceneState?.exchangeCount ?? 0} | Pacing mode: ${worldState.sceneState?.pacingMode || 'exploration'}${worldState.sceneState && worldState.sceneState.stalledCount >= 2 ? ` - STALL DETECTED (${worldState.sceneState.stalledCount} consecutive exchanges without story advancement), consider introducing a complication.` : ''}${(worldState.sceneState?.cluesThisScene ?? 0) >= 2 ? `
 ⚠ CLUE-TO-CHOICE ESCALATION (this scene has already handed out enough lore): do NOT produce another pure-exposition paragraph about the same object/NPC. This turn MUST introduce ONE of: a meaningful choice the party must make, a roll with real stakes, a complication or danger, a new location/lead, an NPC demand or pushback, or a clear scene exit. The mystery object stops being a Q&A booth - it forces a decision or sends them somewhere.` : ''}
@@ -339,10 +341,13 @@ Respond with JSON:
     "isRest": boolean,
     "abilityUsed": "string | null",
     "consumedItems": ["string"] | null
-  }
+  },
+  "companionChanges": [{"id": "string", "hpChange": number, "xpGained": number, "bondLevelChange": number, "isDeath": boolean, "deathDescription": "string"}] | null,
+  "companionRecruit": {"name": "string", "race": "string", "class": "string"} | null,
+  "companionDeparture": {"id": "string", "reason": "string"} | null
 }`;
 
-  const coopContractBlock = PLAYER_AUTHORSHIP_CONTRACT + '\n' + TURN_RESOLUTION_CONTRACT + '\n' + CO_OP_SINGLE_CAMERA_RULE + '\n' + STYLE_ANTI_REPETITION;
+  const coopContractBlock = PLAYER_AUTHORSHIP_CONTRACT + '\n' + TURN_RESOLUTION_CONTRACT + '\n' + CO_OP_SINGLE_CAMERA_RULE + '\n' + STYLE_ANTI_REPETITION + '\n' + COMPANION_PARTY_CONTRACT;
   const messages = [
     { role: 'system', content: DM_SYSTEM_PROMPT },
     { role: 'user', content: worldContext },

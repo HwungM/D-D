@@ -1,6 +1,7 @@
 import type { Character, WorldState, WorldBible, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, CharacterOnlineStatus, NpcMemory } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
-import { COMBAT_AND_NPC_PERSISTENCE_CONTRACT, GROUNDED_ENCOUNTER_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, TURN_RESOLUTION_CONTRACT, STYLE_ANTI_REPETITION } from './aiPromptContracts';
+import { COMBAT_AND_NPC_PERSISTENCE_CONTRACT, COMPANION_PARTY_CONTRACT, GROUNDED_ENCOUNTER_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, TURN_RESOLUTION_CONTRACT, STYLE_ANTI_REPETITION } from './aiPromptContracts';
+import { buildCompanionsPromptBlock } from './companionSystem';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
 import { actRoleFor, arcNumberFor } from './actPacingSystem';
 
@@ -313,6 +314,8 @@ COMPANION RULES:
 - If the character already has a companion (provided in context), reference it naturally in narration when relevant - it travels with them, reacts to events, occasionally helps. Don't introduce a second companion unless the first is lost/given away.
 - You may raise bondLevel (max 5) over time as the relationship deepens through meaningful shared moments - set companion with the same name/species/description but an incremented bondLevel. Don't increment more than once every several actions.
 - To remove a companion (it leaves, dies, is given away), set companion to null and reflect this in the narration.
+
+${COMPANION_PARTY_CONTRACT}
 
 FACTION REPUTATION RULES:
 - Track standing with recurring factions/groups/organizations the party interacts with (a guild, a noble house, a cult, a town's guards, etc.).
@@ -659,7 +662,10 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "endgameResolved": boolean,
   "consumedItems": ["item name"] | null,
   "directorBeatExecuted": boolean,
-  "spotlightCharacterId": "characterId being spotlighted this turn, or null"
+  "spotlightCharacterId": "characterId being spotlighted this turn, or null",
+  "companionChanges": "[{id,hpChange,xpGained,bondLevelChange,isDeath,deathDescription}] | null - id must match a COMPANIONS id given in context",
+  "companionRecruit": "{name,race,class} | null - a new ally who joined the party as a full companion this turn",
+  "companionDeparture": "{id,reason} | null - an existing companion (by id) who left the party without dying"
 }`;
 
 export type NarrationCampaignContext = {
@@ -1011,6 +1017,7 @@ STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
 ${worldState.companion ? `companion: ${worldState.companion.name} the ${worldState.companion.species} (bond level ${worldState.companion.bondLevel}) - ${worldState.companion.description}` : ''}
+${buildCompanionsPromptBlock(worldState.companions)}
 ${worldState.factionStandings && Object.keys(worldState.factionStandings).length > 0 ? `faction standings: ${Object.entries(worldState.factionStandings).map(([f, v]) => `${f} (${v})`).join(', ')}` : ''}
 ${abilitiesBlock}
 ${suggestionContextBlock}

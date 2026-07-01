@@ -107,6 +107,17 @@ export interface CompanionCharacter {
   portrait_url?: string;
 }
 
+// One companion's mechanical delta for a single turn, as reported by the AI
+// extractor. Mirrors the PC character2Changes convention (deltas, not absolute
+// values) so the same apply/repair pipeline shape works for both.
+export interface CompanionChangeEntry {
+  hpChange?: number;
+  xpGained?: number;
+  bondLevelChange?: number;
+  isDeath?: boolean;
+  deathDescription?: string;
+}
+
 // A single seat in the party: either a human player (filled or still invited)
 // or an AI-controlled companion. Companions can be met/recruited/lost mid-campaign,
 // so this describes the starting composition, not a permanent roster lock.
@@ -698,6 +709,14 @@ export interface ActionResult {
   comboBonus?: boolean;
   newRecipe?: Recipe;
   factionRepChange?: { faction: string; delta: number };
+  // Final applied per-companion state after this turn's HP/XP/level/bond/death
+  // changes were resolved, keyed by CompanionCharacter.id. Only companions that
+  // actually changed this turn appear here.
+  companionChanges?: Record<string, Partial<CompanionCharacter>>;
+  // A brand-new ally who joined the party as a full companion this turn.
+  newCompanion?: CompanionCharacter;
+  // An existing companion who left the party (not died) this turn.
+  companionDeparted?: { id: string; name: string; reason?: string };
 }
 
 export interface UnlockedAchievement {
