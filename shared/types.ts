@@ -468,6 +468,32 @@ export interface WorldState {
     isBossFight?: boolean;
     bossPhase?: number;
   } | null;
+  // Scene-level escalation tracker while the party is hiding/fled from a live
+  // threat WITHIN the current scene (combatState.inCombat is false, but the
+  // encounter hasn't actually concluded). Each subsequent micro-action taken
+  // while this is active rolls a code-side (not AI) chance the threat finds
+  // the party again, re-triggering combatState via the preserved enemy
+  // snapshot. See server/src/services/tensionSystem.ts.
+  tensionMeter?: {
+    active: boolean;
+    heat: number; // 0-100, escalates with each action taken while hidden — flavor/telemetry only
+    hunterName?: string; // who/what is stalking the party
+    huntingEnemies?: CombatEnemy[]; // snapshot of the paused encounter's enemies, used to resume combat
+    roundNumber?: number; // combat round the encounter paused at
+    isBossFight?: boolean;
+    bossPhase?: number;
+    actionsHidden: number; // micro-actions taken since successfully hiding/fleeing — drives the find-chance curve, NOT wall-clock time
+  } | null;
+  // Set when a live combat/tension sequence that played out through
+  // micro-actions concludes (victory, successful evasion held through to
+  // Advance, etc.) — folded into Advance's context so the macro-turn pipeline
+  // responds to how the fight actually ended instead of re-litigating it.
+  // Cleared whenever a macro-turn resolves and a new scene begins.
+  lastCombatOutcome?: {
+    outcome: 'victory' | 'fled' | 'negotiated';
+    enemyName?: string;
+    concludedAt: string;
+  } | null;
   activeNPC?: string | null;
   // What/who is present and interactable in the current scene — reused by the
   // micro-action free-roam layer so it knows who/what the player can poke at

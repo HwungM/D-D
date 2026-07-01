@@ -99,6 +99,11 @@ export async function applyConsequences(
   // this turn — the next micro-actions start a fresh log against the new scene.
   newWorldState.sceneInteractables = buildSceneInteractables(newWorldState);
   newWorldState.freeRoam = null;
+  // A concluded scene's combat/tension bookkeeping is scene-scoped — the next
+  // scene's micro-actions start clean rather than carrying over a stale
+  // "still being hunted" state or a summary already folded into this turn.
+  newWorldState.tensionMeter = null;
+  newWorldState.lastCombatOutcome = null;
   await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
 
   if (Object.keys(updates).length > 0) {

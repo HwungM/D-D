@@ -114,6 +114,90 @@ test('runMicroAction never starts combat/act-progress from a fast-path reaction 
   assert.equal((result as Record<string, unknown>).advanceAct, undefined);
 });
 
+test('parseMicroActionResponse classifies a combat intent and forces awaitingRoll even if the model forgot', () => {
+  const result = parseMicroActionResponse({
+    reaction: 'You lunge at the bandit with your blade.',
+    combatIntent: 'attack',
+    targetEnemy: 'Bandit',
+    awaitingRoll: false, // deliberately wrong — combat must never be optional
+  });
+  assert.equal(result.combatIntent, 'attack');
+  assert.equal(result.targetEnemy, 'Bandit');
+  assert.equal(result.awaitingRoll, true);
+  assert.ok(result.rollContext, 'a fallback rollContext must be built when the model omits one for a combat intent');
+});
+
+test('parseMicroActionResponse ignores an invalid combatIntent value', () => {
+  const result = parseMicroActionResponse({
+    reaction: 'You glance around the room.',
+    combatIntent: 'flirt',
+    awaitingRoll: false,
+  });
+  assert.equal(result.combatIntent, undefined);
+  assert.equal(result.awaitingRoll, false);
+});
+
+test('runMicroAction takes the combat-aware path and always returns awaitingRoll:true while combat is active', async () => {
+  const chat = chatClientReturning({
+    reaction: 'You duck behind the overturned cart.',
+    combatIntent: 'hide',
+    targetEnemy: null,
+    awaitingRoll: true,
+    rollContext: {
+      stat: 'dex', dc: 14, diceType: 'd20',
+      description: 'duck out of sight', successDescription: 'You vanish from view.', failDescription: 'It spots you instantly.',
+      isDramatic: true, modifier: 0,
+    },
+  });
+  const worldState: WorldState = {
+    combatState: {
+      inCombat: true,
+      enemyName: 'Ashwing the Dragon',
+      enemyCondition: 'wounded',
+      roundNumber: 3,
+      playerActionsAttempted: [],
+      enemies: [{ name: 'Ashwing the Dragon', archetype: 'boss', maxHp: 120, currentHp: 55, condition: 'wounded' }],
+    },
+  };
+  const result = await runMicroAction(chat, () => {}, {
+    action: 'duck behind the cart',
+    character: fakeCharacter(),
+    worldState,
+    worldBible: fakeWorldBible(),
+    sceneInteractables: [],
+  });
+  assert.equal(result.combatIntent, 'hide');
+  assert.equal(result.awaitingRoll, true);
+  assert.ok(result.rollContext);
+});
+
+test('runMicroAction forces a combat intent even if the model response omits one entirely', async () => {
+  const chat = chatClientReturning({
+    reaction: 'You swing wildly.',
+    awaitingRoll: false,
+  });
+  const worldState: WorldState = {
+    combatState: {
+      inCombat: true,
+      enemyName: 'Bandit',
+      enemyCondition: 'healthy',
+      roundNumber: 1,
+      playerActionsAttempted: [],
+      enemies: [{ name: 'Bandit', archetype: 'soldier', maxHp: 12, currentHp: 12, condition: 'healthy' }],
+    },
+  };
+  const result = await runMicroAction(chat, () => {}, {
+    action: 'swing my sword',
+    character: fakeCharacter(),
+    worldState,
+    worldBible: fakeWorldBible(),
+    sceneInteractables: [],
+  });
+  assert.equal(result.combatIntent, 'attack');
+  assert.equal(result.awaitingRoll, true);
+  assert.ok(result.rollContext);
+});
+
 test('narrateMicroActionRollOutcome templates success/fail/crit text without a second AI call', () => {
   const rollContext = {
     stat: 'dex' as const, dc: 14, diceType: 'd20',

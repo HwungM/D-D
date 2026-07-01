@@ -9,9 +9,13 @@ import { z } from 'zod';
 import { aiRateLimit } from '../middleware/rateLimit';
 import { repairWorldStateForGameplay } from '../services/coopStateIntegrity';
 import { buildSceneInteractables } from '../services/sceneInteractableSystem';
-import { appendFreeRoamEntry, buildAdvanceActionText } from '../services/advanceTurnService';
+import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary } from '../services/advanceTurnService';
 import { resolveMysteryClueChanges } from '../services/mysteryClueSystem';
-import { narrateMicroActionRollOutcome } from '../services/microActionService';
+import { narrateMicroActionRollOutcome, type MicroCombatIntent } from '../services/microActionService';
+import { resolveMicroActionCombatRoll } from '../services/microActionCombat';
+import { escalateTension, resumeCombatFromTension } from '../services/tensionSystem';
+import { applyCharacterConsequences } from '../services/consequenceSystem';
+import { applyCompanionChanges } from '../services/companionSystem';
 
 const router = Router();
 const COOP_TURN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -235,7 +239,7 @@ router.post('/resolve-roll', requireAuth, aiRateLimit, async (req: AuthRequest, 
 
   const { data: character } = await supabaseAdmin
     .from('characters')
-    .select('user_id, campaign_id, stats')
+    .select('*')
     .eq('id', characterId)
     .eq('user_id', req.user!.id)
     .single();
@@ -318,8 +322,25 @@ router.post('/resolve-roll', requireAuth, aiRateLimit, async (req: AuthRequest, 
         // A micro-action's roll never runs the heavy macro-turn pipeline (no
         // act advancement, no quality gates) — it just narrates the resolved
         // check using the same success/fail text the fast-path call already
-        // authored, and logs it against the free-roam ledger.
-        const result = pendingMetadata?.microAction === true
+        // authored, and logs it against the free-roam ledger. A COMBAT
+        // micro-action roll additionally applies real enemy/HP/companion
+        // consequences via microActionCombat.ts, reusing the same engine the
+        // macro-turn path uses instead of duplicating the math.
+        const result = pendingMetadata?.microActionCombat === true
+          ? await resolveMicroActionCombatRollAndPersist(
+              campaignId,
+              characterId,
+              character as unknown as Character,
+              rollResult,
+              rollTotal,
+              dc,
+              success,
+              isCritSuccess,
+              isCritFail,
+              authoritativeContext,
+              (pendingMetadata.combatIntent as MicroCombatIntent) || 'attack',
+            )
+          : pendingMetadata?.microAction === true
           ? await resolveMicroActionRollAndPersist(campaignId, characterId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext)
           : pendingCoopRoll
           ? await resolveCoopRollAction(campaignId, characterId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext)
@@ -875,6 +896,131 @@ async function resolveMicroActionRollAndPersist(
   };
 }
 
+// Resolves a roll requested by the COMBAT-aware micro-action path (see
+// microActionService.ts's COMBAT_MICRO_ACTION_SYSTEM_PROMPT). Unlike the
+// flavor-only resolver above, this DOES apply real consequences — enemy HP/
+// defeat, player HP, companion HP/XP, and pause/resume via the tension
+// meter — by calling into microActionCombat.ts, which itself reuses
+// rulesEngine.ts's dice math (the same functions the macro-turn path uses)
+// rather than duplicating it. No second AI call: narration is templated from
+// the rollContext text the fast-path call already authored, plus a couple of
+// deterministic flavor beats for what the engine decided happened.
+async function resolveMicroActionCombatRollAndPersist(
+  campaignId: string,
+  characterId: string,
+  character: Character,
+  rollResult: number,
+  rollTotal: number,
+  dc: number,
+  success: boolean,
+  isCritSuccess: boolean,
+  isCritFail: boolean,
+  rollContext: RollContext,
+  combatIntent: MicroCombatIntent,
+) {
+  const { data: campaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaignId).single();
+  const ws = (campaign?.world_state || {}) as WorldState;
+  const combatState = ws.combatState;
+
+  // Combat already resolved by the time this roll came back (e.g. the
+  // encounter ended via another route in the meantime) — fall back to a
+  // flavor-only narration rather than mutating a fight that no longer exists.
+  if (!combatState?.inCombat) {
+    const narration = narrateMicroActionRollOutcome(rollContext, success, isCritSuccess, isCritFail);
+    const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, rollContext.description, narration);
+    await supabaseAdmin.from('campaigns').update({ world_state: { ...ws, freeRoam } }).eq('id', campaignId);
+    await supabaseAdmin.from('story_events').insert({
+      campaign_id: campaignId,
+      character_id: characterId,
+      event_type: 'narration',
+      content: narration,
+      metadata: { microAction: true, resolvedRoll: true },
+    });
+    return {
+      narration,
+      awaitingRoll: false,
+      diceRoll: { sides: 20, rolls: [rollResult], modifier: rollContext.modifier, total: rollTotal, description: rollContext.description },
+      success,
+      isCritSuccess,
+      isCritFail,
+    };
+  }
+
+  const outcome = resolveMicroActionCombatRoll({
+    intent: combatIntent,
+    character,
+    combatState,
+    rollContext,
+    roll: rollResult,
+    total: rollTotal,
+    dc,
+    companions: ws.companions,
+  });
+
+  const baseNarration = narrateMicroActionRollOutcome(rollContext, success, isCritSuccess, isCritFail);
+  const extraBeats: string[] = [];
+  if (outcome.defeatedEnemies.length > 0) extraBeats.push(`${outcome.defeatedEnemies.join(', ')} falls!`);
+  if (outcome.victory) extraBeats.push('The fight is won.');
+  if (outcome.paused) extraBeats.push('The threat loses track of you — for now.');
+  if (outcome.companionAssistName) extraBeats.push(`${outcome.companionAssistName} presses the advantage alongside you.`);
+  const narration = extraBeats.length > 0 ? `${baseNarration} ${extraBeats.join(' ')}` : baseNarration;
+
+  const characterUpdates = applyCharacterConsequences(character, {
+    hpChange: outcome.characterHpChange,
+    goldChange: outcome.spoilsGold,
+  });
+  if (Object.keys(characterUpdates).length > 0) {
+    await supabaseAdmin.from('characters').update(characterUpdates).eq('id', characterId);
+  }
+
+  const companionResult = applyCompanionChanges(ws.companions, outcome.companionChanges);
+  const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, rollContext.description, narration);
+  const concludedAt = new Date().toISOString();
+  const lastCombatOutcome: WorldState['lastCombatOutcome'] = outcome.victory
+    ? { outcome: 'victory', enemyName: combatState.enemyName, concludedAt }
+    : outcome.paused
+    ? { outcome: combatIntent === 'negotiate' ? 'negotiated' : 'fled', enemyName: combatState.enemyName, concludedAt }
+    : ws.lastCombatOutcome;
+
+  const updatedWorldState: WorldState = {
+    ...ws,
+    combatState: outcome.combatState,
+    tensionMeter: outcome.tensionMeter ?? ws.tensionMeter,
+    companions: companionResult.companions,
+    lastCombatOutcome,
+    freeRoam,
+  };
+  await supabaseAdmin.from('campaigns').update({ world_state: updatedWorldState }).eq('id', campaignId);
+
+  await supabaseAdmin.from('story_events').insert({
+    campaign_id: campaignId,
+    character_id: characterId,
+    event_type: 'narration',
+    content: narration,
+    metadata: {
+      microAction: true,
+      microActionCombat: true,
+      resolvedRoll: true,
+      victory: outcome.victory,
+      paused: outcome.paused,
+      defeatedEnemies: outcome.defeatedEnemies,
+    },
+  });
+
+  return {
+    narration,
+    awaitingRoll: false,
+    diceRoll: { sides: 20, rolls: [rollResult], modifier: rollContext.modifier, total: rollTotal, description: rollContext.description },
+    success,
+    isCritSuccess,
+    isCritFail,
+    combatState: outcome.combatState,
+    victory: outcome.victory,
+    defeatedEnemies: outcome.defeatedEnemies,
+    paused: outcome.paused,
+  };
+}
+
 const microActionSchema = z.object({
   characterId: z.string().uuid(),
   campaignId: z.string().uuid(),
@@ -932,8 +1078,50 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         return;
       }
 
-      const ws = campaign.world_state as WorldState;
+      let ws = campaign.world_state as WorldState;
       const wb = campaign.world_bible as WorldBible;
+
+      // Tension escalation is checked BEFORE reacting to this action: while
+      // the party is hiding/fled from a live threat within this scene (not
+      // yet resolved via Advance), each subsequent micro-action carries an
+      // increasing, code-side (not AI) chance the threat finds them again.
+      // See tensionSystem.ts for the odds curve.
+      if (ws.tensionMeter?.active && !ws.combatState?.inCombat) {
+        const { tensionMeter: escalated, foundAgain } = escalateTension(ws.tensionMeter);
+        if (foundAgain) {
+          const resumedCombat = resumeCombatFromTension(ws.tensionMeter);
+          const hunterName = ws.tensionMeter.hunterName || resumedCombat.enemyName;
+          const narration = `${hunterName} finds you again — combat erupts once more!`;
+          const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, action, narration);
+          const updatedWorldState: WorldState = { ...ws, combatState: resumedCombat, tensionMeter: null, freeRoam };
+          await supabaseAdmin.from('campaigns').update({ world_state: updatedWorldState }).eq('id', campaignId);
+          await supabaseAdmin.from('story_events').insert({
+            campaign_id: campaignId,
+            character_id: characterId,
+            event_type: 'action',
+            content: action,
+            metadata: { microAction: true },
+          });
+          await supabaseAdmin.from('story_events').insert({
+            campaign_id: campaignId,
+            character_id: characterId,
+            event_type: 'narration',
+            content: narration,
+            metadata: { microAction: true, combatResumed: true },
+          });
+          res.json({
+            reaction: narration,
+            awaitingRoll: false,
+            combatResumed: true,
+            combatState: resumedCombat,
+            sceneInteractables: updatedWorldState.sceneInteractables || [],
+            freeRoamCount: freeRoam.actions.length,
+          });
+          return;
+        }
+        ws = { ...ws, tensionMeter: escalated };
+      }
+
       const sceneInteractables = ws.sceneInteractables && ws.sceneInteractables.length > 0
         ? ws.sceneInteractables
         : buildSceneInteractables(ws);
@@ -948,6 +1136,15 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
       );
 
       if (reaction.awaitingRoll && reaction.rollContext) {
+        const narrationMetadata: Record<string, unknown> = { microAction: true, awaitingRoll: true, rollContext: reaction.rollContext };
+        if (reaction.combatIntent) {
+          narrationMetadata.microActionCombat = true;
+          narrationMetadata.combatIntent = reaction.combatIntent;
+          if (reaction.targetEnemy) narrationMetadata.targetEnemy = reaction.targetEnemy;
+        }
+        // Persist any tension-meter escalation from above (e.g. still hidden,
+        // heat rose) even though this particular action needs a roll.
+        await supabaseAdmin.from('campaigns').update({ world_state: { ...ws, sceneInteractables } }).eq('id', campaignId);
         await supabaseAdmin.from('story_events').insert({
           campaign_id: campaignId,
           character_id: characterId,
@@ -960,12 +1157,14 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
           character_id: characterId,
           event_type: 'narration',
           content: reaction.reaction,
-          metadata: { microAction: true, awaitingRoll: true, rollContext: reaction.rollContext },
+          metadata: narrationMetadata,
         });
         res.json({
           reaction: reaction.reaction,
           awaitingRoll: true,
           rollContext: reaction.rollContext,
+          combatIntent: reaction.combatIntent,
+          targetEnemy: reaction.targetEnemy,
           sceneInteractables,
         });
         return;
@@ -1112,7 +1311,7 @@ router.post('/advance', requireAuth, aiRateLimit, async (req: AuthRequest, res: 
           return;
         }
 
-        const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction);
+        const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction, buildCombatConclusionSummary(ws));
 
         const pendingCreatedAt = ws.pendingTurn?.createdAt || ws.pendingTurn?.actions?.[0]?.submittedAt;
         const pendingStartedAt = pendingCreatedAt ? Date.parse(pendingCreatedAt) : NaN;
@@ -1168,7 +1367,7 @@ router.post('/advance', requireAuth, aiRateLimit, async (req: AuthRequest, res: 
         .eq('id', campaignId)
         .single();
       const ws = (campaign?.world_state || {}) as WorldState;
-      const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction);
+      const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction, buildCombatConclusionSummary(ws));
       const result = await processAction(characterId, advanceActionText, campaignId);
       res.json(result);
     });

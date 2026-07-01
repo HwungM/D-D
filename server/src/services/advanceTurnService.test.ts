@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WorldState } from '../../../shared/types';
-import { appendFreeRoamEntry, buildAdvanceActionText } from './advanceTurnService';
+import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary } from './advanceTurnService';
 
 test('appendFreeRoamEntry starts a fresh log for a new scene and accumulates within one scene', () => {
   const first = appendFreeRoamEntry(undefined, 'The Docks', 'ask the dockhand about the ship', 'He shrugs — "Ask the harbormaster."');
@@ -48,4 +48,52 @@ test('buildAdvanceActionText always returns usable text regardless of state — 
   const hugeText = buildAdvanceActionText(huge);
   assert.match(hugeText, /micro action 49/);
   assert.doesNotMatch(hugeText, /micro action 0 /);
+});
+
+test('buildCombatConclusionSummary is undefined when no combat/tension happened this scene', () => {
+  assert.equal(buildCombatConclusionSummary({} as WorldState), undefined);
+});
+
+test('buildCombatConclusionSummary is undefined while combat is still actively ongoing — the macro-turn pipeline already handles that itself', () => {
+  const ws = {
+    combatState: {
+      inCombat: true, enemyName: 'Ashwing', enemyCondition: 'wounded' as const, roundNumber: 3, playerActionsAttempted: [],
+    },
+    lastCombatOutcome: { outcome: 'victory' as const, enemyName: 'Ashwing', concludedAt: new Date().toISOString() },
+  } as WorldState;
+  assert.equal(buildCombatConclusionSummary(ws), undefined);
+});
+
+test('buildCombatConclusionSummary reports a victory resolved through micro-action combat', () => {
+  const ws = {
+    lastCombatOutcome: { outcome: 'victory' as const, enemyName: 'Ashwing the Dragon', concludedAt: new Date().toISOString() },
+  } as WorldState;
+  const summary = buildCombatConclusionSummary(ws);
+  assert.match(summary || '', /defeated Ashwing the Dragon/);
+});
+
+test('buildCombatConclusionSummary reports a successful flee/negotiation outcome', () => {
+  const fled = buildCombatConclusionSummary({
+    lastCombatOutcome: { outcome: 'fled', enemyName: 'the raiders', concludedAt: new Date().toISOString() },
+  } as WorldState);
+  assert.match(fled || '', /broke away from the raiders/);
+
+  const negotiated = buildCombatConclusionSummary({
+    lastCombatOutcome: { outcome: 'negotiated', enemyName: 'the cult leader', concludedAt: new Date().toISOString() },
+  } as WorldState);
+  assert.match(negotiated || '', /talked the cult leader down/);
+});
+
+test('buildCombatConclusionSummary reports staying hidden through to the end of the scene', () => {
+  const ws = {
+    tensionMeter: { active: true, heat: 65, hunterName: 'Ashwing the Dragon', actionsHidden: 3 },
+  } as WorldState;
+  const summary = buildCombatConclusionSummary(ws);
+  assert.match(summary || '', /stayed hidden from Ashwing the Dragon/);
+});
+
+test('buildAdvanceActionText folds a combat conclusion summary in alongside the free-roam log', () => {
+  const text = buildAdvanceActionText(undefined, 'Move on.', 'The party defeated the ogre during live combat this scene.');
+  assert.match(text, /Move on\./);
+  assert.match(text, /defeated the ogre during live combat/);
 });

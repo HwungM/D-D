@@ -138,9 +138,14 @@ export function resolvePlayerCombatRoll(
   total: number,
   dc: number,
   random: () => number = Math.random,
+  // The micro-action combat layer already classifies the action's intent as
+  // "attack" via a dedicated combatIntent field before this ever runs, so it
+  // can skip the free-text regex sniff below (which exists for the macro-turn
+  // path, where intent is only inferred from narration text).
+  forceAttack: boolean = false,
 ): CombatRollResolution | null {
   if (!combatState?.inCombat) return null;
-  if (!/\b(attack|strike|shoot|slash|stab|smite|hit|swing|fire|cast|blast)\b/i.test(rollContext.description)) return null;
+  if (!forceAttack && !/\b(attack|strike|shoot|slash|stab|smite|hit|swing|fire|cast|blast)\b/i.test(rollContext.description)) return null;
 
   const degree = degreeOfSuccess(roll, total, dc);
   if (degree === 'critical_failure' || degree === 'clear_failure' || degree === 'near_miss') {
@@ -187,4 +192,28 @@ export function resolvePlayerCombatRoll(
     defeated,
     victory,
   };
+}
+
+export type EnemyCounterattack = { damage: number; attackerName: string };
+
+// Deterministic (code, not AI) enemy retaliation damage for the micro-action
+// combat layer — mirrors the "~10-20% of max HP, bosses hit harder" guidance
+// already given to the macro-turn roll-outcome prompt (see
+// rollNarrationService.ts's combatStakesBlock), but computed in code so it's
+// consistent and testable rather than left to per-call model judgement.
+export function resolveEnemyCounterattackDamage(
+  combatState: WorldState['combatState'],
+  character: Pick<Character, 'max_hp'>,
+  random: () => number = Math.random,
+): EnemyCounterattack | null {
+  const living = (combatState?.enemies || []).filter(enemy => !enemy.isDefeated);
+  if (living.length === 0) return null;
+
+  const attacker = living.find(enemy => enemy.archetype === 'boss') || living[0];
+  const isBoss = attacker.archetype === 'boss';
+  const basePct = isBoss ? 0.22 : 0.12;
+  const swingPct = isBoss ? 0.10 : 0.08;
+  const pct = basePct + random() * swingPct;
+  const damage = Math.max(1, Math.round(character.max_hp * pct));
+  return { damage, attackerName: attacker.name };
 }
