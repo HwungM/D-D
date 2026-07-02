@@ -69,6 +69,15 @@ test('companionsPresentWithCharacter treats a character split into their own sub
   assert.equal(companionsPresentWithCharacter(wsWithPartner, 'char-2').length, 1);
 });
 
+test('companionsPresentWithCharacter respects autonomous companion locations', () => {
+  const ws: WorldState = {
+    currentLocation: 'Ash Gate',
+    companions: [makeCompanion()],
+    companionLocations: { 'comp-1': { location: 'Moon Library', updatedAt: new Date().toISOString() } },
+  };
+  assert.deepEqual(companionsPresentWithCharacter(ws, 'char-1'), []);
+});
+
 test('shouldFireCompanionPresence never fires with no companion present', () => {
   const ws: WorldState = { freeRoam: freeRoamWithActions(20) };
   assert.equal(shouldFireCompanionPresence(ws, 'char-1', () => 0), false);

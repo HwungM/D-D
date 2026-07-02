@@ -459,6 +459,13 @@ export default function Game() {
   // delivers it first.
   function handleIncomingEvent(newEvent: StoryEvent) {
     if (!newEvent?.id || processedEventIds.current.has(newEvent.id) || historicalIds.current.has(newEvent.id)) return
+    if (newEvent.event_type === 'companion_activity') {
+      processedEventIds.current.add(newEvent.id)
+      addEvent(newEvent)
+      syncSceneState()
+      refreshParty()
+      return
+    }
     const kind = classifyStoryEvent(newEvent, characterId)
 
     // Our own action's authoritative server row: swap it in for the optimistic
@@ -1521,6 +1528,9 @@ export default function Game() {
                   const isMyAction = event.event_type === 'action' && event.character_id === characterId
                   const mood = event.event_type === 'narration' ? inferMood(event.content) : 'serious'
                   const isMicroAction = !!event.metadata?.microAction
+                  const isCompanionActivity = event.event_type === 'companion_activity'
+                  const companionId = typeof event.metadata?.companionId === 'string' ? event.metadata.companionId : undefined
+                  const companion = companionId ? worldState?.companions?.find(entry => entry.id === companionId) : undefined
                   return (
                     <NarratorBox
                       key={event.id || i}
@@ -1529,9 +1539,11 @@ export default function Game() {
                       isPlayerAction={event.event_type === 'action'}
                       instant={isInstant || isMicroAction}
                       microAction={isMicroAction}
-                      playerName={partyMember?.username}
-                      playerPortrait={isMyAction ? currentCharacter?.portrait_url || undefined : partyMember?.character?.portrait_url || undefined}
+                      playerName={isCompanionActivity ? (companion?.name || String(event.metadata?.companionName || 'AI Companion')) : partyMember?.username}
+                      playerPortrait={isCompanionActivity ? companion?.portrait_url : isMyAction ? currentCharacter?.portrait_url || undefined : partyMember?.character?.portrait_url || undefined}
                       narratorPortrait={narratorPortrait}
+                      isCompanionActivity={isCompanionActivity}
+                      activityKind={typeof event.metadata?.activityKind === 'string' ? event.metadata.activityKind : undefined}
                       onComplete={isLast && !isInstant && !isMicroAction ? () => {
                         setIsTyping(false)
                         historicalIds.current.add(event.id)

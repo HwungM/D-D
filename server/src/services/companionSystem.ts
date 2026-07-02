@@ -1,4 +1,4 @@
-import type { Ability, CompanionCharacter, CompanionChangeEntry } from '../../../shared/types';
+import type { Ability, CompanionCharacter, CompanionChangeEntry, CompanionLocationState } from '../../../shared/types';
 import { getAbilityForLevel } from '../../../shared/classAbilities';
 import { checkLevelUp } from './characterProgressionSystem';
 import { recruitCompanionCharacter } from './companionGenerationService';
@@ -7,11 +7,11 @@ import { recruitCompanionCharacter } from './companionGenerationService';
 // One line per living companion, including its id so the extractor can key
 // companionChanges/companionDeparture back to a specific party member — the
 // same convention used for character1/character2 ids in co-op prompts.
-export function buildCompanionsPromptBlock(companions: CompanionCharacter[] | undefined): string {
+export function buildCompanionsPromptBlock(companions: CompanionCharacter[] | undefined, locations?: Record<string, CompanionLocationState>): string {
   const living = (companions || []).filter(c => c.is_alive);
   if (living.length === 0) return '';
   const lines = living.map(c =>
-    `- id ${c.id}: ${c.name}, ${c.race} ${c.class} L${c.level}, HP ${c.hp}/${c.max_hp}, bond ${c.bondLevel} (-100..100)`
+    `- id ${c.id}: ${c.name}, ${c.race} ${c.class} L${c.level}, HP ${c.hp}/${c.max_hp}, bond ${c.bondLevel} (-100..100)${locations?.[c.id] ? `; currently at ${locations[c.id].location}${locations[c.id].subLocation ? ` — ${locations[c.id].subLocation}` : ''}${locations[c.id].activity ? `; activity: ${locations[c.id].activity}` : ''}` : ''}`
   );
   return `COMPANIONS (AI-controlled party members — voice their reactions/assists in narration, do not wait for player input for them):\n${lines.join('\n')}`;
 }

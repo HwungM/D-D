@@ -20,6 +20,7 @@ import { applyCharacterConsequences } from '../services/consequenceSystem';
 import { applyCompanionChanges } from '../services/companionSystem';
 import { appendWorldEvent, buildAmbientWorldEvent, pickAmbientEventSeed, shouldFireAmbientEvent, weaveAmbientEventIntoReaction } from '../services/ambientWorldEventSystem';
 import { buildCompanionPresenceBeat, companionsPresentWithCharacter, pickPresentCompanion, shouldFireCompanionPresence, weaveCompanionPresenceIntoReaction } from '../services/companionPresenceSystem';
+import { createCompanionActivity, shouldTriggerCompanionActivity, type CompanionActivity } from '../services/companionAutonomySystem';
 import { validateNamedParticipantsPresent } from '../services/scenePresenceSystem';
 
 const router = Router();
@@ -1542,7 +1543,16 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         sceneInteractables: withSceneInteractablesForCharacter(ws, characterId, sceneInteractables),
         freeRoam,
       };
-      await supabaseAdmin.from('campaigns').update({ world_state: updatedWorldState }).eq('id', campaignId);
+      let companionActivity: CompanionActivity | undefined;
+      let stateToPersist = updatedWorldState;
+      if (shouldTriggerCompanionActivity(updatedWorldState)) {
+        const autonomous = createCompanionActivity(updatedWorldState);
+        if (autonomous) {
+          companionActivity = autonomous.activity;
+          stateToPersist = autonomous.worldState;
+        }
+      }
+      await supabaseAdmin.from('campaigns').update({ world_state: stateToPersist }).eq('id', campaignId);
 
       if (reaction.minorHpChange || reaction.minorGoldChange || reaction.minorLoot) {
         const newHp = reaction.minorHpChange
@@ -1575,6 +1585,22 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
           ...(featuredCompanion ? { companionPresence: featuredCompanion.id } : {}),
         },
       });
+      if (companionActivity) {
+        await supabaseAdmin.from('story_events').insert({
+          campaign_id: campaignId,
+          character_id: null,
+          event_type: 'companion_activity',
+          content: companionActivity.text,
+          metadata: {
+            companionActivity: true,
+            companionId: companionActivity.companionId,
+            companionName: companionActivity.companionName,
+            activityKind: companionActivity.kind,
+            location: companionActivity.location,
+            subLocation: companionActivity.subLocation || null,
+          },
+        });
+      }
 
       res.json({
         reaction: finalReaction,

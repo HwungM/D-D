@@ -32,7 +32,9 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
   const currentSubLocation = currentCharacterId
     ? worldState?.characterSubLocations?.[currentCharacterId]
     : undefined
-  const companionLocation = worldState?.currentLocation
+  const currentLocation = currentCharacterId
+    ? worldState?.characterLocations?.[currentCharacterId] || worldState?.currentLocation
+    : worldState?.currentLocation
   if (others.length === 0 && companions.length === 0) return null
 
   return (
@@ -48,6 +50,11 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
           const hpPct = Math.max(0, (companion.hp / companion.max_hp) * 100)
           const hpColor = hpPct > 60 ? '#16a34a' : hpPct > 30 ? '#ca8a04' : '#dc2626'
           const bond = bondMeter(companion.bondLevel)
+          const position = worldState?.companionLocations?.[companion.id]
+          const companionLocation = position?.location || worldState?.currentLocation
+          const sharesScene = companionLocation === currentLocation
+            && (position?.subLocation || undefined) === (currentSubLocation || undefined)
+          const locationLabel = [companionLocation, position?.subLocation].filter(Boolean).join(' — ')
           return (
             <div key={companion.id} className="flex min-w-[170px] flex-1 items-center gap-2 rounded-lg border border-violet-200/26 bg-violet-300/[0.07] px-2 py-1.5">
               <div className="relative shrink-0">
@@ -82,15 +89,15 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
                   </div>
                   <span className="text-[10px]" style={{ color: bond.color }}>{bond.label}</span>
                 </div>
-                <div className="mt-0.5 text-[10px] text-parchment-200/64">
-                  {currentSubLocation ? 'Away' : 'Present'}
+                <div className="mt-0.5 truncate text-[10px] text-parchment-200/64" title={position?.activity}>
+                  {sharesScene ? 'Present' : 'Away'}{position?.activity ? ` · ${position.activity}` : ''}
                 </div>
                 {companionLocation && (
                   <div
                     className="mt-0.5 truncate font-fantasy text-[9px] uppercase tracking-[0.1em] text-cyan-200/56"
-                    title={currentSubLocation ? `${companionLocation} — main area` : companionLocation}
+                    title={locationLabel}
                   >
-                    ↳ {companionLocation}{currentSubLocation ? ' · Main area' : ''}
+                    ↳ {locationLabel}
                   </div>
                 )}
               </div>

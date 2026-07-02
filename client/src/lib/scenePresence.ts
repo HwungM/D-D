@@ -22,6 +22,13 @@ export function companionNamesSharingScene(
   worldState: WorldState | null | undefined,
   focalCharacterId: string,
 ): string[] {
-  if (!worldState || worldState.characterSubLocations?.[focalCharacterId]) return []
-  return (worldState.companions || []).filter(companion => companion.is_alive).map(companion => companion.name)
+  if (!worldState) return []
+  const focalLocation = locationFor(worldState, focalCharacterId)
+  const focalSubLocation = worldState.characterSubLocations?.[focalCharacterId]
+  return (worldState.companions || []).filter(companion => {
+    if (!companion.is_alive) return false
+    const position = worldState.companionLocations?.[companion.id]
+    return (position?.location || worldState.currentLocation) === focalLocation
+      && (position?.subLocation || undefined) === (focalSubLocation || undefined)
+  }).map(companion => companion.name)
 }

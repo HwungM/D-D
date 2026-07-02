@@ -45,8 +45,15 @@ function actionsSinceLastCompanionBeat(worldState: WorldState, lastBeatAt: strin
 // and the Part A co-op cross-contamination fix). In solo play there's no
 // split to worry about, so this is simply "any living companion."
 export function companionsPresentWithCharacter(worldState: WorldState, characterId: string): CompanionCharacter[] {
-  if (worldState.characterSubLocations?.[characterId]) return [];
-  return (worldState.companions || []).filter(c => c.is_alive);
+  const characterLocation = worldState.characterLocations?.[characterId] || worldState.currentLocation;
+  const characterSubLocation = worldState.characterSubLocations?.[characterId];
+  return (worldState.companions || []).filter(companion => {
+    if (!companion.is_alive) return false;
+    const position = worldState.companionLocations?.[companion.id];
+    const companionLocation = position?.location || worldState.currentLocation;
+    return companionLocation === characterLocation
+      && (position?.subLocation || undefined) === (characterSubLocation || undefined);
+  });
 }
 
 function mostRecentBeatAt(companions: CompanionCharacter[]): string | undefined {

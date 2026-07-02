@@ -112,7 +112,7 @@ function leanSceneContext(worldState: WorldState): string {
     worldState.activeNPC ? `Active NPC (only this NPC speaks unless the scene changes): ${worldState.activeNPC}` : null,
     cs?.inCombat ? `In combat: ${cs.enemyName || 'enemies present'} (${cs.enemyCondition || 'unknown'})` : null,
     worldState.currentSceneSummary ? `Current situation: ${worldState.currentSceneSummary}` : null,
-    buildCompanionsPromptBlock(worldState.companions) || null,
+    buildCompanionsPromptBlock(worldState.companions, worldState.companionLocations) || null,
   ].filter(Boolean).join('\n');
 }
 
@@ -434,7 +434,7 @@ async function runExtractorPass(
     : '';
 
   const user = `BEAT PLAN: priorities=${plan.priorities.join(' | ')}; scenePurpose=${plan.scenePurpose}; pacing=${plan.pacingMode}; needsRoll=${plan.needsRoll}; combat=${plan.combatActive || plan.combatStarting}; highStakes=${plan.isHighStakes}${plan.threadToAdvance ? `; advanced thread="${plan.threadToAdvance}"` : ''}.
-${buildCompanionsPromptBlock(args.worldState.companions)}${signatureQuestsBlock}${partyAssetsBlock}${hiddenIdentitiesBlock}
+${buildCompanionsPromptBlock(args.worldState.companions, args.worldState.companionLocations)}${signatureQuestsBlock}${partyAssetsBlock}${hiddenIdentitiesBlock}
 
 NARRATION JUST WRITTEN (extract state from THIS, do not change it):
 """

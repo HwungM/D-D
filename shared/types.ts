@@ -157,6 +157,13 @@ export interface CompanionCharacter {
   portrait_url?: string;
 }
 
+export interface CompanionLocationState {
+  location: string;
+  subLocation?: string;
+  activity?: string;
+  updatedAt: string;
+}
+
 // One companion's mechanical delta for a single turn, as reported by the AI
 // extractor. Mirrors the PC character2Changes convention (deltas, not absolute
 // values) so the same apply/repair pipeline shape works for both.
@@ -644,6 +651,9 @@ export interface WorldState {
   // the pet-like `companion` above). Populated at campaign creation according
   // to PartyComposition, and can grow/shrink as companions are recruited or lost.
   companions?: CompanionCharacter[];
+  // Independent AI-party positioning. Companions may leave the player,
+  // investigate elsewhere, and later return with discoveries or trouble.
+  companionLocations?: Record<string, CompanionLocationState>;
   lastPillarUsed?: string[];  // last 5 scene pillars used, for three-pillar balance tracking
   pendingTurn?: {
     actions: { characterId: string; userId: string; action: string; displayAction?: string; characterName: string; submittedAt: string }[];
@@ -798,7 +808,7 @@ export interface StoryEvent {
   id: string;
   campaign_id: string;
   character_id?: string;
-  event_type: 'narration' | 'action' | 'dice_roll' | 'combat' | 'dialogue' | 'level_up' | 'death';
+  event_type: 'narration' | 'action' | 'dice_roll' | 'combat' | 'dialogue' | 'level_up' | 'death' | 'companion_activity';
   content: string;
   metadata: Record<string, unknown>;
   created_at: string;

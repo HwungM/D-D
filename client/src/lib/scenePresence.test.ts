@@ -19,4 +19,9 @@ describe('live scene presence', () => {
     expect(companionNamesSharingScene(base, 'tellini')).toEqual(['Garrow', 'Ithel'])
     expect(companionNamesSharingScene({ ...base, characterSubLocations: { tellini: 'Town Hall' } }, 'tellini')).toEqual([])
   })
+
+  it('updates presence when an autonomous companion leaves for another location', () => {
+    const moved = { ...base, companionLocations: { garrow: { location: 'Library', updatedAt: new Date().toISOString() } } }
+    expect(companionNamesSharingScene(moved, 'tellini')).toEqual(['Ithel'])
+  })
 })

@@ -187,7 +187,7 @@ ${worldState.activeQuests && worldState.activeQuests.filter(q => q.status === 'a
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
 ${worldState.companion ? `companion: ${worldState.companion.name} the ${worldState.companion.species} (bond level ${worldState.companion.bondLevel}) - ${worldState.companion.description}` : ''}
-${buildCompanionsPromptBlock(worldState.companions)}
+${buildCompanionsPromptBlock(worldState.companions, worldState.companionLocations)}
 ${(worldState.signatureItemQuests || []).filter(q => q.status !== 'earned').length > 0 ? `signature item quests: ${(worldState.signatureItemQuests || []).filter(q => q.status !== 'earned').map(q => `id ${q.id} [${q.characterName}]: ${q.itemName} — ${q.questHook}`).join('; ')}` : ''}
 ${(worldState.partyAssets || []).length > 0 ? `party assets: ${(worldState.partyAssets || []).map(a => `[${a.kind}] ${a.name}`).join(', ')}` : ''}
 ${worldState.factionStandings && Object.keys(worldState.factionStandings).length > 0 ? `faction standings: ${Object.entries(worldState.factionStandings).map(([f, v]) => `${f} (${v})`).join(', ')}` : ''}

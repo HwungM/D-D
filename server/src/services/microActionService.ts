@@ -357,7 +357,7 @@ export async function runMicroAction(
     : MICRO_ACTION_SYSTEM_PROMPT;
   const user = `${buildCombatStateBlock(worldState.combatState)}${buildContestStateBlock(activeContest)}SCENE: ${worldState.currentLocation || 'unknown location'}${currentSubLocation ? ` — inside ${currentSubLocation}` : ''} | ${worldState.timeOfDay || 'unknown time'}
 ${formatSceneInteractablesBlock(sceneInteractables)}
-${buildCompanionsPromptBlock(worldState.companions)}
+${buildCompanionsPromptBlock(worldState.companions, worldState.companionLocations)}
 ${buildClueBankBlock(worldState)}
 
 CHARACTER: ${characterSummary(character)}

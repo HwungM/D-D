@@ -15,6 +15,8 @@ interface NarratorBoxProps {
   // In-scene micro-action reaction rather than a full DM narration beat —
   // rendered as a compact, quieter aside so it reads as flavor, not story.
   microAction?: boolean
+  isCompanionActivity?: boolean
+  activityKind?: string
 }
 
 const NARRATOR_COUNT = 10
@@ -41,6 +43,7 @@ const MOOD_ACCENT: Record<Mood, string> = {
 export default function NarratorBox({
   text, mood = 'neutral', isPlayerAction = false, instant = false,
   playerName, playerPortrait, narratorPortrait, onComplete, microAction = false,
+  isCompanionActivity = false, activityKind,
 }: NarratorBoxProps) {
   const [displayed, setDisplayed] = useState('')
   const [typing, setTyping] = useState(false)
@@ -73,6 +76,25 @@ export default function NarratorBox({
   }, [text])
 
   // ── Player action bubble ────────────────────────────────────────────────────
+  if (isCompanionActivity) {
+    return (
+      <div className="animate-fade-in flex items-start gap-3 px-1 py-1 sm:px-2">
+        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-emerald-200/35 bg-emerald-400/10">
+          {playerPortrait
+            ? <img src={playerPortrait} alt="" className="h-full w-full object-cover object-top" />
+            : <div className="grid h-full place-items-center font-fantasy text-xs text-emerald-100">AI</div>}
+        </div>
+        <div className="flex-1 rounded-xl border border-emerald-200/20 bg-[linear-gradient(135deg,rgba(16,48,38,0.62),rgba(13,27,25,0.78))] px-4 py-3 shadow-[0_8px_26px_rgba(0,0,0,0.3)]">
+          <div className="mb-1 flex items-center gap-2">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.18em] text-emerald-100/85">{playerName || 'AI Companion'}</p>
+            <span className="rounded-full border border-emerald-200/15 bg-emerald-300/8 px-2 py-0.5 font-fantasy text-[8px] uppercase tracking-[0.12em] text-emerald-100/55">{activityKind || 'activity'}</span>
+          </div>
+          <p className="font-serif text-[15px] leading-[1.65] text-emerald-50/90">{displayed}</p>
+        </div>
+      </div>
+    )
+  }
+
   if (isPlayerAction) {
     const isOtherPlayer = !!playerName
     return (

@@ -399,7 +399,7 @@ export function mergeWorldStateChanges(current: WorldState, changes: Partial<Wor
   if (changes.shopInventory) merged.shopInventory = { ...(current.shopInventory || {}), ...changes.shopInventory };
   if (changes.activeNPC !== undefined) merged.activeNPC = changes.activeNPC;
 
-  for (const key of ['timeOfDay', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs', 'unlockedAchievements', 'knownRecipes', 'spotlightBalance', 'lastPillarUsed', 'lastHighStakesAction', 'pendingDirectorBeat', 'pendingTurn', 'coopPendingRoll', 'engineDebug', 'companion', 'companions', 'recentPlayerActions'] as const) {
+  for (const key of ['timeOfDay', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'currentSceneSummary', 'actionsSinceLastSummary', 'sceneState', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'keyNPCs', 'unlockedAchievements', 'knownRecipes', 'spotlightBalance', 'lastPillarUsed', 'lastHighStakesAction', 'pendingDirectorBeat', 'pendingTurn', 'coopPendingRoll', 'engineDebug', 'companion', 'companions', 'companionLocations', 'recentPlayerActions'] as const) {
     if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
   }
 

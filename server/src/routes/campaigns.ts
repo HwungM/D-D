@@ -96,6 +96,13 @@ router.post('/', requireAuth, aiRateLimit, async (req: AuthRequest, res: Respons
       locationGraph,
       globalFlags: {},
       ...(companions.length > 0 ? { companions } : {}),
+      ...(companions.length > 0 ? {
+        companionLocations: Object.fromEntries(companions.map(companion => [companion.id, {
+          location: openingLocation,
+          activity: 'Staying with the party',
+          updatedAt: new Date().toISOString(),
+        }]))
+      } : {}),
     };
 
     const { data: campaign, error } = await supabaseAdmin

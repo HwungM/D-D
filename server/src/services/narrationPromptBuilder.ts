@@ -1065,7 +1065,7 @@ STAT CONTEXT (factor into suggestedActions): ${statHints || 'balanced stats'}
 ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 ? `unlockedAchievements: ${worldState.unlockedAchievements.map(a => a.title).join(', ')}` : ''}
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
 ${worldState.companion ? `companion: ${worldState.companion.name} the ${worldState.companion.species} (bond level ${worldState.companion.bondLevel}) - ${worldState.companion.description}` : ''}
-${buildCompanionsPromptBlock(worldState.companions)}
+${buildCompanionsPromptBlock(worldState.companions, worldState.companionLocations)}
 ${worldState.factionStandings && Object.keys(worldState.factionStandings).length > 0 ? `faction standings: ${Object.entries(worldState.factionStandings).map(([f, v]) => `${f} (${v})`).join(', ')}` : ''}
 ${abilitiesBlock}
 ${suggestionContextBlock}
