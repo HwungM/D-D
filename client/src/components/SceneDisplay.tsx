@@ -5,6 +5,7 @@ type TimeOfDay = 'day' | 'night' | 'dawn' | 'dusk'
 interface SceneDisplayProps {
   imageUrl: string | null
   location?: string
+  subLocation?: string
   timeOfDay?: TimeOfDay
   weather?: string
   scenePurpose?: string
@@ -47,6 +48,7 @@ function probeImage(url: string): Promise<string> {
 export default function SceneDisplay({
   imageUrl,
   location,
+  subLocation,
   timeOfDay = 'day',
   weather,
   scenePurpose,
@@ -152,6 +154,11 @@ export default function SceneDisplay({
             <div className="w-1 h-4 shrink-0" style={{ background: 'rgba(192,57,43,0.7)', boxShadow: '0 0 6px rgba(192,57,43,0.5)' }} />
             <p className="font-fantasy text-3xl uppercase tracking-[0.06em]" style={{ color: '#f4ead2', textShadow: '0 1px 14px rgba(0,0,0,0.95)' }}>
               {location}
+              {subLocation && (
+                <span className="font-fantasy text-xl" style={{ color: 'rgba(232,212,168,0.72)' }}>
+                  {' '}— {subLocation}
+                </span>
+              )}
             </p>
           </div>
         )}

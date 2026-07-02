@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { gameApi, campaignApi, characterApi } from '../lib/api'
 import { useGameStore, useAuthStore } from '../lib/store'
 import { matchSceneImage, inferMood } from '../lib/sceneUtils'
+import { classifyStoryEvent } from '../lib/storyEventRouting'
 import { createClient } from '@supabase/supabase-js'
 import SceneDisplay from '../components/SceneDisplay'
 import ActionPanel from '../components/ActionPanel'
@@ -456,18 +457,17 @@ export default function Game() {
   // delivers it first.
   function handleIncomingEvent(newEvent: StoryEvent) {
     if (!newEvent?.id || processedEventIds.current.has(newEvent.id) || historicalIds.current.has(newEvent.id)) return
-    const isOwnEvent = newEvent.character_id === characterId
-    const isPartnerEvent = !!newEvent.character_id && newEvent.character_id !== characterId
+    const kind = classifyStoryEvent(newEvent, characterId)
 
     // Our own action's authoritative server row: swap it in for the optimistic
     // one so every displayed action carries a server timestamp (reliable sort).
-    if (isOwnEvent && newEvent.event_type === 'action') {
+    if (kind === 'own-action') {
       processedEventIds.current.add(newEvent.id)
       reconcileEvent(newEvent)
       return
     }
 
-    if (isPartnerEvent && newEvent.event_type === 'action') {
+    if (kind === 'partner-action') {
       processedEventIds.current.add(newEvent.id)
       addEvent(newEvent)
       // If our action was already locked in, the partner's arriving action
@@ -476,7 +476,34 @@ export default function Game() {
       return
     }
 
-    if (isOwnEvent && newEvent.event_type === 'narration') {
+    // The partner's own DM reaction to THEIR action (micro-action fast path:
+    // combat/contest/free-roam rolls and flavor resolutions all insert their
+    // narration row with only the acting character's id — see game.ts's many
+    // story_events inserts in the micro-action route). Macro-turn co-op
+    // narration doesn't reach here: coopTurnProcessor.ts inserts one row PER
+    // party member (each carrying that member's own character_id), so it's
+    // always classified 'own-narration' below instead. Without this branch, a
+    // non-acting co-op player would see the partner's action bubble (handled
+    // above) but never the DM's reply to it - exactly the live-play bug where
+    // only the bare action line ever showed up on the other screen.
+    if (kind === 'partner-narration') {
+      processedEventIds.current.add(newEvent.id)
+      addEvent(newEvent)
+      if (typeof newEvent.metadata?.sceneImagePrompt === 'string' && newEvent.metadata.sceneImagePrompt) {
+        const matched = matchSceneImage(newEvent.metadata.sceneImagePrompt, useGameStore.getState().worldState?.timeOfDay)
+        if (matched) setSceneImage(matched)
+      }
+      // Refresh shared world state (combat/tension resumed, sub-location move,
+      // sceneInteractables, HP/gold from the partner's roll, etc.) and the
+      // party roster (HP shown in PartyPanel) - this player's own turn state
+      // (coopWaiting/loading/dice modal) is untouched since they aren't the
+      // one who acted or needs to roll.
+      syncSceneState()
+      refreshParty()
+      return
+    }
+
+    if (kind === 'own-narration') {
       processedEventIds.current.add(newEvent.id)
       const actingId = newEvent.metadata?.actingCharacterId as string | undefined
       // If this narration is already in the feed, this player received the round
@@ -1015,6 +1042,20 @@ export default function Game() {
         })
       }
 
+      // Sub-location navigation resolves inline with this response (see
+      // server's matchSubLocationNavigation branch) — reflect it in this
+      // character's own slot immediately so the scene header updates without
+      // waiting on the next poll, exactly like the sceneInteractables merge above.
+      if (data.subLocation !== undefined) {
+        const updatedSubLocations = { ...(worldState?.characterSubLocations || {}) }
+        if (data.subLocation) {
+          updatedSubLocations[characterId] = data.subLocation
+        } else {
+          delete updatedSubLocations[characterId]
+        }
+        mergeWorldState({ characterSubLocations: updatedSubLocations })
+      }
+
       // Tension re-trigger: the party was hiding/fled and this action (even an
       // unrelated one) caused the threat to find them again — combat resumes
       // server-side and comes back on this micro-action's response instead of
@@ -1410,6 +1451,7 @@ export default function Game() {
             <SceneDisplay
               imageUrl={sceneArtUrl}
               location={worldState?.currentLocation}
+              subLocation={currentSubLocation}
               timeOfDay={worldState?.timeOfDay}
               weather={worldState?.weather}
               scenePurpose={worldState?.sceneState?.purpose}
