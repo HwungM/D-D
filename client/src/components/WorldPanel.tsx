@@ -230,7 +230,7 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
   if (!worldState) {
     return (
       <div className="p-5 text-center">
-        <p className="font-serif text-sm italic text-parchment-200/52">The world is still taking shape.</p>
+        <p className="font-serif text-sm italic text-parchment-200/62">The world is still taking shape.</p>
       </div>
     )
   }
@@ -253,25 +253,25 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
   const dmMemoryCount = dmMemoryItemCount(worldState)
 
   return (
-    <div className="space-y-6 p-4 text-sm text-parchment-100">
+    <div className="space-y-7 p-4 text-sm text-parchment-100">
       {spine && pressure && (
-        <section className="border border-amber-200/20 bg-[linear-gradient(135deg,rgba(245,158,11,0.07),rgba(34,211,238,0.035))] p-4">
+        <section className="border border-amber-200/28 bg-[linear-gradient(135deg,rgba(245,158,11,0.08),rgba(34,211,238,0.04))] p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-cyan-200/62">Campaign Spine</p>
+              <p className="font-fantasy text-xs uppercase tracking-[0.16em] text-cyan-200/78">Campaign Spine</p>
               <h3 className="mt-1 font-fantasy text-xl text-parchment-100">Act {spine.currentArc.act}: {spine.currentArc.label}</h3>
             </div>
-            <span className="shrink-0 border px-2 py-1 font-fantasy text-[9px] uppercase tracking-[0.14em]" style={{ color: pressure.color, borderColor: `${pressure.color}55`, background: `${pressure.color}14` }}>
+            <span className="shrink-0 border px-2 py-1 font-fantasy text-[9px] uppercase tracking-[0.14em]" style={{ color: pressure.color, borderColor: `${pressure.color}66`, background: `${pressure.color}1c` }}>
               {pressure.label}
             </span>
           </div>
 
           <div className="mt-4">
             <div className="mb-1.5 flex justify-between gap-3">
-              <span className="font-fantasy text-[9px] uppercase tracking-[0.2em] text-parchment-200/46">Arc Momentum</span>
-              <span className="font-serif text-xs text-parchment-200/56">{spine.currentArc.progress}%</span>
+              <span className="font-fantasy text-[9px] uppercase tracking-[0.2em] text-parchment-200/60">Arc Momentum</span>
+              <span className="font-serif text-xs text-parchment-200/66">{spine.currentArc.progress}%</span>
             </div>
-            <div className="h-1.5 border border-white/10 bg-black/44">
+            <div className="h-1.5 border border-white/16 bg-black/44">
               <div
                 className="h-full transition-all duration-700"
                 style={{
@@ -283,58 +283,58 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
             </div>
           </div>
 
-          <p className="mt-4 font-serif text-sm leading-relaxed text-parchment-200/76">{spine.lastRecap}</p>
-          <div className="mt-4 border border-white/8 bg-black/20 px-3 py-3">
-            <p className="font-fantasy text-[9px] uppercase tracking-[0.2em] text-amber-200/58">Next Pressure</p>
-            <p className="mt-1 font-serif text-sm italic leading-relaxed text-parchment-200/68">{spine.nextPressure}</p>
+          <p className="mt-4 font-serif text-sm leading-relaxed text-parchment-200/86">{spine.lastRecap}</p>
+          <div className="mt-4 border border-white/14 bg-black/20 px-3 py-3">
+            <p className="font-fantasy text-[9px] uppercase tracking-[0.2em] text-amber-200/72">Next Pressure</p>
+            <p className="mt-1 font-serif text-sm italic leading-relaxed text-parchment-200/78">{spine.nextPressure}</p>
           </div>
         </section>
       )}
 
-      <section className="border p-4" style={{ borderColor: `${readiness.color}44`, background: `${readiness.color}10` }}>
+      <section className="border p-4" style={{ borderColor: `${readiness.color}55`, background: `${readiness.color}12` }}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="font-fantasy text-[10px] uppercase tracking-[0.24em]" style={{ color: readiness.color }}>Final Test Readiness</p>
+            <p className="font-fantasy text-xs uppercase tracking-[0.16em]" style={{ color: readiness.color }}>Final Test Readiness</p>
             <h3 className="mt-1 font-fantasy text-xl text-parchment-100">{readiness.label}</h3>
           </div>
-          <span className="shrink-0 border px-2 py-1 font-mono text-sm" style={{ color: readiness.color, borderColor: `${readiness.color}66`, background: `${readiness.color}14` }}>
+          <span className="shrink-0 border px-2 py-1 font-mono text-sm" style={{ color: readiness.color, borderColor: `${readiness.color}77`, background: `${readiness.color}1c` }}>
             {readiness.score}%
           </span>
         </div>
 
         {readiness.issues.length === 0 ? (
-          <p className="mt-3 font-serif text-sm leading-relaxed text-parchment-200/70">
+          <p className="mt-3 font-serif text-sm leading-relaxed text-parchment-200/80">
             Current tracked state has no obvious readiness blockers. Testing can focus on feel, pacing, and whether the story lands.
           </p>
         ) : (
           <div className="mt-3 space-y-2">
             {readiness.issues.map((issue, index) => (
-              <div key={`${issue}-${index}`} className="border border-white/8 bg-black/20 px-3 py-2">
-                <p className="font-serif text-sm leading-relaxed text-parchment-200/68">{issue}</p>
+              <div key={`${issue}-${index}`} className="border border-white/14 bg-black/20 px-3 py-2">
+                <p className="font-serif text-sm leading-relaxed text-parchment-200/78">{issue}</p>
               </div>
             ))}
           </div>
         )}
       </section>
 
-      <section className="border border-cyan-200/16 bg-cyan-300/[0.035] p-4">
+      <section className="border border-cyan-200/24 bg-cyan-300/[0.045] p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-cyan-200/66">Live Engine State</p>
-            <p className="mt-1 font-serif text-xs leading-relaxed text-parchment-200/56">
+            <p className="font-fantasy text-xs uppercase tracking-[0.16em] text-cyan-200/80">Live Engine State</p>
+            <p className="mt-1 font-serif text-xs leading-relaxed text-parchment-200/66">
               This is the quick truth panel for co-op turns, roll queues, and campaign memory while you test.
             </p>
           </div>
-          <span className="shrink-0 border border-cyan-200/20 px-2 py-1 font-mono text-[10px] text-cyan-100/70">
+          <span className="shrink-0 border border-cyan-200/28 px-2 py-1 font-mono text-[10px] text-cyan-100/82">
             {worldState.engineDebug?.updatedAt ? shortTime(worldState.engineDebug.updatedAt) : 'live'}
           </span>
         </div>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <div className="border border-white/8 bg-black/22 px-3 py-3">
+          <div className="border border-white/14 bg-black/22 px-3 py-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="font-fantasy text-[9px] uppercase tracking-[0.2em] text-parchment-200/50">Co-op Turn</p>
-              <span className={`font-fantasy text-[9px] uppercase tracking-[0.14em] ${pendingTurnActions.length ? 'text-amber-200/76' : 'text-emerald-200/70'}`}>
+              <p className="font-fantasy text-[9px] uppercase tracking-[0.2em] text-parchment-200/62">Co-op Turn</p>
+              <span className={`font-fantasy text-[9px] uppercase tracking-[0.14em] ${pendingTurnActions.length ? 'text-amber-200/86' : 'text-emerald-200/82'}`}>
                 {pendingTurnActions.length ? 'Waiting' : 'Clear'}
               </span>
             </div>
@@ -342,16 +342,16 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
               {pendingTurnActions.length ? `${pendingTurnActions.length} submitted action${pendingTurnActions.length === 1 ? '' : 's'}` : 'No pending party action round.'}
             </p>
             {pendingTurnActions.length > 0 && (
-              <p className="mt-1 font-serif text-xs text-parchment-200/46">
+              <p className="mt-1 font-serif text-xs text-parchment-200/58">
                 Expires {shortTime(worldState.pendingTurn?.expiresAt)}
               </p>
             )}
           </div>
 
-          <div className="border border-white/8 bg-black/22 px-3 py-3">
+          <div className="border border-white/14 bg-black/22 px-3 py-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="font-fantasy text-[9px] uppercase tracking-[0.2em] text-parchment-200/50">Roll Queue</p>
-              <span className={`font-fantasy text-[9px] uppercase tracking-[0.14em] ${coopSnapshot.active ? (coopSnapshot.queueHealthy ? 'text-amber-200/76' : 'text-red-200/80') : 'text-emerald-200/70'}`}>
+              <p className="font-fantasy text-[9px] uppercase tracking-[0.2em] text-parchment-200/62">Roll Queue</p>
+              <span className={`font-fantasy text-[9px] uppercase tracking-[0.14em] ${coopSnapshot.active ? (coopSnapshot.queueHealthy ? 'text-amber-200/86' : 'text-red-200/90') : 'text-emerald-200/82'}`}>
                 {coopSnapshot.active ? (coopSnapshot.queueHealthy ? 'Active' : 'Check') : 'Clear'}
               </span>
             </div>
@@ -361,20 +361,20 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
                 : 'No pending roll.'}
             </p>
             {coopSnapshot.currentRollerName && (
-              <p className="mt-1 font-serif text-xs text-parchment-200/48">Now waiting on {coopSnapshot.currentRollerName}</p>
+              <p className="mt-1 font-serif text-xs text-parchment-200/60">Now waiting on {coopSnapshot.currentRollerName}</p>
             )}
           </div>
         </div>
 
         {coopSnapshot.active && (
-          <div className="mt-3 border border-white/8 bg-black/18 px-3 py-3">
+          <div className="mt-3 border border-white/14 bg-black/18 px-3 py-3">
             {coopSnapshot.description && (
-              <p className="font-serif text-xs leading-relaxed text-parchment-200/60">{coopSnapshot.description}</p>
+              <p className="font-serif text-xs leading-relaxed text-parchment-200/70">{coopSnapshot.description}</p>
             )}
             {coopSnapshot.expectedRollers.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {coopSnapshot.expectedRollers.map((name, index) => (
-                  <span key={`${name}-${index}`} className="border border-cyan-200/18 bg-cyan-200/[0.06] px-2 py-1 font-fantasy text-[9px] uppercase tracking-[0.13em] text-cyan-100/72">
+                  <span key={`${name}-${index}`} className="border border-cyan-200/26 bg-cyan-200/[0.08] px-2 py-1 font-fantasy text-[9px] uppercase tracking-[0.13em] text-cyan-100/84">
                     {name}
                   </span>
                 ))}
@@ -383,9 +383,9 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
             {coopSnapshot.pendingRolls.length > 0 && (
               <div className="mt-3 space-y-1.5">
                 {coopSnapshot.pendingRolls.map(roll => (
-                  <div key={roll.characterId} className="flex items-center justify-between gap-3 border border-white/8 bg-white/[0.025] px-2 py-2">
+                  <div key={roll.characterId} className="flex items-center justify-between gap-3 border border-white/14 bg-white/[0.035] px-2 py-2">
                     <span className="font-serif text-xs text-parchment-100">{roll.characterName}</span>
-                    <span className={`font-mono text-[10px] ${roll.resolved ? 'text-emerald-200/70' : 'text-amber-200/74'}`}>
+                    <span className={`font-mono text-[10px] ${roll.resolved ? 'text-emerald-200/82' : 'text-amber-200/86'}`}>
                       {roll.resolved ? `rolled ${roll.rollTotal ?? roll.rollResult ?? '?'}` : `${roll.rollContext.stat.toUpperCase()} DC ${roll.dc ?? roll.rollContext.dc}`}
                     </span>
                   </div>
@@ -396,16 +396,16 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
         )}
 
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <div className="border border-white/8 bg-white/[0.025] px-3 py-2">
-            <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-purple-200/58">NPC Memory</p>
+          <div className="border border-white/14 bg-white/[0.035] px-3 py-2">
+            <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-purple-200/70">NPC Memory</p>
             <p className="mt-1 font-mono text-sm text-parchment-100">{npcs.length}</p>
           </div>
-          <div className="border border-white/8 bg-white/[0.025] px-3 py-2">
-            <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-purple-200/58">Hero Memory</p>
+          <div className="border border-white/14 bg-white/[0.035] px-3 py-2">
+            <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-purple-200/70">Hero Memory</p>
             <p className="mt-1 font-mono text-sm text-parchment-100">{characterMemories.length}</p>
           </div>
-          <div className="border border-white/8 bg-white/[0.025] px-3 py-2">
-            <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-purple-200/58">DM Memory</p>
+          <div className="border border-white/14 bg-white/[0.035] px-3 py-2">
+            <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-purple-200/70">DM Memory</p>
             <p className="mt-1 font-mono text-sm text-parchment-100">{dmMemoryCount}</p>
           </div>
         </div>
@@ -415,11 +415,11 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
             {engineDebugChecks.slice(-3).map((check, index) => {
               const style = AUDIT_STYLE[check.status] || AUDIT_STYLE.info
               return (
-                <div key={`${check.label}-${index}`} className="border border-white/8 bg-black/18 px-2 py-2">
+                <div key={`${check.label}-${index}`} className="border border-white/14 bg-black/18 px-2 py-2">
                   <p className="font-fantasy text-[9px] uppercase tracking-[0.16em]" style={{ color: style.color }}>
                     {style.label}: {check.label}
                   </p>
-                  <p className="mt-1 font-serif text-xs leading-relaxed text-parchment-200/56">{check.detail}</p>
+                  <p className="mt-1 font-serif text-xs leading-relaxed text-parchment-200/66">{check.detail}</p>
                 </div>
               )
             })}
@@ -427,45 +427,45 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
         )}
       </section>
 
-      <section className="border border-purple-300/16 bg-purple-300/[0.035] p-4">
+      <section className="border border-purple-300/24 bg-purple-300/[0.05] p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-purple-200/64">Playtest Engine Audit</p>
-            <p className="mt-1 font-serif text-xs leading-relaxed text-parchment-200/56">
+            <p className="font-fantasy text-xs uppercase tracking-[0.16em] text-purple-200/78">Playtest Engine Audit</p>
+            <p className="mt-1 font-serif text-xs leading-relaxed text-parchment-200/66">
               Use this while testing to see why the engine allowed, blocked, or remembered things.
             </p>
           </div>
-          <span className="shrink-0 border border-purple-200/20 px-2 py-1 font-mono text-[10px] text-purple-100/70">
+          <span className="shrink-0 border border-purple-200/28 px-2 py-1 font-mono text-[10px] text-purple-100/82">
             {auditEntries.length}/5
           </span>
         </div>
 
         {auditEntries.length === 0 ? (
-          <div className="mt-3 border border-white/8 bg-black/20 px-3 py-3">
-            <p className="font-serif text-sm italic text-parchment-200/50">
+          <div className="mt-3 border border-white/14 bg-black/20 px-3 py-3">
+            <p className="font-serif text-sm italic text-parchment-200/62">
               No audit entries yet. Take a new action and this panel will start showing engine decisions.
             </p>
           </div>
         ) : (
           <div className="mt-3 space-y-3">
             {auditEntries.map(entry => (
-              <article key={entry.id} className="border border-white/10 bg-black/24 px-3 py-3">
+              <article key={entry.id} className="border border-white/16 bg-black/24 px-3 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-purple-100/60">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-purple-100/72">
                       Act {entry.act} / Action {entry.actionCount}
                     </p>
                     <p className="mt-1 truncate font-serif text-sm text-parchment-100">{entry.actionSummary}</p>
-                    <p className="mt-0.5 font-serif text-xs text-parchment-200/42">
+                    <p className="mt-0.5 font-serif text-xs text-parchment-200/56">
                       {[entry.location, entry.scenePurpose && formatLabel(entry.scenePurpose), entry.pacingMode && formatLabel(entry.pacingMode)].filter(Boolean).join(' / ')}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-mono text-[10px] text-parchment-200/52">
+                    <p className="font-mono text-[10px] text-parchment-200/64">
                       {entry.stateDigest.combatantsTracked} foes / {entry.stateDigest.npcMemoryUpdates} NPCs
                     </p>
                     {entry.stateDigest.highStakes && (
-                      <p className="mt-1 font-fantasy text-[9px] uppercase tracking-[0.14em] text-amber-200/70">High stakes</p>
+                      <p className="mt-1 font-fantasy text-[9px] uppercase tracking-[0.14em] text-amber-200/82">High stakes</p>
                     )}
                   </div>
                 </div>
@@ -474,14 +474,14 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
                   {entry.checks.slice(0, 5).map((check, index) => {
                     const style = AUDIT_STYLE[check.status] || AUDIT_STYLE.info
                     return (
-                      <div key={`${check.label}-${index}`} className="border border-white/8 bg-white/[0.025] px-2 py-2">
+                      <div key={`${check.label}-${index}`} className="border border-white/14 bg-white/[0.035] px-2 py-2">
                         <div className="flex items-center gap-2">
                           <span className="h-1.5 w-1.5 rounded-full" style={{ background: style.color, boxShadow: `0 0 8px ${style.color}` }} />
                           <p className="font-fantasy text-[9px] uppercase tracking-[0.16em]" style={{ color: style.color }}>
                             {style.label}: {check.label}
                           </p>
                         </div>
-                        <p className="mt-1 font-serif text-xs leading-relaxed text-parchment-200/58">{check.detail}</p>
+                        <p className="mt-1 font-serif text-xs leading-relaxed text-parchment-200/68">{check.detail}</p>
                       </div>
                     )
                   })}
@@ -494,14 +494,14 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
 
       <div className="grid grid-cols-2 gap-2">
         {worldState.currentLocation && (
-          <div className="border border-cyan-200/18 bg-cyan-200/[0.055] px-3 py-3">
-            <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-cyan-200/64">Location</p>
+          <div className="border border-cyan-200/26 bg-cyan-200/[0.07] px-3 py-3">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-cyan-200/78">Location</p>
             <p className="mt-1 font-serif text-sm text-parchment-100">{worldState.currentLocation}</p>
           </div>
         )}
         {(worldState.timeOfDay || worldState.weather) && (
-          <div className="border border-amber-300/18 bg-amber-300/[0.055] px-3 py-3">
-            <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-amber-200/64">Conditions</p>
+          <div className="border border-amber-300/26 bg-amber-300/[0.07] px-3 py-3">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-amber-200/78">Conditions</p>
             <p className="mt-1 font-serif text-sm text-parchment-100">
               {[formatLabel(worldState.timeOfDay), formatLabel(worldState.weather)].filter(Boolean).join(' / ')}
             </p>
@@ -511,11 +511,11 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
 
       {spine?.openThreads && spine.openThreads.length > 0 && (
         <section>
-          <p className="mb-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/62">Open Threads</p>
+          <p className="mb-2 font-fantasy text-xs uppercase tracking-[0.16em] text-parchment-200/78">Open Threads</p>
           <div className="space-y-2">
             {spine.openThreads.map((thread, index) => (
-              <div key={`${thread}-${index}`} className="border border-cyan-200/14 bg-cyan-300/[0.035] px-3 py-2">
-                <p className="font-serif text-sm leading-relaxed text-parchment-200/72">{thread}</p>
+              <div key={`${thread}-${index}`} className="border border-cyan-200/20 bg-cyan-300/[0.045] px-3 py-2">
+                <p className="font-serif text-sm leading-relaxed text-parchment-200/82">{thread}</p>
               </div>
             ))}
           </div>
@@ -523,10 +523,10 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
       )}
 
       <section>
-        <p className="mb-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/62">Known Characters</p>
+        <p className="mb-2 font-fantasy text-xs uppercase tracking-[0.16em] text-parchment-200/78">Known Characters</p>
         {npcs.length === 0 ? (
-          <div className="border border-white/8 bg-white/[0.025] px-3 py-4">
-            <p className="font-serif text-sm italic text-parchment-200/52">
+          <div className="border border-white/14 bg-white/[0.035] px-3 py-4">
+            <p className="font-serif text-sm italic text-parchment-200/62">
               No named NPCs have been saved yet. Future turns now promote active named NPCs into this list automatically.
             </p>
           </div>
@@ -535,19 +535,19 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
             {npcs.map(npc => {
               const disp = DISPOSITION_STYLE[npc.disposition] ?? DISPOSITION_STYLE.unknown
               return (
-                <article key={npc.name} className="border border-white/10 bg-white/[0.035] px-3 py-3">
+                <article key={npc.name} className="border border-white/16 bg-white/[0.045] px-3 py-3">
                   <div className="flex items-center gap-2">
-                    <span className="grid h-6 w-6 place-items-center border font-mono text-xs" style={{ color: disp.color, borderColor: `${disp.color}66`, background: `${disp.color}14` }}>
+                    <span className="grid h-6 w-6 place-items-center border font-mono text-xs" style={{ color: disp.color, borderColor: `${disp.color}77`, background: `${disp.color}1c` }}>
                       {disp.marker}
                     </span>
                     <h3 className="font-serif text-base font-semibold text-parchment-100">{npc.name}</h3>
                     <span className="ml-auto font-fantasy text-[10px] uppercase tracking-[0.16em]" style={{ color: disp.color }}>{disp.label}</span>
                   </div>
                   {npc.notes && (
-                    <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/72">{npc.notes}</p>
+                    <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/82">{npc.notes}</p>
                   )}
                   {npc.lastMet && (
-                    <p className="mt-1 font-serif text-xs text-parchment-200/42">Last seen: {npc.lastMet}</p>
+                    <p className="mt-1 font-serif text-xs text-parchment-200/56">Last seen: {npc.lastMet}</p>
                   )}
                 </article>
               )
@@ -558,20 +558,20 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
 
       {spine?.keyRelationships && spine.keyRelationships.length > 0 && (
         <section>
-          <p className="mb-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/62">Relationship Focus</p>
+          <p className="mb-2 font-fantasy text-xs uppercase tracking-[0.16em] text-parchment-200/78">Relationship Focus</p>
           <div className="space-y-2">
             {spine.keyRelationships.map(npc => {
               const disp = DISPOSITION_STYLE[npc.disposition] ?? DISPOSITION_STYLE.unknown
               return (
-                <article key={npc.name} className="border border-white/10 bg-white/[0.025] px-3 py-3">
+                <article key={npc.name} className="border border-white/16 bg-white/[0.035] px-3 py-3">
                   <div className="flex items-center gap-2">
-                    <span className="grid h-5 w-5 place-items-center border font-serif text-xs" style={{ color: disp.color, borderColor: `${disp.color}66`, background: `${disp.color}14` }}>
+                    <span className="grid h-5 w-5 place-items-center border font-serif text-xs" style={{ color: disp.color, borderColor: `${disp.color}77`, background: `${disp.color}1c` }}>
                       {disp.marker}
                     </span>
                     <h3 className="font-serif text-sm font-semibold text-parchment-100">{npc.name}</h3>
                     <span className="ml-auto font-fantasy text-[9px] uppercase tracking-[0.14em]" style={{ color: disp.color }}>{disp.label}</span>
                   </div>
-                  <p className="mt-2 font-serif text-xs leading-relaxed text-parchment-200/58">{npc.note}</p>
+                  <p className="mt-2 font-serif text-xs leading-relaxed text-parchment-200/68">{npc.note}</p>
                 </article>
               )
             })}
@@ -581,20 +581,20 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
 
       {journal.length > 0 && (
         <section>
-          <p className="mb-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/62">Campaign Recap</p>
+          <p className="mb-2 font-fantasy text-xs uppercase tracking-[0.16em] text-parchment-200/78">Campaign Recap</p>
           <div className="space-y-2">
             {journal.slice(-2).reverse().map((entry, index) => {
               const e = entry as Record<string, unknown>
               return (
-                <article key={index} className="border border-amber-300/16 bg-amber-300/[0.045] px-3 py-3">
-                  <p className="font-mono text-xs text-amber-200/66">
+                <article key={index} className="border border-amber-300/24 bg-amber-300/[0.06] px-3 py-3">
+                  <p className="font-mono text-xs text-amber-200/78">
                     Act {safeStr(e.actNumber) || '?'} / Session {safeStr(e.sessionNumber) || '?'}
                   </p>
-                  <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/76">{safeStr(e.summary)}</p>
+                  <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/86">{safeStr(e.summary)}</p>
                   {Array.isArray(e.keyDecisions) && e.keyDecisions.length > 0 && (
                     <div className="mt-2 space-y-1">
                       {(e.keyDecisions as unknown[]).slice(0, 2).map((decision, decisionIndex) => (
-                        <p key={decisionIndex} className="font-serif text-xs text-parchment-200/56">- {safeStr(decision)}</p>
+                        <p key={decisionIndex} className="font-serif text-xs text-parchment-200/66">- {safeStr(decision)}</p>
                       ))}
                     </div>
                   )}
@@ -607,22 +607,22 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
 
       {worldState.partyAssets && worldState.partyAssets.length > 0 && (
         <section>
-          <p className="mb-2 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/62">Holdings &amp; Titles</p>
+          <p className="mb-2 font-fantasy text-xs uppercase tracking-[0.16em] text-parchment-200/78">Holdings &amp; Titles</p>
           <div className="space-y-2">
             {worldState.partyAssets.map(asset => (
-              <article key={asset.id} className="border border-violet-200/18 bg-violet-300/[0.04] px-3 py-3">
+              <article key={asset.id} className="border border-violet-200/26 bg-violet-300/[0.055] px-3 py-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="shrink-0 border border-violet-200/24 bg-violet-300/[0.06] px-2 py-0.5 font-fantasy text-[9px] uppercase tracking-[0.14em] text-violet-100/70">
+                  <span className="shrink-0 border border-violet-200/32 bg-violet-300/[0.08] px-2 py-0.5 font-fantasy text-[9px] uppercase tracking-[0.14em] text-violet-100/82">
                     {asset.kind}
                   </span>
                   <h3 className="min-w-0 flex-1 font-serif text-sm font-semibold text-parchment-100">{asset.name}</h3>
                 </div>
-                <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/72">{asset.description}</p>
+                <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/82">{asset.description}</p>
                 {asset.locationName && (
-                  <p className="mt-1 font-serif text-xs text-parchment-200/42">Location: {asset.locationName}</p>
+                  <p className="mt-1 font-serif text-xs text-parchment-200/56">Location: {asset.locationName}</p>
                 )}
                 {asset.unlocksHint && (
-                  <p className="mt-1.5 font-serif text-xs italic text-violet-100/50">{asset.unlocksHint}</p>
+                  <p className="mt-1.5 font-serif text-xs italic text-violet-100/64">{asset.unlocksHint}</p>
                 )}
               </article>
             ))}
@@ -632,7 +632,7 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
 
       {factionEntries.length > 0 && (
         <section>
-          <p className="mb-3 font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/62">Faction Standing</p>
+          <p className="mb-3 font-fantasy text-xs uppercase tracking-[0.16em] text-parchment-200/78">Faction Standing</p>
           <div className="space-y-3">
             {factionEntries.map(([name, value]) => {
               const { color, label, pct } = reputationBar(value)
@@ -642,7 +642,7 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
                     <span className="font-serif text-sm text-parchment-100">{name}</span>
                     <span className="font-fantasy text-[10px] uppercase tracking-[0.14em]" style={{ color }}>{label}</span>
                   </div>
-                  <div className="h-1 bg-white/8">
+                  <div className="h-1 bg-white/14">
                     <div className="h-full transition-all duration-700" style={{ width: `${pct}%`, background: color, boxShadow: `0 0 8px ${color}` }} />
                   </div>
                 </div>

@@ -66,9 +66,9 @@ function effectIcon(name: string): string {
 }
 
 const TYPE_COLORS = {
-  buff:    { bg: 'rgba(34,197,94,0.10)',   border: 'rgba(34,197,94,0.30)',   text: '#4ade80',  dim: 'rgba(74,222,128,0.55)',  glow: 'rgba(34,197,94,0.25)' },
-  debuff:  { bg: 'rgba(239,68,68,0.10)',   border: 'rgba(239,68,68,0.35)',   text: '#f87171',  dim: 'rgba(248,113,113,0.55)', glow: 'rgba(239,68,68,0.30)' },
-  neutral: { bg: 'rgba(200,146,42,0.09)',  border: 'rgba(200,146,42,0.28)', text: '#fbbf24',  dim: 'rgba(251,191,36,0.55)',  glow: 'rgba(200,146,42,0.20)' },
+  buff:    { bg: 'rgba(34,197,94,0.10)',   border: 'rgba(34,197,94,0.38)',   text: '#4ade80',  dim: 'rgba(74,222,128,0.7)',  glow: 'rgba(34,197,94,0.25)' },
+  debuff:  { bg: 'rgba(239,68,68,0.10)',   border: 'rgba(239,68,68,0.42)',   text: '#f87171',  dim: 'rgba(248,113,113,0.7)', glow: 'rgba(239,68,68,0.30)' },
+  neutral: { bg: 'rgba(200,146,42,0.09)',  border: 'rgba(200,146,42,0.36)', text: '#fbbf24',  dim: 'rgba(251,191,36,0.7)',  glow: 'rgba(200,146,42,0.20)' },
 }
 
 function EffectPill({ effect }: { effect: StatusEffect }) {
@@ -111,7 +111,7 @@ function EffectPill({ effect }: { effect: StatusEffect }) {
               <span style={{ fontSize: 18 }}>{icon}</span>
               <div>
                 <p className="font-fantasy text-xs uppercase tracking-[0.14em]" style={{ color: c.text }}>{effect.name}</p>
-                <p className="font-fantasy text-[9px] uppercase tracking-[0.12em] opacity-60" style={{ color: c.text }}>
+                <p className="font-fantasy text-[9px] uppercase tracking-[0.12em] opacity-75" style={{ color: c.text }}>
                   {effect.type}{effect.duration != null ? ` · ${effect.duration} turn${effect.duration !== 1 ? 's' : ''} left` : ' · ongoing'}
                 </p>
               </div>
@@ -149,13 +149,13 @@ export default function StatusEffectsBar({ effects }: StatusEffectsBarProps) {
       <div
         className="relative z-10 flex shrink-0 items-center gap-1.5 overflow-x-auto px-4 py-2"
         style={{
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          borderBottom: '1px solid rgba(255,255,255,0.12)',
           background: 'rgba(8,5,2,0.75)',
           backdropFilter: 'blur(8px)',
           scrollbarWidth: 'none',
         }}
       >
-        <span className="mr-1 shrink-0 font-fantasy text-[9px] uppercase tracking-[0.22em]" style={{ color: 'rgba(180,140,80,0.45)' }}>
+        <span className="mr-1 shrink-0 font-fantasy text-[9px] uppercase tracking-[0.22em]" style={{ color: 'rgba(195,155,95,0.6)' }}>
           Conditions
         </span>
         {ordered.map((effect, i) => (

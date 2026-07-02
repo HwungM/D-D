@@ -20,7 +20,7 @@ export default function ClueBankPanel({ worldState }: Props) {
   if (clues.length === 0) {
     return (
       <div className="p-4">
-        <p className="border border-white/8 bg-white/[0.025] px-4 py-5 font-serif text-sm italic" style={{ color: 'rgba(220,195,155,0.48)' }}>
+        <p className="border border-white/14 bg-white/[0.035] px-4 py-5 font-serif text-sm italic" style={{ color: 'rgba(220,195,155,0.6)' }}>
           No clues uncovered yet. Keep pulling threads — anything you find will pin to this board.
         </p>
       </div>
@@ -28,13 +28,13 @@ export default function ClueBankPanel({ worldState }: Props) {
   }
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-5 p-4">
       <div>
-        <p className="font-fantasy text-[10px] uppercase tracking-[0.24em]" style={{ color: 'rgba(34,211,238,0.65)' }}>
+        <p className="font-fantasy text-xs uppercase tracking-[0.16em]" style={{ color: 'rgba(34,211,238,0.8)' }}>
           Clue Board
         </p>
         {centralQuestion && (
-          <p className="mt-1 font-serif text-xs italic" style={{ color: 'rgba(220,195,155,0.5)' }}>
+          <p className="mt-1 font-serif text-xs italic" style={{ color: 'rgba(220,195,155,0.62)' }}>
             {centralQuestion}
           </p>
         )}
@@ -47,24 +47,24 @@ export default function ClueBankPanel({ worldState }: Props) {
             <article
               key={clue.id}
               className="relative border px-4 py-3"
-              style={{ borderColor: `${style.color}38`, background: `${style.color}0d`, borderLeftWidth: 3, borderLeftColor: style.color }}
+              style={{ borderColor: `${style.color}50`, background: `${style.color}12`, borderLeftWidth: 3, borderLeftColor: style.color }}
             >
               <div className="flex items-start justify-between gap-3">
-                <p className="font-serif text-sm leading-relaxed" style={{ color: 'rgba(240,228,200,0.9)' }}>
+                <p className="font-serif text-sm leading-relaxed" style={{ color: 'rgba(240,228,200,0.94)' }}>
                   {clue.clue}
                 </p>
                 <span
                   className="shrink-0 font-fantasy text-[9px] uppercase tracking-[0.16em] px-2 py-0.5"
-                  style={{ color: style.color, border: `1px solid ${style.color}55`, background: `${style.color}14` }}
+                  style={{ color: style.color, border: `1px solid ${style.color}66`, background: `${style.color}1c` }}
                 >
                   {style.label}
                 </span>
               </div>
-              <p className="mt-2 font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(200,180,140,0.58)' }}>
+              <p className="mt-2 font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(200,180,140,0.72)' }}>
                 Points toward: {clue.pointsToward}
               </p>
               {clue.possibleSources && clue.possibleSources.length > 0 && (
-                <p className="mt-1.5 font-serif text-[11px]" style={{ color: 'rgba(180,160,120,0.4)' }}>
+                <p className="mt-1.5 font-serif text-[11px]" style={{ color: 'rgba(180,160,120,0.55)' }}>
                   Sources: {clue.possibleSources.join(', ')}
                 </p>
               )}

@@ -192,10 +192,10 @@ function RelationshipBar({ score }: { score: number }) {
 }
 
 function relationshipColor(score?: number): string {
-  if (score == null) return 'rgba(160,140,100,0.6)'
+  if (score == null) return 'rgba(160,140,100,0.75)'
   if (score >= 60) return '#86efac'
   if (score >= 20) return '#d1fae5'
-  if (score >= -20) return 'rgba(200,180,140,0.7)'
+  if (score >= -20) return 'rgba(200,180,140,0.85)'
   if (score >= -60) return '#fca5a5'
   return '#f87171'
 }
@@ -242,8 +242,8 @@ function NPCCard({ npc, campaignId }: { npc: NpcMemory; campaignId: string }) {
     <div
       className="border cursor-pointer select-none"
       style={{
-        borderColor: 'rgba(255,255,255,0.08)',
-        background: 'rgba(255,255,255,0.03)',
+        borderColor: 'rgba(255,255,255,0.14)',
+        background: 'rgba(255,255,255,0.04)',
         transition: 'border-color 0.2s',
       }}
       onClick={() => setExpanded(e => !e)}
@@ -265,7 +265,7 @@ function NPCCard({ npc, campaignId }: { npc: NpcMemory; campaignId: string }) {
             <div className="flex h-full w-full items-center justify-center">
               <span
                 className="font-fantasy text-2xl"
-                style={{ color: 'rgba(200,180,140,0.4)' }}
+                style={{ color: 'rgba(200,180,140,0.55)' }}
               >
                 {npc.name[0]}
               </span>
@@ -273,7 +273,7 @@ function NPCCard({ npc, campaignId }: { npc: NpcMemory; campaignId: string }) {
           )}
           {generating && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="animate-pulse font-fantasy text-[7px] uppercase tracking-wider" style={{ color: 'rgba(200,180,140,0.6)' }}>
+              <span className="animate-pulse font-fantasy text-[7px] uppercase tracking-wider" style={{ color: 'rgba(200,180,140,0.72)' }}>
                 ...
               </span>
             </div>
@@ -286,12 +286,12 @@ function NPCCard({ npc, campaignId }: { npc: NpcMemory; campaignId: string }) {
             <p className="font-fantasy text-sm leading-tight text-parchment-100 truncate">{npc.name}</p>
             {npc.isKeyNPC && (
               <span className="shrink-0 font-fantasy text-[8px] uppercase tracking-[0.2em] px-1.5 py-0.5" style={{
-                color: '#fbbf24', background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.2)',
+                color: '#fbbf24', background: 'rgba(251,191,36,0.16)', border: '1px solid rgba(251,191,36,0.32)',
               }}>Key</span>
             )}
           </div>
           {npc.role && (
-            <p className="font-serif text-[10px] truncate" style={{ color: 'rgba(160,140,100,0.7)' }}>{npc.role}</p>
+            <p className="font-serif text-[10px] truncate" style={{ color: 'rgba(160,140,100,0.84)' }}>{npc.role}</p>
           )}
           <p className="mt-0.5 font-serif text-[10px]" style={{ color: relColor }}>{label}</p>
           {npc.relationshipScore != null && <RelationshipBar score={score} />}
@@ -300,27 +300,27 @@ function NPCCard({ npc, campaignId }: { npc: NpcMemory; campaignId: string }) {
 
       {/* Expanded notes */}
       {expanded && (
-        <div className="border-t px-3 pb-3 pt-2" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <p className="font-serif text-xs leading-relaxed" style={{ color: 'rgba(220,200,160,0.72)' }}>
+        <div className="border-t px-3 pb-3 pt-2" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+          <p className="font-serif text-xs leading-relaxed" style={{ color: 'rgba(220,200,160,0.86)' }}>
             {npc.notes}
           </p>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            <div className="border px-2 py-1.5" style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.18)' }}>
-              <p className="font-fantasy text-[8px] uppercase tracking-[0.18em]" style={{ color: 'rgba(160,140,100,0.55)' }}>Score</p>
+            <div className="border px-2 py-1.5" style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)' }}>
+              <p className="font-fantasy text-[8px] uppercase tracking-[0.18em]" style={{ color: 'rgba(160,140,100,0.7)' }}>Score</p>
               <p className="font-mono text-xs" style={{ color: relColor }}>{npc.relationshipScore ?? 0}</p>
             </div>
-            <div className="border px-2 py-1.5" style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.18)' }}>
-              <p className="font-fantasy text-[8px] uppercase tracking-[0.18em]" style={{ color: 'rgba(160,140,100,0.55)' }}>Interactions</p>
-              <p className="font-mono text-xs" style={{ color: 'rgba(220,200,160,0.72)' }}>{npc.interactionCount || 1}</p>
+            <div className="border px-2 py-1.5" style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)' }}>
+              <p className="font-fantasy text-[8px] uppercase tracking-[0.18em]" style={{ color: 'rgba(160,140,100,0.7)' }}>Interactions</p>
+              <p className="font-mono text-xs" style={{ color: 'rgba(220,200,160,0.86)' }}>{npc.interactionCount || 1}</p>
             </div>
           </div>
           {npc.metCharacters && npc.metCharacters.length > 0 && (
-            <p className="mt-1.5 font-serif text-[10px]" style={{ color: 'rgba(160,140,100,0.55)' }}>
+            <p className="mt-1.5 font-serif text-[10px]" style={{ color: 'rgba(160,140,100,0.7)' }}>
               Met: {npc.metCharacters.join(', ')}
             </p>
           )}
           {npc.lastMet && (
-            <p className="mt-1.5 font-serif text-[10px]" style={{ color: 'rgba(160,140,100,0.5)' }}>
+            <p className="mt-1.5 font-serif text-[10px]" style={{ color: 'rgba(160,140,100,0.66)' }}>
               Last met: {npc.lastMet}
             </p>
           )}
@@ -352,7 +352,7 @@ export default function NPCCodex({ npcMemory, keyNPCs = [], campaignId }: NPCCod
   if (allNpcs.length === 0) {
     return (
       <div className="p-5 text-center">
-        <p className="font-serif text-sm italic" style={{ color: 'rgba(200,180,140,0.45)' }}>
+        <p className="font-serif text-sm italic" style={{ color: 'rgba(200,180,140,0.58)' }}>
           No named souls have crossed your path yet.
         </p>
       </div>
@@ -369,8 +369,8 @@ export default function NPCCodex({ npcMemory, keyNPCs = [], campaignId }: NPCCod
   function Section({ title, npcs, accent }: { title: string; npcs: NpcMemory[]; accent: string }) {
     if (npcs.length === 0) return null
     return (
-      <section className="space-y-1">
-        <p className="px-1 font-fantasy text-[9px] uppercase tracking-[0.26em]" style={{ color: accent }}>
+      <section className="space-y-1.5">
+        <p className="px-1 font-fantasy text-xs uppercase tracking-[0.16em]" style={{ color: accent }}>
           {title}
         </p>
         {npcs.map(npc => (
@@ -381,29 +381,29 @@ export default function NPCCodex({ npcMemory, keyNPCs = [], campaignId }: NPCCod
   }
 
   return (
-    <div className="space-y-5 p-4">
-      <div className="border px-3 py-3" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.18)' }}>
-        <p className="font-fantasy text-[9px] uppercase tracking-[0.24em]" style={{ color: 'rgba(200,180,140,0.55)' }}>
+    <div className="space-y-6 p-4">
+      <div className="border px-3 py-3" style={{ borderColor: 'rgba(255,255,255,0.14)', background: 'rgba(0,0,0,0.2)' }}>
+        <p className="font-fantasy text-[9px] uppercase tracking-[0.24em]" style={{ color: 'rgba(200,180,140,0.68)' }}>
           People Sheet Health
         </p>
         <div className="mt-2 grid grid-cols-3 gap-2">
           <div>
-            <p className="font-mono text-sm" style={{ color: 'rgba(134,239,172,0.85)' }}>{allies.length}</p>
-            <p className="font-serif text-[10px]" style={{ color: 'rgba(200,180,140,0.48)' }}>allies</p>
+            <p className="font-mono text-sm" style={{ color: 'rgba(134,239,172,0.9)' }}>{allies.length}</p>
+            <p className="font-serif text-[10px]" style={{ color: 'rgba(200,180,140,0.6)' }}>allies</p>
           </div>
           <div>
-            <p className="font-mono text-sm" style={{ color: 'rgba(220,200,160,0.78)' }}>{neutral.length}</p>
-            <p className="font-serif text-[10px]" style={{ color: 'rgba(200,180,140,0.48)' }}>neutral</p>
+            <p className="font-mono text-sm" style={{ color: 'rgba(220,200,160,0.85)' }}>{neutral.length}</p>
+            <p className="font-serif text-[10px]" style={{ color: 'rgba(200,180,140,0.6)' }}>neutral</p>
           </div>
           <div>
-            <p className="font-mono text-sm" style={{ color: 'rgba(248,113,113,0.85)' }}>{rivals.length}</p>
-            <p className="font-serif text-[10px]" style={{ color: 'rgba(200,180,140,0.48)' }}>hostile</p>
+            <p className="font-mono text-sm" style={{ color: 'rgba(248,113,113,0.9)' }}>{rivals.length}</p>
+            <p className="font-serif text-[10px]" style={{ color: 'rgba(200,180,140,0.6)' }}>hostile</p>
           </div>
         </div>
       </div>
-      <Section title="Allies & Friends" npcs={allies} accent="rgba(134,239,172,0.7)" />
-      <Section title="Acquaintances" npcs={neutral} accent="rgba(200,180,140,0.5)" />
-      <Section title="Rivals & Enemies" npcs={rivals} accent="rgba(248,113,113,0.7)" />
+      <Section title="Allies & Friends" npcs={allies} accent="rgba(134,239,172,0.82)" />
+      <Section title="Acquaintances" npcs={neutral} accent="rgba(200,180,140,0.65)" />
+      <Section title="Rivals & Enemies" npcs={rivals} accent="rgba(248,113,113,0.82)" />
     </div>
   )
 }

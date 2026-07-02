@@ -10,9 +10,9 @@ export default function TurnIndicator({ roster, submittedIds, expiresAt }: TurnI
   return (
     <div
       className="flex shrink-0 items-center gap-2 px-4 py-2"
-      style={{ borderBottom: '1px solid rgba(34,211,238,0.10)', background: 'rgba(4,14,22,0.72)', backdropFilter: 'blur(8px)' }}
+      style={{ borderBottom: '1px solid rgba(34,211,238,0.16)', background: 'rgba(4,14,22,0.72)', backdropFilter: 'blur(8px)' }}
     >
-      <span className="shrink-0 font-fantasy text-[9px] uppercase tracking-[0.22em]" style={{ color: 'rgba(150,210,240,0.38)' }}>
+      <span className="shrink-0 font-fantasy text-[9px] uppercase tracking-[0.22em]" style={{ color: 'rgba(160,215,240,0.55)' }}>
         Turn
       </span>
       <div className="flex flex-wrap items-center gap-1.5">
@@ -23,8 +23,8 @@ export default function TurnIndicator({ roster, submittedIds, expiresAt }: TurnI
               key={member.id}
               className="flex items-center gap-1.5 px-2 py-1"
               style={{
-                border: done ? '1px solid rgba(34,211,238,0.38)' : '1px solid rgba(255,255,255,0.09)',
-                background: done ? 'rgba(34,211,238,0.06)' : 'rgba(255,255,255,0.015)',
+                border: done ? '1px solid rgba(34,211,238,0.42)' : '1px solid rgba(255,255,255,0.16)',
+                background: done ? 'rgba(34,211,238,0.07)' : 'rgba(255,255,255,0.025)',
               }}
             >
               {done ? (
@@ -37,7 +37,7 @@ export default function TurnIndicator({ roster, submittedIds, expiresAt }: TurnI
               )}
               <span
                 className="font-fantasy text-[9px] uppercase tracking-[0.14em]"
-                style={{ color: done ? 'rgba(191,244,255,0.82)' : 'rgba(220,200,155,0.48)' }}
+                style={{ color: done ? 'rgba(191,244,255,0.88)' : 'rgba(228,210,170,0.68)' }}
               >
                 {member.isMe ? 'You' : member.name}
               </span>
@@ -46,7 +46,7 @@ export default function TurnIndicator({ roster, submittedIds, expiresAt }: TurnI
         })}
       </div>
       {expiresAt && (
-        <span className="ml-auto shrink-0 font-serif text-[9px]" style={{ color: 'rgba(180,155,110,0.38)' }}>
+        <span className="ml-auto shrink-0 font-serif text-[9px]" style={{ color: 'rgba(200,175,125,0.6)' }}>
           expires {new Date(expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
         </span>
       )}

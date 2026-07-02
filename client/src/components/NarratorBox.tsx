@@ -100,7 +100,7 @@ export default function NarratorBox({
             <p className="mb-0.5 font-fantasy text-[10px] uppercase tracking-[0.2em] text-violet-200/80">{playerName}</p>
           )}
           {microAction && (
-            <p className="mb-0.5 font-fantasy text-[9px] uppercase tracking-[0.2em] text-amber-200/45">In-scene</p>
+            <p className="mb-0.5 font-fantasy text-[9px] uppercase tracking-[0.2em] text-amber-200/60">In-scene</p>
           )}
           <p className="font-serif text-sm italic leading-relaxed" style={{ color: 'rgba(240,228,200,0.88)' }}>
             {displayed}
@@ -128,11 +128,11 @@ export default function NarratorBox({
     return (
       <div className="animate-fade-in flex items-start gap-2.5 px-1 py-0.5 sm:px-2">
         <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: 'rgba(200,146,42,0.55)' }} />
-        <div className="relative flex-1 border-l-2 px-3 py-1.5" style={{ borderColor: 'rgba(200,146,42,0.3)', background: 'rgba(200,146,42,0.03)' }}>
-          <p className="font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(220,200,160,0.72)' }}>
+        <div className="relative flex-1 border-l-2 px-3 py-1.5" style={{ borderColor: 'rgba(200,146,42,0.35)', background: 'rgba(200,146,42,0.03)' }}>
+          <p className="font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(220,200,160,0.78)' }}>
             {mainText}
             {ambientAside && (
-              <span className="ml-1" style={{ color: 'rgba(180,160,190,0.46)', fontStyle: 'italic' }}>
+              <span className="ml-1" style={{ color: 'rgba(190,172,200,0.58)', fontStyle: 'italic' }}>
                 {ambientAside}
               </span>
             )}
@@ -155,8 +155,8 @@ export default function NarratorBox({
         className="relative overflow-hidden border px-4 py-4 sm:px-5 sm:py-5"
         style={{
           background: 'linear-gradient(135deg, rgba(28,18,8,0.96) 0%, rgba(18,12,5,0.94) 100%)',
-          borderColor: 'rgba(200,146,42,0.22)',
-          borderTopColor: 'rgba(200,146,42,0.45)',
+          borderColor: 'rgba(200,146,42,0.3)',
+          borderTopColor: 'rgba(200,146,42,0.5)',
           boxShadow: '0 4px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(200,146,42,0.12)',
         }}
       >

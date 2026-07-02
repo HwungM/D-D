@@ -1242,9 +1242,9 @@ export default function Game() {
                 )}
                 {worldState?.campaignSpine?.openThreads && worldState.campaignSpine.openThreads.length > 0 && (
                   <div className="mt-4 border-t border-white/8 pt-3">
-                    <p className="font-fantasy text-[9px] uppercase tracking-[0.22em] mb-2" style={{ color: 'rgba(200,146,42,0.45)' }}>Open Threads</p>
+                    <p className="font-fantasy text-[9px] uppercase tracking-[0.22em] mb-2" style={{ color: 'rgba(200,146,42,0.6)' }}>Open Threads</p>
                     {worldState.campaignSpine.openThreads.slice(0, 3).map((t, i) => (
-                      <p key={i} className="font-serif text-xs" style={{ color: 'rgba(200,175,130,0.52)' }}>◆ {t}</p>
+                      <p key={i} className="font-serif text-xs" style={{ color: 'rgba(200,175,130,0.66)' }}>◆ {t}</p>
                     ))}
                   </div>
                 )}
@@ -1347,7 +1347,7 @@ export default function Game() {
                 <div className="h-1.5 w-20 overflow-hidden border border-white/10 bg-black/52">
                   <div className="h-full transition-all duration-700" style={{ width: `${hpPercent}%`, background: hpColor, boxShadow: `0 0 5px ${hpColor}70` }} />
                 </div>
-                <span className="font-serif text-[10px] text-parchment-200/52">{currentCharacter.hp}/{currentCharacter.max_hp}</span>
+                <span className="font-serif text-[10px] text-parchment-200/78">{currentCharacter.hp}/{currentCharacter.max_hp}</span>
               </div>
             </div>
           )}
@@ -1412,12 +1412,12 @@ export default function Game() {
               {worldState?.combatState?.isBossFight ? `Boss - Phase ${worldState.combatState.bossPhase || 1}` : 'Combat'}
             </span>
             {worldState?.combatState?.roundNumber && (
-              <span className="border border-red-200/14 bg-black/18 px-2 py-0.5 font-serif text-[10px] uppercase tracking-[0.16em] text-red-100/50">
+              <span className="border border-red-200/14 bg-black/18 px-2 py-0.5 font-serif text-[10px] uppercase tracking-[0.16em] text-red-100/68">
                 Round {worldState.combatState.roundNumber}
               </span>
             )}
           </div>
-          <span className="font-serif text-xs italic text-red-100/56">Fight, flee, or find another way</span>
+          <span className="font-serif text-xs italic text-red-100/68">Fight, flee, or find another way</span>
         </div>
       )}
 
@@ -1588,7 +1588,7 @@ export default function Game() {
                   : 'none'}
               </p>
               {worldState.engineDebug.checks?.slice(-2).map((check, index) => (
-                <p key={`${check.label}-${index}`} className="mt-1 text-cyan-100/52">{check.status.toUpperCase()}: {check.detail}</p>
+                <p key={`${check.label}-${index}`} className="mt-1 text-cyan-100/68">{check.status.toUpperCase()}: {check.detail}</p>
               ))}
             </div>
           )}
@@ -1634,7 +1634,7 @@ export default function Game() {
                   })()}
                 </span>
                 {(coopProgressLabel || stillChoosingNames.length > 0) && (
-                  <span className="font-serif text-xs text-parchment-200/54">
+                  <span className="font-serif text-xs text-parchment-200/68">
                     {coopProgressLabel}{stillChoosingNames.length > 0 ? ` - still choosing: ${stillChoosingNames.join(', ')}` : ''}{coopExpiresAt ? ` - expires ${new Date(coopExpiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
                   </span>
                 )}
@@ -1827,12 +1827,12 @@ export default function Game() {
               {recap.summary}
             </p>
             {recap.keyDecisions.length > 0 && (
-              <ul className="mt-3 list-disc space-y-1 pl-5 font-serif text-xs text-violet-100/60">
+              <ul className="mt-3 list-disc space-y-1 pl-5 font-serif text-xs text-violet-100/74">
                 {recap.keyDecisions.map((d, i) => <li key={i}>{d}</li>)}
               </ul>
             )}
             {!sessionEnded && (
-              <p className="mt-4 font-mono text-[10px] uppercase tracking-widest text-violet-100/30">
+              <p className="mt-4 font-mono text-[10px] uppercase tracking-widest text-violet-100/48">
                 {recap.gapHours < 24 ? `${recap.gapHours}h` : `${Math.round(recap.gapHours / 24)}d`} since last session
               </p>
             )}

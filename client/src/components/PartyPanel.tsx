@@ -33,8 +33,8 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
   return (
     <div className="shrink-0 border-t border-parchment-100/14 bg-black/62 px-4 py-3 backdrop-blur-md">
       <div className="flex items-center justify-between gap-3 mb-2">
-        <span className="shrink-0 font-fantasy text-[10px] uppercase tracking-[0.24em] text-cyan-200/58">Party</span>
-        <span className="font-serif text-xs text-parchment-200/42">
+        <span className="shrink-0 font-fantasy text-[10px] uppercase tracking-[0.24em] text-cyan-200/78">Party</span>
+        <span className="font-serif text-xs text-parchment-200/62">
           {others.length + companions.length} companion{others.length + companions.length === 1 ? '' : 's'}
         </span>
       </div>
@@ -44,7 +44,7 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
           const hpColor = hpPct > 60 ? '#16a34a' : hpPct > 30 ? '#ca8a04' : '#dc2626'
           const bond = bondMeter(companion.bondLevel)
           return (
-            <div key={companion.id} className="flex items-center gap-2 min-w-[190px] border border-violet-200/16 bg-violet-300/[0.035] px-2 py-1.5">
+            <div key={companion.id} className="flex items-center gap-2 min-w-[190px] border border-violet-200/26 bg-violet-300/[0.06] px-2 py-1.5">
               <div className="relative shrink-0">
                 <img
                   src={companion.portrait_url || racePortraitUrl(companion.race)}
@@ -63,13 +63,13 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="truncate font-serif text-xs text-parchment-100">{companion.name}</span>
-                  <span className="shrink-0 text-[10px] text-parchment-200/38">Lv.{companion.level}</span>
+                  <span className="shrink-0 text-[10px] text-parchment-200/64">Lv.{companion.level}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="h-1 w-16 overflow-hidden bg-white/10">
                     <div className="h-full transition-all duration-700" style={{ width: `${hpPct}%`, background: hpColor }} />
                   </div>
-                  <span className="text-[10px] text-parchment-200/38">{companion.hp}/{companion.max_hp}</span>
+                  <span className="text-[10px] text-parchment-200/64">{companion.hp}/{companion.max_hp}</span>
                 </div>
                 <div className="mt-0.5 flex items-center gap-1" title={`Bond: ${bond.label}`}>
                   <div className="h-1 w-16 overflow-hidden bg-white/10">
@@ -85,11 +85,11 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
           const char = member.character
           if (!char) {
             return (
-              <div key={member.userId} className="flex items-center gap-2 border border-white/8 bg-white/[0.025] px-2 py-1.5">
-                <div className="h-7 w-7 border border-white/10 bg-white/[0.025]" />
+              <div key={member.userId} className="flex items-center gap-2 border border-white/14 bg-white/[0.045] px-2 py-1.5">
+                <div className="h-7 w-7 border border-white/16 bg-white/[0.04]" />
                 <div>
                   <p className="font-serif text-xs text-parchment-200/62">{member.username}</p>
-                  <p className="font-serif text-[10px] text-parchment-200/34">Creating character</p>
+                  <p className="font-serif text-[10px] text-parchment-200/58">Creating character</p>
                 </div>
               </div>
             )
@@ -103,7 +103,7 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
           const subLocation = worldState?.characterSubLocations?.[char.id]
 
           return (
-            <div key={member.userId} className="flex items-center gap-2 min-w-[180px] border border-white/8 bg-white/[0.025] px-2 py-1.5">
+            <div key={member.userId} className="flex items-center gap-2 min-w-[180px] border border-white/14 bg-white/[0.045] px-2 py-1.5">
               <div className="relative shrink-0">
                 <img
                   src={char.portrait_url || racePortraitUrl(char.race)}
@@ -125,7 +125,7 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="truncate font-serif text-xs text-parchment-100">{char.name}</span>
-                  <span className="shrink-0 text-[10px] text-parchment-200/38">Lv.{char.level}</span>
+                  <span className="shrink-0 text-[10px] text-parchment-200/64">Lv.{char.level}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="h-1 w-16 overflow-hidden bg-white/10">
@@ -134,9 +134,9 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
                       style={{ width: `${hpPct}%`, background: hpColor }}
                     />
                   </div>
-                  <span className="text-[10px] text-parchment-200/38">{char.hp}/{char.max_hp}</span>
+                  <span className="text-[10px] text-parchment-200/64">{char.hp}/{char.max_hp}</span>
                 </div>
-                <div className="truncate text-[10px] text-parchment-200/38" title={lastLocation || undefined}>
+                <div className="truncate text-[10px] text-parchment-200/64" title={lastLocation || undefined}>
                   {lastLocation || (online ? 'Present' : 'Away')}
                 </div>
                 {subLocation && (

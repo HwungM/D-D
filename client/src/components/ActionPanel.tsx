@@ -49,11 +49,19 @@ export default function ActionPanel({
 }: ActionPanelProps) {
   const [input, setInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [exploreExpanded, setExploreExpanded] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const suggestions = suggestedActions.slice(0, 4)
   const hasSuggestions = suggestions.length > 0
   const hasInput = input.trim().length > 0
   const interactables = sceneInteractables.slice(0, 8)
+  // When combat or a live contest is underway, those buttons should dominate
+  // this panel — exploration chips (sub-locations, scene interactables) recede
+  // behind a toggle so the composer isn't fighting four button rows for
+  // attention at the exact moment the player needs to see Attack/Push/Bail.
+  const urgentFocus = !!(combatState?.inCombat || skillChallenge)
+  const exploreCount = interactables.length + subLocations.length + (currentSubLocation ? 1 : 0)
+  const exploreOpen = exploreCount > 0 && (exploreExpanded || !urgentFocus)
 
   function submitAction(action: string) {
     const trimmed = action.trim()
@@ -117,16 +125,16 @@ export default function ActionPanel({
         boxShadow: '0 -12px 48px rgba(0,0,0,0.6)',
       }}
     >
-      <div className="space-y-2.5 px-3 py-3 sm:px-4">
+      <div className="space-y-3 px-3 py-3 sm:px-4">
 
         {/* Header row */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="min-w-0">
-            <p className="font-fantasy text-[10px] uppercase tracking-[0.28em]"
-              style={{ color: inCombat ? '#fca5a5' : 'rgba(200,146,42,0.9)' }}>
+            <p className="font-fantasy text-xs uppercase tracking-[0.24em]"
+              style={{ color: inCombat ? '#fca5a5' : 'rgba(224,180,90,0.95)' }}>
               {inCombat ? '⚔ Combat' : isCoop ? 'Party Turn' : 'Your Turn'}
             </p>
-            <p className="font-serif text-xs mt-0.5" style={{ color: 'rgba(200,180,140,0.6)' }}>
+            <p className="font-serif text-xs mt-0.5" style={{ color: 'rgba(215,197,163,0.74)' }}>
               {disabledReason || 'Say what you do. The DM will call for rolls when they matter.'}
             </p>
           </div>
@@ -134,13 +142,13 @@ export default function ActionPanel({
             <div className="flex min-w-0 flex-wrap gap-1.5 sm:justify-end">
               {location && (
                 <span className="max-w-60 truncate px-2 py-1 font-fantasy text-[10px] uppercase tracking-[0.14em]"
-                  style={{ color: 'rgba(191,244,255,0.78)', background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.2)' }}>
+                  style={{ color: 'rgba(191,244,255,0.85)', background: 'rgba(34,211,238,0.09)', border: '1px solid rgba(34,211,238,0.24)' }}>
                   {location}
                 </span>
               )}
               {pacingMode && (
                 <span className="px-2 py-1 font-fantasy text-[10px] uppercase tracking-[0.14em]"
-                  style={{ color: 'rgba(240,210,130,0.72)', background: 'rgba(200,146,42,0.07)', border: '1px solid rgba(200,146,42,0.2)' }}>
+                  style={{ color: 'rgba(245,216,145,0.82)', background: 'rgba(200,146,42,0.08)', border: '1px solid rgba(200,146,42,0.24)' }}>
                   {pacingMode}
                 </span>
               )}
@@ -149,9 +157,14 @@ export default function ActionPanel({
         </div>
 
         {/* Live combat/danger: contextual Attack/Defend/Hide/Flee + ability
-            shortcuts, firing real micro-actions with live dice/HP consequences. */}
+            shortcuts, firing real micro-actions with live dice/HP consequences.
+            This is the dominant control group whenever a fight is live. */}
         {combatState?.inCombat && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="space-y-1.5 border border-red-400/22 bg-red-950/12 p-2">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.2em]" style={{ color: 'rgba(252,165,165,0.85)' }}>
+              Combat Actions
+            </p>
+            <div className="flex flex-wrap gap-1.5">
             {livingEnemies.map((enemy, i) => (
               <button
                 key={`attack-${i}`}
@@ -205,6 +218,7 @@ export default function ActionPanel({
                 {ability.name}
               </button>
             ))}
+            </div>
           </div>
         )}
 
@@ -212,16 +226,21 @@ export default function ActionPanel({
         {tensionActive && !combatState?.inCombat && (
           <div className="flex items-center gap-2 px-0.5">
             <div className="h-1.5 w-1.5 shrink-0 border border-red-200/40 bg-red-400/80" style={{ animation: 'pulse 1.4s ease-in-out infinite' }} />
-            <span className="font-serif text-xs italic" style={{ color: 'rgba(252,165,165,0.6)' }}>
+            <span className="font-serif text-xs italic" style={{ color: 'rgba(252,165,165,0.72)' }}>
               Something may still be looking for you...
             </span>
           </div>
         )}
 
         {/* Live non-combat contest: contextual push/play-safe/bail shortcuts,
-            firing real micro-actions the same way combat's contextual row does. */}
+            firing real micro-actions the same way combat's contextual row does.
+            Dominant control group whenever a contest is live, mirroring combat. */}
         {skillChallenge && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="space-y-1.5 border border-violet-400/22 bg-violet-950/12 p-2">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.2em]" style={{ color: 'rgba(216,197,253,0.85)' }}>
+              Contest
+            </p>
+            <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
               onClick={() => fireQuickAction('Push your luck and press the attempt hard')}
@@ -249,64 +268,84 @@ export default function ActionPanel({
             >
               Bail out
             </button>
+            </div>
           </div>
         )}
 
-        {/* Sub-location chips: quick-tap movement within the current location */}
-        {subLocations.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {currentSubLocation && (
-              <button
-                type="button"
-                onClick={() => fireQuickAction('Head back out')}
-                disabled={disabled}
-                className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
-                style={{ border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.03)', color: 'rgba(220,200,160,0.72)' }}
-              >
-                <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(200,180,140,0.5)' }}>go</span>
-                Leave {currentSubLocation}
-              </button>
+        {/* Explore: sub-location movement + scene interactables, grouped under
+            one header instead of stacking as separate flat rows. Open by
+            default when nothing urgent is happening; collapses behind a
+            toggle the moment combat or a contest takes over, so it doesn't
+            compete with those buttons for attention. */}
+        {exploreCount > 0 && (
+          <div className="border border-white/8 bg-white/[0.015]">
+            <button
+              type="button"
+              onClick={() => setExploreExpanded(open => !open)}
+              className="flex w-full items-center justify-between px-2.5 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.2em] transition-colors duration-150"
+              style={{ color: 'rgba(191,244,255,0.72)' }}
+            >
+              <span>Explore &middot; {exploreCount}</span>
+              <span style={{ color: 'rgba(191,244,255,0.5)' }}>{exploreOpen ? 'Hide' : 'Show'}</span>
+            </button>
+            {exploreOpen && (
+              <div className="space-y-1.5 px-2.5 pb-2.5">
+                {subLocations.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentSubLocation && (
+                      <button
+                        type="button"
+                        onClick={() => fireQuickAction('Head back out')}
+                        disabled={disabled}
+                        className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                        style={{ border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.04)', color: 'rgba(226,209,175,0.85)' }}
+                      >
+                        <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(210,190,150,0.65)' }}>go</span>
+                        Leave {currentSubLocation}
+                      </button>
+                    )}
+                    {subLocations.filter(sub => sub.name !== currentSubLocation).map(sub => (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => fireQuickAction(`Head into ${sub.name}`)}
+                        disabled={disabled}
+                        title={sub.description}
+                        className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                        style={{ border: '1px solid rgba(200,146,42,0.28)', background: 'rgba(200,146,42,0.05)', color: 'rgba(245,216,145,0.88)' }}
+                      >
+                        <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(215,175,110,0.68)' }}>go</span>
+                        {sub.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {interactables.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {interactables.map((item, i) => (
+                      <button
+                        key={`${item.kind}-${item.name}-${i}`}
+                        type="button"
+                        onClick={() => fireInteractable(item)}
+                        disabled={disabled}
+                        title={item.hook}
+                        className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                        style={{
+                          border: '1px solid rgba(34,211,238,0.26)',
+                          background: 'rgba(34,211,238,0.06)',
+                          color: 'rgba(191,244,255,0.85)',
+                        }}
+                      >
+                        <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(34,211,238,0.65)' }}>
+                          {INTERACTABLE_ICON[item.kind] || 'look'}
+                        </span>
+                        {item.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
-            {subLocations.filter(sub => sub.name !== currentSubLocation).map(sub => (
-              <button
-                key={sub.id}
-                type="button"
-                onClick={() => fireQuickAction(`Head into ${sub.name}`)}
-                disabled={disabled}
-                title={sub.description}
-                className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
-                style={{ border: '1px solid rgba(200,146,42,0.24)', background: 'rgba(200,146,42,0.04)', color: 'rgba(240,210,150,0.8)' }}
-              >
-                <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(200,146,42,0.5)' }}>go</span>
-                {sub.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Scene interactables: quick-tap in-scene shortcuts */}
-        {interactables.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {interactables.map((item, i) => (
-              <button
-                key={`${item.kind}-${item.name}-${i}`}
-                type="button"
-                onClick={() => fireInteractable(item)}
-                disabled={disabled}
-                title={item.hook}
-                className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
-                style={{
-                  border: '1px solid rgba(34,211,238,0.22)',
-                  background: 'rgba(34,211,238,0.05)',
-                  color: 'rgba(191,244,255,0.72)',
-                }}
-              >
-                <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(34,211,238,0.5)' }}>
-                  {INTERACTABLE_ICON[item.kind] || 'look'}
-                </span>
-                {item.name}
-              </button>
-            ))}
           </div>
         )}
 
@@ -364,7 +403,7 @@ export default function ActionPanel({
             }}
           >
             <span>Move the Story Forward</span>
-            <span className="font-serif text-[10px] normal-case italic" style={{ color: 'rgba(221,214,254,0.62)' }}>
+            <span className="font-serif text-[10px] normal-case italic" style={{ color: 'rgba(230,224,255,0.76)' }}>
               {freeRoamCount > 0 ? `${freeRoamCount} in-scene action${freeRoamCount === 1 ? '' : 's'} noted - moves time and scene ahead` : 'Moves time and scene ahead, once the moment has settled'}
             </span>
           </button>
@@ -380,12 +419,12 @@ export default function ActionPanel({
             style={{
               background: showSuggestions ? 'rgba(34,211,238,0.1)' : 'rgba(255,255,255,0.04)',
               border: showSuggestions ? '1px solid rgba(34,211,238,0.42)' : '1px solid rgba(255,255,255,0.1)',
-              color: showSuggestions ? '#bff4ff' : 'rgba(200,180,140,0.65)',
+              color: showSuggestions ? '#bff4ff' : 'rgba(217,199,163,0.78)',
             }}
           >
             {showSuggestions ? 'Hide Ideas' : 'Ideas'}
           </button>
-          <span className="font-serif text-xs italic" style={{ color: 'rgba(180,160,120,0.5)' }}>
+          <span className="font-serif text-xs italic" style={{ color: 'rgba(200,182,144,0.62)' }}>
             {hasSuggestions ? 'Optional nudges. Click one to draft it, then edit or send.' : 'No ideas yet. Trust your instinct.'}
           </span>
         </div>

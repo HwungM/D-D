@@ -44,12 +44,12 @@ function EnemyBar({ enemy }: { enemy: CombatEnemy }) {
         textDecoration: enemy.isDefeated ? 'line-through' : 'none',
       }}
     >
-      <span className="border border-white/10 bg-white/[0.025] px-1.5 py-0.5 font-fantasy text-[8px] uppercase tracking-[0.1em] text-parchment-200/48">{icon}</span>
+      <span className="border border-white/15 bg-white/[0.04] px-1.5 py-0.5 font-fantasy text-[8px] uppercase tracking-[0.1em] text-parchment-200/60">{icon}</span>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-0.5">
           <span
             className="font-serif text-xs truncate"
-            style={{ color: enemy.isDefeated ? 'rgba(160,140,110,0.3)' : 'rgba(200,180,140,0.85)' }}
+            style={{ color: enemy.isDefeated ? 'rgba(160,140,110,0.4)' : 'rgba(215,198,160,0.92)' }}
           >
             {enemy.name}
           </span>
@@ -73,7 +73,7 @@ function EnemyBar({ enemy }: { enemy: CombatEnemy }) {
           )}
         </div>
         {enemy.specialAbility && !enemy.isDefeated && (
-          <p className="font-serif text-xs mt-0.5 truncate" style={{ color: 'rgba(180,100,100,0.5)', fontSize: 9 }}>
+          <p className="font-serif text-xs mt-0.5 truncate" style={{ color: 'rgba(210,140,140,0.65)', fontSize: 9 }}>
             {enemy.specialAbility}
           </p>
         )}
@@ -95,19 +95,19 @@ export default function CombatPanel({ combatState, abilities = [] }: Props) {
 
   return (
     <div
-      className="mx-4 mb-2 border border-red-200/20 bg-black/58 px-4 py-3 shadow-[0_18px_60px_rgba(0,0,0,0.42)]"
+      className="mx-4 mb-2 border border-red-200/28 bg-black/58 px-4 py-3 shadow-[0_18px_60px_rgba(0,0,0,0.42)]"
       style={{
-        borderTopColor: combatState.isBossFight ? 'rgba(248,113,113,0.55)' : 'rgba(245,158,11,0.38)',
+        borderTopColor: combatState.isBossFight ? 'rgba(248,113,113,0.6)' : 'rgba(245,158,11,0.42)',
       }}
     >
       {/* Enemy status */}
-      <div className="mb-2.5">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-red-100/70">
+      <div className="mb-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="font-fantasy text-xs uppercase tracking-[0.16em] text-red-100/85">
             {combatState.isBossFight ? `Boss Fight / Phase ${combatState.bossPhase || 1}` : `Enemies / Round ${combatState.roundNumber}`}
           </span>
           {allDefeated && (
-            <span className="font-fantasy text-[10px] uppercase tracking-[0.18em]" style={{ color: 'rgba(34,197,94,0.78)' }}>All Fallen</span>
+            <span className="font-fantasy text-[10px] uppercase tracking-[0.18em]" style={{ color: 'rgba(34,197,94,0.85)' }}>All Fallen</span>
           )}
         </div>
         <div className="space-y-1.5">
@@ -120,8 +120,8 @@ export default function CombatPanel({ combatState, abilities = [] }: Props) {
           with live dice/HP consequences instead of the old macro-turn path. */}
       {onCooldown.length > 0 && (
         <>
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', marginTop: 10, marginBottom: 8 }} />
-          <p className="font-serif text-xs" style={{ color: 'rgba(160,120,80,0.35)', fontSize: 10 }}>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', marginTop: 10, marginBottom: 8 }} />
+          <p className="font-serif text-xs" style={{ color: 'rgba(200,155,105,0.62)', fontSize: 10 }}>
             On cooldown: {onCooldown.map(a => `${a.name} (${a.currentCooldown})`).join(' / ')}
           </p>
         </>

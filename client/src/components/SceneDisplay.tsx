@@ -135,9 +135,9 @@ export default function SceneDisplay({
           )}
           {pacingMode && (
             <span className="font-serif text-[10px] uppercase px-2 py-1" style={{
-              color: 'rgba(180,160,120,0.7)',
+              color: 'rgba(180,160,120,0.75)',
               background: 'rgba(0,0,0,0.42)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.14)',
               letterSpacing: '0.08em',
             }}>
               {formatLabel(pacingMode)}
@@ -155,33 +155,33 @@ export default function SceneDisplay({
             <p className="font-fantasy text-3xl uppercase tracking-[0.06em]" style={{ color: '#f4ead2', textShadow: '0 1px 14px rgba(0,0,0,0.95)' }}>
               {location}
               {subLocation && (
-                <span className="font-fantasy text-xl" style={{ color: 'rgba(232,212,168,0.72)' }}>
+                <span className="font-fantasy text-xl" style={{ color: 'rgba(232,212,168,0.8)' }}>
                   {' '}— {subLocation}
                 </span>
               )}
             </p>
           </div>
         )}
-        <div className="flex flex-wrap gap-x-3 gap-y-1 ml-3 mb-2">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 ml-3 mb-2.5">
           {timeOfDay && (
-            <p className="font-serif text-xs" style={{ color: 'rgba(180,160,120,0.62)' }}>
+            <p className="font-serif text-xs" style={{ color: 'rgba(195,175,135,0.78)' }}>
               {TIME_LABELS[timeOfDay]}
             </p>
           )}
           {weather && (
-            <p className="font-serif text-xs truncate max-w-[210px]" style={{ color: 'rgba(180,160,120,0.62)' }}>
+            <p className="font-serif text-xs truncate max-w-[210px]" style={{ color: 'rgba(195,175,135,0.78)' }}>
               {formatLabel(weather)}
             </p>
           )}
           {partyHereNames.length > 0 && (
-            <p className="font-serif text-xs truncate max-w-[300px]" style={{ color: 'rgba(180,160,120,0.62)' }}>
+            <p className="font-serif text-xs truncate max-w-[300px]" style={{ color: 'rgba(200,185,150,0.85)' }}>
               Present: {partyHereNames.join(', ')}
             </p>
           )}
         </div>
         {sceneSummary && (
           <p className="font-serif text-xs leading-relaxed ml-3" style={{
-            color: 'rgba(232,212,168,0.78)',
+            color: 'rgba(232,212,168,0.85)',
             textShadow: '0 1px 8px rgba(0,0,0,0.9)',
             display: '-webkit-box',
             WebkitLineClamp: 3,

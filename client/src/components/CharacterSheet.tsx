@@ -53,16 +53,16 @@ function itemIcon(item: InventoryItem) {
 
 function SectionTitle({ title, right }: { title: string; right?: string }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <p className="font-fantasy text-[10px] uppercase tracking-[0.24em] text-parchment-200/64">{title}</p>
-      {right && <span className="font-serif text-xs text-parchment-200/52">{right}</span>}
+    <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/10 pb-2">
+      <p className="font-fantasy text-xs uppercase tracking-[0.16em] text-parchment-200/85">{title}</p>
+      {right && <span className="font-serif text-xs text-parchment-200/62">{right}</span>}
     </div>
   )
 }
 
 function ProgressBar({ value, color }: { value: number; color: string }) {
   return (
-    <div className="h-2 overflow-hidden border border-white/10 bg-black/54">
+    <div className="h-2 overflow-hidden border border-white/18 bg-black/54">
       <div
         className="h-full transition-all duration-700"
         style={{ width: `${value}%`, background: color, boxShadow: `0 0 14px ${color}88` }}
@@ -149,7 +149,7 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
 
   return (
     <div className="h-full overflow-y-auto text-sm text-parchment-100" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.36) transparent' }}>
-      <div className="relative border-b border-white/8">
+      <div className="relative border-b border-white/14">
         <div className="h-48 overflow-hidden bg-black">
           <img
             src={character.portrait_url || racePortraitUrl(character.race)}
@@ -161,27 +161,27 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_4%,rgba(245,158,11,0.18),transparent_34%)]" />
         </div>
         <div className="absolute bottom-4 left-4 right-4">
-          <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/64">Adventurer</p>
+          <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/80">Adventurer</p>
           <h3 className="mt-1 font-fantasy text-3xl text-parchment-100">{character.name}</h3>
-          {title && <p className="font-fantasy text-[10px] uppercase tracking-[0.18em] text-amber-300/65">{title}</p>}
-          <p className="mt-1 font-serif text-sm text-amber-200/76">
+          {title && <p className="font-fantasy text-xs uppercase tracking-[0.16em] text-amber-300/80">{title}</p>}
+          <p className="mt-1 font-serif text-sm text-amber-200/88">
             {character.race} {character.class}{character.subclass ? ` / ${character.subclass}` : ''} / Level {character.level}
           </p>
         </div>
       </div>
 
-      <div className="space-y-5 p-4">
+      <div className="space-y-6 p-4">
         <section className="grid grid-cols-3 gap-2">
-          <div className="border border-emerald-200/18 bg-emerald-300/[0.045] px-3 py-3">
-            <p className="font-fantasy text-[10px] uppercase tracking-[0.2em] text-emerald-100/64">HP</p>
+          <div className="border border-emerald-200/28 bg-emerald-300/[0.06] px-3 py-3">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.2em] text-emerald-100/78">HP</p>
             <p className="mt-1 font-serif text-xl text-parchment-100">{character.hp} / {character.max_hp}</p>
           </div>
-          <div className="border border-amber-200/18 bg-amber-300/[0.045] px-3 py-3">
-            <p className="font-fantasy text-[10px] uppercase tracking-[0.2em] text-amber-100/64">Gold</p>
+          <div className="border border-amber-200/28 bg-amber-300/[0.06] px-3 py-3">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.2em] text-amber-100/78">Gold</p>
             <p className="mt-1 font-serif text-xl text-amber-100">{character.gold.toLocaleString()}</p>
           </div>
-          <div className="border border-violet-200/18 bg-violet-300/[0.045] px-3 py-3">
-            <p className="font-fantasy text-[10px] uppercase tracking-[0.2em] text-violet-100/64">Pack</p>
+          <div className="border border-violet-200/28 bg-violet-300/[0.06] px-3 py-3">
+            <p className="font-fantasy text-[10px] uppercase tracking-[0.2em] text-violet-100/78">Pack</p>
             <p className="mt-1 font-serif text-xl text-parchment-100">{character.inventory.length}</p>
           </div>
         </section>
@@ -189,7 +189,7 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
         <section className="space-y-3">
           <div>
             <div className="mb-1.5 flex justify-between">
-              <span className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-parchment-200/62">Hit Points</span>
+              <span className="font-fantasy text-xs uppercase tracking-[0.16em] text-parchment-200/78">Hit Points</span>
               <span className="font-serif text-xs font-semibold" style={{ color: hpColor }}>{Math.round(hpPercent)}%</span>
             </div>
             <ProgressBar value={hpPercent} color={hpColor} />
@@ -197,12 +197,12 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
 
           <div>
             <div className="mb-1.5 flex justify-between">
-              <span className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-parchment-200/62">Experience</span>
-              <span className="font-serif text-xs text-parchment-200/58">{character.xp.toLocaleString()} XP</span>
+              <span className="font-fantasy text-xs uppercase tracking-[0.16em] text-parchment-200/78">Experience</span>
+              <span className="font-serif text-xs text-parchment-200/68">{character.xp.toLocaleString()} XP</span>
             </div>
             <ProgressBar value={xpPercent} color="#d4a843" />
             {character.level < 20 && (
-              <p className="mt-1 text-right font-serif text-[11px] text-parchment-200/42">
+              <p className="mt-1 text-right font-serif text-[11px] text-parchment-200/54">
                 {(xpNext - character.xp).toLocaleString()} XP to level {character.level + 1}
               </p>
             )}
@@ -213,10 +213,10 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
           <SectionTitle title="Attributes" />
           <div className="grid grid-cols-3 gap-2">
             {(Object.keys(STAT_LABELS) as (keyof CharacterStats)[]).map(stat => (
-              <div key={stat} className="border border-white/10 bg-white/[0.035] px-3 py-3 text-center shadow-[0_12px_42px_rgba(0,0,0,0.18)]">
-                <p className="font-fantasy text-[10px] tracking-[0.16em] text-parchment-200/48">{STAT_LABELS[stat]}</p>
+              <div key={stat} className="border border-white/14 bg-white/[0.045] px-3 py-3 text-center shadow-[0_12px_42px_rgba(0,0,0,0.18)]">
+                <p className="font-fantasy text-[10px] tracking-[0.16em] text-parchment-200/62">{STAT_LABELS[stat]}</p>
                 <p className="mt-1 font-serif text-2xl leading-none text-parchment-100">{character.stats[stat]}</p>
-                <p className="mt-1 font-serif text-xs text-emerald-300/72">{statMod(character.stats[stat])}</p>
+                <p className="mt-1 font-serif text-xs text-emerald-300/82">{statMod(character.stats[stat])}</p>
               </div>
             ))}
           </div>
@@ -230,16 +230,16 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
             {abilitiesOpen && (
               <div className="space-y-2">
                 {character.abilities.map((ability, index) => (
-                  <article key={`${ability.name}-${index}`} className="border border-red-200/18 bg-[linear-gradient(90deg,rgba(239,68,68,0.065),rgba(255,255,255,0.018))] px-3 py-3">
+                  <article key={`${ability.name}-${index}`} className="border border-red-200/26 bg-[linear-gradient(90deg,rgba(239,68,68,0.08),rgba(255,255,255,0.018))] px-3 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <p className="font-serif text-sm font-semibold text-red-100">{ability.name}</p>
                       {ability.cooldown != null && (
-                        <span className="border border-red-200/16 bg-black/20 px-2 py-0.5 font-fantasy text-[9px] uppercase tracking-[0.14em] text-red-100/54">
+                        <span className="border border-red-200/22 bg-black/20 px-2 py-0.5 font-fantasy text-[9px] uppercase tracking-[0.14em] text-red-100/68">
                           CD {ability.currentCooldown || 0}/{ability.cooldown}
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 font-serif text-sm leading-relaxed text-parchment-200/72">{ability.description}</p>
+                    <p className="mt-1 font-serif text-sm leading-relaxed text-parchment-200/82">{ability.description}</p>
                   </article>
                 ))}
               </div>
@@ -258,8 +258,8 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
                   key={slot.key}
                   className="flex flex-col items-center gap-1 px-2 py-2.5"
                   style={{
-                    border: worn ? '1px solid rgba(200,146,42,0.45)' : '1px solid rgba(255,255,255,0.08)',
-                    background: worn ? 'rgba(200,146,42,0.07)' : 'rgba(255,255,255,0.02)',
+                    border: worn ? '1px solid rgba(200,146,42,0.55)' : '1px solid rgba(255,255,255,0.14)',
+                    background: worn ? 'rgba(200,146,42,0.09)' : 'rgba(255,255,255,0.03)',
                     minHeight: 72,
                   }}
                 >
@@ -276,15 +276,15 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
                         type="button"
                         onClick={() => handleEquipToggle(worn)}
                         className="font-fantasy text-[8px] uppercase tracking-[0.14em] transition-opacity hover:opacity-100"
-                        style={{ color: 'rgba(200,146,42,0.55)' }}
+                        style={{ color: 'rgba(200,146,42,0.7)' }}
                       >
                         unequip
                       </button>
                     </>
                   ) : (
                     <>
-                      <span style={{ fontSize: 20, opacity: 0.25 }}>{slot.icon}</span>
-                      <p className="font-fantasy text-[9px] uppercase tracking-[0.12em]" style={{ color: 'rgba(180,160,120,0.35)' }}>{slot.label}</p>
+                      <span style={{ fontSize: 20, opacity: 0.3 }}>{slot.icon}</span>
+                      <p className="font-fantasy text-[9px] uppercase tracking-[0.12em]" style={{ color: 'rgba(180,160,120,0.48)' }}>{slot.label}</p>
                     </>
                   )}
                 </div>
@@ -298,10 +298,10 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
             <SectionTitle title="Set Bonuses" />
             <div className="space-y-2">
               {activeSetBonuses.map(set => (
-                <article key={set.setName} className="border border-violet-200/16 bg-violet-300/[0.04] p-3">
+                <article key={set.setName} className="border border-violet-200/26 bg-violet-300/[0.06] p-3">
                   <p className="font-fantasy text-sm text-violet-100">{set.setName}</p>
-                  <p className="mt-1 font-serif text-xs text-parchment-200/70">{set.setBonus}</p>
-                  <p className="mt-1.5 font-fantasy text-[9px] uppercase tracking-[0.14em] text-violet-100/50">{set.count} pieces equipped</p>
+                  <p className="mt-1 font-serif text-xs text-parchment-200/80">{set.setBonus}</p>
+                  <p className="mt-1.5 font-fantasy text-[9px] uppercase tracking-[0.14em] text-violet-100/64">{set.count} pieces equipped</p>
                 </article>
               ))}
             </div>
@@ -311,15 +311,15 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
         {companion && (
           <section>
             <SectionTitle title="Companion" />
-            <article className="border border-emerald-200/16 bg-emerald-300/[0.04] p-3">
+            <article className="border border-emerald-200/26 bg-emerald-300/[0.06] p-3">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="font-fantasy text-sm text-emerald-100">{companion.name}</p>
-                <p className="font-fantasy text-[9px] uppercase tracking-[0.14em] text-emerald-100/50">Bond {companion.bondLevel}/5</p>
+                <p className="font-fantasy text-[9px] uppercase tracking-[0.14em] text-emerald-100/64">Bond {companion.bondLevel}/5</p>
               </div>
-              <p className="mt-0.5 font-fantasy text-[9px] uppercase tracking-[0.12em] text-emerald-100/40">{companion.species}</p>
-              <p className="mt-1 font-serif text-xs text-parchment-200/70">{companion.description}</p>
+              <p className="mt-0.5 font-fantasy text-[9px] uppercase tracking-[0.12em] text-emerald-100/55">{companion.species}</p>
+              <p className="mt-1 font-serif text-xs text-parchment-200/80">{companion.description}</p>
               {companion.abilityHint && (
-                <p className="mt-1.5 font-serif text-xs italic text-emerald-100/60">{companion.abilityHint}</p>
+                <p className="mt-1.5 font-serif text-xs italic text-emerald-100/72">{companion.abilityHint}</p>
               )}
             </article>
           </section>
@@ -330,15 +330,15 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
             <SectionTitle title="Signature Item" />
             <div className="space-y-2">
               {myOpenSignatureQuests.map(quest => (
-                <article key={quest.id} className="border border-amber-200/22 bg-[linear-gradient(90deg,rgba(245,158,11,0.06),rgba(255,255,255,0.015))] p-3">
+                <article key={quest.id} className="border border-amber-200/30 bg-[linear-gradient(90deg,rgba(245,158,11,0.08),rgba(255,255,255,0.015))] p-3">
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-fantasy text-sm text-amber-100">{quest.itemName}</p>
-                    <span className="shrink-0 border border-amber-200/24 bg-black/24 px-2 py-0.5 font-fantasy text-[9px] uppercase tracking-[0.14em] text-amber-100/60">
+                    <span className="shrink-0 border border-amber-200/30 bg-black/24 px-2 py-0.5 font-fantasy text-[9px] uppercase tracking-[0.14em] text-amber-100/72">
                       Not yet earned
                     </span>
                   </div>
-                  <p className="mt-1.5 font-serif text-xs italic leading-relaxed text-parchment-200/70">{quest.itemFlavor}</p>
-                  <p className="mt-2 font-serif text-xs leading-relaxed text-parchment-200/56">{quest.questHook}</p>
+                  <p className="mt-1.5 font-serif text-xs italic leading-relaxed text-parchment-200/78">{quest.itemFlavor}</p>
+                  <p className="mt-2 font-serif text-xs leading-relaxed text-parchment-200/66">{quest.questHook}</p>
                 </article>
               ))}
             </div>
@@ -352,13 +352,13 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
 
           {inventoryOpen && (
             character.inventory.length === 0 ? (
-              <p className="border border-white/8 bg-white/[0.025] px-3 py-4 font-serif text-sm italic text-parchment-200/52">Your pack is empty.</p>
+              <p className="border border-white/14 bg-white/[0.03] px-3 py-4 font-serif text-sm italic text-parchment-200/62">Your pack is empty.</p>
             ) : (
               <div className="space-y-3">
                 {selectedItem && (
                   <article className={`border ${TYPE_STYLE[selectedItem.type].border} ${TYPE_STYLE[selectedItem.type].bg} p-3`}>
                     <div className="flex gap-3">
-                      <div className="grid h-14 w-14 shrink-0 place-items-center border border-white/10 bg-black/34">
+                      <div className="grid h-14 w-14 shrink-0 place-items-center border border-white/16 bg-black/34">
                         <img
                           src={itemIcon(selectedItem)}
                           alt=""
@@ -375,17 +375,17 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
                               {selectedItem.quantity > 1 ? ` / x${selectedItem.quantity}` : ''}
                             </p>
                             {selectedItem.setName && (
-                              <p className="mt-1 font-fantasy text-[9px] uppercase tracking-[0.16em] text-violet-100/70">
+                              <p className="mt-1 font-fantasy text-[9px] uppercase tracking-[0.16em] text-violet-100/80">
                                 {selectedItem.setName} Set{selectedItem.setBonus ? ` — ${selectedItem.setBonus}` : ''}
                               </p>
                             )}
                           </div>
                           {selectedItem.value != null && (
-                            <span className="border border-amber-200/18 bg-black/22 px-2 py-1 font-serif text-xs text-amber-100/72">{selectedItem.value} gp</span>
+                            <span className="border border-amber-200/26 bg-black/22 px-2 py-1 font-serif text-xs text-amber-100/82">{selectedItem.value} gp</span>
                           )}
                         </div>
                         {selectedItem.description && (
-                          <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/72">{selectedItem.description}</p>
+                          <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/82">{selectedItem.description}</p>
                         )}
                         {inferSlot(selectedItem) && selectedItem.type !== 'potion' && selectedItem.type !== 'key' && (
                           <button
@@ -415,7 +415,7 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
                         type="button"
                         key={item.id || `${item.name}-${index}`}
                         onClick={() => setSelectedItemId(id)}
-                        className={`min-w-0 border px-2 py-2 text-left transition-all ${isSelected ? `${style.border} ${style.bg}` : 'border-white/10 bg-white/[0.025] hover:border-amber-200/24 hover:bg-white/[0.04]'}`}
+                        className={`min-w-0 border px-2 py-2 text-left transition-all ${isSelected ? `${style.border} ${style.bg}` : 'border-white/14 bg-white/[0.03] hover:border-amber-200/30 hover:bg-white/[0.05]'}`}
                       >
                         <div className="flex items-center gap-2">
                           <img
@@ -437,12 +437,12 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="border border-amber-200/14 bg-amber-300/[0.035] px-3 py-2">
-                    <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-amber-100/54">Carried Value</p>
+                  <div className="border border-amber-200/22 bg-amber-300/[0.05] px-3 py-2">
+                    <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-amber-100/68">Carried Value</p>
                     <p className="mt-1 font-serif text-sm text-parchment-100">{carriedValue.toLocaleString()} gp</p>
                   </div>
-                  <div className="border border-violet-200/14 bg-violet-300/[0.035] px-3 py-2">
-                    <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-violet-100/54">Story Items</p>
+                  <div className="border border-violet-200/22 bg-violet-300/[0.05] px-3 py-2">
+                    <p className="font-fantasy text-[9px] uppercase tracking-[0.18em] text-violet-100/68">Story Items</p>
                     <p className="mt-1 font-serif text-sm text-parchment-100">{keyItems}</p>
                   </div>
                 </div>
@@ -465,15 +465,15 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
                   })
                   const canCraft = missing.length === 0
                   return (
-                    <article key={recipe.id} className="border border-amber-200/14 bg-amber-300/[0.03] p-3">
+                    <article key={recipe.id} className="border border-amber-200/22 bg-amber-300/[0.045] p-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="font-fantasy text-sm text-parchment-100">{recipe.name}</p>
-                          <p className="mt-1 font-serif text-xs italic text-parchment-200/60">{recipe.description}</p>
+                          <p className="mt-1 font-serif text-xs italic text-parchment-200/70">{recipe.description}</p>
                         </div>
-                        <span className="shrink-0 font-fantasy text-[9px] uppercase tracking-[0.16em] text-amber-100/60">→ {recipe.resultItem.name}</span>
+                        <span className="shrink-0 font-fantasy text-[9px] uppercase tracking-[0.16em] text-amber-100/72">→ {recipe.resultItem.name}</span>
                       </div>
-                      <p className="mt-2 font-serif text-xs text-parchment-200/70">
+                      <p className="mt-2 font-serif text-xs text-parchment-200/80">
                         Requires: {recipe.materials.map(m => {
                           const have = character.inventory.find(i => i.name.toLowerCase() === m.name.toLowerCase())
                           const haveQty = have?.quantity || 0
