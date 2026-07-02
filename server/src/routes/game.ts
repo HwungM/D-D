@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { aiRateLimit } from '../middleware/rateLimit';
 import { repairWorldStateForGameplay } from '../services/coopStateIntegrity';
 import { buildSceneInteractables, getOrBuildSceneInteractablesForCharacter, withSceneInteractablesForCharacter } from '../services/sceneInteractableSystem';
-import { matchSubLocationNavigation, needsSubLocationGeneration } from '../services/subLocationSystem';
+import { needsSubLocationGeneration, resolveExplicitSubLocationNavigation, textAttemptsSubLocationNavigation } from '../services/subLocationSystem';
 import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary, buildContestConclusionSummary, buildPartySplitSummary } from '../services/advanceTurnService';
 import { resolveMysteryClueChanges } from '../services/mysteryClueSystem';
 import { narrateMicroActionRollOutcome, type MicroCombatIntent } from '../services/microActionService';
@@ -20,6 +20,7 @@ import { applyCharacterConsequences } from '../services/consequenceSystem';
 import { applyCompanionChanges } from '../services/companionSystem';
 import { appendWorldEvent, buildAmbientWorldEvent, pickAmbientEventSeed, shouldFireAmbientEvent, weaveAmbientEventIntoReaction } from '../services/ambientWorldEventSystem';
 import { buildCompanionPresenceBeat, companionsPresentWithCharacter, pickPresentCompanion, shouldFireCompanionPresence, weaveCompanionPresenceIntoReaction } from '../services/companionPresenceSystem';
+import { validateNamedParticipantsPresent } from '../services/scenePresenceSystem';
 
 const router = Router();
 const COOP_TURN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -72,7 +73,7 @@ router.post('/action', requireAuth, aiRateLimit, async (req: AuthRequest, res: R
   // Verify ownership and campaign pairing
   const { data: character } = await supabaseAdmin
     .from('characters')
-    .select('user_id, name, campaign_id, is_alive')
+    .select('id, user_id, name, campaign_id, is_alive')
     .eq('id', characterId)
     .eq('user_id', req.user!.id)
     .single();
@@ -89,10 +90,19 @@ router.post('/action', requireAuth, aiRateLimit, async (req: AuthRequest, res: R
   try {
     const { data: activeCharacters } = await supabaseAdmin
       .from('characters')
-      .select('id, user_id')
+      .select('id, user_id, name')
       .eq('campaign_id', campaignId)
       .eq('is_alive', true);
     const activePlayerCount = new Set((activeCharacters || []).map(c => c.user_id)).size;
+
+    const presenceState = await loadRepairedWorldState(campaignId);
+    const presenceBlock = presenceState
+      ? validateNamedParticipantsPresent(action, character, activeCharacters || [], presenceState)
+      : undefined;
+    if (presenceBlock) {
+      res.status(409).json({ error: presenceBlock.message, participantAbsent: presenceBlock.absentName });
+      return;
+    }
 
     if (activePlayerCount > 1) {
       await withCampaignLock(campaignId, async () => {
@@ -1160,6 +1170,10 @@ const microActionSchema = z.object({
   characterId: z.string().uuid(),
   campaignId: z.string().uuid(),
   action: z.string().min(1).max(300),
+  navigation: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('enter'), subLocationId: z.string().min(1).max(100) }),
+    z.object({ kind: z.literal('leave') }),
+  ]).optional(),
 });
 
 // Free-roam fast path: reacts to ONE small in-scene action without running
@@ -1183,7 +1197,7 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
     res.status(400).json({ error: parse.error.errors });
     return;
   }
-  const { characterId, campaignId, action } = parse.data;
+  const { characterId, campaignId, action, navigation } = parse.data;
 
   const { data: character } = await supabaseAdmin
     .from('characters')
@@ -1283,7 +1297,9 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         } catch { /* non-critical — the scene still works without sub-locations */ }
       }
 
-      // Sub-location navigation: ordinary movement between sub-locations (or
+      // Sub-location navigation is authoritative and explicit: only the
+      // Explore buttons send a navigation payload. Free prose can discuss a
+      // place but cannot silently desynchronize location state.
       // back out to the parent location) resolves deterministically, code-side
       // — no AI call, no roll, no pacing cost, exactly like top-level
       // location-to-location travel. Only THIS character's
@@ -1291,7 +1307,9 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
       // different sub-locations at once without any lockstep requirement.
       const currentNode = ws.locationGraph?.nodes?.find(n => n.name === (ws.locationGraph?.currentLocation || ws.currentLocation));
       const currentSubLocationName = ws.characterSubLocations?.[characterId];
-      const navMatch = matchSubLocationNavigation(action, currentNode, currentSubLocationName);
+      const navMatch = navigation
+        ? resolveExplicitSubLocationNavigation(navigation, currentNode, currentSubLocationName)
+        : undefined;
       if (navMatch) {
         const updatedSubLocations = { ...(ws.characterSubLocations || {}) };
         if (navMatch.kind === 'enter') {
@@ -1337,6 +1355,41 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
       }
 
       const sceneInteractables = buildSceneInteractables(ws, characterId);
+
+      // A typed travel request does not mutate location. Tell the player to
+      // use the authoritative location control so prose and world state can
+      // never disagree about whether they are in the tavern or library.
+      if (!navigation && textAttemptsSubLocationNavigation(action, currentNode, currentSubLocationName)) {
+        const reaction = 'You have not moved yet. Use the Explore location buttons to choose where you go; that keeps everyone\'s position and available actions in sync.';
+        const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, action, reaction);
+        await supabaseAdmin.from('campaigns').update({ world_state: { ...ws, freeRoam, sceneInteractables: withSceneInteractablesForCharacter(ws, characterId, sceneInteractables) } }).eq('id', campaignId);
+        await supabaseAdmin.from('story_events').insert([
+          { campaign_id: campaignId, character_id: characterId, event_type: 'action', content: action, metadata: { microAction: true } },
+          { campaign_id: campaignId, character_id: characterId, event_type: 'narration', content: reaction, metadata: { microAction: true, movementBlocked: true } },
+        ]);
+        res.json({ reaction, awaitingRoll: false, sceneInteractables, freeRoamCount: freeRoam.actions.length });
+        return;
+      }
+
+      // Named PCs and companions are usable only when they occupy the same
+      // authoritative scene. The AI never gets a chance to hand-wave this.
+      const { data: campaignCharacters } = await supabaseAdmin
+        .from('characters')
+        .select('id, name')
+        .eq('campaign_id', campaignId)
+        .eq('is_alive', true);
+      const presenceBlock = validateNamedParticipantsPresent(action, character as Character, campaignCharacters || [], ws);
+      if (presenceBlock) {
+        const reaction = presenceBlock.message;
+        const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, action, reaction);
+        await supabaseAdmin.from('campaigns').update({ world_state: { ...ws, freeRoam, sceneInteractables: withSceneInteractablesForCharacter(ws, characterId, sceneInteractables) } }).eq('id', campaignId);
+        await supabaseAdmin.from('story_events').insert([
+          { campaign_id: campaignId, character_id: characterId, event_type: 'action', content: action, metadata: { microAction: true } },
+          { campaign_id: campaignId, character_id: characterId, event_type: 'narration', content: reaction, metadata: { microAction: true, participantAbsent: presenceBlock.absentName } },
+        ]);
+        res.json({ reaction, awaitingRoll: false, sceneInteractables, freeRoamCount: freeRoam.actions.length });
+        return;
+      }
 
       const reaction = await generateMicroActionReaction(
         action,
@@ -1471,7 +1524,7 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         const present = companionsPresentWithCharacter(ws, characterId);
         featuredCompanion = pickPresentCompanion(present);
         if (featuredCompanion) {
-          const beat = buildCompanionPresenceBeat(featuredCompanion);
+          const beat = buildCompanionPresenceBeat(featuredCompanion, Math.random, sceneInteractables);
           finalReaction = weaveCompanionPresenceIntoReaction(finalReaction, featuredCompanion, beat);
         }
       }
@@ -1571,7 +1624,7 @@ router.post('/advance', requireAuth, aiRateLimit, async (req: AuthRequest, res: 
 
   const { data: character } = await supabaseAdmin
     .from('characters')
-    .select('user_id, name, campaign_id, is_alive')
+    .select('id, user_id, name, campaign_id, is_alive')
     .eq('id', characterId)
     .eq('user_id', req.user!.id)
     .single();
@@ -1593,6 +1646,17 @@ router.post('/advance', requireAuth, aiRateLimit, async (req: AuthRequest, res: 
       .eq('is_alive', true);
     const activePlayerCount = new Set((activeCharacters || []).map(c => c.user_id)).size;
     const characterIdToName = Object.fromEntries((activeCharacters || []).map(c => [c.id, c.name as string]));
+
+    if (framingAction) {
+      const presenceState = await loadRepairedWorldState(campaignId);
+      const presenceBlock = presenceState
+        ? validateNamedParticipantsPresent(framingAction, character, activeCharacters || [], presenceState)
+        : undefined;
+      if (presenceBlock) {
+        res.status(409).json({ error: presenceBlock.message, participantAbsent: presenceBlock.absentName });
+        return;
+      }
+    }
 
     if (activePlayerCount > 1) {
       await withCampaignLock(campaignId, async () => {

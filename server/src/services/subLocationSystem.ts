@@ -138,6 +138,43 @@ export type SubLocationNavigationMatch =
   | { kind: 'enter'; subLocation: SubLocation }
   | { kind: 'leave' };
 
+export type ExplicitSubLocationNavigation =
+  | { kind: 'enter'; subLocationId: string }
+  | { kind: 'leave' };
+
+export function resolveExplicitSubLocationNavigation(
+  navigation: ExplicitSubLocationNavigation,
+  node: LocationNode | undefined | null,
+  currentSubLocationName: string | undefined,
+): SubLocationNavigationMatch | undefined {
+  if (!node?.subLocations?.length) return undefined;
+  if (navigation.kind === 'leave') return currentSubLocationName ? { kind: 'leave' } : undefined;
+  const target = node.subLocations.find(sub => sub.id === navigation.subLocationId);
+  if (!target || target.name.toLowerCase() === currentSubLocationName?.toLowerCase()) return undefined;
+  return { kind: 'enter', subLocation: target };
+}
+
+// Free text can discuss a destination, but changing authoritative location is
+// reserved for the Explore controls. This recognizes obvious attempts so the
+// server can explain what to do instead of letting the AI pretend movement
+// happened while world state stays behind.
+export function textAttemptsSubLocationNavigation(
+  action: string,
+  node: LocationNode | undefined | null,
+  currentSubLocationName: string | undefined,
+): boolean {
+  if (!node?.subLocations?.length) return false;
+  const lowered = action.toLowerCase();
+  const movement = /\b(?:go|head|walk|travel|enter|leave|exit|return|move|visit|want to go|make (?:my|our) way)\b/i;
+  if (!movement.test(lowered)) return false;
+  if (currentSubLocationName && /\b(?:leave|exit|head back|go back|return)\b/i.test(lowered)) return true;
+  const genericWords = new Set(['the', 'this', 'that', 'hall', 'house', 'place']);
+  return node.subLocations.some(sub => {
+    if (lowered.includes(sub.name.toLowerCase()) || lowered.includes(sub.type)) return true;
+    return sub.name.toLowerCase().split(/[^a-z0-9]+/).some(token => token.length >= 4 && !genericWords.has(token) && lowered.includes(token));
+  });
+}
+
 export function matchSubLocationNavigation(
   action: string,
   node: LocationNode | undefined | null,

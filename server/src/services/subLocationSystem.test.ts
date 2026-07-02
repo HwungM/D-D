@@ -6,6 +6,8 @@ import {
   generateSubLocationsFromService,
   locationWantsSubLocations,
   matchSubLocationNavigation,
+  resolveExplicitSubLocationNavigation,
+  textAttemptsSubLocationNavigation,
   needsSubLocationGeneration,
 } from './subLocationSystem';
 
@@ -132,4 +134,19 @@ test('matchSubLocationNavigation returns undefined when the node has no sub-loca
   const node = makeNode();
   const match = matchSubLocationNavigation('head into the tavern', node, undefined);
   assert.equal(match, undefined);
+});
+
+test('explicit navigation resolves by stable sub-location id', () => {
+  const node = makeNode({ subLocations: buildFallbackSubLocations(makeNode()) });
+  const target = node.subLocations![1];
+  const match = resolveExplicitSubLocationNavigation({ kind: 'enter', subLocationId: target.id }, node, undefined);
+  assert.equal(match?.kind, 'enter');
+  if (match?.kind === 'enter') assert.equal(match.subLocation.id, target.id);
+});
+
+test('typed movement is detected but does not itself authorize navigation', () => {
+  const node = makeNode({ subLocations: buildFallbackSubLocations(makeNode()) });
+  const target = node.subLocations![0];
+  assert.equal(textAttemptsSubLocationNavigation(`I want to go to ${target.name}`, node, undefined), true);
+  assert.equal(textAttemptsSubLocationNavigation('ask the librarian about the old map', node, undefined), false);
 });

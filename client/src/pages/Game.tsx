@@ -1011,7 +1011,7 @@ export default function Game() {
   // macro-turn pipeline. Deliberately does not touch isLoading/isTyping (the
   // gates that block the composer during a full DM turn) so the player can
   // fire these off quickly and repeatedly between Advance calls.
-  async function handleMicroAction(action: string) {
+  async function handleMicroAction(action: string, navigation?: { kind: 'enter'; subLocationId: string } | { kind: 'leave' }) {
     if (!campaignId || !characterId || isLoading || isTyping || microActionLoading || coopWaiting) return
     const trimmed = action.trim()
     if (!trimmed) return
@@ -1030,7 +1030,7 @@ export default function Game() {
     })
 
     try {
-      const { data } = await gameApi.microAction(characterId, campaignId, trimmed)
+      const { data } = await gameApi.microAction(characterId, campaignId, trimmed, navigation)
 
       // The micro-action response carries only THIS character's own scoped
       // interactables (see server sceneInteractableSystem.ts) — fold it into
@@ -1680,6 +1680,12 @@ export default function Game() {
             skillChallenge={activeSkillChallenge}
             subLocations={currentLocationNode?.subLocations}
             currentSubLocation={currentSubLocation}
+            onNavigate={(navigation) => {
+              const label = navigation.kind === 'leave'
+                ? `Leave ${currentSubLocation || 'this place'}`
+                : `Go to ${currentLocationNode?.subLocations?.find(sub => sub.id === navigation.subLocationId)?.name || 'that place'}`
+              void handleMicroAction(label, navigation)
+            }}
           />
         </div>
 

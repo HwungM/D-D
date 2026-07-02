@@ -1,4 +1,4 @@
-import type { CompanionCharacter, WorldState } from '../../../shared/types';
+import type { CompanionCharacter, SceneInteractable, WorldState } from '../../../shared/types';
 
 // Companion ambient presence (BitLife-style "the party member you're not
 // directly talking to is still here, doing something") — mirrors
@@ -85,14 +85,13 @@ export function pickPresentCompanion(
 // never mechanical, never plot-bearing. Deliberately short (one clause) so
 // the woven aside stays a beat, not a scene.
 const GENERIC_BEATS = [
-  'glances around, quietly taking it all in',
-  'shifts their weight, patient but alert',
+  'says, "We should decide what matters here before the trail goes cold"',
+  'moves a few paces ahead to check the immediate path, then reports back',
   'hums a half-remembered tune under their breath',
-  'double-checks a strap or buckle without really thinking about it',
-  'catches your eye for a second and gives a small nod',
-  'studies something in the middle distance, unreadable',
-  'cracks their knuckles out of habit',
-  'mutters something too quiet to catch',
+  'says, "Someone here knows more than they are volunteering"',
+  'checks the immediate surroundings for anything the group may have overlooked',
+  'offers a quiet theory about what the party has seen so far',
+  'asks, "What are we missing?" and starts looking for a practical answer',
 ];
 
 const CLASS_BEATS: Partial<Record<string, string[]>> = {
@@ -178,7 +177,18 @@ function beatPoolFor(companion: CompanionCharacter): string[] {
   return pool;
 }
 
-export function buildCompanionPresenceBeat(companion: CompanionCharacter, random: () => number = Math.random): string {
+export function buildCompanionPresenceBeat(
+  companion: CompanionCharacter,
+  random: () => number = Math.random,
+  interactables: SceneInteractable[] = [],
+): string {
+  const grounded = interactables.filter(item => item.kind === 'npc' || item.kind === 'object');
+  if (grounded.length > 0 && random() < 0.5) {
+    const target = grounded[Math.floor(random() * grounded.length)];
+    return target.kind === 'npc'
+      ? `steps toward ${target.name} and says, "You look like you have something to add"`
+      : `examines ${target.name} and says, "This may be worth a closer look"`;
+  }
   const pool = beatPoolFor(companion);
   return pool[Math.floor(random() * pool.length)];
 }

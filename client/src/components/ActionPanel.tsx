@@ -36,6 +36,7 @@ interface ActionPanelProps {
   // currently inside — quick-tap chips to move between them.
   subLocations?: SubLocation[]
   currentSubLocation?: string
+  onNavigate?: (navigation: { kind: 'enter'; subLocationId: string } | { kind: 'leave' }) => void
 }
 
 const INTERACTABLE_ICON: Record<string, string> = { npc: 'talk', object: 'look', exit: 'go' }
@@ -45,7 +46,7 @@ export default function ActionPanel({
   location, pacingMode, inCombat, isCoop,
   sceneInteractables = [], onAdvance, advanceDisabled, freeRoamCount = 0,
   combatState, abilities = [], tensionActive,
-  skillChallenge, subLocations = [], currentSubLocation,
+  skillChallenge, subLocations = [], currentSubLocation, onNavigate,
 }: ActionPanelProps) {
   const [input, setInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -295,7 +296,7 @@ export default function ActionPanel({
                     {currentSubLocation && (
                       <button
                         type="button"
-                        onClick={() => fireQuickAction('Head back out')}
+                        onClick={() => onNavigate?.({ kind: 'leave' })}
                         disabled={disabled}
                         className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
                         style={{ border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.04)', color: 'rgba(226,209,175,0.85)' }}
@@ -308,7 +309,7 @@ export default function ActionPanel({
                       <button
                         key={sub.id}
                         type="button"
-                        onClick={() => fireQuickAction(`Head into ${sub.name}`)}
+                        onClick={() => onNavigate?.({ kind: 'enter', subLocationId: sub.id })}
                         disabled={disabled}
                         title={sub.description}
                         className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"

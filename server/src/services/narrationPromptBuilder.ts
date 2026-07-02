@@ -1,6 +1,6 @@
 import type { Character, WorldState, WorldBible, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, CharacterOnlineStatus, NpcMemory } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
-import { COMBAT_AND_NPC_PERSISTENCE_CONTRACT, COMPANION_PARTY_CONTRACT, GROUNDED_ENCOUNTER_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, SIGNATURE_REWARDS_CONTRACT, TURN_RESOLUTION_CONTRACT, STYLE_ANTI_REPETITION } from './aiPromptContracts';
+import { COMBAT_AND_NPC_PERSISTENCE_CONTRACT, COMPANION_PARTY_CONTRACT, GROUNDED_ENCOUNTER_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, SIGNATURE_REWARDS_CONTRACT, TURN_RESOLUTION_CONTRACT, STYLE_ANTI_REPETITION, WORLD_AGENCY_CONTRACT } from './aiPromptContracts';
 import { buildCompanionsPromptBlock } from './companionSystem';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
 import { actRoleFor, arcNumberFor } from './actPacingSystem';
@@ -1119,6 +1119,6 @@ QUALITY BAR BEFORE YOU ANSWER:
   return [
     { role: 'system', content: DM_SYSTEM_PROMPT },
     { role: 'user', content: worldContext },
-    { role: 'system', content: PLAYER_AUTHORSHIP_CONTRACT + '\n' + TURN_RESOLUTION_CONTRACT + '\n' + STYLE_ANTI_REPETITION },
+    { role: 'system', content: PLAYER_AUTHORSHIP_CONTRACT + '\n' + WORLD_AGENCY_CONTRACT + '\n' + TURN_RESOLUTION_CONTRACT + '\n' + STYLE_ANTI_REPETITION },
   ];
 }

@@ -1,5 +1,5 @@
 import type { Character, RollContext, WorldBible, WorldState } from '../../../shared/types';
-import { CO_OP_SINGLE_CAMERA_RULE, COMPANION_PARTY_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, SIGNATURE_REWARDS_CONTRACT } from './aiPromptContracts';
+import { CO_OP_SINGLE_CAMERA_RULE, COMPANION_PARTY_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, SIGNATURE_REWARDS_CONTRACT, WORLD_AGENCY_CONTRACT } from './aiPromptContracts';
 import { buildCompanionsPromptBlock } from './companionSystem';
 import { parseJsonRecord } from './aiResponseParser';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
@@ -89,11 +89,12 @@ const NARRATOR_VOICE = `You are a world-class Dungeon Master writing the prose f
 - In combat, every standing enemy ACTS: it attacks, corners, or wounds, and a hit costs something. When a character drops below ~30% HP, telegraph mortal danger clearly. Never narrate a wound you don't mean, and never wave away a real fight.
 - Speak in second person when it reads naturally. Keep system text, JSON, and DC reasoning out of the prose.
 ${PLAYER_AUTHORSHIP_CONTRACT}
-${COMPANION_PARTY_CONTRACT}`;
+${COMPANION_PARTY_CONTRACT}
+${WORLD_AGENCY_CONTRACT}`;
 
 const COOP_NARRATOR_VOICE = `${NARRATOR_VOICE}
-- CO-OP: Character 1 and Character 2 are TWO SEPARATE PEOPLE with different names, standing side by side in ONE shared scene. Refer to EACH BY NAME and act out EACH ONE's submitted action as their own. NEVER merge them into a single actor, never write one character performing the other's action, and never write phrases like "his other self" or "they both" to cover a move only one made. If Character 1 distracts and Character 2 flanks, show Character 1 distracting AND Character 2 flanking, each named.
-- ONE shared scene, single camera: both occupy the same moment. NEVER write "Meanwhile" or split them into parallel threads. Give each character presence only through their submitted action or an unavoidable consequence. Do not invent body language, dialogue, emotions, agreement, or reactions to make them seem connected.
+- CO-OP: Character 1 and Character 2 are TWO SEPARATE PEOPLE. Refer to EACH BY NAME and resolve EACH submitted action as their own. NEVER merge them into a single actor or write one character performing the other's action.
+- Their authoritative sub-location lines decide whether this is a shared or split scene. If the lines differ, keep their people, objects, knowledge, and consequences separate; do not pretend they stand together. If they match, use one shared camera. Do not invent body language, dialogue, emotions, agreement, or reactions to make them seem connected.
 ${CO_OP_SINGLE_CAMERA_RULE}`;
 
 export function narrationLengthGuide(isCoop: boolean, pacingMode: PacingMode): string {

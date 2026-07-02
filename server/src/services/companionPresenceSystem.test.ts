@@ -117,6 +117,14 @@ test('buildCompanionPresenceBeat returns a non-empty in-character line', () => {
   assert.ok(beat.length > 0);
 });
 
+test('buildCompanionPresenceBeat can proactively engage something actually present', () => {
+  const beat = buildCompanionPresenceBeat(makeCompanion(), () => 0, [
+    { kind: 'npc', name: 'Mira', hook: 'a librarian guarding the archive' },
+  ]);
+  assert.match(beat, /Mira/);
+  assert.match(beat, /says/);
+});
+
 test('weaveCompanionPresenceIntoReaction leads with the companion\'s name and reads distinctly from an ambient world event aside', () => {
   const woven = weaveCompanionPresenceIntoReaction('The merchant nods and takes your coin.', makeCompanion({ name: 'Faelan' }), 'hums a tune under their breath');
   assert.ok(woven.startsWith('The merchant nods and takes your coin.'));

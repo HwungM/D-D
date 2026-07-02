@@ -1,5 +1,5 @@
 import type { Character, InventoryItem, NonCombatContestType, RollContext, SceneInteractable, WorldBible, WorldState } from '../../../shared/types';
-import { GROUNDED_ENCOUNTER_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT } from './aiPromptContracts';
+import { COMPANION_PARTY_CONTRACT, GROUNDED_ENCOUNTER_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, WORLD_AGENCY_CONTRACT } from './aiPromptContracts';
 import { asString, cleanRollContext } from './narrationResponseParser';
 import { parseJsonRecord } from './aiResponseParser';
 import { buildCompanionsPromptBlock } from './companionSystem';
@@ -73,6 +73,8 @@ RULES:
 - If the player notices something new worth remembering (an object, a detail, a hint), set discoveredObject to a short phrase.
 ${GROUNDED_ENCOUNTER_CONTRACT}
 ${PLAYER_AUTHORSHIP_CONTRACT}
+${WORLD_AGENCY_CONTRACT}
+${COMPANION_PARTY_CONTRACT}
 
 Respond with JSON only:
 {
