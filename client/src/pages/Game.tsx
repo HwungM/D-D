@@ -1262,7 +1262,7 @@ export default function Game() {
 
       {/* -- Header -- */}
       <header className="relative z-20 shrink-0 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8" style={{ background: 'rgba(10,7,3,0.95)', borderBottom: '1px solid rgba(200,146,42,0.2)' }}>
-        <div className="mx-auto flex max-w-[1540px] items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-[1540px] flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
         {/* Left: nav + character */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="grid h-9 w-9 shrink-0 place-items-center border" style={{ borderColor: 'rgba(200,146,42,0.45)', background: 'rgba(200,146,42,0.1)', boxShadow: '0 0 18px rgba(200,146,42,0.18)' }}>
@@ -1304,13 +1304,18 @@ export default function Game() {
           )}
         </div>
 
-        {/* Right: controls */}
-        <div className="flex items-center gap-1 shrink-0">
-          <AudioControls />
+        {/* Right: controls - horizontally scrollable strip on narrow screens so
+            audio/invite/session controls + all sidebar tabs never force the
+            page to overflow horizontally. */}
+        <div
+          className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 lg:mx-0 lg:shrink-0 lg:flex-wrap lg:justify-end lg:overflow-visible lg:px-0"
+          style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.3) transparent' }}
+        >
+          <div className="shrink-0"><AudioControls /></div>
           {campaignId && (
             <button
               onClick={() => setShowInviteModal(true)}
-              className="px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200"
+              className="shrink-0 px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200"
               style={{ border: '1px solid rgba(200,146,42,0.4)', background: 'rgba(200,146,42,0.1)', color: '#f5dea0' }}
             >
               Invite
@@ -1321,7 +1326,7 @@ export default function Game() {
               type="button"
               onClick={handleEndSession}
               disabled={endingSession || isLoading || coopWaiting}
-              className="px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200 disabled:opacity-40"
+              className="shrink-0 px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200 disabled:opacity-40"
               style={{ border: '1px solid rgba(167,139,250,0.34)', background: 'rgba(139,92,246,0.08)', color: 'rgba(237,233,254,0.78)' }}
               title={`Save and close Session ${activeSessionNumber}`}
             >
@@ -1335,7 +1340,7 @@ export default function Game() {
               <button
                 key={tab}
                 onClick={() => { setSidebarTab(tab); setShowSidebar(sidebarTab !== tab || !showSidebar) }}
-                className="px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200"
+                className="shrink-0 px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200"
                 style={isActive
                   ? { border: '1px solid rgba(200,146,42,0.65)', background: 'rgba(200,146,42,0.16)', color: '#f5dea0', boxShadow: '0 0 14px rgba(200,146,42,0.14)' }
                   : { border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'rgba(200,180,140,0.65)' }

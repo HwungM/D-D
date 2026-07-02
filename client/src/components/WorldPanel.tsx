@@ -611,11 +611,11 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
           <div className="space-y-2">
             {worldState.partyAssets.map(asset => (
               <article key={asset.id} className="border border-violet-200/18 bg-violet-300/[0.04] px-3 py-3">
-                <div className="flex items-center gap-2">
-                  <span className="border border-violet-200/24 bg-violet-300/[0.06] px-2 py-0.5 font-fantasy text-[9px] uppercase tracking-[0.14em] text-violet-100/70">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="shrink-0 border border-violet-200/24 bg-violet-300/[0.06] px-2 py-0.5 font-fantasy text-[9px] uppercase tracking-[0.14em] text-violet-100/70">
                     {asset.kind}
                   </span>
-                  <h3 className="font-serif text-sm font-semibold text-parchment-100">{asset.name}</h3>
+                  <h3 className="min-w-0 flex-1 font-serif text-sm font-semibold text-parchment-100">{asset.name}</h3>
                 </div>
                 <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/72">{asset.description}</p>
                 {asset.locationName && (

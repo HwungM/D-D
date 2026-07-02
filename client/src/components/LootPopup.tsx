@@ -48,7 +48,7 @@ export default function LootPopup({ items, goldChange, onDismiss }: LootPopupPro
 
   return (
     <div
-      className="fixed inset-0 pointer-events-none z-40 flex items-end justify-center pb-32"
+      className="fixed inset-0 pointer-events-none z-40 flex items-end justify-center px-4 pb-32"
     >
       <div
         className="pointer-events-auto cursor-pointer"

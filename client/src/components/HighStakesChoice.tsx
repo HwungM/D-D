@@ -29,7 +29,7 @@ export default function HighStakesChoice({ narration, choices, onChoose, onCusto
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/88 text-parchment-100 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/88 text-parchment-100 backdrop-blur-sm">
       <div className="absolute inset-0">
         <img src="/media/loading/everrealm-storm-party.png" alt="" className="h-full w-full object-cover opacity-[0.32]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.96)_0%,rgba(0,0,0,0.66)_50%,rgba(0,0,0,0.94)_100%)]" />

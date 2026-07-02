@@ -158,7 +158,7 @@ export default function ActionPanel({
                 type="button"
                 onClick={() => fireQuickAction(`Attack ${enemy.name}`)}
                 disabled={disabled}
-                className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
                 style={{ border: '1px solid rgba(248,113,113,0.34)', background: 'rgba(239,68,68,0.08)', color: 'rgba(254,202,202,0.88)' }}
               >
                 <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(248,113,113,0.62)' }}>atk</span>
@@ -169,7 +169,7 @@ export default function ActionPanel({
               type="button"
               onClick={() => fireQuickAction('Defend and brace for the next attack')}
               disabled={disabled}
-              className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+              className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
               style={{ border: '1px solid rgba(200,146,42,0.32)', background: 'rgba(200,146,42,0.07)', color: 'rgba(240,210,150,0.85)' }}
             >
               Defend
@@ -178,7 +178,7 @@ export default function ActionPanel({
               type="button"
               onClick={() => fireQuickAction('Try to hide from the fight')}
               disabled={disabled}
-              className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+              className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
               style={{ border: '1px solid rgba(34,211,238,0.24)', background: 'rgba(34,211,238,0.05)', color: 'rgba(191,244,255,0.78)' }}
             >
               Hide
@@ -187,7 +187,7 @@ export default function ActionPanel({
               type="button"
               onClick={() => fireQuickAction('Flee the fight')}
               disabled={disabled}
-              className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+              className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
               style={{ border: '1px solid rgba(34,211,238,0.24)', background: 'rgba(34,211,238,0.05)', color: 'rgba(191,244,255,0.78)' }}
             >
               Flee
@@ -199,7 +199,7 @@ export default function ActionPanel({
                 onClick={() => fireQuickAction(`Use ${ability.name}`)}
                 disabled={disabled}
                 title={ability.description}
-                className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
                 style={{ border: '1px solid rgba(200,146,42,0.28)', background: 'rgba(200,146,42,0.06)', color: 'rgba(240,210,150,0.85)' }}
               >
                 {ability.name}
@@ -226,7 +226,7 @@ export default function ActionPanel({
               type="button"
               onClick={() => fireQuickAction('Push your luck and press the attempt hard')}
               disabled={disabled}
-              className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+              className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
               style={{ border: '1px solid rgba(167,139,250,0.36)', background: 'rgba(139,92,246,0.08)', color: 'rgba(221,214,254,0.88)' }}
             >
               Push your luck
@@ -235,7 +235,7 @@ export default function ActionPanel({
               type="button"
               onClick={() => fireQuickAction('Play it safe and take a careful, measured approach')}
               disabled={disabled}
-              className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+              className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
               style={{ border: '1px solid rgba(34,211,238,0.26)', background: 'rgba(34,211,238,0.06)', color: 'rgba(191,244,255,0.82)' }}
             >
               Play it safe
@@ -244,7 +244,7 @@ export default function ActionPanel({
               type="button"
               onClick={() => fireQuickAction('Bail out of it and walk away from the attempt')}
               disabled={disabled}
-              className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+              className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
               style={{ border: '1px solid rgba(200,146,42,0.28)', background: 'rgba(200,146,42,0.05)', color: 'rgba(240,210,150,0.7)' }}
             >
               Bail out
@@ -260,7 +260,7 @@ export default function ActionPanel({
                 type="button"
                 onClick={() => fireQuickAction('Head back out')}
                 disabled={disabled}
-                className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
                 style={{ border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.03)', color: 'rgba(220,200,160,0.72)' }}
               >
                 <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(200,180,140,0.5)' }}>go</span>
@@ -274,7 +274,7 @@ export default function ActionPanel({
                 onClick={() => fireQuickAction(`Head into ${sub.name}`)}
                 disabled={disabled}
                 title={sub.description}
-                className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
                 style={{ border: '1px solid rgba(200,146,42,0.24)', background: 'rgba(200,146,42,0.04)', color: 'rgba(240,210,150,0.8)' }}
               >
                 <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(200,146,42,0.5)' }}>go</span>
@@ -294,7 +294,7 @@ export default function ActionPanel({
                 onClick={() => fireInteractable(item)}
                 disabled={disabled}
                 title={item.hook}
-                className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                className="min-h-[38px] px-3 py-2 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
                 style={{
                   border: '1px solid rgba(34,211,238,0.22)',
                   background: 'rgba(34,211,238,0.05)',

@@ -21,7 +21,7 @@ export default function EpilogueScreen({ epilogue, characterName, victory, onClo
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-hidden bg-[#050607] text-parchment-100"
+      className="fixed inset-0 z-50 overflow-y-auto bg-[#050607] text-parchment-100"
       style={{
         opacity: visible ? 1 : 0,
         transition: 'opacity 1.2s ease',

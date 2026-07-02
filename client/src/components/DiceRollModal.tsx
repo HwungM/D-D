@@ -101,7 +101,7 @@ export default function DiceRollModal({ narration, rollContext, onRoll, onContin
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/90 text-parchment-100 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/90 text-parchment-100 backdrop-blur-sm">
       <div className="absolute inset-0">
         <img src={isDramatic ? '/media/loading/everrealm-storm-party.png' : '/media/loading/everrealm-crystal-party.png'} alt="" className="h-full w-full object-cover opacity-[0.34]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.96)_0%,rgba(0,0,0,0.62)_50%,rgba(0,0,0,0.94)_100%)]" />

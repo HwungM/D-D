@@ -17,7 +17,7 @@ export default function ActTransition({ actNumber, onComplete }: ActTransitionPr
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-hidden bg-[#050607] text-parchment-100"
+      className="fixed inset-0 z-50 overflow-y-auto bg-[#050607] text-parchment-100"
       style={{
         opacity: phase === 'in' ? 0 : phase === 'show' ? 1 : 0,
         transition: phase === 'in' ? 'opacity 0.8s ease-in' : phase === 'out' ? 'opacity 1.2s ease-out' : 'opacity 0.8s ease-in',
@@ -42,7 +42,7 @@ export default function ActTransition({ actNumber, onComplete }: ActTransitionPr
           <p className="font-fantasy text-[10px] uppercase tracking-[0.38em] text-cyan-200/62">
             The Chronicle Advances
           </p>
-          <h1 className="mt-5 font-fantasy text-7xl uppercase leading-none tracking-[0.08em] text-amber-100" style={{ textShadow: '0 0 60px rgba(245,158,11,0.32)' }}>
+          <h1 className="mt-5 font-fantasy text-5xl uppercase leading-none tracking-[0.08em] text-amber-100 sm:text-6xl md:text-7xl" style={{ textShadow: '0 0 60px rgba(245,158,11,0.32)' }}>
             Act {toRoman(actNumber)}
           </h1>
           <div className="mx-auto mt-7 h-px w-36 bg-[linear-gradient(90deg,transparent,rgba(245,158,11,0.58),transparent)]" />
