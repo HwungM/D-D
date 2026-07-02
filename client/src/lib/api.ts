@@ -108,6 +108,8 @@ export const gameApi = {
     api.post('/game/micro-action', { characterId, campaignId, action, navigation }),
   advance: (characterId: string, campaignId: string, action?: string) =>
     api.post('/game/advance', { characterId, campaignId, action }),
+  respondToMacroEvent: (characterId: string, campaignId: string, eventId: string, choice: 'help' | 'accept' | 'delegate' | 'decline') =>
+    api.post('/game/macro-event/respond', { characterId, campaignId, eventId, choice }),
   devKill: (characterId: string) => api.post(`/game/dev-kill/${characterId}`),
   devClearCombat: (campaignId: string) => api.post(`/game/dev-clear-combat/${campaignId}`),
   devPatch: (campaignId: string, patch: { worldState?: Record<string, unknown>; act?: number }) =>

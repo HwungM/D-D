@@ -40,6 +40,7 @@ import RestModal from '../components/RestModal'
 import JournalPanel from '../components/JournalPanel'
 import ClueBankPanel from '../components/ClueBankPanel'
 import ContestPanel from '../components/ContestPanel'
+import MacroEventModal from '../components/MacroEventModal'
 import { audioManager } from '../lib/audio'
 import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType, RollContext, WorldState } from '../../../shared/types'
 
@@ -145,6 +146,7 @@ export default function Game() {
   const [showRest, setShowRest] = useState(false)
   const [lastError, setLastError] = useState<{ message: string; action: string; retry?: () => void } | null>(null)
   const [microActionLoading, setMicroActionLoading] = useState(false)
+  const [macroEventLoading, setMacroEventLoading] = useState(false)
   const [freeRoamCount, setFreeRoamCount] = useState(0)
 
   const [showDiceModal, setShowDiceModal] = useState(false)
@@ -459,7 +461,7 @@ export default function Game() {
   // delivers it first.
   function handleIncomingEvent(newEvent: StoryEvent) {
     if (!newEvent?.id || processedEventIds.current.has(newEvent.id) || historicalIds.current.has(newEvent.id)) return
-    if (newEvent.event_type === 'companion_activity') {
+    if (newEvent.event_type === 'companion_activity' || newEvent.event_type === 'macro_event') {
       processedEventIds.current.add(newEvent.id)
       addEvent(newEvent)
       syncSceneState()
@@ -1017,6 +1019,28 @@ export default function Game() {
     if (ok) setFreeRoamCount(0)
   }
 
+  async function handleMacroEventChoice(choice: 'help' | 'accept' | 'delegate' | 'decline') {
+    const event = worldState?.pendingMacroEvent
+    if (!event || !characterId || !campaignId || macroEventLoading) return
+    setMacroEventLoading(true)
+    setLastError(null)
+    try {
+      const { data } = await gameApi.respondToMacroEvent(characterId, campaignId, event.id, choice)
+      if (data.worldState) setWorldState(normalizeWorldStateForClient(data.worldState, characterId))
+      if (data.enteredCombat) {
+        setInCombat(true)
+        setEnemyPopupName(data.worldState?.combatState?.enemyName || event.enemy?.name || 'Enemy')
+        setShowEnemyPopup(true)
+      }
+      await syncSceneState()
+      refreshParty()
+    } catch (err) {
+      setLastError({ message: getErrorMessage(err), action: event.title })
+    } finally {
+      setMacroEventLoading(false)
+    }
+  }
+
   // Free-roam fast path: reacts to ONE small in-scene action without the
   // macro-turn pipeline. Deliberately does not touch isLoading/isTyping (the
   // gates that block the composer during a full DM turn) so the player can
@@ -1041,6 +1065,7 @@ export default function Game() {
 
     try {
       const { data } = await gameApi.microAction(characterId, campaignId, trimmed, navigation)
+      if (data.macroEvent) mergeWorldState({ pendingMacroEvent: data.macroEvent })
 
       // The micro-action response carries only THIS character's own scoped
       // interactables (see server sceneInteractableSystem.ts) — fold it into
@@ -1837,6 +1862,9 @@ export default function Game() {
       )}
 
       {/* Overlays */}
+      {worldState?.pendingMacroEvent && (
+        <MacroEventModal event={worldState.pendingMacroEvent} loading={macroEventLoading} onChoose={handleMacroEventChoice} />
+      )}
       {showLevelUp && levelUpData && (
         <LevelUpScreen level={levelUpData.level} hpGained={levelUpData.hpGained} newAbility={levelUpData.newAbility} characterName={levelUpData.characterName} onContinue={() => setShowLevelUp(false)} />
       )}

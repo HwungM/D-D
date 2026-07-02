@@ -164,6 +164,25 @@ export interface CompanionLocationState {
   updatedAt: string;
 }
 
+export type MacroEventDifficulty = 'easy' | 'moderate' | 'hard' | 'deadly';
+export type MacroEventKind = 'companion_emergency' | 'heist' | 'competition' | 'performance' | 'production' | 'crisis' | 'opportunity';
+
+export interface PendingMacroEvent {
+  id: string;
+  kind: MacroEventKind;
+  title: string;
+  description: string;
+  difficulty: MacroEventDifficulty;
+  location: string;
+  subLocation?: string;
+  companionId?: string;
+  companionName?: string;
+  enemy?: CombatEnemy;
+  choices: { id: 'help' | 'accept' | 'delegate' | 'decline'; label: string; description: string }[];
+  createdAt: string;
+  sourceAction?: string;
+}
+
 // One companion's mechanical delta for a single turn, as reported by the AI
 // extractor. Mirrors the PC character2Changes convention (deltas, not absolute
 // values) so the same apply/repair pipeline shape works for both.
@@ -654,6 +673,7 @@ export interface WorldState {
   // Independent AI-party positioning. Companions may leave the player,
   // investigate elsewhere, and later return with discoveries or trouble.
   companionLocations?: Record<string, CompanionLocationState>;
+  pendingMacroEvent?: PendingMacroEvent | null;
   lastPillarUsed?: string[];  // last 5 scene pillars used, for three-pillar balance tracking
   pendingTurn?: {
     actions: { characterId: string; userId: string; action: string; displayAction?: string; characterName: string; submittedAt: string }[];
@@ -808,7 +828,7 @@ export interface StoryEvent {
   id: string;
   campaign_id: string;
   character_id?: string;
-  event_type: 'narration' | 'action' | 'dice_roll' | 'combat' | 'dialogue' | 'level_up' | 'death' | 'companion_activity';
+  event_type: 'narration' | 'action' | 'dice_roll' | 'combat' | 'dialogue' | 'level_up' | 'death' | 'companion_activity' | 'macro_event';
   content: string;
   metadata: Record<string, unknown>;
   created_at: string;

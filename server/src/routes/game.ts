@@ -21,6 +21,7 @@ import { applyCompanionChanges } from '../services/companionSystem';
 import { appendWorldEvent, buildAmbientWorldEvent, pickAmbientEventSeed, shouldFireAmbientEvent, weaveAmbientEventIntoReaction } from '../services/ambientWorldEventSystem';
 import { buildCompanionPresenceBeat, companionsPresentWithCharacter, pickPresentCompanion, shouldFireCompanionPresence, weaveCompanionPresenceIntoReaction } from '../services/companionPresenceSystem';
 import { createCompanionActivity, shouldTriggerCompanionActivity, type CompanionActivity } from '../services/companionAutonomySystem';
+import { buildCompanionEmergency, combatStateForEmergency, companionDelegateOutcome, contestForMacroEvent, maybeBuildMacroEventFromMicroAction } from '../services/macroEventSystem';
 import { validateNamedParticipantsPresent } from '../services/scenePresenceSystem';
 
 const router = Router();
@@ -1392,6 +1393,25 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         return;
       }
 
+      // Major intent is allowed to escalate directly from a micro-action.
+      // Detect it before the small-reaction model can turn a heist,
+      // championship, performance, project, or rare interruption into flavor.
+      const immediateMacroEvent = maybeBuildMacroEventFromMicroAction(action, ws);
+      if (immediateMacroEvent) {
+        const reaction = `${immediateMacroEvent.title}: ${immediateMacroEvent.description}`;
+        const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, action, reaction);
+        await supabaseAdmin.from('campaigns').update({
+          world_state: { ...ws, pendingMacroEvent: immediateMacroEvent, freeRoam }
+        }).eq('id', campaignId);
+        await supabaseAdmin.from('story_events').insert([
+          { campaign_id: campaignId, character_id: characterId, event_type: 'action', content: action, metadata: { microAction: true } },
+          { campaign_id: campaignId, character_id: characterId, event_type: 'narration', content: reaction, metadata: { microAction: true, macroEventSetup: true } },
+          { campaign_id: campaignId, character_id: null, event_type: 'macro_event', content: reaction, metadata: { macroEvent: true, macroEventId: immediateMacroEvent.id, eventKind: immediateMacroEvent.kind, difficulty: immediateMacroEvent.difficulty, location: immediateMacroEvent.location } },
+        ]);
+        res.json({ reaction, awaitingRoll: false, macroEvent: immediateMacroEvent, sceneInteractables, freeRoamCount: freeRoam.actions.length });
+        return;
+      }
+
       const reaction = await generateMicroActionReaction(
         action,
         character as Character,
@@ -1552,6 +1572,11 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
           stateToPersist = autonomous.worldState;
         }
       }
+      let pendingMacroEvent: WorldState['pendingMacroEvent'];
+      if (companionActivity?.kind === 'trouble') {
+        pendingMacroEvent = buildCompanionEmergency(companionActivity);
+      }
+      if (pendingMacroEvent) stateToPersist = { ...stateToPersist, pendingMacroEvent };
       await supabaseAdmin.from('campaigns').update({ world_state: stateToPersist }).eq('id', campaignId);
 
       if (reaction.minorHpChange || reaction.minorGoldChange || reaction.minorLoot) {
@@ -1601,6 +1626,21 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
           },
         });
       }
+      if (pendingMacroEvent) {
+        await supabaseAdmin.from('story_events').insert({
+          campaign_id: campaignId,
+          character_id: null,
+          event_type: 'macro_event',
+          content: `${pendingMacroEvent.title}: ${pendingMacroEvent.description}`,
+          metadata: {
+            macroEvent: true,
+            macroEventId: pendingMacroEvent.id,
+            eventKind: pendingMacroEvent.kind,
+            difficulty: pendingMacroEvent.difficulty,
+            location: pendingMacroEvent.location,
+          },
+        });
+      }
 
       res.json({
         reaction: finalReaction,
@@ -1611,6 +1651,7 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         minorLoot: reaction.minorLoot,
         minorHpChange: reaction.minorHpChange,
         minorGoldChange: reaction.minorGoldChange,
+        macroEvent: pendingMacroEvent || undefined,
         sceneInteractables,
         freeRoamCount: freeRoam.actions.length,
       });
@@ -1625,6 +1666,98 @@ const advanceSchema = z.object({
   characterId: z.string().uuid(),
   campaignId: z.string().uuid(),
   action: z.string().max(500).optional(),
+});
+
+const macroEventResponseSchema = z.object({
+  characterId: z.string().uuid(),
+  campaignId: z.string().uuid(),
+  eventId: z.string().uuid(),
+  choice: z.enum(['help', 'accept', 'delegate', 'decline']),
+});
+
+router.post('/macro-event/respond', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const parse = macroEventResponseSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ error: parse.error.errors });
+    return;
+  }
+  const { characterId, campaignId, eventId, choice } = parse.data;
+  const { data: character } = await supabaseAdmin.from('characters').select('id, user_id, name, campaign_id').eq('id', characterId).eq('user_id', req.user!.id).single();
+  if (!character || character.campaign_id !== campaignId) {
+    res.status(403).json({ error: 'Character not found or not yours' });
+    return;
+  }
+
+  try {
+    await withCampaignLock(campaignId, async () => {
+      const ws = await loadRepairedWorldState(campaignId);
+      const event = ws?.pendingMacroEvent;
+      if (!ws || !event || event.id !== eventId) {
+        res.status(409).json({ error: 'That event is no longer active.' });
+        return;
+      }
+
+      let updated: WorldState = { ...ws, pendingMacroEvent: null };
+      let narration = '';
+      let visibleAction = '';
+
+      if (choice === 'help' && event.kind === 'companion_emergency') {
+        const subLocations = { ...(ws.characterSubLocations || {}) };
+        if (event.subLocation) subLocations[characterId] = event.subLocation;
+        else delete subLocations[characterId];
+        updated = {
+          ...updated,
+          currentLocation: event.location,
+          characterLocations: { ...(ws.characterLocations || {}), [characterId]: event.location },
+          characterSubLocations: subLocations,
+          combatState: combatStateForEmergency(event),
+          tensionMeter: null,
+          sceneState: { purpose: 'combat', exchangeCount: 0, stalledCount: 0, pacingMode: 'climax' },
+        };
+        visibleAction = `Travel to help ${event.companionName || 'the companion'}.`;
+        narration = `You reach ${event.subLocation || event.location} and join ${event.companionName || 'your companion'} against ${updated.combatState?.enemyName}. The fight is live.`;
+      } else if (choice === 'accept' && event.kind !== 'companion_emergency') {
+        const participantIds = [characterId, ...(ws.companions || []).filter(c => c.is_alive).map(c => c.id)];
+        updated = {
+          ...updated,
+          sceneState: {
+            purpose: event.kind === 'performance' ? 'social' : 'climax',
+            exchangeCount: 0,
+            stalledCount: 0,
+            pacingMode: event.difficulty === 'easy' ? 'exploration' : 'tension',
+            skillChallenge: contestForMacroEvent(event, participantIds),
+          },
+        };
+        visibleAction = `Accept: ${event.title}.`;
+        narration = `${event.title} begins as a ${event.difficulty} structured event. Build successes through the action buttons; failure now carries the stated consequences.`;
+      } else if (choice === 'delegate' && event.kind === 'companion_emergency') {
+        const companion = (ws.companions || []).find(entry => entry.id === event.companionId);
+        const outcome = companionDelegateOutcome(event, companion?.level || 1);
+        updated = {
+          ...updated,
+          companions: (ws.companions || []).map(entry => entry.id === event.companionId
+            ? { ...entry, hp: Math.max(1, entry.hp - outcome.damage) }
+            : entry),
+        };
+        visibleAction = `Let ${event.companionName || 'the companion'} handle it.`;
+        narration = outcome.success
+          ? `${event.companionName || 'Your companion'} handles the ${event.difficulty} danger alone and comes through safely.`
+          : `${event.companionName || 'Your companion'} escapes, but the ${event.difficulty} encounter costs ${outcome.damage} HP.`;
+      } else {
+        visibleAction = `Decline: ${event.title}.`;
+        narration = event.kind === 'companion_emergency'
+          ? `You do not intervene. ${event.companionName || 'Your companion'} remains responsible for getting clear, and the missed rescue is now part of the campaign's memory.`
+          : `You let the ${event.difficulty} opportunity pass without beginning it.`;
+      }
+
+      await supabaseAdmin.from('campaigns').update({ world_state: updated }).eq('id', campaignId);
+      await supabaseAdmin.from('story_events').insert({ campaign_id: campaignId, character_id: characterId, event_type: 'action', content: visibleAction, metadata: { macroEventResolution: true, eventId } });
+      await supabaseAdmin.from('story_events').insert({ campaign_id: campaignId, character_id: characterId, event_type: 'narration', content: narration, metadata: { microAction: true, macroEventResolution: true, eventId } });
+      res.json({ narration, worldState: updated, enteredCombat: !!updated.combatState?.inCombat, startedContest: !!updated.sceneState?.skillChallenge });
+    });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Could not resolve the event' });
+  }
 });
 
 // Explicitly moves the story forward — always callable, no gate or blocking

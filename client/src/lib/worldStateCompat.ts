@@ -28,6 +28,9 @@ export function normalizeWorldStateForClient(value: unknown, characterId: string
     ? Object.fromEntries(Object.entries(source.characterSubLocations).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
     : {}
   normalized.companionLocations = isRecord(source.companionLocations) ? source.companionLocations : {}
+  normalized.pendingMacroEvent = source.pendingMacroEvent === null || isRecord(source.pendingMacroEvent)
+    ? source.pendingMacroEvent
+    : null
 
   const arrayFields = [
     'activeQuests', 'discoveredLocations', 'npcMemory', 'keyNPCs',
