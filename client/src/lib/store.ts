@@ -10,13 +10,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 // Chronological order with a stable tiebreaker: when an action and the
 // narration it produced share a timestamp, the action reads first.
 function sortEvents(events: StoryEvent[]): StoryEvent[] {
-  return [...events].sort((a, b) => {
+  const sorted = [...events].sort((a, b) => {
     const ta = Date.parse(a.created_at) || 0
     const tb = Date.parse(b.created_at) || 0
     if (ta !== tb) return ta - tb
     if (a.event_type !== b.event_type) return a.event_type === 'action' ? -1 : 1
     return 0
   })
+  // A response belongs immediately below its prompt regardless of device/server clock drift.
+  for (let i = 0; i < sorted.length; i++) {
+    const afterId = sorted[i].metadata?.afterEventId
+    if (typeof afterId !== 'string') continue
+    const parentIndex = sorted.findIndex(event => event.id === afterId)
+    if (parentIndex < 0 || parentIndex + 1 === i) continue
+    const [event] = sorted.splice(i, 1)
+    const updatedParentIndex = sorted.findIndex(candidate => candidate.id === afterId)
+    sorted.splice(updatedParentIndex + 1, 0, event)
+    i = Math.max(-1, Math.min(i, updatedParentIndex) - 1)
+  }
+  return sorted
 }
 
 function isNpcMemory(value: unknown): value is NpcMemory {
@@ -99,12 +111,21 @@ export const useGameStore = create<GameState>()((set) => ({
   // timestamps the chronological sort is reliable.
   reconcileEvent: (realEvent) => set((state) => {
     if (state.events.some(existing => existing.id === realEvent.id)) return state;
+    const optimistic = state.events.find(e => e.metadata?.optimistic
+      && e.character_id === realEvent.character_id
+      && e.event_type === realEvent.event_type
+      && e.content === realEvent.content)
     const withoutOptimistic = state.events.filter(e =>
       !(e.metadata?.optimistic
         && e.character_id === realEvent.character_id
         && e.event_type === realEvent.event_type
         && e.content === realEvent.content));
-    return { events: sortEvents([...withoutOptimistic, realEvent]) };
+    const relinked = optimistic
+      ? withoutOptimistic.map(event => event.metadata?.afterEventId === optimistic.id
+        ? { ...event, metadata: { ...event.metadata, afterEventId: realEvent.id } }
+        : event)
+      : withoutOptimistic
+    return { events: sortEvents([...relinked, realEvent]) };
   }),
   setEvents: (events) => set({ events }),
   setLoading: (loading) => set({ isLoading: loading }),

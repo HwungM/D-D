@@ -151,7 +151,6 @@ export default function NarratorBox({
       <div className="animate-fade-in flex items-start gap-3 px-1 py-1 sm:px-2">
         <div className="mt-2 h-2 w-2 shrink-0 rounded-full" style={{ background: '#d6a541', boxShadow: '0 0 12px rgba(214,165,65,0.45)' }} />
         <div className="relative flex-1 rounded-xl border px-4 py-3" style={{ borderColor: 'rgba(214,165,65,0.26)', background: 'linear-gradient(135deg, rgba(46,31,13,0.72), rgba(28,20,10,0.76))' }}>
-          <p className="mb-1 font-fantasy text-[9px] uppercase tracking-[0.18em]" style={{ color: 'rgba(232,190,100,0.78)' }}>Dungeon Master</p>
           <p className="font-serif text-[15px] leading-[1.65]" style={{ color: 'rgba(246,234,207,0.94)' }}>
             {mainText}
             {ambientAside && (

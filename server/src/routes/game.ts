@@ -1618,8 +1618,9 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
           ...(featuredCompanion ? { companionPresence: featuredCompanion.id } : {}),
         },
       });
+      let companionEvent;
       if (companionActivity) {
-        await supabaseAdmin.from('story_events').insert({
+        const { data: savedCompanionEvent } = await supabaseAdmin.from('story_events').insert({
           campaign_id: campaignId,
           character_id: null,
           event_type: 'companion_activity',
@@ -1632,7 +1633,8 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
             location: companionActivity.location,
             subLocation: companionActivity.subLocation || null,
           },
-        });
+        }).select().single();
+        companionEvent = savedCompanionEvent;
       }
       if (pendingMacroEvent) {
         await supabaseAdmin.from('story_events').insert({
@@ -1660,6 +1662,7 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         minorHpChange: reaction.minorHpChange,
         minorGoldChange: reaction.minorGoldChange,
         macroEvent: pendingMacroEvent || undefined,
+        companionEvent: companionEvent || undefined,
         sceneInteractables,
         freeRoamCount: freeRoam.actions.length,
       });

@@ -1,7 +1,7 @@
 import type { CompanionCharacter, CompanionLocationState, InventoryItem, WorldState } from '../../../shared/types';
 
-export const COMPANION_ACTIVITY_CHANCE = 0.38;
-export const COMPANION_ACTIVITY_MIN_SPACING = 2;
+export const COMPANION_ACTIVITY_CHANCE = 1;
+export const COMPANION_ACTIVITY_MIN_SPACING = 1;
 
 export type CompanionActivityKind = 'move' | 'explore' | 'clue' | 'item' | 'trouble';
 
@@ -73,7 +73,13 @@ export function createCompanionActivity(
 ): { activity: CompanionActivity; worldState: WorldState } | undefined {
   const roster = livingCompanions(worldState);
   if (roster.length === 0) return undefined;
-  const companion = roster[Math.floor(random() * roster.length)];
+  // Fair rotation: the companion who has gone longest without acting gets the
+  // next beat. Random selection let one party member remain silent forever.
+  const companion = [...roster].sort((a, b) => {
+    const aAt = Date.parse(currentPosition(worldState, a).updatedAt || '') || 0;
+    const bAt = Date.parse(currentPosition(worldState, b).updatedAt || '') || 0;
+    return aAt - bAt;
+  })[0];
   const position = currentPosition(worldState, companion);
   const now = new Date().toISOString();
   const roll = random();
@@ -88,14 +94,19 @@ export function createCompanionActivity(
     kind = 'move';
     nextPosition = { ...target, activity: 'Exploring independently', updatedAt: now };
     const destination = target.subLocation || target.location;
-    text = `${companion.name} leaves to investigate ${destination} on their own.`;
+    const destinationNode = locationNode(worldState, target.location);
+    const firstLead = target.subLocation
+      || destinationNode?.subLocations?.[0]?.objectsOfInterest?.[0]
+      || destinationNode?.questHooks?.[0]
+      || 'the people and landmarks nearby';
+    text = `${companion.name} travels to ${destination}, then begins questioning locals and examining ${firstLead} for anything the party may have missed.`;
   } else if (roll < 0.64) {
     const node = locationNode(worldState, position.location);
     const sub = node?.subLocations?.find(candidate => candidate.name === position.subLocation);
     const detail = sub?.objectsOfInterest?.[0] || node?.questHooks?.[0] || 'the surrounding area';
     kind = 'explore';
     nextPosition.activity = `Investigating ${detail}`;
-    text = `${companion.name} searches ${position.subLocation || position.location} independently, taking a closer look at ${detail}.`;
+    text = `${companion.name} searches ${position.subLocation || position.location} independently. They interact with ${detail}, test what responds, and make note of anything that could help or endanger the party.`;
   } else if (roll < 0.78) {
     const clue = mysteryClues?.find(candidate => candidate.status === 'undiscovered');
     if (clue) {

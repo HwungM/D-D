@@ -1065,6 +1065,11 @@ export default function Game() {
 
     try {
       const { data } = await gameApi.microAction(characterId, campaignId, trimmed, navigation)
+      const responseParentId = [...useGameStore.getState().events].reverse().find(event =>
+        event.event_type === 'action'
+        && event.character_id === characterId
+        && event.content === trimmed
+        && !event.metadata?.optimistic)?.id || optimisticId
       if (data.macroEvent) mergeWorldState({ pendingMacroEvent: data.macroEvent })
 
       // The micro-action response carries only THIS character's own scoped
@@ -1108,7 +1113,7 @@ export default function Game() {
           character_id: characterId,
           event_type: 'narration',
           content: data.reaction,
-          metadata: { microAction: true, awaitingRoll: true, rollContext: data.rollContext },
+          metadata: { microAction: true, awaitingRoll: true, rollContext: data.rollContext, afterEventId: responseParentId },
           created_at: new Date().toISOString(),
         })
         setDiceModalData({ narration: data.reaction, rollContext: data.rollContext })
@@ -1136,9 +1141,10 @@ export default function Game() {
         character_id: characterId,
         event_type: 'narration',
         content: data.reaction,
-        metadata: { microAction: true },
+        metadata: { microAction: true, afterEventId: responseParentId },
         created_at: new Date().toISOString(),
       })
+      if (data.companionEvent) addEvent(data.companionEvent as StoryEvent)
       if (typeof data.freeRoamCount === 'number') setFreeRoamCount(data.freeRoamCount)
     } catch (err) {
       const currentEvents = useGameStore.getState().events
@@ -1218,7 +1224,7 @@ export default function Game() {
             <p className="mt-5 max-w-2xl font-serif text-lg italic leading-relaxed text-parchment-200/74">
               {recentNarrations.length > 0 && !isNewCharacter
                 ? 'The scene is waiting where you left it. Step back through the door and let the next choice matter.'
-                : 'The Dungeon Master stands ready. When you step through, the world begins listening.'}
+                : 'The world stands ready. When you step through, it begins listening.'}
             </p>
           </section>
 
@@ -1504,9 +1510,6 @@ export default function Game() {
             background: 'linear-gradient(90deg, rgba(20,12,4,0.98), rgba(25,16,6,0.92))',
           }}>
             <div className="min-w-0">
-              <p className="font-fantasy text-[10px] uppercase tracking-[0.28em]" style={{ color: 'rgba(200,146,42,0.8)' }}>
-                Dungeon Master
-              </p>
               <h1 className="font-fantasy text-2xl truncate" style={{ color: '#f5e6c8' }}>
                 {campaignName || 'The Everrealm'}
               </h1>
@@ -1582,7 +1585,7 @@ export default function Game() {
                 <div className="mx-1 px-4 py-3" style={{ background: 'rgba(28,18,8,0.92)', border: '1px solid rgba(200,146,42,0.28)', borderTopColor: 'rgba(200,146,42,0.6)' }}>
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="font-fantasy text-[10px] uppercase tracking-[0.26em]" style={{ color: 'rgba(200,146,42,0.82)' }}>The Dungeon Master is thinking…</p>
+                      <p className="font-fantasy text-[10px] uppercase tracking-[0.26em]" style={{ color: 'rgba(200,146,42,0.82)' }}>The story is unfolding…</p>
                       <p className="mt-1 font-serif text-sm italic" style={{ color: 'rgba(220,200,160,0.65)' }}>
                         Weighing fate. The dice are listening.
                       </p>

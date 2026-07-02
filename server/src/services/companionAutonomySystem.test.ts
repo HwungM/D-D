@@ -23,13 +23,13 @@ const worldState: WorldState = {
   ] },
 };
 
-test('companion autonomy waits for spacing and then honors its activity chance', () => {
+test('companion autonomy waits for spacing and then always gives the party a visible activity', () => {
   assert.equal(shouldTriggerCompanionActivity(worldState, () => 0.1), true);
-  assert.equal(shouldTriggerCompanionActivity(worldState, () => 0.9), false);
+  assert.equal(shouldTriggerCompanionActivity(worldState, () => 0.9), true);
 });
 
 test('companions can independently move into a real sublocation', () => {
-  const rolls = [0, 0.1, 0];
+  const rolls = [0.1, 0];
   const result = createCompanionActivity(worldState, () => rolls.shift() ?? 0);
   assert.equal(result?.activity.kind, 'move');
   assert.equal(result?.activity.subLocation, 'Library');
@@ -38,8 +38,21 @@ test('companions can independently move into a real sublocation', () => {
 
 test('companions can reveal a seeded clue and report it as their own activity', () => {
   const withClue: WorldState = { ...worldState, mysteryClues: [{ id: 'c1', status: 'undiscovered', clue: 'The bell was moved.', pointsToward: 'Who moved it?', possibleSources: [] }] };
-  const rolls = [0, 0.7];
+  const rolls = [0.7];
   const result = createCompanionActivity(withClue, () => rolls.shift() ?? 0);
   assert.equal(result?.activity.kind, 'clue');
   assert.equal(result?.worldState.mysteryClues?.[0].status, 'revealed');
+});
+
+test('autonomy rotates to the companion who has waited longest', () => {
+  const ithel = { ...companion, id: 'ithel', name: 'Ithel' };
+  const split: WorldState = {
+    ...worldState,
+    companions: [companion, ithel],
+    companionLocations: {
+      garrow: { location: 'Evermire', updatedAt: '2026-01-01T00:00:10.000Z' },
+      ithel: { location: 'Evermire', updatedAt: '2026-01-01T00:00:01.000Z' },
+    },
+  };
+  assert.equal(createCompanionActivity(split, () => 0.5)?.activity.companionName, 'Ithel');
 });
