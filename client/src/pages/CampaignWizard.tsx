@@ -506,10 +506,10 @@ export default function CampaignWizard() {
       <div className="fixed inset-0 pointer-events-none">
         <picture>
           <source media="(max-width: 767px)" srcSet="/media/everrealm-hero-mobile.png" />
-          <img src="/media/everrealm-hero-desktop.png" alt="" className="h-full w-full object-cover opacity-[0.46]" />
+          <img src="/media/everrealm-hero-desktop.png" alt="" className="h-full w-full object-cover opacity-[0.62]" />
         </picture>
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.93)_0%,rgba(0,0,0,0.62)_52%,rgba(0,0,0,0.9)_100%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.22)_0%,rgba(0,0,0,0.54)_58%,rgba(0,0,0,0.96)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.8)_0%,rgba(0,0,0,0.42)_52%,rgba(0,0,0,0.76)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.14)_0%,rgba(0,0,0,0.38)_58%,rgba(0,0,0,0.7)_100%)]" />
       </div>
 
       <header className="relative z-10 border-b border-parchment-100/22 bg-black/36 px-5 py-4 backdrop-blur-md">
