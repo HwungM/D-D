@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WorldState } from '../../../shared/types';
-import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary, buildContestConclusionSummary, buildPartySplitSummary } from './advanceTurnService';
+import { appendFreeRoamEntry, buildAdvanceActionText, buildAdvanceDisplayText, buildCombatConclusionSummary, buildContestConclusionSummary, buildPartySplitSummary } from './advanceTurnService';
 
 test('appendFreeRoamEntry starts a fresh log for a new scene and accumulates within one scene', () => {
   const first = appendFreeRoamEntry(undefined, 'The Docks', 'ask the dockhand about the ship', 'He shrugs — "Ask the harbormaster."');
@@ -48,6 +48,11 @@ test('buildAdvanceActionText always returns usable text regardless of state — 
   const hugeText = buildAdvanceActionText(huge);
   assert.match(hugeText, /micro action 49/);
   assert.doesNotMatch(hugeText, /micro action 0 /);
+});
+
+test('buildAdvanceDisplayText never exposes private free-roam context in the story feed', () => {
+  assert.equal(buildAdvanceDisplayText(), 'Move the story forward.');
+  assert.equal(buildAdvanceDisplayText('  Head for the harbor.  '), 'Head for the harbor.');
 });
 
 test('buildCombatConclusionSummary is undefined when no combat/tension happened this scene', () => {

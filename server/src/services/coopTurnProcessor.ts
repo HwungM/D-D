@@ -49,7 +49,7 @@ function toArr<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
-type PendingAction = { characterId: string; userId?: string; action: string; characterName: string; submittedAt?: string };
+type PendingAction = { characterId: string; userId?: string; action: string; displayAction?: string; characterName: string; submittedAt?: string };
 
 function actionNeedsOwnRoll(action: string): boolean {
   return /\b(force|lift|bend|break|climb|shove|hold|perform|sing|play|dance|persuad|convince|intimidat|deceiv|lie|extract|secret|guarded|evade|sneak|hide|steal|pickpocket|lockpick|attack|strike|shoot|stab|slash|cast|identify|inspect|decode|rune|recall|track|search)\b/i.test(action);
@@ -91,7 +91,7 @@ function buildCoopPendingRolls(
 
 export async function processCoopAction(
   campaignId: string,
-  pendingActions: { characterId: string; userId: string; action: string; characterName: string }[]
+  pendingActions: { characterId: string; userId: string; action: string; displayAction?: string; characterName: string }[]
 ): Promise<ActionResult> {
   // Load both characters
   const charResults = await Promise.all(
@@ -212,7 +212,7 @@ export async function processCoopAction(
         campaign_id: campaignId,
         character_id: pa.characterId,
         event_type: 'action',
-        content: pa.action,
+        content: pa.displayAction || pa.action,
         metadata: { coopRound: true },
       })
     ));
@@ -643,14 +643,14 @@ export async function processCoopAction(
       campaign_id: campaignId,
       character_id: pendingActions[0].characterId,
       event_type: 'action',
-      content: pendingActions[0].action,
+      content: pendingActions[0].displayAction || pendingActions[0].action,
       metadata: { coopRound: true, railRoll: coopPlan.resolvedRolls.find(r => r.characterId === pendingActions[0].characterId) },
     }),
     supabaseAdmin.from('story_events').insert({
       campaign_id: campaignId,
       character_id: pendingActions[1].characterId,
       event_type: 'action',
-      content: pendingActions[1].action,
+      content: pendingActions[1].displayAction || pendingActions[1].action,
       metadata: { coopRound: true, railRoll: coopPlan.resolvedRolls.find(r => r.characterId === pendingActions[1].characterId) },
     }),
   ]);

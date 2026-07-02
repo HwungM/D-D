@@ -10,7 +10,7 @@ import { aiRateLimit } from '../middleware/rateLimit';
 import { repairWorldStateForGameplay } from '../services/coopStateIntegrity';
 import { buildSceneInteractables, getOrBuildSceneInteractablesForCharacter, withSceneInteractablesForCharacter } from '../services/sceneInteractableSystem';
 import { needsSubLocationGeneration, resolveExplicitSubLocationNavigation, textAttemptsSubLocationNavigation } from '../services/subLocationSystem';
-import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary, buildContestConclusionSummary, buildPartySplitSummary } from '../services/advanceTurnService';
+import { appendFreeRoamEntry, buildAdvanceActionText, buildAdvanceDisplayText, buildCombatConclusionSummary, buildContestConclusionSummary, buildPartySplitSummary } from '../services/advanceTurnService';
 import { resolveMysteryClueChanges } from '../services/mysteryClueSystem';
 import { narrateMicroActionRollOutcome, type MicroCombatIntent } from '../services/microActionService';
 import { resolveMicroActionCombatRoll } from '../services/microActionCombat';
@@ -1684,6 +1684,7 @@ router.post('/advance', requireAuth, aiRateLimit, async (req: AuthRequest, res: 
 
         const partySplitSummary = buildPartySplitSummary(ws.characterSubLocations, characterIdToName, ws.currentLocation);
         const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction, buildCombatConclusionSummary(ws), buildContestConclusionSummary(ws), partySplitSummary);
+        const displayAction = buildAdvanceDisplayText(framingAction);
 
         const pendingCreatedAt = ws.pendingTurn?.createdAt || ws.pendingTurn?.actions?.[0]?.submittedAt;
         const pendingStartedAt = pendingCreatedAt ? Date.parse(pendingCreatedAt) : NaN;
@@ -1703,6 +1704,7 @@ router.post('/advance', requireAuth, aiRateLimit, async (req: AuthRequest, res: 
           characterId,
           userId: req.user!.id,
           action: advanceActionText,
+          displayAction,
           characterName: (character as { name: string }).name,
           submittedAt: new Date().toISOString(),
         }];
@@ -1740,7 +1742,7 @@ router.post('/advance', requireAuth, aiRateLimit, async (req: AuthRequest, res: 
         .single();
       const ws = (campaign?.world_state || {}) as WorldState;
       const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction, buildCombatConclusionSummary(ws), buildContestConclusionSummary(ws));
-      const result = await processAction(characterId, advanceActionText, campaignId);
+      const result = await processAction(characterId, advanceActionText, campaignId, buildAdvanceDisplayText(framingAction));
       res.json(result);
     });
   } catch (err) {

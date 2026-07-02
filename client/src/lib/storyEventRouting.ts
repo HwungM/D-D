@@ -44,3 +44,11 @@ export function shouldDisplayStoryEvent(event: MinimalStoryEvent, characterId: s
   if (!event.character_id || event.character_id === characterId || event.event_type === 'action') return true
   return event.event_type === 'narration' && event.metadata?.microAction === true
 }
+
+const ADVANCE_CONTEXT_MARKER = '(During free-roam since the last turn'
+
+export function storyEventDisplayContent(event: MinimalStoryEvent & { content: string }): string {
+  if (event.event_type !== 'action' || !event.content.includes(ADVANCE_CONTEXT_MARKER)) return event.content
+  const framing = event.content.slice(0, event.content.indexOf(ADVANCE_CONTEXT_MARKER)).trim()
+  return framing || 'Move the story forward.'
+}

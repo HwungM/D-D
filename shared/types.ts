@@ -646,7 +646,7 @@ export interface WorldState {
   companions?: CompanionCharacter[];
   lastPillarUsed?: string[];  // last 5 scene pillars used, for three-pillar balance tracking
   pendingTurn?: {
-    actions: { characterId: string; userId: string; action: string; characterName: string; submittedAt: string }[];
+    actions: { characterId: string; userId: string; action: string; displayAction?: string; characterName: string; submittedAt: string }[];
     roundId: string;
     createdAt?: string;
     expiresAt?: string;
@@ -654,7 +654,7 @@ export interface WorldState {
   coopPendingRoll?: {
     actingCharacterId: string;
     rollContext: RollContext;
-    actions: { characterId: string; userId: string; action: string; characterName: string; submittedAt: string }[];
+    actions: { characterId: string; userId: string; action: string; displayAction?: string; characterName: string; submittedAt: string }[];
     setupNarration?: string;
     sceneImagePrompt?: string | null;
     pendingRolls?: {

@@ -140,6 +140,12 @@ export function buildAdvanceActionText(
   return `${framing}\n\n(During free-roam since the last turn, the party also did the following — treat this as established context, not a new request to resolve again:\n${summary})${combatBlock}${contestBlock}${splitBlock}`;
 }
 
+// The detailed action text above is private engine context. This is the only
+// text that belongs in the player-visible story feed.
+export function buildAdvanceDisplayText(framingAction?: string): string {
+  return (framingAction || '').trim() || 'Move the story forward.';
+}
+
 export function clearFreeRoam(): WorldState['freeRoam'] {
   return null;
 }

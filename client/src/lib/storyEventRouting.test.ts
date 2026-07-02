@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { classifyStoryEvent, shouldDisplayStoryEvent } from './storyEventRouting'
+import { classifyStoryEvent, shouldDisplayStoryEvent, storyEventDisplayContent } from './storyEventRouting'
 
 const ME = 'char-tellini'
 const PARTNER = 'char-sunmi'
@@ -66,5 +66,20 @@ describe('shouldDisplayStoryEvent', () => {
 
   it('hides a partner macro-turn narration because each player receives their own copy', () => {
     expect(shouldDisplayStoryEvent({ character_id: PARTNER, event_type: 'narration', metadata: {} }, ME)).toBe(false)
+  })
+})
+
+describe('storyEventDisplayContent', () => {
+  it('hides legacy private advance context while preserving the visible framing action', () => {
+    expect(storyEventDisplayContent({
+      character_id: ME,
+      event_type: 'action',
+      content: 'Move the story forward.\n\n(During free-roam since the last turn, the party did twenty things...)',
+    })).toBe('Move the story forward.')
+  })
+
+  it('leaves ordinary action text untouched', () => {
+    expect(storyEventDisplayContent({ character_id: ME, event_type: 'action', content: 'Ask the clerk about the bog.' }))
+      .toBe('Ask the clerk about the bog.')
   })
 })

@@ -59,7 +59,8 @@ function toArr<T>(value: unknown): T[] {
 export async function processAction(
   characterId: string,
   action: string,
-  campaignId: string
+  campaignId: string,
+  displayAction: string = action,
 ): Promise<ActionResult> {
   // Fetch character
   const { data: character, error: charError } = await supabaseAdmin
@@ -187,7 +188,7 @@ export async function processAction(
       campaign_id: campaignId,
       character_id: characterId,
       event_type: 'action',
-      content: action,
+      content: displayAction,
       metadata: { enginePlanned: true },
     });
     await supabaseAdmin.from('story_events').insert({
@@ -234,7 +235,7 @@ export async function processAction(
       campaign_id: campaignId,
       character_id: characterId,
       event_type: 'action',
-      content: action,
+      content: displayAction,
       metadata: {},
     });
     await supabaseAdmin.from('story_events').insert({
@@ -588,7 +589,7 @@ export async function processAction(
     campaign_id: campaignId,
     character_id: characterId,
     event_type: 'action',
-    content: action,
+    content: displayAction,
     metadata: { diceResult, success },
   });
   await supabaseAdmin.from('story_events').insert({

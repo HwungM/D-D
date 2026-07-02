@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { gameApi, campaignApi, characterApi } from '../lib/api'
 import { useGameStore, useAuthStore } from '../lib/store'
 import { matchSceneImage, inferMood } from '../lib/sceneUtils'
-import { classifyStoryEvent, shouldDisplayStoryEvent } from '../lib/storyEventRouting'
+import { classifyStoryEvent, shouldDisplayStoryEvent, storyEventDisplayContent } from '../lib/storyEventRouting'
 import { charactersShareScene, companionNamesSharingScene } from '../lib/scenePresence'
 import { normalizeWorldStateForClient } from '../lib/worldStateCompat'
 import { createClient } from '@supabase/supabase-js'
@@ -1005,7 +1005,8 @@ export default function Game() {
   async function handleAdvance(framingAction?: string) {
     if (!characterId || !campaignId) return
     const trimmed = framingAction?.trim() || undefined
-    const ok = await submitMacroTurn(() => gameApi.advance(characterId, campaignId, trimmed), trimmed || null)
+    const visibleAction = trimmed || 'Move the story forward.'
+    const ok = await submitMacroTurn(() => gameApi.advance(characterId, campaignId, trimmed), visibleAction)
     if (ok) setFreeRoamCount(0)
   }
 
@@ -1523,7 +1524,7 @@ export default function Game() {
                   return (
                     <NarratorBox
                       key={event.id || i}
-                      text={event.content}
+                      text={storyEventDisplayContent(event)}
                       mood={mood}
                       isPlayerAction={event.event_type === 'action'}
                       instant={isInstant || isMicroAction}
