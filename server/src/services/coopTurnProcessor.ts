@@ -18,6 +18,7 @@ import { enforceTurnPlanNarration, planCoopTurn } from './gameDirector';
 import { buildLayeredMemoryChanges, buildMemoryPack } from './layeredMemoryEngine';
 import { resolveMysteryClueChanges } from './mysteryClueSystem';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
+import { detectHiddenIdentityIntroduction, guardIdentityRevealed } from './hiddenIdentitySystem';
 import { guardPartyAssetGranted, guardSignatureItemEarned } from './signatureRewardsService';
 import { generateCoopNarration, generateSceneSummary, generateVillainMove, runStoryDirector } from './openai';
 import { calculateNarrativeXp } from './rulesEngine';
@@ -352,6 +353,14 @@ export async function processCoopAction(
       })
     : [];
 
+  // Hidden identity: same detection as solo play (see hiddenIdentitySystem.ts).
+  const priorNpcNames = new Set((ws.npcMemory || []).map(n => n.name.toLowerCase()));
+  const candidateNewNpcs = [
+    ...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory),
+    ...autoNpcMemory,
+  ].filter(npc => npc.name && !priorNpcNames.has(npc.name.toLowerCase()));
+  const hiddenIdentityIntroduced = detectHiddenIdentityIntroduction(ws, wb, candidateNewNpcs);
+
   const { ledgerChanges, futureHooksChanges } = buildForeshadowingAndFutureHookChanges(aiResponse, ws, campaign.act || 1);
 
   const hookChanges = buildBackstoryHookChanges(aiResponse, ws.backstoryHooks);
@@ -516,6 +525,10 @@ export async function processCoopAction(
     advanceAct: !!aiResponse.advanceAct,
     actionCount: newActionCount,
   });
+  const guardedIdentityRevealed = guardIdentityRevealed(aiResponse.identityRevealed, ws, {
+    isHighStakes: !!aiResponse.isHighStakes,
+    actionCount: newActionCount,
+  });
 
   // Apply consequences to Character 1
   const char1Result = await applyConsequences(
@@ -537,6 +550,8 @@ export async function processCoopAction(
       consumedItems: char1ConsumedItems.length > 0 ? char1ConsumedItems : undefined,
       signatureItemEarned: signatureItemForChar1,
       partyAssetGranted: guardedPartyAssetGranted,
+      hiddenIdentityIntroduced,
+      identityRevealed: guardedIdentityRevealed,
     },
     characters[0],
     { id: campaignId, world_state: ws, act: campaign.act, world_bible: wb }

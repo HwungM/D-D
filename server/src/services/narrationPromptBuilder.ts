@@ -671,7 +671,8 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "companionDeparture": "{id,reason} | null - an existing companion (by id) who left the party without dying",
   "revealedClueIds": "[exact ids from the MYSTERY CLUE BANK given in context that this turn concretely revealed] | null - never invent an id not listed there",
   "signatureItemEarned": "{characterId,questId} | null - only at a genuine earned narrative payoff for a seeded SIGNATURE ITEM QUEST given in context; use its exact id",
-  "partyAssetGranted": "{kind:property|title|position,name,description,locationName,unlocksHint} | null - only for a real, major earned moment"
+  "partyAssetGranted": "{kind:property|title|position,name,description,locationName,unlocksHint} | null - only for a real, major earned moment",
+  "identityRevealed": "{npcName} | null - only when a real story moment justifies revealing an ACTIVE HIDDEN IDENTITY's true nature (given in context); a premature reveal is invalid"
 }`;
 
 export type NarrationCampaignContext = {
@@ -810,7 +811,35 @@ Revelation (DO NOT reveal directly - build to it through a climax act when the p
 ═════════════════════════` : ''}
 ${worldState ? buildClueBankBlock(worldState) : ''}
 ${worldBible.safeHaven ? `SAFE HAVEN: ${worldBible.safeHaven.name} - ${worldBible.safeHaven.flavor}. Kept by ${worldBible.safeHaven.keyNPC}.` : ''}
-${worldBible.toneBreaks && worldBible.toneBreaks.length > 0 ? `TONAL CONTRAST MOMENTS: ${worldBible.toneBreaks.join(' | ')}` : ''}`;
+${worldBible.toneBreaks && worldBible.toneBreaks.length > 0 ? `TONAL CONTRAST MOMENTS: ${worldBible.toneBreaks.join(' | ')}` : ''}
+${buildHiddenIdentityBlock(worldBible, worldState)}`;
+}
+
+// Phase 14: the planted hidden-identity twist. Two states share this block:
+// (1) not yet introduced - nudge the DM to consciously bring the planned NPC
+// in as genuinely trustworthy; (2) already live - protect it from a premature
+// leak and describe when a real reveal is earned. Only one is ever active at
+// once (see WorldBible.plannedBetrayal / WorldState.hiddenIdentities doc
+// comments), so this never needs to render both.
+function buildHiddenIdentityBlock(worldBible: WorldBible, worldState?: WorldState): string {
+  const activeUnrevealed = (worldState?.hiddenIdentities || []).filter(h => !h.isRevealed);
+  if (activeUnrevealed.length > 0) {
+    return `
+═══ ACTIVE HIDDEN IDENTITY - PROTECT THIS ═══
+${activeUnrevealed.map(h => `- ${h.npcName} is secretly: ${h.trueIdentity}. Reveal condition (loose, story-judged, not a hard trigger): ${h.revealCondition}`).join('\n')}
+Until revealed, they must act exactly like their cover identity - helpful, trustworthy-seeming, no accidental tells beyond deliberate subtle foreshadowing. Never let their true identity leak into narration, dialogue, or npcMemory notes. Only when a real story moment genuinely earns it, set identityRevealed: {npcName} to trigger the reveal as a major turning point.
+═══════════════════════════════`;
+  }
+  if (worldBible.plannedBetrayal && !worldState?.hiddenIdentities?.length) {
+    const planned = worldBible.plannedBetrayal;
+    return `
+═══ PLANNED TWIST - AUTHOR THIS EARLY, DO NOT REVEAL ═══
+This campaign has a planned hidden-identity twist. Introduce ${planned.npcRole} early as a genuinely trustworthy, helpful presence the party comes to rely on. ${planned.setupHint}
+They are secretly: ${planned.trueIdentity} - NEVER reveal this in narration, dialogue, or npcMemory notes. Play them exactly as their cover identity until the story is ready to pay this off, far later.
+When you introduce this specific planned NPC by name for the first time, give them a normal npcMemory entry (role/notes true to their cover identity only) so the twist can be tracked and protected going forward.
+═══════════════════════════════════════`;
+  }
+  return '';
 }
 
 export function buildNpcQuestMapBlock(worldState: WorldState, campaignContext?: NarrationCampaignContext | null): string {

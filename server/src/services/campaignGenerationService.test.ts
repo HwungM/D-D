@@ -82,3 +82,39 @@ test('normalizeGeneratedWorldBible preserves existing roster entries while addin
   assert.equal(normalized.openingHooks.length, 3);
   assert.deepEqual(normalized.toneRules, ['Generated tone']);
 });
+
+// ── Phase 14: the planted hidden-identity twist (WorldBible.plannedBetrayal) ──
+
+test('normalizeGeneratedWorldBible preserves a well-formed AI-generated plannedBetrayal', () => {
+  const normalized = normalizeGeneratedWorldBible(minimalWorldBible({
+    plannedBetrayal: {
+      npcRole: 'a battle-scarred general who fights beside the party',
+      trueIdentity: 'secretly The First Shadow in disguise',
+      setupHint: 'Introduce her early as a genuine ally who bleeds for the party.',
+    },
+  }));
+
+  assert.deepEqual(normalized.plannedBetrayal, {
+    npcRole: 'a battle-scarred general who fights beside the party',
+    trueIdentity: 'secretly The First Shadow in disguise',
+    setupHint: 'Introduce her early as a genuine ally who bleeds for the party.',
+  });
+});
+
+test('normalizeGeneratedWorldBible falls back to a plannedBetrayal tied to the lieutenant/primary antagonist when the AI omits it', () => {
+  const withLieutenant = normalizeGeneratedWorldBible(minimalWorldBible({ plannedBetrayal: undefined }));
+  assert.ok(withLieutenant.plannedBetrayal);
+  assert.match(withLieutenant.plannedBetrayal!.trueIdentity, /Glass Warden/);
+  assert.ok(withLieutenant.plannedBetrayal!.npcRole.length > 0);
+  assert.ok(withLieutenant.plannedBetrayal!.setupHint.length > 0);
+
+  const withoutLieutenant = normalizeGeneratedWorldBible(minimalWorldBible({ plannedBetrayal: undefined, lieutenant: undefined }));
+  assert.match(withoutLieutenant.plannedBetrayal!.trueIdentity, /The First Shadow/);
+});
+
+test('normalizeGeneratedWorldBible replaces a partially-filled AI plannedBetrayal with the coupled fallback', () => {
+  const normalized = normalizeGeneratedWorldBible(minimalWorldBible({
+    plannedBetrayal: { npcRole: 'a general', trueIdentity: '', setupHint: '' },
+  }));
+  assert.match(normalized.plannedBetrayal!.trueIdentity, /Glass Warden/);
+});

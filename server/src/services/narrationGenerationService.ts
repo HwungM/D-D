@@ -349,7 +349,8 @@ Respond with JSON:
   "companionDeparture": {"id": "string", "reason": "string"} | null,
   "revealedClueIds": ["exact ids from the MYSTERY CLUE BANK given in context that this turn concretely revealed"] | null,
   "signatureItemEarned": {"characterId": "string", "questId": "string"} | null,
-  "partyAssetGranted": {"kind": "property|title|position", "name": "string", "description": "string", "locationName": "string|null", "unlocksHint": "string|null"} | null
+  "partyAssetGranted": {"kind": "property|title|position", "name": "string", "description": "string", "locationName": "string|null", "unlocksHint": "string|null"} | null,
+  "identityRevealed": {"npcName": "string"} | null
 }`;
 
   const coopContractBlock = PLAYER_AUTHORSHIP_CONTRACT + '\n' + TURN_RESOLUTION_CONTRACT + '\n' + CO_OP_SINGLE_CAMERA_RULE + '\n' + STYLE_ANTI_REPETITION + '\n' + COMPANION_PARTY_CONTRACT + '\n' + SIGNATURE_REWARDS_CONTRACT;

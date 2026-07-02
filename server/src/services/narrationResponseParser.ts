@@ -1,6 +1,7 @@
 import type { WorldState, RollContext, CombatEnemy, Recipe, Companion, CompanionChangeEntry, PartyAsset } from '../../../shared/types';
 import { cleanTurnOutcome, type TurnOutcome } from './narrationQualityValidator';
 import { cleanPartyAssetGranted, cleanSignatureItemEarned } from './signatureRewardsService';
+import { cleanIdentityRevealed } from './hiddenIdentitySystem';
 
 export type NarrationResult = {
   narration: string;
@@ -78,6 +79,10 @@ export type NarrationResult = {
   // A persistent title/property/position granted to the party — appended to
   // WorldState.partyAssets when honored (see signatureRewardsService.guardPartyAssetGranted).
   partyAssetGranted?: { kind: PartyAsset['kind']; name: string; description: string; locationName?: string; unlocksHint?: string };
+  // Set when a real story moment justifies revealing an ACTIVE HiddenIdentity's
+  // true nature (see hiddenIdentitySystem.guardIdentityRevealed) — npcName must
+  // match a WorldState.hiddenIdentities[] entry with isRevealed: false.
+  identityRevealed?: { npcName: string };
 };
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -422,5 +427,6 @@ export function parseNarrationResponse(parsed: Record<string, unknown>): Narrati
     revealedClueIds: cleanStringArray(parsed.revealedClueIds, 5),
     signatureItemEarned: cleanSignatureItemEarned(parsed.signatureItemEarned),
     partyAssetGranted: cleanPartyAssetGranted(parsed.partyAssetGranted),
+    identityRevealed: cleanIdentityRevealed(parsed.identityRevealed),
   };
 }

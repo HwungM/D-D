@@ -1,4 +1,4 @@
-import type { Character, CharacterHistoryEntry, DiceRollResult, PartyAsset, WorldBible, WorldState } from '../../../shared/types';
+import type { Character, CharacterHistoryEntry, DiceRollResult, HiddenIdentity, PartyAsset, WorldBible, WorldState } from '../../../shared/types';
 import { activateBackstoryHooksForAct } from './actAdvancementState';
 import { actRoleFor, arcNumberFor, canAdvanceAct, needsNextArcRoadmap } from './actPacingSystem';
 import {
@@ -6,6 +6,7 @@ import {
   appendFallenHero,
   applyCharacterConsequences,
 } from './consequenceSystem';
+import { resolveIdentityRevealed } from './hiddenIdentitySystem';
 import { extractFutureHooks, generateNextArcRoadmap } from './openai';
 import { buildSceneInteractables } from './sceneInteractableSystem';
 import { resolvePartyAssetGranted, resolveSignatureItemEarned } from './signatureRewardsService';
@@ -42,6 +43,14 @@ type ConsequenceInput = {
   // Already guarded by the caller (see signatureRewardsService.guardPartyAssetGranted).
   // Appended to WorldState.partyAssets.
   partyAssetGranted?: { kind: PartyAsset['kind']; name: string; description: string; locationName?: string; unlocksHint?: string };
+  // Already built by the caller (see hiddenIdentitySystem.detectHiddenIdentityIntroduction)
+  // when a newly introduced NPC plausibly matches WorldBible.plannedBetrayal.
+  // Appended to WorldState.hiddenIdentities.
+  hiddenIdentityIntroduced?: HiddenIdentity;
+  // Already guarded by the caller (see hiddenIdentitySystem.guardIdentityRevealed).
+  // Resolved against WorldState.hiddenIdentities: marks the matching entry
+  // revealed and pushes a high-urgency StoryLedgerEntry.
+  identityRevealed?: { npcName: string };
 };
 
 type CampaignPersistenceSnapshot = {
@@ -82,6 +91,16 @@ export async function applyConsequences(
     actionResult.characterHistoryNote?.description || 'a major earned moment',
   );
   if (partyAssets) newWorldState.partyAssets = partyAssets;
+
+  // Hidden identity: append a newly-detected planned-betrayal introduction,
+  // then resolve any (already-guarded) reveal into isRevealed/revealedAt plus
+  // a high-urgency story ledger entry so the twist lands as a real beat.
+  if (actionResult.hiddenIdentityIntroduced) {
+    newWorldState.hiddenIdentities = [...(newWorldState.hiddenIdentities || []), actionResult.hiddenIdentityIntroduced];
+  }
+  const identityRevealResolution = resolveIdentityRevealed(newWorldState, actionResult.identityRevealed);
+  if (identityRevealResolution.hiddenIdentities) newWorldState.hiddenIdentities = identityRevealResolution.hiddenIdentities;
+  if (identityRevealResolution.storyLedger) newWorldState.storyLedger = identityRevealResolution.storyLedger;
 
   const updates: Partial<Character> = applyCharacterConsequences(currentCharacter, {
     ...actionResult,

@@ -117,6 +117,57 @@ test('quality assessment catches screenshot-derived hero puppeting and NPC ident
   assert.ok(codes.includes('npc_identity_violation'));
 });
 
+test('quality assessment catches a premature hidden-identity leak in the narration', () => {
+  const issues = assessDmQuality({
+    narration: 'General Korath grins, but his eyes flash gold — he is secretly Vezrantha, the dragon terrorizing the region, in disguise.',
+    sceneImagePrompt: '',
+    plan: basePlan,
+    actionsBlock: 'CHARACTER 1 (King): ask the general for news',
+    worldState: {
+      ...worldState,
+      hiddenIdentities: [{
+        id: 'hi-1',
+        npcName: 'General Korath',
+        trueIdentity: 'secretly Vezrantha, the dragon terrorizing the region, in disguise',
+        revealCondition: 'later, once trust is built',
+        isRevealed: false,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      }],
+    },
+    worldBible,
+    recentHistory: [],
+    isCoop: false,
+  });
+
+  assert.ok(issues.map(i => i.code).includes('hidden_identity_leak'));
+});
+
+test('quality assessment does not flag a hidden identity once it has already been revealed', () => {
+  const issues = assessDmQuality({
+    narration: 'General Korath grins, but his eyes flash gold — he is secretly Vezrantha, the dragon terrorizing the region, in disguise.',
+    sceneImagePrompt: '',
+    plan: basePlan,
+    actionsBlock: 'CHARACTER 1 (King): confront the general',
+    worldState: {
+      ...worldState,
+      hiddenIdentities: [{
+        id: 'hi-1',
+        npcName: 'General Korath',
+        trueIdentity: 'secretly Vezrantha, the dragon terrorizing the region, in disguise',
+        revealCondition: 'later, once trust is built',
+        isRevealed: true,
+        revealedAt: '2026-02-01T00:00:00.000Z',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      }],
+    },
+    worldBible,
+    recentHistory: [],
+    isCoop: false,
+  });
+
+  assert.equal(issues.map(i => i.code).includes('hidden_identity_leak'), false);
+});
+
 test('quality assessment accepts world creativity that stops before the heroes choose', () => {
   const issues = assessDmQuality({
     narration: 'Gol and Saty ask Ryliss what he knows. He lowers his voice. "The letter arrived yesterday, sealed with a silver moth. The courier used the alley door." Beneath the rug, clockwork ticks once and stops; neither hero has touched it.',

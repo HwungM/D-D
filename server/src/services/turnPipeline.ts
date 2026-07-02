@@ -377,7 +377,8 @@ const SOLO_EXTRACTOR_SCHEMA = `{
   "companionDeparture": "{id,reason} | null — an existing companion (by id) who left the party without dying, if narrated",
   "revealedClueIds": "[exact ids from the MYSTERY CLUE BANK given in context that this beat concretely revealed] | null — never invent an id not listed there",
   "signatureItemEarned": "{characterId,questId} | null — only at a genuine earned narrative payoff for a seeded SIGNATURE ITEM QUEST given in context; use its exact id",
-  "partyAssetGranted": "{kind:property|title|position,name,description,locationName,unlocksHint} | null — only for a real, major earned moment"
+  "partyAssetGranted": "{kind:property|title|position,name,description,locationName,unlocksHint} | null — only for a real, major earned moment",
+  "identityRevealed": "{npcName} | null — set ONLY if the narration just written actually revealed an ACTIVE HIDDEN IDENTITY's true nature this beat; never invent one the prose didn't narrate"
 }`;
 
 const COOP_EXTRACTOR_EXTRA = `,
@@ -427,9 +428,12 @@ async function runExtractorPass(
   const partyAssetsBlock = (args.worldState.partyAssets || []).length > 0
     ? `\nEXISTING PARTY ASSETS (reference these going forward — address the party by title, mention the property):\n${(args.worldState.partyAssets || []).map(a => `- [${a.kind}] ${a.name}: ${a.description}`).join('\n')}`
     : '';
+  const hiddenIdentitiesBlock = (args.worldState.hiddenIdentities || []).filter(h => !h.isRevealed).length > 0
+    ? `\nACTIVE HIDDEN IDENTITY (only set identityRevealed if the narration above actually revealed this): ${(args.worldState.hiddenIdentities || []).filter(h => !h.isRevealed).map(h => `${h.npcName} — reveal condition: ${h.revealCondition}`).join('; ')}`
+    : '';
 
   const user = `BEAT PLAN: priorities=${plan.priorities.join(' | ')}; scenePurpose=${plan.scenePurpose}; pacing=${plan.pacingMode}; needsRoll=${plan.needsRoll}; combat=${plan.combatActive || plan.combatStarting}; highStakes=${plan.isHighStakes}${plan.threadToAdvance ? `; advanced thread="${plan.threadToAdvance}"` : ''}.
-${buildCompanionsPromptBlock(args.worldState.companions)}${signatureQuestsBlock}${partyAssetsBlock}
+${buildCompanionsPromptBlock(args.worldState.companions)}${signatureQuestsBlock}${partyAssetsBlock}${hiddenIdentitiesBlock}
 
 NARRATION JUST WRITTEN (extract state from THIS, do not change it):
 """

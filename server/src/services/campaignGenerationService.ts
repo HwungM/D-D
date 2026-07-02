@@ -55,6 +55,7 @@ export function normalizeGeneratedWorldBible(
   }
 
   if (!parsed.toneRules || parsed.toneRules.length === 0) parsed.toneRules = ['The world begins neutral and the current place sets the tone.', 'Different regions can follow different fantasy rules.', 'Consequences remain honest without forcing bitterness.', 'Wonder, danger, humor, horror, and heroism all appear when context earns them.'];
+  parsed.plannedBetrayal = normalizePlannedBetrayal(parsed.plannedBetrayal, parsed.primaryAntagonist, parsed.lieutenant as import('../../../shared/types').Antagonist | undefined);
   parsed.artBible = {
     ...EVERREALM_ART_BIBLE,
     ...(parsed.artBible || {}),
@@ -73,6 +74,33 @@ export function normalizeGeneratedWorldBible(
   };
 
   return repairWorldBibleQuality(parsed, playerPreferences);
+}
+
+// The planted hidden-identity twist (Vox Machina style: the trusted general who
+// turns out to BE the dragon terrorizing the region, in disguise) should feel
+// like the same authored story as the primary antagonist/lieutenant, not a
+// disconnected system. Prefer whatever the AI generated; fall back to a
+// sensible twist tied to the lieutenant (or, absent one, the primary
+// antagonist) so a plannedBetrayal always exists for the reveal machinery
+// (see hiddenIdentitySystem.ts) to eventually pay off.
+function normalizePlannedBetrayal(
+  betrayal: WorldBible['plannedBetrayal'] | undefined,
+  primaryAntagonist: import('../../../shared/types').Antagonist | undefined,
+  lieutenant: import('../../../shared/types').Antagonist | undefined,
+): WorldBible['plannedBetrayal'] | undefined {
+  if (betrayal?.npcRole?.trim() && betrayal.trueIdentity?.trim() && betrayal.setupHint?.trim()) {
+    return betrayal;
+  }
+  const villain = lieutenant || primaryAntagonist;
+  if (!villain) return betrayal;
+  const isPrimary = villain === primaryAntagonist;
+  return {
+    npcRole: 'a trusted officer, general, or advisor who genuinely aids the party from early on',
+    trueIdentity: isPrimary
+      ? `secretly ${villain.name}, the very threat terrorizing the region, in disguise`
+      : `secretly ${villain.name}, the primary antagonist's lieutenant, operating under a false identity`,
+    setupHint: 'Introduce them early as genuinely helpful and trustworthy, offering real aid the party can rely on; drop only subtle, deniable tells before the story is ready to pay off the reveal.',
+  };
 }
 
 export function parseStorySeeds(content: string | null | undefined): StorySeedOption[] {
@@ -205,6 +233,11 @@ Return JSON matching this exact schema. Every field must be substantive and spec
     "A third early omen - something that seems innocuous but is deeply significant"
   ],
   "plotTwist": "The mid-campaign revelation that reframes everything the players thought they knew. Should make them say 'oh god, of course.' Not a random surprise - something that was always true but hidden.",
+  "plannedBetrayal": {
+    "npcRole": "A specific early-trustworthy NPC role, e.g. 'a general/officer who aids the party from early on' - specific to this premise",
+    "trueIdentity": "What they secretly are - tie this to primaryAntagonist or lieutenant wherever it fits this premise (e.g. 'secretly the primary antagonist in disguise' or 'secretly the lieutenant operating under a false identity'); only invent a fully separate secret identity if that is clearly stronger for this specific premise",
+    "setupHint": "1-2 sentences: how this NPC should be introduced early as genuinely trustworthy and helpful, and what subtle, deniable foreshadowing can be dropped before the reveal without confirming anything"
+  },
   "mysteryLayer": {
     "centralQuestion": "The one question that drives all investigation - specific enough to pursue, mysterious enough to sustain a campaign",
     "clues": [
@@ -301,6 +334,7 @@ Requirements:
 - The mystery layer clues must form a coherent trail - each one building on the last
 - The safeHaven must feel warm and specific - a place players will want to return to
 - The plotTwist must be earned - something that was always true but cleverly hidden
+- The plannedBetrayal is a genuinely PLANNED hidden-identity twist (Vox Machina style: the general who's been helping the party turns out to BE the dragon terrorizing the land, in disguise), authored now so it can be introduced early and paid off later - not improvised. Couple it to primaryAntagonist/lieutenant when it makes sense so it feels like the same authored story, not a separate twist.
 - Make everything specific to THIS premise. Never use placeholder text.`;
 }
 

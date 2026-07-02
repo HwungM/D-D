@@ -18,6 +18,7 @@ import { buildAwaitingRollNarration, enforceTurnPlanNarration, planSoloTurn } fr
 import { buildLayeredMemoryChanges, buildMemoryPack } from './layeredMemoryEngine';
 import { resolveMysteryClueChanges } from './mysteryClueSystem';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
+import { detectHiddenIdentityIntroduction, guardIdentityRevealed } from './hiddenIdentitySystem';
 import { guardPartyAssetGranted, guardSignatureItemEarned } from './signatureRewardsService';
 import { buildSceneInteractables } from './sceneInteractableSystem';
 import { generateNarration, generateSceneSummary, generateVillainMove, runStoryDirector } from './openai';
@@ -362,6 +363,16 @@ export async function processAction(
       })
     : [];
 
+  // Hidden identity: check whether any NPC introduced THIS turn plausibly
+  // matches WorldBible.plannedBetrayal.npcRole (only relevant while no hidden
+  // identity is tracked yet — see hiddenIdentitySystem.ts).
+  const priorNpcNames = new Set((ws.npcMemory || []).map(n => n.name.toLowerCase()));
+  const candidateNewNpcs = [
+    ...toArr<NpcMemory>((aiResponse.worldStateChanges as Partial<WorldState> | undefined)?.npcMemory),
+    ...autoNpcMemory,
+  ].filter(npc => npc.name && !priorNpcNames.has(npc.name.toLowerCase()));
+  const hiddenIdentityIntroduced = detectHiddenIdentityIntroduction(ws, wb, candidateNewNpcs);
+
   // Track total action count for villain move timing
   const newActionCount = (ws.actionCount || 0) + 1;
   const newActionsInCurrentAct = (ws.actionsInCurrentAct || 0) + 1;
@@ -520,6 +531,10 @@ export async function processAction(
     advanceAct: !!aiResponse.advanceAct,
     actionCount: newActionCount,
   });
+  const guardedIdentityRevealed = guardIdentityRevealed(aiResponse.identityRevealed, ws, {
+    isHighStakes: !!aiResponse.isHighStakes,
+    actionCount: newActionCount,
+  });
 
   // Apply consequences
   const prevLevel = (character as Character).level;
@@ -544,6 +559,8 @@ export async function processAction(
       consumedItems: consumedItems.length > 0 ? consumedItems : undefined,
       signatureItemEarned: guardedSignatureItemEarned,
       partyAssetGranted: guardedPartyAssetGranted,
+      hiddenIdentityIntroduced,
+      identityRevealed: guardedIdentityRevealed,
     },
     character as Character,
     { id: campaignId, world_state: campaign.world_state as WorldState, act: campaign.act, world_bible: wb }

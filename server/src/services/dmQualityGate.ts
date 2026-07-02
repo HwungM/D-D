@@ -141,6 +141,22 @@ function npcIdentityIssues(narration: string, worldState: WorldState): DmQuality
   return issues;
 }
 
+// Safety net for Phase 14's hidden-identity twist: even with the AI instructed
+// (see aiPromptContracts.COMBAT_AND_NPC_PERSISTENCE_CONTRACT and
+// narrationPromptBuilder.buildHiddenIdentityBlock) never to leak an unrevealed
+// NPC's true identity, catch it deterministically if it slips through -
+// mirrors npcIdentityIssues' pattern of checking narration text against canon.
+function hiddenIdentityLeakIssues(narration: string, worldState: WorldState): DmQualityIssue[] {
+  const issues: DmQualityIssue[] = [];
+  for (const identity of worldState.hiddenIdentities || []) {
+    if (identity.isRevealed || !identity.trueIdentity) continue;
+    if (narration.toLowerCase().includes(identity.trueIdentity.toLowerCase())) {
+      issues.push(issue('hidden_identity_leak', `The narration exposes ${identity.npcName}'s unrevealed true identity ("${identity.trueIdentity}") before the story earned the reveal.`));
+    }
+  }
+  return issues;
+}
+
 function overlapsRecentOpening(narration: string, recentHistory: string[]): boolean {
   const opening = firstSentence(narration).toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/).filter(w => w.length > 3);
   if (opening.length < 5) return false;
@@ -189,6 +205,7 @@ export function assessDmQuality(args: QualityGateArgs): DmQualityIssue[] {
 
   issues.push(...playerAuthorshipIssues(narration, args.actionsBlock, args.coopNames));
   issues.push(...npcIdentityIssues(narration, args.worldState));
+  issues.push(...hiddenIdentityLeakIssues(narration, args.worldState));
 
   if (/\b(the party|the group|the duo|they both|together, they)\b/i.test(firstSentence(narration)) && args.isCoop) {
     issues.push(issue('stiff_coop_summary', 'The co-op opening summarizes the party instead of opening on a named character action, NPC reaction, or concrete table moment.', 'warn'));
