@@ -1,6 +1,7 @@
 import type { BackstoryHook, EngineAuditCheck, EngineAuditEntry, ForeshadowingEntry, NpcMemory, Recipe, ShopItem, WorldBible, WorldState } from '../../../shared/types';
 import { actRoleFor, arcNumberFor } from './actPacingSystem';
 import type { NarrationResult } from './narrationResponseParser';
+import { personalityForNpc } from './npcSocialMemorySystem';
 
 export function appendAchievement(
   existing: WorldState['unlockedAchievements'] | undefined,
@@ -167,6 +168,7 @@ export function buildAutoNpcMemory(
         lastMet: newLocation || worldState.currentLocation,
         metCharacters: characterNames,
         interactionCount: 1,
+        personality: personalityForNpc(activeNpcName),
       }]
     : [];
 }

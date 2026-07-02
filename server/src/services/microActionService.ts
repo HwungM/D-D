@@ -4,6 +4,7 @@ import { asString, cleanRollContext } from './narrationResponseParser';
 import { parseJsonRecord } from './aiResponseParser';
 import { buildCompanionsPromptBlock } from './companionSystem';
 import { buildClueBankBlock } from './mysteryClueSystem';
+import { buildNpcInteractionContext } from './npcSocialMemorySystem';
 import { formatSceneInteractablesBlock } from './sceneInteractableSystem';
 import type { ContestSeed } from './microActionContest';
 
@@ -359,6 +360,7 @@ export async function runMicroAction(
 ${formatSceneInteractablesBlock(sceneInteractables)}
 ${buildCompanionsPromptBlock(worldState.companions, worldState.companionLocations)}
 ${buildClueBankBlock(worldState)}
+${buildNpcInteractionContext(worldState, character, sceneInteractables, action)}
 
 CHARACTER: ${characterSummary(character)}
 

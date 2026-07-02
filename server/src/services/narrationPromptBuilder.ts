@@ -137,6 +137,7 @@ WORLD MEMORY RULES:
 - NPCs are persistent. If you introduce a named NPC, they remember the character in future sessions.
 - RETURNING NPCs: when a known NPC reappears, their first line or gesture should show they remember - reference the last meeting, a debt, a shared joke, a promise kept or broken, or what the party did for or to them (their notes, relationship score, and the journal hold these details). Never let a known NPC greet the party as strangers, and never re-introduce them as if new.
 - NPC notes are CUMULATIVE MEMORY: whatever you write in an npcMemory entry's notes REPLACES the old notes entirely. So when updating an NPC, carry forward their established facts (personality trait, role, key shared history) and append what changed this scene - never overwrite rich notes with a generic one-liner.
+- NPC personality and conversationHistory are AUTHORITATIVE SHARED SOCIAL MEMORY. Keep an established personality stable and play dialogue according to its patience, openness, suspicion, speech style, values, and quirk. Never erase conversationHistory. If another party member asks about a previously discussed topic, the NPC knows it was already discussed and should acknowledge that naturally according to personality.
 - Update worldStateChanges.npcMemory when a named NPC is introduced or relationship changes.
 - npcMemory is for PEOPLE (and sapient creatures) only - never create an entry for an object, plant, landmark, or scenery element (a sapling, a statue, a door), even if it has a proper noun carved into it.
 - PLACEHOLDER REVEALS: if an NPC was previously tracked under a placeholder like "Mysterious Stranger" or "Hooded Figure" and now gives their real name, write the npcMemory entry under the REAL name and set replacesName to the exact placeholder name - do not leave both entries in memory.
@@ -846,11 +847,17 @@ export function buildNpcQuestMapBlock(worldState: WorldState, campaignContext?: 
   const keyNpcNames = new Set(keyNPCs.map(n => n.name));
   const rollingNPCs = (worldState.npcMemory || []).filter(n => !keyNpcNames.has(n.name));
 
-  function fmtNpc(n: { name: string; disposition: string; notes: string; role?: string; gender?: 'male' | 'female' | 'nonbinary'; relationshipScore?: number; relationshipLabel?: string }) {
+  function fmtNpc(n: NpcMemory) {
     const rel = n.relationshipLabel ? ` | ${n.relationshipLabel}` : n.relationshipScore != null ? ` | score ${n.relationshipScore}` : ''
     const role = n.role ? ` (${n.role})` : ''
     const pronouns = n.gender === 'male' ? 'he/him' : n.gender === 'female' ? 'she/her' : n.gender === 'nonbinary' ? 'they/them' : 'pronouns unknown'
-    return `- ${n.name}${role} [${n.disposition}${rel} | ${n.gender || 'gender unknown'}, ${pronouns}]: ${n.notes}`
+    const personality = n.personality
+      ? ` | personality: ${n.personality.demeanor}; patience ${n.personality.patience}/100; openness ${n.personality.openness}/100; suspicion ${n.personality.suspicion}/100; speech ${n.personality.speechStyle}; values ${n.personality.values.join(', ')}`
+      : ''
+    const conversations = n.conversationHistory?.length
+      ? ` | recent conversations: ${n.conversationHistory.slice(-4).map(entry => `${entry.characterName} asked [${entry.topic}] -> ${entry.responseSummary}`).join(' / ')}`
+      : ''
+    return `- ${n.name}${role} [${n.disposition}${rel} | ${n.gender || 'gender unknown'}, ${pronouns}]: ${n.notes}${personality}${conversations}`
   }
 
   const keyNpcContext = keyNPCs.length > 0
@@ -1103,7 +1110,7 @@ CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATIO
 ACTION: ${action}
 ════════════════════════
 
-IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older context. If any named NPC appears, speaks, is referenced as a contact, gives information, changes disposition, or becomes the active conversation partner, update worldStateChanges.npcMemory with that NPC's name, disposition, notes, lastMet, metCharacters, interactionCount, role, gender, relationshipScore, and relationshipLabel. Adjust relationshipScore based on the interaction (+/- 5 to 50 depending on impact). Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.
+IMPORTANT: Respond directly to THIS action. Do not ignore it or jump to older context. If any named NPC appears, speaks, is referenced as a contact, gives information, changes disposition, or becomes the active conversation partner, update worldStateChanges.npcMemory with that NPC's name, disposition, notes, lastMet, metCharacters, interactionCount, role, gender, relationshipScore, and relationshipLabel. Preserve their established personality and conversationHistory exactly; these are shared across every player character. Adjust relationshipScore based on the interaction (+/- 5 to 50 depending on impact). Update worldStateChanges.activeQuests for quest events. Update worldStateChanges.currentLocation if moving.
 
 QUALITY BAR BEFORE YOU ANSWER:
 - Does the narration change the situation in a concrete way?

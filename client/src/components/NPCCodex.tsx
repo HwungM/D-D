@@ -319,6 +319,28 @@ function NPCCard({ npc, campaignId }: { npc: NpcMemory; campaignId: string }) {
               Met: {npc.metCharacters.join(', ')}
             </p>
           )}
+          {npc.personality && (
+            <div className="mt-2 border px-2.5 py-2" style={{ borderColor: 'rgba(96,165,250,0.2)', background: 'rgba(30,58,138,0.08)' }}>
+              <p className="font-fantasy text-[8px] uppercase tracking-[0.18em]" style={{ color: 'rgba(147,197,253,0.8)' }}>Personality</p>
+              <p className="mt-1 font-serif text-[11px] capitalize" style={{ color: 'rgba(220,200,160,0.9)' }}>
+                {npc.personality.demeanor} · {npc.personality.speechStyle}
+              </p>
+              <p className="mt-1 font-serif text-[10px]" style={{ color: 'rgba(180,165,135,0.72)' }}>
+                Values {npc.personality.values.join(', ')} · Patience {npc.personality.patience}/100 · Openness {npc.personality.openness}/100 · Suspicion {npc.personality.suspicion}/100
+              </p>
+              {npc.personality.quirk && <p className="mt-1 font-serif text-[10px] italic" style={{ color: 'rgba(180,165,135,0.68)' }}>{npc.personality.quirk}</p>}
+            </div>
+          )}
+          {npc.conversationHistory && npc.conversationHistory.length > 0 && (
+            <div className="mt-2">
+              <p className="font-fantasy text-[8px] uppercase tracking-[0.18em]" style={{ color: 'rgba(160,140,100,0.7)' }}>Recent conversations</p>
+              {npc.conversationHistory.slice(-3).reverse().map(entry => (
+                <p key={entry.id} className="mt-1 font-serif text-[10px] leading-snug" style={{ color: 'rgba(190,175,145,0.74)' }}>
+                  <span style={{ color: 'rgba(220,200,160,0.9)' }}>{entry.characterName}</span> asked about {entry.topic}.
+                </p>
+              ))}
+            </div>
+          )}
           {npc.lastMet && (
             <p className="mt-1.5 font-serif text-[10px]" style={{ color: 'rgba(160,140,100,0.66)' }}>
               Last met: {npc.lastMet}
@@ -340,10 +362,14 @@ function dispositionLabel(disposition: NpcMemory['disposition']): string {
 }
 
 export default function NPCCodex({ npcMemory, keyNPCs = [], campaignId }: NPCCodexProps) {
-  const allNpcs = [
-    ...keyNPCs,
-    ...npcMemory.filter(n => !keyNPCs.some(k => k.name === n.name)),
-  ].sort((a, b) =>
+  // A fast conversation can update rolling memory before the key-NPC snapshot.
+  // Merge both views so the People sheet always shows the freshest social ledger.
+  const npcByName = new Map(keyNPCs.map(npc => [npc.name.toLowerCase(), npc]))
+  for (const npc of npcMemory) {
+    const key = npc.name.toLowerCase()
+    npcByName.set(key, { ...npcByName.get(key), ...npc, isKeyNPC: npcByName.get(key)?.isKeyNPC || npc.isKeyNPC })
+  }
+  const allNpcs = Array.from(npcByName.values()).sort((a, b) =>
     Number(!!b.isKeyNPC) - Number(!!a.isKeyNPC)
     || Math.abs(b.relationshipScore ?? 0) - Math.abs(a.relationshipScore ?? 0)
     || (b.interactionCount || 0) - (a.interactionCount || 0)

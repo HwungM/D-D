@@ -22,6 +22,7 @@ import { appendWorldEvent, buildAmbientWorldEvent, pickAmbientEventSeed, shouldF
 import { buildCompanionPresenceBeat, companionsPresentWithCharacter, pickPresentCompanion, shouldFireCompanionPresence, weaveCompanionPresenceIntoReaction } from '../services/companionPresenceSystem';
 import { createCompanionActivity, shouldTriggerCompanionActivity, type CompanionActivity } from '../services/companionAutonomySystem';
 import { buildCompanionEmergency, combatStateForEmergency, companionDelegateOutcome, contestForMacroEvent, maybeBuildMacroEventFromMicroAction } from '../services/macroEventSystem';
+import { recordNpcConversation } from '../services/npcSocialMemorySystem';
 import { validateNamedParticipantsPresent } from '../services/scenePresenceSystem';
 
 const router = Router();
@@ -1513,11 +1514,17 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
       // Never grants an act-advancing or major consequence — only the small
       // flavor touches the fast-path service allows (see MicroActionResult).
       const mysteryClueChanges = resolveMysteryClueChanges(ws, wb, reaction.revealedClueIds);
-      const npcMemoryChange = reaction.npcDispositionNudge
-        ? (ws.npcMemory || []).map(npc => npc.name === reaction.npcDispositionNudge!.name
-            ? { ...npc, relationshipScore: Math.max(-100, Math.min(100, (npc.relationshipScore || 0) + reaction.npcDispositionNudge!.delta)) }
-            : npc)
-        : undefined;
+      const conversationMemory = recordNpcConversation(ws, character as Character, sceneInteractables, action, reaction.reaction);
+      let npcMemoryChange = conversationMemory?.npcMemory;
+      if (reaction.npcDispositionNudge) {
+        npcMemoryChange = (npcMemoryChange || ws.npcMemory || []).map(npc => npc.name === reaction.npcDispositionNudge!.name
+          ? {
+              ...npc,
+              relationshipScore: Math.max(-100, Math.min(100, (npc.relationshipScore || 0) + reaction.npcDispositionNudge!.delta)),
+              notes: [npc.notes, reaction.npcDispositionNudge!.note].filter(Boolean).join(' ').slice(-1000),
+            }
+          : npc);
+      }
 
       // Ambient world event: a low-frequency, code-driven (not AI-decided)
       // chance that something happens independent of this action — texture,
@@ -1556,6 +1563,7 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         ...ws,
         ...(mysteryClueChanges ? { mysteryClues: mysteryClueChanges } : {}),
         ...(npcMemoryChange ? { npcMemory: npcMemoryChange } : {}),
+        ...(conversationMemory ? { activeNPC: conversationMemory.activeNPC } : {}),
         ...(ambientWorldEvent ? { recentWorldEvents: appendWorldEvent(ws.recentWorldEvents, ambientWorldEvent) } : {}),
         ...(featuredCompanion ? {
           companions: (ws.companions || []).map(c => c.id === featuredCompanion!.id ? { ...c, lastSeenAt: new Date().toISOString() } : c),

@@ -125,7 +125,9 @@ function formatNpcMemory(npc: NpcMemory): string {
   const relationship = npc.relationshipLabel || (npc.relationshipScore != null ? `score ${npc.relationshipScore}` : npc.disposition || 'unknown');
   const role = npc.role ? `, ${npc.role}` : '';
   const met = npc.metCharacters?.length ? `; met ${npc.metCharacters.join(', ')}` : '';
-  return `- ${npc.name}${role} [${relationship}]: ${compact(npc.notes, 180)}${met}${npc.lastMet ? `; last seen ${npc.lastMet}` : ''}`;
+  const personality = npc.personality ? `; ${npc.personality.demeanor}, ${npc.personality.speechStyle}, patience ${npc.personality.patience}/100, suspicion ${npc.personality.suspicion}/100` : '';
+  const recent = npc.conversationHistory?.length ? `; recent topics ${npc.conversationHistory.slice(-3).map(entry => `${entry.characterName}:${entry.topic}`).join(' | ')}` : '';
+  return `- ${npc.name}${role} [${relationship}]: ${compact(npc.notes, 180)}${met}${personality}${recent}${npc.lastMet ? `; last seen ${npc.lastMet}` : ''}`;
 }
 
 function formatCharacterMemory(memory: CharacterMemory): string {

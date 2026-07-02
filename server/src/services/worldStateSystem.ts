@@ -1,5 +1,6 @@
 import type { ActiveQuest, BackstoryHook, CharacterMemory, ForeshadowingEntry, LocationNode, NpcMemory, StoryLedgerEntry, WorldBible, WorldState } from '../../../shared/types';
 import { actRoleFor, arcNumberFor } from './actPacingSystem';
+import { personalityForNpc } from './npcSocialMemorySystem';
 
 function toArr<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
@@ -279,7 +280,13 @@ export function mergeWorldStateChanges(current: WorldState, changes: Partial<Wor
       const metChars = Array.from(new Set([...(prev?.metCharacters || []), ...(npc.metCharacters || [])]));
       const interactionCount = (prev?.interactionCount || 0) + 1;
       const { replacesName: _replacesName, ...npcRest } = npc;
-      const mergedNpc = { ...prev, ...npcRest, metCharacters: metChars, interactionCount };
+      const mergedNpc = {
+        ...prev,
+        ...npcRest,
+        personality: npcRest.personality || prev?.personality || personalityForNpc(npc.name, npc.role || prev?.role),
+        metCharacters: metChars,
+        interactionCount,
+      };
       existing.set(npcKey, mergedNpc);
 
       if ((interactionCount >= 3 || npc.isKeyNPC) && !keyNpcMap.has(npcKey)) {
