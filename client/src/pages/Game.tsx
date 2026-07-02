@@ -4,6 +4,7 @@ import { gameApi, campaignApi, characterApi } from '../lib/api'
 import { useGameStore, useAuthStore } from '../lib/store'
 import { matchSceneImage, inferMood } from '../lib/sceneUtils'
 import { classifyStoryEvent } from '../lib/storyEventRouting'
+import { normalizeWorldStateForClient } from '../lib/worldStateCompat'
 import { createClient } from '@supabase/supabase-js'
 import SceneDisplay from '../components/SceneDisplay'
 import ActionPanel from '../components/ActionPanel'
@@ -224,7 +225,7 @@ export default function Game() {
         if (data.character.is_alive === false) setTimeout(() => setShowDeathScreen(true), 300)
       }
       if (data.worldState) {
-        setWorldState(data.worldState)
+        setWorldState(normalizeWorldStateForClient(data.worldState, characterId))
         const pendingTurn = data.worldState.pendingTurn
         const coopRoll = data.worldState.coopPendingRoll
         const selfRolling = !!(coopRoll?.actingCharacterId && coopRoll.actingCharacterId === characterId && coopRoll.rollContext)
@@ -298,7 +299,7 @@ export default function Game() {
         }
       }
       if (data.worldState) {
-        setWorldState(data.worldState)
+        setWorldState(normalizeWorldStateForClient(data.worldState, characterId))
         if (data.worldState.currentLocation) audioManager.setLocation(data.worldState.currentLocation)
         const localScene = matchSceneImage(
           [data.worldState.currentLocation, data.worldState.weather].filter(Boolean).join(' '),

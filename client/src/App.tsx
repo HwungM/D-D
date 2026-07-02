@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { Component, lazy, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './lib/store'
 import { supabase } from './lib/supabase'
@@ -26,6 +26,33 @@ function RouteFallback() {
   )
 }
 
+class CampaignErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('Campaign screen crashed:', error, info)
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <main className="min-h-screen bg-[#050607] px-6 py-16 text-center text-parchment-100">
+        <p className="font-fantasy text-xs uppercase tracking-[0.28em] text-red-300/80">The realm lost its footing</p>
+        <h1 className="mt-4 font-fantasy text-3xl">Campaign state could not be displayed.</h1>
+        <p className="mx-auto mt-3 max-w-xl font-serif text-sm text-parchment-200/70">Your campaign is still saved. Reload to recover; if this continues, return to the Hall and try again.</p>
+        <div className="mt-7 flex justify-center gap-3">
+          <button onClick={() => window.location.reload()} className="border border-amber-300/40 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-amber-100">Reload</button>
+          <button onClick={() => { window.location.href = '/dashboard' }} className="border border-white/16 px-5 py-3 font-fantasy text-xs uppercase tracking-[0.18em] text-parchment-200">Return to Hall</button>
+        </div>
+      </main>
+    )
+  }
+}
+
 export default function App() {
   const { setSession, setUser, logout } = useAuthStore()
 
@@ -51,7 +78,7 @@ export default function App() {
         <Route path="/create-campaign" element={<PrivateRoute><CampaignWizard /></PrivateRoute>} />
         <Route path="/campaign/:campaignId/brief" element={<PrivateRoute><CampaignBrief /></PrivateRoute>} />
         <Route path="/campaign/:campaignId/create-character" element={<PrivateRoute><CharacterCreate /></PrivateRoute>} />
-        <Route path="/campaign/:campaignId/play/:characterId" element={<PrivateRoute><Game /></PrivateRoute>} />
+        <Route path="/campaign/:campaignId/play/:characterId" element={<PrivateRoute><CampaignErrorBoundary><Game /></CampaignErrorBoundary></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
