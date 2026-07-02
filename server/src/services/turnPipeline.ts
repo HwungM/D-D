@@ -108,7 +108,7 @@ function leanSceneContext(worldState: WorldState): string {
   const cs = worldState.combatState;
   return [
     `Location: ${worldState.currentLocation || 'Unknown'}`,
-    `Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}`,
+    `Time: ${worldState.timeOfDay || 'unknown'}`,
     worldState.activeNPC ? `Active NPC (only this NPC speaks unless the scene changes): ${worldState.activeNPC}` : null,
     cs?.inCombat ? `In combat: ${cs.enemyName || 'enemies present'} (${cs.enemyCondition || 'unknown'})` : null,
     worldState.currentSceneSummary ? `Current situation: ${worldState.currentSceneSummary}` : null,
@@ -349,7 +349,7 @@ function buildTableDirectivesForActions(
 }
 
 const SOLO_EXTRACTOR_SCHEMA = `{
-  "worldStateChanges": "object | null — only fields that changed: npcMemory[], activeQuests[], currentLocation, discoveredLocations[], timeOfDay, weather, etc.",
+  "worldStateChanges": "object | null — only fields that changed: npcMemory[], activeQuests[], currentLocation, discoveredLocations[], timeOfDay, etc.",
   "activeNPC": "name of the NPC now in conversation, or null if none/left",
   "suggestedActions": ["3-4 concrete in-fiction next actions; [] if a roll is pending or high-stakes"],
   "hpChange": "number | null (negative = damage narrated, positive = healing)",

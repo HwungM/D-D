@@ -154,7 +154,7 @@ const RACE_INFO: Record<Race, RaceInfo> = {
     tagline: 'Patient as the ocean. Dangerous the same way.',
     description: 'Touched by the endless ocean, Water Genasi move through the world with the calm patience of deep water — and the sudden terrifying force of a wave when moved to action.',
     origins: 'Coastal bloodlines touched by the Elemental Plane of Water, born near ancient sea shrines, or descended from those who bargained with water spirits. They are never truly comfortable away from open water.',
-    tendency: 'Water parts around you subtly. Sailors and sea-folk recognize something in you. Sea creatures treat you with deference. Your emotions shift the weather near coasts when strong enough.',
+    tendency: 'Water parts around you subtly. Sailors and sea-folk recognize something in you. Sea creatures treat you with deference. Strong emotions make nearby tides and currents answer.',
     worldReaction: 'Sailors and sea-folk recognize something in you and treat you differently — with respect or superstition. Inland communities find you uncanny. Sea creatures respond to your presence with deference.',
     playstyle: 'Best for players who want fluid adaptability, an affinity for secrets that run deep, and a serene surface hiding enormous depths.',
   },

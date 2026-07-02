@@ -11,6 +11,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function normalizeWorldStateForClient(value: unknown, characterId: string): WorldState {
   const source = isRecord(value) ? value : {}
   const normalized: Record<string, unknown> = { ...source }
+  delete normalized.weather
 
   const rawInteractables = source.sceneInteractables
   if (Array.isArray(rawInteractables)) {

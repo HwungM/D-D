@@ -66,15 +66,16 @@ export function normalizeGeneratedWorldBible(
   if (!parsed.pantheon || parsed.pantheon.length === 0) parsed.pantheon = [];
   if (!parsed.ambientEventSeeds || parsed.ambientEventSeeds.filter(seed => typeof seed === 'string' && seed.trim().length > 0).length === 0) {
     parsed.ambientEventSeeds = [
-      'The weather shifts unexpectedly, changing the mood of the streets around you.',
       'A traveler passes through with news from somewhere far off.',
       'You notice a small, unclaimed windfall nearby.',
       'A minor inconvenience briefly disrupts the area around you.',
       'A distant, unplaceable sound or sight lingers for a moment before fading.',
+      'A local custom briefly draws the attention of everyone nearby.',
     ];
   } else {
     parsed.ambientEventSeeds = parsed.ambientEventSeeds.filter(seed => typeof seed === 'string' && seed.trim().length > 0);
   }
+  parsed.ambientEventSeeds = parsed.ambientEventSeeds.filter(seed => !/\b(?:rain|wind|storm|sky|cloud|sun|snow|fog|mist|frost|lightning)\b/i.test(seed));
   parsed.playerPreferences = {
     ...(parsed.playerPreferences || {}),
     ...(playerPreferences || {}),
@@ -278,7 +279,7 @@ Return JSON matching this exact schema. Every field must be substantive and spec
     "An encounter that is lighter in difficulty and tone, designed to let players breathe - describe it"
   ],
   "ambientEventSeeds": [
-    "Weather/atmosphere beat specific to this world's geography - one short sentence",
+    "A small local custom or everyday occurrence specific to this world's geography - one short sentence",
     "A stranger or traveler passing through with a small, non-plot-critical request or detail - one short sentence",
     "A minor windfall - one short sentence",
     "A minor complication or inconvenience - one short sentence",
@@ -355,7 +356,7 @@ Requirements:
 - The mystery layer clues must form a coherent trail - each one building on the last
 - The safeHaven must feel warm and specific - a place players will want to return to
 - The plotTwist must be earned - something that was always true but cleverly hidden
-- 6-10 ambientEventSeeds: short, one-line, world-flavor-appropriate ambient event prompts (weather, distant news, a passing stranger, a minor windfall/complication, an omen) reflecting THIS world's specific tone/geography/factions - never generic fantasy filler, never plot-critical, never involving a named major NPC, never implying combat.
+- 6-10 ambientEventSeeds: short, one-line, world-flavor-appropriate ambient event prompts (distant news, a passing stranger, a local custom, a minor windfall/complication, an omen) reflecting THIS world's specific tone/geography/factions. Never generate weather events, generic fantasy filler, plot-critical events, named major NPC involvement, or implied combat.
 - The plannedBetrayal is a genuinely PLANNED hidden-identity twist (Vox Machina style: the general who's been helping the party turns out to BE the dragon terrorizing the land, in disguise), authored now so it can be introduced early and paid off later - not improvised. Couple it to primaryAntagonist/lieutenant when it makes sense so it feels like the same authored story, not a separate twist.
 - Make everything specific to THIS premise. Never use placeholder text.`;
 }

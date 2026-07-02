@@ -99,7 +99,7 @@ test('buildAmbientWorldEvent produces a resolved, categorized event', () => {
 });
 
 test('classifyAmbientEventCategory recognizes common flavor patterns', () => {
-  assert.equal(classifyAmbientEventCategory('A cold wind rolls in from the north.'), 'weather');
+  assert.equal(classifyAmbientEventCategory('A cold wind rolls in from the north.'), 'other');
   assert.equal(classifyAmbientEventCategory('A weary traveler passes through the gate.'), 'stranger');
   assert.equal(classifyAmbientEventCategory('You spot a small pouch of gold coin left behind.'), 'windfall');
   assert.equal(classifyAmbientEventCategory('A cart loses a wheel nearby, causing a commotion.'), 'complication');

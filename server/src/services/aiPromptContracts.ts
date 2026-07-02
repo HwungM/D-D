@@ -78,7 +78,7 @@ Before returning JSON, answer internally: "What concretely changed because of th
 
 export const STYLE_ANTI_REPETITION = `
 ═══ STYLE ANTI-REPETITION ═══
-Do NOT open the narration with weather, sky, clouds, wind, rain, mist, fog, storm, "the air", or generic market/crowd bustle UNLESS the action directly concerns it or the weather just mechanically changed.
+Do not introduce or describe weather. Open on the acting character, an NPC, a concrete object, a threat, or a consequence—not generic atmosphere or crowd bustle.
 Open instead with: the acting character, the NPC's response, the object being handled, the enemy's move, the clue being revealed, or the immediate consequence of the action.
 Banned vague-mystery filler unless paired with a SPECIFIC fact/name/place/symbol/consequence in the same breath: "not just for show", "deeper significance", "the weight of what looms", "a lead worth pursuing", "something ancient stirs", "all is not as it seems", "secrets just within reach".
 END ON A PLAYABLE SITUATION, NOT A POETIC SUMMARY. Do not close a turn with mood-setting summary lines like "the mystery deepens", "the weight of history presses around them", "a crucial step toward understanding", "their journey continues", "this sets the stage for what comes next", or "a sense of purpose fills them". Those describe importance instead of giving the players something to DO. Instead end on a concrete state they can act from: what is now in front of them, what just changed, what an NPC wants, or the choice/threat/exit now facing them.

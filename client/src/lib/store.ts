@@ -280,7 +280,7 @@ export const useGameStore = create<GameState>()((set) => ({
       }
 
       // Simple scalar fields
-      const scalarFields = ['timeOfDay', 'weather', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'sceneState', 'currentSceneSummary', 'actionsSinceLastSummary', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'unlockedAchievements', 'knownRecipes', 'companion', 'companions', 'sceneInteractables', 'freeRoam', 'spotlightBalance', 'lastPillarUsed', 'pendingDirectorBeat', 'lastHighStakesAction', 'pendingTurn', 'coopPendingRoll', 'engineDebug'] as const;
+      const scalarFields = ['timeOfDay', 'campaignJournal', 'campaignSpine', 'locationGraph', 'antagonistProgress', 'characterHistory', 'combatState', 'sceneState', 'currentSceneSummary', 'actionsSinceLastSummary', 'villainMoveCount', 'endgamePhase', 'actionCount', 'actionsInCurrentAct', 'unlockedAchievements', 'knownRecipes', 'companion', 'companions', 'sceneInteractables', 'freeRoam', 'spotlightBalance', 'lastPillarUsed', 'pendingDirectorBeat', 'lastHighStakesAction', 'pendingTurn', 'coopPendingRoll', 'engineDebug'] as const;
       for (const key of scalarFields) {
         if (changes[key] !== undefined) (merged as Record<string, unknown>)[key] = changes[key];
       }

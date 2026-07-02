@@ -74,7 +74,7 @@ export const ITEM_PROPERTIES: Record<string, ItemProperty> = {
   'potion-poison': { effect: 'A poison — dealing damage is its purpose. Applied to a blade or slipped into a drink. 2d4 poison damage, save DC 11 or poisoned for 1 hour', consumable: true, weight: 'light', rarity: 'uncommon', tags: ['poison', 'dangerous'] },
 
   // ACCESSORIES
-  'cloak': { effect: 'Keeps you warm and dry. Minor protection from weather', durability: 'fragile', weight: 'light', rarity: 'common' },
+  'cloak': { effect: 'Keeps you warm and dry. Minor protection during travel', durability: 'fragile', weight: 'light', rarity: 'common' },
   'cloak-common': { effect: 'Keeps you warm. No mechanical bonus', durability: 'fragile', breakChance: 20, weight: 'light', rarity: 'common' },
   'cloak-elvish': { effect: 'Advantage on stealth checks in forests and natural terrain', durability: 'normal', weight: 'light', rarity: 'uncommon', tags: ['magical', 'stealth'] },
   'cloak-shadow': { effect: 'Advantage on all stealth checks. You appear to step through shadows', durability: 'normal', weight: 'light', rarity: 'rare', tags: ['magical', 'stealth'] },

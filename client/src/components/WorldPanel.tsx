@@ -499,11 +499,11 @@ export default function WorldPanel({ worldState }: WorldPanelProps) {
             <p className="mt-1 font-serif text-sm text-parchment-100">{worldState.currentLocation}</p>
           </div>
         )}
-        {(worldState.timeOfDay || worldState.weather) && (
+        {worldState.timeOfDay && (
           <div className="border border-amber-300/26 bg-amber-300/[0.07] px-3 py-3">
             <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-amber-200/78">Conditions</p>
             <p className="mt-1 font-serif text-sm text-parchment-100">
-              {[formatLabel(worldState.timeOfDay), formatLabel(worldState.weather)].filter(Boolean).join(' / ')}
+              {formatLabel(worldState.timeOfDay)}
             </p>
           </div>
         )}

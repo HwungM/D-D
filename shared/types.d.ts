@@ -48,7 +48,6 @@ export interface Character {
 export interface WorldState {
     currentLocation?: string;
     timeOfDay?: 'dawn' | 'day' | 'dusk' | 'night';
-    weather?: string;
     activeQuests?: string[];
     completedEvents?: string[];
     factionStandings?: Record<string, number>;

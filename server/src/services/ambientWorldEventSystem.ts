@@ -1,7 +1,7 @@
 import type { RandomWorldEvent, WorldBible, WorldState } from '../../../shared/types';
 
 // Ambient world events (BitLife-style "something just happens" texture beats)
-// — weather, distant news, a passing stranger, a tiny windfall/complication —
+// — distant news, a passing stranger, a tiny windfall/complication —
 // fired independent of player action, purely for flavor/replayability. NEVER
 // escalate into combat, a structured contest, or any other guarded system;
 // see server/src/routes/game.ts's micro-action route for where these are
@@ -20,6 +20,14 @@ export const AMBIENT_EVENT_CHANCE = 0.04; // 4% chance per eligible micro-action
 export const AMBIENT_EVENT_MIN_SPACING = 8; // minimum micro-actions between fired events
 
 export const MAX_RECENT_WORLD_EVENTS = 10;
+const WEATHER_HINTS = ['rain', 'wind', 'storm', 'sky', 'cloud', 'sun', 'snow', 'fog', 'mist', 'frost', 'lightning'];
+
+function nonWeatherSeeds(worldBible: WorldBible): string[] {
+  return (worldBible.ambientEventSeeds || []).filter(seed => {
+    const lowered = seed.toLowerCase();
+    return !WEATHER_HINTS.some(hint => lowered.includes(hint));
+  });
+}
 
 // How many micro-actions have elapsed since the last fired ambient event.
 // Derived entirely from existing state (WorldState.freeRoam's action log and
@@ -41,13 +49,12 @@ export function shouldFireAmbientEvent(
   worldBible: WorldBible,
   random: () => number = Math.random,
 ): boolean {
-  const seeds = worldBible.ambientEventSeeds || [];
+  const seeds = nonWeatherSeeds(worldBible);
   if (seeds.length === 0) return false; // no authored pool — never fall back to generic noise
   if (actionsSinceLastAmbientEvent(worldState) < AMBIENT_EVENT_MIN_SPACING) return false;
   return random() < AMBIENT_EVENT_CHANCE;
 }
 
-const WEATHER_HINTS = ['rain', 'wind', 'storm', 'sky', 'cloud', 'sun', 'snow', 'fog', 'mist', 'frost', 'lightning'];
 const STRANGER_HINTS = ['stranger', 'traveler', 'traveller', 'merchant', 'caravan', 'beggar', 'peddler', 'wanderer', 'messenger', 'courier'];
 const WINDFALL_HINTS = ['coin', 'gold', 'find', 'gift', 'reward', 'trinket', 'fortune'];
 const COMPLICATION_HINTS = ['loses', 'breaks', 'trouble', 'argument', 'shout', 'commotion', 'thief', 'spill'];
@@ -59,7 +66,6 @@ const NEWS_HINTS = ['news', 'rumor', 'rumour', 'word', 'letter', 'proclamation',
 // filtering/telemetry; never load-bearing for narrative logic.
 export function classifyAmbientEventCategory(text: string): RandomWorldEvent['category'] {
   const lowered = text.toLowerCase();
-  if (WEATHER_HINTS.some(hint => lowered.includes(hint))) return 'weather';
   if (OMEN_HINTS.some(hint => lowered.includes(hint))) return 'omen';
   if (STRANGER_HINTS.some(hint => lowered.includes(hint))) return 'stranger';
   if (WINDFALL_HINTS.some(hint => lowered.includes(hint))) return 'windfall';
@@ -76,7 +82,7 @@ export function pickAmbientEventSeed(
   recentWorldEvents: RandomWorldEvent[] | undefined,
   random: () => number = Math.random,
 ): string | undefined {
-  const seeds = worldBible.ambientEventSeeds || [];
+  const seeds = nonWeatherSeeds(worldBible);
   if (seeds.length === 0) return undefined;
   const usedDescriptions = new Set((recentWorldEvents || []).map(event => event.description));
   const unused = seeds.filter(seed => !usedDescriptions.has(seed));

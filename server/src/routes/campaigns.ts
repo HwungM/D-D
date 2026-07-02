@@ -89,7 +89,6 @@ router.post('/', requireAuth, aiRateLimit, async (req: AuthRequest, res: Respons
     const initialWorldState: WorldState = {
       currentLocation: openingLocation,
       timeOfDay: 'day',
-      weather: 'overcast',
       activeQuests: [],
       completedEvents: [],
       factionStandings: {},

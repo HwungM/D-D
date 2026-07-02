@@ -42,7 +42,6 @@ test('buildNarrationMessages includes system prompt, character facts, and hard c
   const worldState = {
     currentLocation: 'Moon Dock',
     timeOfDay: 'night',
-    weather: 'fog',
     actionCount: 4,
     activeQuests: [{ title: 'Find the Bell', description: 'Recover the river bell.', status: 'active' }],
   } as WorldState;

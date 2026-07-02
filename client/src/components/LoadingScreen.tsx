@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 const CAMPAIGN_TIPS = [
   { title: 'Every Choice Matters', body: 'The DM remembers small choices. A quick kindness, insult, bargain, or lie can echo three sessions later.' },
   { title: 'The World Breathes', body: 'Factions move while you adventure. Ignore a city long enough and it may become a different problem when you return.' },
-  { title: 'Ask About Details', body: 'Secrets are rarely announced. Inspect murals, gossip with rivals, question strange weather, and test what looks ordinary.' },
+  { title: 'Ask About Details', body: 'Secrets are rarely announced. Inspect murals, gossip with rivals, question strange behavior, and test what looks ordinary.' },
   { title: 'Failure Still Moves', body: 'A failed roll is not a wall. It is a consequence, a cost, a complication, or a door opening in the wrong direction.' },
   { title: 'Reputation Travels', body: 'NPCs talk. Mercy, cruelty, fame, debt, and spectacle can reach places before your party does.' },
   { title: 'Loot Has History', body: 'A charm, map, blade, or ring may be more than equipment. Ask where it came from before you sell it.' },

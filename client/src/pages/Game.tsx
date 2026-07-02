@@ -4,6 +4,7 @@ import { gameApi, campaignApi, characterApi } from '../lib/api'
 import { useGameStore, useAuthStore } from '../lib/store'
 import { matchSceneImage, inferMood } from '../lib/sceneUtils'
 import { classifyStoryEvent, shouldDisplayStoryEvent } from '../lib/storyEventRouting'
+import { charactersShareScene, companionNamesSharingScene } from '../lib/scenePresence'
 import { normalizeWorldStateForClient } from '../lib/worldStateCompat'
 import { createClient } from '@supabase/supabase-js'
 import SceneDisplay from '../components/SceneDisplay'
@@ -302,7 +303,7 @@ export default function Game() {
         setWorldState(normalizeWorldStateForClient(data.worldState, characterId))
         if (data.worldState.currentLocation) audioManager.setLocation(data.worldState.currentLocation)
         const localScene = matchSceneImage(
-          [data.worldState.currentLocation, data.worldState.weather].filter(Boolean).join(' '),
+          data.worldState.currentLocation || '',
           data.worldState.timeOfDay
         )
         setSceneImage(localScene || DEFAULT_SCENES[Math.floor(Math.random() * DEFAULT_SCENES.length)])
@@ -1266,11 +1267,8 @@ export default function Game() {
   }
 
   const otherPartyMembers = partyMembers.filter(m => m.userId !== user?.id)
-  const myLocation = worldState?.characterLocations?.[characterId || ''] || worldState?.currentLocation
   const partyMembersHere = otherPartyMembers.filter(m => {
-    if (!m.character) return false
-    const theirLocation = worldState?.characterLocations?.[m.character.id]
-    return theirLocation && theirLocation === myLocation
+    return !!(m.character && characterId && charactersShareScene(worldState, characterId, m.character.id))
   })
   const pendingTurnActions = worldState?.pendingTurn?.actions || []
   const pendingCharacterIds = new Set(pendingTurnActions.map(action => action.characterId))
@@ -1290,6 +1288,7 @@ export default function Game() {
   const partyHereNames = [
     currentCharacter?.name,
     ...partyMembersHere.map(member => member.character?.name),
+    ...(characterId ? companionNamesSharingScene(worldState, characterId) : []),
   ].filter(Boolean) as string[]
   const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', map: 'Realm Map', world: 'World', people: 'People & Relations', clues: 'Clue Bank', journal: 'Journal', achievements: 'Achievements' } as const
   const sceneArtUrl = visibleSceneArt(currentSceneImage)
@@ -1454,7 +1453,6 @@ export default function Game() {
               location={worldState?.currentLocation}
               subLocation={currentSubLocation}
               timeOfDay={worldState?.timeOfDay}
-              weather={worldState?.weather}
               scenePurpose={worldState?.sceneState?.purpose}
               pacingMode={worldState?.sceneState?.pacingMode}
               sceneSummary={worldState?.currentSceneSummary}

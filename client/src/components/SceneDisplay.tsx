@@ -7,7 +7,6 @@ interface SceneDisplayProps {
   location?: string
   subLocation?: string
   timeOfDay?: TimeOfDay
-  weather?: string
   scenePurpose?: string
   pacingMode?: string
   sceneSummary?: string
@@ -50,7 +49,6 @@ export default function SceneDisplay({
   location,
   subLocation,
   timeOfDay = 'day',
-  weather,
   scenePurpose,
   pacingMode,
   sceneSummary,
@@ -168,14 +166,9 @@ export default function SceneDisplay({
               {TIME_LABELS[timeOfDay]}
             </p>
           )}
-          {weather && (
-            <p className="font-serif text-xs truncate max-w-[210px]" style={{ color: 'rgba(195,175,135,0.78)' }}>
-              {formatLabel(weather)}
-            </p>
-          )}
           {partyHereNames.length > 0 && (
             <p className="font-serif text-xs truncate max-w-[300px]" style={{ color: 'rgba(200,185,150,0.85)' }}>
-              Present: {partyHereNames.join(', ')}
+              <span className="mr-1 text-emerald-400">●</span> Present now: {partyHereNames.join(', ')}
             </p>
           )}
         </div>

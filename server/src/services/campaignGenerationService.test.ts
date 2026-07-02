@@ -121,7 +121,7 @@ test('normalizeGeneratedWorldBible replaces a partially-filled AI plannedBetraya
 
 // ── Phase 17: ambientEventSeeds (BitLife-style ambient world events) ──
 
-test('normalizeGeneratedWorldBible preserves AI-authored ambientEventSeeds', () => {
+test('normalizeGeneratedWorldBible preserves non-weather ambientEventSeeds and removes weather seeds', () => {
   const normalized = normalizeGeneratedWorldBible(minimalWorldBible({
     ambientEventSeeds: [
       'A caravan of refugees passes through, exhausted and wary.',
@@ -132,7 +132,6 @@ test('normalizeGeneratedWorldBible preserves AI-authored ambientEventSeeds', () 
 
   assert.deepEqual(normalized.ambientEventSeeds, [
     'A caravan of refugees passes through, exhausted and wary.',
-    'The northern sky flickers with unnatural light for a moment.',
     'A merchant\'s cart loses a wheel nearby.',
   ]);
 });

@@ -37,7 +37,7 @@ export default function QuestLog({ worldState }: QuestLogProps) {
     <div className="space-y-6 p-4">
 
       {/* World conditions */}
-      {(worldState.currentLocation || worldState.timeOfDay || worldState.weather) && (
+      {(worldState.currentLocation || worldState.timeOfDay) && (
         <div className="grid grid-cols-2 gap-1.5">
           {worldState.currentLocation && (
             <div className="px-3 py-2.5"
@@ -46,12 +46,12 @@ export default function QuestLog({ worldState }: QuestLogProps) {
               <p className="mt-1 font-serif text-sm" style={{ color: '#e8d9b8' }}>{worldState.currentLocation}</p>
             </div>
           )}
-          {(worldState.timeOfDay || worldState.weather) && (
+          {worldState.timeOfDay && (
             <div className="px-3 py-2.5"
               style={{ border: '1px solid rgba(200,146,42,0.34)', background: 'rgba(200,146,42,0.09)' }}>
               <p className="font-fantasy text-[9px] uppercase tracking-[0.2em]" style={{ color: 'rgba(200,146,42,0.85)' }}>Conditions</p>
               <p className="mt-1 font-serif text-sm" style={{ color: '#e8d9b8' }}>
-                {[formatLabel(worldState.timeOfDay), formatLabel(worldState.weather)].filter(Boolean).join(' · ')}
+                {formatLabel(worldState.timeOfDay)}
               </p>
             </div>
           )}

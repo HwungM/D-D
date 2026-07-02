@@ -176,7 +176,7 @@ STAT CONTEXT (factor into suggestedActions): ${buildStatHints(s) || 'balanced st
     : `SPOTLIGHT NOTE: Spotlight balance is even (${char1Spotlights} vs ${char2Spotlights}). Resolve both submitted actions distinctly. Balance impact through NPC/world consequences, not invented hero reactions.`
 
   const worldContext = `WORLD: ${worldBible.era} | ${worldBible.magicSystem}
-Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'} | Weather: ${worldState.weather || 'unclear'}
+Location: ${worldState.currentLocation || 'Unknown'} | Time: ${worldState.timeOfDay || 'unknown'}
 Central conflict: ${worldBible.centralConflict || ''}
 Visual style: ${worldBible.artBible?.masterPrompt || EVERREALM_ART_BIBLE.masterPrompt}
 ${buildLoreContextBlock(worldBible, worldState)}
@@ -222,7 +222,7 @@ DICE ROLLS & COMBAT APPLY HERE TOO - same as solo play:
 - HIGH STAKES DETECTION applies here too: follow the HIGH STAKES DETECTION - MANDATORY TRIGGERS rules. When isHighStakes: true, generate 2-3 choiceCards that frame the decision for BOTH characters together (the choice the party makes as a unit), and set suggestedActions: [].
 - Boss fights apply here too: follow the MULTI-ENEMY COMBAT RULES boss-fight guidance - set isBossFight: true on combat start, and bossPhaseAdvance: true with a dramatic transformation when a boss reaches "critical".
 - Achievements apply here too: follow ACHIEVEMENT RULES - award achievementUnlocked occasionally for memorable moments by either character.
-- WEATHER & TIME OF DAY RULES apply here too - factor timeOfDay/weather into difficulty, NPC availability, and pacing for both characters.
+- TIME OF DAY RULES apply here too—factor timeOfDay into NPC availability and pacing for both characters.
 - SHOP/MERCHANT RULES apply here too - if either character encounters a merchant, set isMerchant: true and populate shopItems with 4-8 items appropriate to the setting (varied types: weapons, armor, potions, curiosities). Never stock a merchant with a single item.
 - NPC conversation tracking applies here too - set activeNPC to the name of whichever NPC either character is actively talking to, or null if the conversation ended or the party moved on.
 - QUIET CHARACTER MOMENTS and PARTY BOND & ROMANCE BEATS apply here too. If the players submitted talking, teasing, planning, or affection, let that be the scene and do not interrupt it with a manufactured threat. Preserve their submitted words and gestures exactly; do not add new ones.

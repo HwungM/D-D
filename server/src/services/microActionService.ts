@@ -355,7 +355,7 @@ export async function runMicroAction(
     : activeContest
     ? CONTEST_MICRO_ACTION_SYSTEM_PROMPT
     : MICRO_ACTION_SYSTEM_PROMPT;
-  const user = `${buildCombatStateBlock(worldState.combatState)}${buildContestStateBlock(activeContest)}SCENE: ${worldState.currentLocation || 'unknown location'}${currentSubLocation ? ` — inside ${currentSubLocation}` : ''} | ${worldState.timeOfDay || 'unknown time'}, ${worldState.weather || 'unclear weather'}
+  const user = `${buildCombatStateBlock(worldState.combatState)}${buildContestStateBlock(activeContest)}SCENE: ${worldState.currentLocation || 'unknown location'}${currentSubLocation ? ` — inside ${currentSubLocation}` : ''} | ${worldState.timeOfDay || 'unknown time'}
 ${formatSceneInteractablesBlock(sceneInteractables)}
 ${buildCompanionsPromptBlock(worldState.companions)}
 ${buildClueBankBlock(worldState)}

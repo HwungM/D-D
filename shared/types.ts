@@ -410,7 +410,7 @@ export interface RandomWorldEvent {
   id: string;
   description: string;
   triggeredAt: string;
-  category: 'weather' | 'news' | 'stranger' | 'windfall' | 'complication' | 'omen' | 'other';
+  category: 'news' | 'stranger' | 'windfall' | 'complication' | 'omen' | 'other';
   locationName?: string;
   resolved?: boolean;
 }
@@ -467,7 +467,6 @@ export interface SceneInteractable {
 export interface WorldState {
   currentLocation?: string;
   timeOfDay?: 'dawn' | 'day' | 'dusk' | 'night';
-  weather?: string;
   activeQuests?: ActiveQuest[];
   completedEvents?: string[];
   factionStandings?: Record<string, number>;
