@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../services/supabase';
 import { processAction, getOpeningScene, getCoopOpeningScene, resolveRollAction, resolveCoopRollAction, processCoopAction, compressToJournalEntry } from '../services/gameEngine';
 import { getStatModifier } from '../services/characterProgressionSystem';
 import { generateEpilogue, generateMicroActionReaction, generateSubLocations } from '../services/openai';
-import type { WorldState, WorldBible, Character, RollContext } from '../../../shared/types';
+import type { WorldState, WorldBible, Character, RollContext, RandomWorldEvent } from '../../../shared/types';
 import { z } from 'zod';
 import { aiRateLimit } from '../middleware/rateLimit';
 import { repairWorldStateForGameplay } from '../services/coopStateIntegrity';
@@ -18,6 +18,7 @@ import { buildNewSkillChallenge, isContestGrounded, resolveMicroActionContestRol
 import { escalateTension, resumeCombatFromTension } from '../services/tensionSystem';
 import { applyCharacterConsequences } from '../services/consequenceSystem';
 import { applyCompanionChanges } from '../services/companionSystem';
+import { appendWorldEvent, buildAmbientWorldEvent, pickAmbientEventSeed, shouldFireAmbientEvent, weaveAmbientEventIntoReaction } from '../services/ambientWorldEventSystem';
 
 const router = Router();
 const COOP_TURN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -1419,12 +1420,28 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
             ? { ...npc, relationshipScore: Math.max(-100, Math.min(100, (npc.relationshipScore || 0) + reaction.npcDispositionNudge!.delta)) }
             : npc)
         : undefined;
-      const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, action, reaction.reaction);
+
+      // Ambient world event: a low-frequency, code-driven (not AI-decided)
+      // chance that something happens independent of this action — texture,
+      // not a new turn. Only ever considered on this fully-resolved,
+      // no-roll/no-combat/no-contest flavor path. See ambientWorldEventSystem.ts.
+      let finalReaction = reaction.reaction;
+      let ambientWorldEvent: RandomWorldEvent | undefined;
+      if (shouldFireAmbientEvent(ws, wb)) {
+        const seed = pickAmbientEventSeed(wb, ws.recentWorldEvents);
+        if (seed) {
+          ambientWorldEvent = buildAmbientWorldEvent(seed, ws.currentLocation);
+          finalReaction = weaveAmbientEventIntoReaction(finalReaction, ambientWorldEvent);
+        }
+      }
+
+      const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, action, finalReaction);
 
       const updatedWorldState: WorldState = {
         ...ws,
         ...(mysteryClueChanges ? { mysteryClues: mysteryClueChanges } : {}),
         ...(npcMemoryChange ? { npcMemory: npcMemoryChange } : {}),
+        ...(ambientWorldEvent ? { recentWorldEvents: appendWorldEvent(ws.recentWorldEvents, ambientWorldEvent) } : {}),
         sceneInteractables,
         freeRoam,
       };
@@ -1454,12 +1471,12 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         campaign_id: campaignId,
         character_id: characterId,
         event_type: 'narration',
-        content: reaction.reaction,
-        metadata: { microAction: true },
+        content: finalReaction,
+        metadata: ambientWorldEvent ? { microAction: true, ambientWorldEvent: true } : { microAction: true },
       });
 
       res.json({
-        reaction: reaction.reaction,
+        reaction: finalReaction,
         awaitingRoll: false,
         discoveredObject: reaction.discoveredObject,
         npcDispositionNudge: reaction.npcDispositionNudge,

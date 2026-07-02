@@ -118,3 +118,33 @@ test('normalizeGeneratedWorldBible replaces a partially-filled AI plannedBetraya
   }));
   assert.match(normalized.plannedBetrayal!.trueIdentity, /Glass Warden/);
 });
+
+// ── Phase 17: ambientEventSeeds (BitLife-style ambient world events) ──
+
+test('normalizeGeneratedWorldBible preserves AI-authored ambientEventSeeds', () => {
+  const normalized = normalizeGeneratedWorldBible(minimalWorldBible({
+    ambientEventSeeds: [
+      'A caravan of refugees passes through, exhausted and wary.',
+      'The northern sky flickers with unnatural light for a moment.',
+      'A merchant\'s cart loses a wheel nearby.',
+    ],
+  }));
+
+  assert.deepEqual(normalized.ambientEventSeeds, [
+    'A caravan of refugees passes through, exhausted and wary.',
+    'The northern sky flickers with unnatural light for a moment.',
+    'A merchant\'s cart loses a wheel nearby.',
+  ]);
+});
+
+test('normalizeGeneratedWorldBible falls back to a default ambientEventSeeds pool when the AI omits it', () => {
+  const normalized = normalizeGeneratedWorldBible(minimalWorldBible({ ambientEventSeeds: undefined }));
+  assert.ok(normalized.ambientEventSeeds && normalized.ambientEventSeeds.length >= 5);
+});
+
+test('normalizeGeneratedWorldBible strips blank/empty ambientEventSeeds entries', () => {
+  const normalized = normalizeGeneratedWorldBible(minimalWorldBible({
+    ambientEventSeeds: ['A real seed.', '', '   '],
+  }));
+  assert.deepEqual(normalized.ambientEventSeeds, ['A real seed.']);
+});
