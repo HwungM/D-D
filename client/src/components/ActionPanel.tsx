@@ -1,5 +1,5 @@
 import { useRef, useState, FormEvent, KeyboardEvent } from 'react'
-import type { SceneInteractable, WorldState, Ability } from '../../../shared/types'
+import type { SceneInteractable, WorldState, Ability, SubLocation } from '../../../shared/types'
 
 interface ActionPanelProps {
   suggestedActions: string[]
@@ -27,6 +27,15 @@ interface ActionPanelProps {
   // Party is hiding/fled from a live threat that hasn't fully resolved —
   // a subtle danger cue near the composer, consistent with the combat accent.
   tensionActive?: boolean
+  // Live non-combat structured contest (heist/gambling/social con/chase) —
+  // contextual push/play-safe/bail buttons appear here, firing real
+  // micro-actions the same way combat's contextual row does.
+  skillChallenge?: NonNullable<WorldState['sceneState']>['skillChallenge']
+  // Sub-locations available inside the current top-level location (e.g. the
+  // tavern, the blacksmith), plus which one (if any) this character is
+  // currently inside — quick-tap chips to move between them.
+  subLocations?: SubLocation[]
+  currentSubLocation?: string
 }
 
 const INTERACTABLE_ICON: Record<string, string> = { npc: 'talk', object: 'look', exit: 'go' }
@@ -36,6 +45,7 @@ export default function ActionPanel({
   location, pacingMode, inCombat, isCoop,
   sceneInteractables = [], onAdvance, advanceDisabled, freeRoamCount = 0,
   combatState, abilities = [], tensionActive,
+  skillChallenge, subLocations = [], currentSubLocation,
 }: ActionPanelProps) {
   const [input, setInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -59,7 +69,9 @@ export default function ActionPanel({
     onAction(phrase)
   }
 
-  function fireCombatAction(phrase: string) {
+  // Generic quick-tap dispatcher: fires a free-text micro-action, used by the
+  // combat row, contest row, and sub-location chips alike.
+  function fireQuickAction(phrase: string) {
     if (disabled) return
     onAction(phrase)
   }
@@ -144,7 +156,7 @@ export default function ActionPanel({
               <button
                 key={`attack-${i}`}
                 type="button"
-                onClick={() => fireCombatAction(`Attack ${enemy.name}`)}
+                onClick={() => fireQuickAction(`Attack ${enemy.name}`)}
                 disabled={disabled}
                 className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
                 style={{ border: '1px solid rgba(248,113,113,0.34)', background: 'rgba(239,68,68,0.08)', color: 'rgba(254,202,202,0.88)' }}
@@ -155,7 +167,7 @@ export default function ActionPanel({
             ))}
             <button
               type="button"
-              onClick={() => fireCombatAction('Defend and brace for the next attack')}
+              onClick={() => fireQuickAction('Defend and brace for the next attack')}
               disabled={disabled}
               className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
               style={{ border: '1px solid rgba(200,146,42,0.32)', background: 'rgba(200,146,42,0.07)', color: 'rgba(240,210,150,0.85)' }}
@@ -164,7 +176,7 @@ export default function ActionPanel({
             </button>
             <button
               type="button"
-              onClick={() => fireCombatAction('Try to hide from the fight')}
+              onClick={() => fireQuickAction('Try to hide from the fight')}
               disabled={disabled}
               className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
               style={{ border: '1px solid rgba(34,211,238,0.24)', background: 'rgba(34,211,238,0.05)', color: 'rgba(191,244,255,0.78)' }}
@@ -173,7 +185,7 @@ export default function ActionPanel({
             </button>
             <button
               type="button"
-              onClick={() => fireCombatAction('Flee the fight')}
+              onClick={() => fireQuickAction('Flee the fight')}
               disabled={disabled}
               className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
               style={{ border: '1px solid rgba(34,211,238,0.24)', background: 'rgba(34,211,238,0.05)', color: 'rgba(191,244,255,0.78)' }}
@@ -184,7 +196,7 @@ export default function ActionPanel({
               <button
                 key={ability.name}
                 type="button"
-                onClick={() => fireCombatAction(`Use ${ability.name}`)}
+                onClick={() => fireQuickAction(`Use ${ability.name}`)}
                 disabled={disabled}
                 title={ability.description}
                 className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
@@ -203,6 +215,72 @@ export default function ActionPanel({
             <span className="font-serif text-xs italic" style={{ color: 'rgba(252,165,165,0.6)' }}>
               Something may still be looking for you...
             </span>
+          </div>
+        )}
+
+        {/* Live non-combat contest: contextual push/play-safe/bail shortcuts,
+            firing real micro-actions the same way combat's contextual row does. */}
+        {skillChallenge && (
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => fireQuickAction('Push your luck and press the attempt hard')}
+              disabled={disabled}
+              className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+              style={{ border: '1px solid rgba(167,139,250,0.36)', background: 'rgba(139,92,246,0.08)', color: 'rgba(221,214,254,0.88)' }}
+            >
+              Push your luck
+            </button>
+            <button
+              type="button"
+              onClick={() => fireQuickAction('Play it safe and take a careful, measured approach')}
+              disabled={disabled}
+              className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+              style={{ border: '1px solid rgba(34,211,238,0.26)', background: 'rgba(34,211,238,0.06)', color: 'rgba(191,244,255,0.82)' }}
+            >
+              Play it safe
+            </button>
+            <button
+              type="button"
+              onClick={() => fireQuickAction('Bail out of it and walk away from the attempt')}
+              disabled={disabled}
+              className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+              style={{ border: '1px solid rgba(200,146,42,0.28)', background: 'rgba(200,146,42,0.05)', color: 'rgba(240,210,150,0.7)' }}
+            >
+              Bail out
+            </button>
+          </div>
+        )}
+
+        {/* Sub-location chips: quick-tap movement within the current location */}
+        {subLocations.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {currentSubLocation && (
+              <button
+                type="button"
+                onClick={() => fireQuickAction('Head back out')}
+                disabled={disabled}
+                className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                style={{ border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.03)', color: 'rgba(220,200,160,0.72)' }}
+              >
+                <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(200,180,140,0.5)' }}>go</span>
+                Leave {currentSubLocation}
+              </button>
+            )}
+            {subLocations.filter(sub => sub.name !== currentSubLocation).map(sub => (
+              <button
+                key={sub.id}
+                type="button"
+                onClick={() => fireQuickAction(`Head into ${sub.name}`)}
+                disabled={disabled}
+                title={sub.description}
+                className="px-2.5 py-1 font-serif text-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+                style={{ border: '1px solid rgba(200,146,42,0.24)', background: 'rgba(200,146,42,0.04)', color: 'rgba(240,210,150,0.8)' }}
+              >
+                <span className="mr-1 font-fantasy text-[9px] uppercase tracking-[0.1em]" style={{ color: 'rgba(200,146,42,0.5)' }}>go</span>
+                {sub.name}
+              </button>
+            ))}
           </div>
         )}
 

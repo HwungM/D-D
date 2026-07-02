@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from 'react'
-import type { Character, CharacterStats, InventoryItem, Recipe, Companion } from '../../../shared/types'
+import type { Character, CharacterStats, InventoryItem, Recipe, Companion, SignatureItemQuest } from '../../../shared/types'
 
 const XP_THRESHOLDS = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000]
 const STAT_LABELS: Record<keyof CharacterStats, string> = {
@@ -96,7 +96,8 @@ function inferSlot(item: InventoryItem): InventoryItem['slot'] | null {
   return null
 }
 
-export default function CharacterSheet({ character, onEquipToggle, knownRecipes, onCraft, crafting, companion, achievementCount, factionStandings }: { character: Character; onEquipToggle?: (itemId: string, equipped: boolean) => void; knownRecipes?: Recipe[]; onCraft?: (recipe: Recipe) => void; crafting?: boolean; companion?: Companion | null; achievementCount?: number; factionStandings?: Record<string, number> }) {
+export default function CharacterSheet({ character, onEquipToggle, knownRecipes, onCraft, crafting, companion, achievementCount, factionStandings, signatureItemQuests }: { character: Character; onEquipToggle?: (itemId: string, equipped: boolean) => void; knownRecipes?: Recipe[]; onCraft?: (recipe: Recipe) => void; crafting?: boolean; companion?: Companion | null; achievementCount?: number; factionStandings?: Record<string, number>; signatureItemQuests?: SignatureItemQuest[] }) {
+  const myOpenSignatureQuests = (signatureItemQuests || []).filter(q => q.characterId === character.id && q.status !== 'earned')
   const [inventoryOpen, setInventoryOpen] = useState(true)
   const [craftingOpen, setCraftingOpen] = useState(true)
   const [abilitiesOpen, setAbilitiesOpen] = useState(true)
@@ -321,6 +322,26 @@ export default function CharacterSheet({ character, onEquipToggle, knownRecipes,
                 <p className="mt-1.5 font-serif text-xs italic text-emerald-100/60">{companion.abilityHint}</p>
               )}
             </article>
+          </section>
+        )}
+
+        {myOpenSignatureQuests.length > 0 && (
+          <section>
+            <SectionTitle title="Signature Item" />
+            <div className="space-y-2">
+              {myOpenSignatureQuests.map(quest => (
+                <article key={quest.id} className="border border-amber-200/22 bg-[linear-gradient(90deg,rgba(245,158,11,0.06),rgba(255,255,255,0.015))] p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-fantasy text-sm text-amber-100">{quest.itemName}</p>
+                    <span className="shrink-0 border border-amber-200/24 bg-black/24 px-2 py-0.5 font-fantasy text-[9px] uppercase tracking-[0.14em] text-amber-100/60">
+                      Not yet earned
+                    </span>
+                  </div>
+                  <p className="mt-1.5 font-serif text-xs italic leading-relaxed text-parchment-200/70">{quest.itemFlavor}</p>
+                  <p className="mt-2 font-serif text-xs leading-relaxed text-parchment-200/56">{quest.questHook}</p>
+                </article>
+              ))}
+            </div>
           </section>
         )}
 

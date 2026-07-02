@@ -36,6 +36,7 @@ import BossPhaseTransition from '../components/BossPhaseTransition'
 import RestModal from '../components/RestModal'
 import JournalPanel from '../components/JournalPanel'
 import ClueBankPanel from '../components/ClueBankPanel'
+import ContestPanel from '../components/ContestPanel'
 import { audioManager } from '../lib/audio'
 import type { Ability, Character, StoryEvent, ActionResult, InventoryItem, PartyMember, ShopItem, HighStakesChoice as HighStakesChoiceType, RollContext, WorldState } from '../../../shared/types'
 
@@ -127,6 +128,9 @@ export default function Game() {
   const [showShop, setShowShop] = useState(false)
   const [showActTransition, setShowActTransition] = useState(false)
   const [achievementToast, setAchievementToast] = useState<{ title: string; description: string } | null>(null)
+  const [signatureItemToast, setSignatureItemToast] = useState<{ title: string; description: string } | null>(null)
+  const seenEarnedSignatureQuestIds = useRef<Set<string>>(new Set())
+  const signatureQuestsInitialized = useRef(false)
   const [nextAct, setNextAct] = useState(1)
   const [recentNarrations, setRecentNarrations] = useState<string[]>([])
   const [showHighStakes, setShowHighStakes] = useState(false)
@@ -558,6 +562,27 @@ export default function Game() {
   useEffect(() => {
     setInCombat(!!worldState?.combatState?.inCombat)
   }, [worldState?.combatState?.inCombat])
+
+  // Signature item earned: one-time toast the moment this character's
+  // signature item quest flips to 'earned' (the item itself then just shows
+  // up as a normal inventory entry — no special handling needed there).
+  useEffect(() => {
+    if (!currentCharacter) return
+    const quests = worldState?.signatureItemQuests || []
+    const earnedForMe = quests.filter(q => q.characterId === currentCharacter.id && q.status === 'earned')
+    // First time we see this campaign's quests, just record what's already
+    // earned (e.g. reloading mid-session) without toasting stale state.
+    if (!signatureQuestsInitialized.current) {
+      signatureQuestsInitialized.current = true
+      for (const quest of earnedForMe) seenEarnedSignatureQuestIds.current.add(quest.id)
+      return
+    }
+    for (const quest of earnedForMe) {
+      if (seenEarnedSignatureQuestIds.current.has(quest.id)) continue
+      seenEarnedSignatureQuestIds.current.add(quest.id)
+      setSignatureItemToast({ title: quest.itemName, description: quest.itemFlavor })
+    }
+  }, [worldState?.signatureItemQuests, currentCharacter])
 
 
   async function handleRollComplete() {
@@ -1218,6 +1243,9 @@ export default function Game() {
   ].filter(Boolean) as string[]
   const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', map: 'Realm Map', world: 'World', people: 'People & Relations', clues: 'Clue Bank', journal: 'Journal', achievements: 'Achievements' } as const
   const sceneArtUrl = visibleSceneArt(currentSceneImage)
+  const currentLocationNode = worldState?.locationGraph?.nodes?.find(n => n.name === (worldState?.locationGraph?.currentLocation || worldState?.currentLocation))
+  const currentSubLocation = characterId ? worldState?.characterSubLocations?.[characterId] : undefined
+  const activeSkillChallenge = !inCombat ? worldState?.sceneState?.skillChallenge : undefined
 
   // -- Main game layout ------------------------------------------------------
   return (
@@ -1564,6 +1592,9 @@ export default function Game() {
               abilities={currentCharacter.abilities || []}
             />
           )}
+          {!inCombat && activeSkillChallenge && (
+            <ContestPanel skillChallenge={activeSkillChallenge} />
+          )}
           {!inCombat && !coopWaiting && currentCharacter?.is_alive !== false && (
             <div className="flex items-center justify-end px-4 pb-1">
               <button
@@ -1591,6 +1622,9 @@ export default function Game() {
             combatState={worldState?.combatState}
             abilities={currentCharacter?.abilities}
             tensionActive={!!worldState?.tensionMeter?.active}
+            skillChallenge={activeSkillChallenge}
+            subLocations={currentLocationNode?.subLocations}
+            currentSubLocation={currentSubLocation}
           />
         </div>
 
@@ -1626,6 +1660,7 @@ export default function Game() {
                       })
                     }}
                     knownRecipes={worldState?.knownRecipes}
+                    signatureItemQuests={worldState?.signatureItemQuests}
                     companion={worldState?.companion}
                     achievementCount={worldState?.unlockedAchievements?.length}
                     factionStandings={worldState?.factionStandings}
@@ -1681,6 +1716,7 @@ export default function Game() {
                       })
                     }}
                     knownRecipes={worldState?.knownRecipes}
+                    signatureItemQuests={worldState?.signatureItemQuests}
                     companion={worldState?.companion}
                     achievementCount={worldState?.unlockedAchievements?.length}
                     factionStandings={worldState?.factionStandings}
@@ -1793,6 +1829,13 @@ export default function Game() {
           title={achievementToast.title}
           description={achievementToast.description}
           onComplete={() => setAchievementToast(null)}
+        />
+      )}
+      {signatureItemToast && (
+        <AchievementToast
+          title={`Signature Item Earned: ${signatureItemToast.title}`}
+          description={signatureItemToast.description}
+          onComplete={() => setSignatureItemToast(null)}
         />
       )}
       {showDiceModal && diceModalData && currentCharacter && (

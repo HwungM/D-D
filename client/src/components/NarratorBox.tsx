@@ -118,12 +118,24 @@ export default function NarratorBox({
   // A fast in-scene reaction, not a full DM story beat — smaller, quieter, no
   // portrait pomp, so it visually reads as an aside rather than a narration.
   if (microAction) {
+    // Ambient world events are woven directly into the reaction text as a
+    // "(Meanwhile: ...)" aside (see ambientWorldEventSystem.weaveAmbientEventIntoReaction).
+    // Split it out once fully displayed so it reads as background flavor
+    // rather than a direct response to the player's action.
+    const ambientMatch = !typing ? displayed.match(/\s*(\(Meanwhile:[^)]*\))\s*$/) : null
+    const mainText = ambientMatch ? displayed.slice(0, ambientMatch.index).trim() : displayed
+    const ambientAside = ambientMatch ? ambientMatch[1] : null
     return (
       <div className="animate-fade-in flex items-start gap-2.5 px-1 py-0.5 sm:px-2">
         <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: 'rgba(200,146,42,0.55)' }} />
         <div className="relative flex-1 border-l-2 px-3 py-1.5" style={{ borderColor: 'rgba(200,146,42,0.3)', background: 'rgba(200,146,42,0.03)' }}>
           <p className="font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(220,200,160,0.72)' }}>
-            {displayed}
+            {mainText}
+            {ambientAside && (
+              <span className="ml-1" style={{ color: 'rgba(180,160,190,0.46)', fontStyle: 'italic' }}>
+                {ambientAside}
+              </span>
+            )}
             {typing && (
               <span className="ml-0.5 inline-block h-3 w-0.5 align-middle bg-amber-300/60"
                 style={{ animation: 'flicker 0.8s ease-in-out infinite' }} />

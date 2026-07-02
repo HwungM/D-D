@@ -100,6 +100,7 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
           const lastSeen = worldState?.characterLastSeen?.[char.id]
           const online = isOnline(lastSeen)
           const lastLocation = worldState?.characterLocations?.[char.id]
+          const subLocation = worldState?.characterSubLocations?.[char.id]
 
           return (
             <div key={member.userId} className="flex items-center gap-2 min-w-[180px] border border-white/8 bg-white/[0.025] px-2 py-1.5">
@@ -138,6 +139,11 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
                 <div className="truncate text-[10px] text-parchment-200/38" title={lastLocation || undefined}>
                   {lastLocation || (online ? 'Present' : 'Away')}
                 </div>
+                {subLocation && (
+                  <div className="mt-0.5 truncate font-fantasy text-[9px] uppercase tracking-[0.1em] text-cyan-200/56" title={subLocation}>
+                    ↳ {subLocation}
+                  </div>
+                )}
               </div>
             </div>
           )
