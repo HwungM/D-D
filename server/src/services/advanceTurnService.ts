@@ -55,6 +55,23 @@ export function buildCombatConclusionSummary(worldState: WorldState): string | u
   return undefined;
 }
 
+// Same idea as buildCombatConclusionSummary, for a non-combat structured
+// contest (heist/gambling/social con/chase — see NonCombatContestType and
+// sceneState.skillChallenge) that played out through micro-actions. Returns
+// undefined when nothing needs summarizing: no contest happened this scene,
+// or the contest is STILL live (sceneState.skillChallenge) — that case is
+// already surfaced to the macro-turn pipeline via the SKILL CHALLENGE STATE
+// block (see dndTableSystem.ts), nothing new to fold in here.
+export function buildContestConclusionSummary(worldState: WorldState): string | undefined {
+  if (worldState.sceneState?.skillChallenge) return undefined;
+  if (!worldState.lastContestOutcome) return undefined;
+
+  const { outcome, objective } = worldState.lastContestOutcome;
+  if (outcome === 'won') return `The party succeeded at "${objective}" during this scene's contest (resolved turn-by-turn, not summarized).`;
+  if (outcome === 'lost') return `The party failed "${objective}" during this scene's contest.`;
+  return `The party abandoned "${objective}" partway through this scene's contest.`;
+}
+
 // Builds the single action-text string handed to the existing macro-turn
 // pipeline (processAction/processCoopAction) so "what happened during
 // free-roam" becomes context for the turn, without touching that pipeline's
@@ -65,6 +82,7 @@ export function buildAdvanceActionText(
   freeRoam: WorldState['freeRoam'] | undefined,
   framingAction?: string,
   combatConclusionSummary?: string,
+  contestConclusionSummary?: string,
 ): string {
   const framing = (framingAction || '').trim() || 'Move the story forward.';
   const entries = freeRoam?.actions || [];
@@ -72,15 +90,18 @@ export function buildAdvanceActionText(
   const combatBlock = combatConclusionSummary
     ? `\n\n(How this scene's danger concluded — respond to this outcome, don't re-resolve the fight itself: ${combatConclusionSummary})`
     : '';
+  const contestBlock = contestConclusionSummary
+    ? `\n\n(How this scene's contest concluded — respond to this outcome, don't re-resolve the contest itself: ${contestConclusionSummary})`
+    : '';
 
-  if (entries.length === 0) return `${framing}${combatBlock}`;
+  if (entries.length === 0) return `${framing}${combatBlock}${contestBlock}`;
 
   const summary = entries
     .slice(-10)
     .map(entry => `- ${entry.action.trim()} -> ${entry.reaction.trim()}`)
     .join('\n');
 
-  return `${framing}\n\n(During free-roam since the last turn, the party also did the following — treat this as established context, not a new request to resolve again:\n${summary})${combatBlock}`;
+  return `${framing}\n\n(During free-roam since the last turn, the party also did the following — treat this as established context, not a new request to resolve again:\n${summary})${combatBlock}${contestBlock}`;
 }
 
 export function clearFreeRoam(): WorldState['freeRoam'] {

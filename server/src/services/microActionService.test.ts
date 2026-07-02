@@ -198,6 +198,152 @@ test('runMicroAction forces a combat intent even if the model response omits one
   assert.ok(result.rollContext);
 });
 
+test('parseMicroActionResponse classifies a contest "attempt" intent and forces awaitingRoll even if the model forgot', () => {
+  const result = parseMicroActionResponse({
+    reaction: 'You slide your last coins into the pot and call.',
+    contestIntent: 'attempt',
+    awaitingRoll: false, // deliberately wrong — an attempt must never be optional
+  });
+  assert.equal(result.contestIntent, 'attempt');
+  assert.equal(result.awaitingRoll, true);
+  assert.ok(result.rollContext, 'a fallback rollContext must be built when the model omits one for a contest attempt');
+});
+
+test('parseMicroActionResponse resolves a contest "abandon" immediately with no roll', () => {
+  const result = parseMicroActionResponse({
+    reaction: 'You push back from the table and walk away.',
+    contestIntent: 'abandon',
+    awaitingRoll: true, // deliberately wrong — abandon must never carry a roll
+    rollContext: {
+      stat: 'cha', dc: 10, diceType: 'd20', description: 'walk away',
+      successDescription: 'ok', failDescription: 'ok', isDramatic: false, modifier: 0,
+    },
+  });
+  assert.equal(result.contestIntent, 'abandon');
+  assert.equal(result.awaitingRoll, false);
+  assert.equal(result.rollContext, undefined);
+});
+
+test('parseMicroActionResponse drops a startContest that has no accompanying roll', () => {
+  const result = parseMicroActionResponse({
+    reaction: 'You eye the guarded archive.',
+    awaitingRoll: false,
+    startContest: {
+      objective: 'Break into the guarded archive', contestType: 'heist',
+      stakesDescription: 'the stolen ledger', onSuccessHint: 'in', onFailureHint: 'caught',
+    },
+  });
+  assert.equal(result.startContest, undefined);
+  assert.equal(result.awaitingRoll, false);
+});
+
+test('parseMicroActionResponse accepts a grounded startContest paired with its first roll', () => {
+  const result = parseMicroActionResponse({
+    reaction: 'You slip toward the archive doorway, watching the guard.',
+    awaitingRoll: true,
+    rollContext: {
+      stat: 'dex', dc: 14, diceType: 'd20', description: 'slip past the guard',
+      successDescription: 'You get past.', failDescription: 'The guard turns.', isDramatic: true, modifier: 0,
+    },
+    startContest: {
+      objective: 'Break into the guarded archive', contestType: 'heist',
+      stakesDescription: 'the stolen ledger', onSuccessHint: 'You get inside.', onFailureHint: 'The alarm sounds.',
+    },
+  });
+  assert.equal(result.awaitingRoll, true);
+  assert.ok(result.startContest);
+  assert.equal(result.startContest?.contestType, 'heist');
+  assert.equal(result.startContest?.objective, 'Break into the guarded archive');
+});
+
+test('parseMicroActionResponse ignores an invalid contestIntent value', () => {
+  const result = parseMicroActionResponse({
+    reaction: 'You glance around the room.',
+    contestIntent: 'fold_the_universe',
+    awaitingRoll: false,
+  });
+  assert.equal(result.contestIntent, undefined);
+  assert.equal(result.awaitingRoll, false);
+});
+
+test('runMicroAction takes the contest-aware path and always returns awaitingRoll:true while a contest is active', async () => {
+  const chat = chatClientReturning({
+    reaction: 'You bluff, keeping your face still.',
+    contestIntent: 'attempt',
+    awaitingRoll: true,
+    rollContext: {
+      stat: 'cha', dc: 14, diceType: 'd20', description: 'bluff through the hand',
+      successDescription: 'They buy it.', failDescription: 'They see through you.', isDramatic: true, modifier: 0,
+    },
+  });
+  const worldState: WorldState = {
+    sceneState: {
+      purpose: 'social',
+      exchangeCount: 2,
+      stalledCount: 0,
+      pacingMode: 'tension',
+      skillChallenge: {
+        id: 'sc-1',
+        objective: 'Win the hand against the Card Sharp',
+        successes: 1,
+        failures: 0,
+        targetSuccesses: 3,
+        maxFailures: 2,
+        participantIds: ['char-1'],
+        stakes: 'the deed to the old mill',
+        updatedAt: new Date().toISOString(),
+        contestType: 'gambling',
+      },
+    },
+  };
+  const result = await runMicroAction(chat, () => {}, {
+    action: 'bluff my way through the hand',
+    character: fakeCharacter(),
+    worldState,
+    worldBible: fakeWorldBible(),
+    sceneInteractables: [],
+  });
+  assert.equal(result.contestIntent, 'attempt');
+  assert.equal(result.awaitingRoll, true);
+  assert.ok(result.rollContext);
+});
+
+test('runMicroAction forces a contest intent even if the model response omits one entirely while a contest is active', async () => {
+  const chat = chatClientReturning({
+    reaction: 'You try something desperate.',
+    awaitingRoll: false,
+  });
+  const worldState: WorldState = {
+    sceneState: {
+      purpose: 'social',
+      exchangeCount: 2,
+      stalledCount: 0,
+      pacingMode: 'tension',
+      skillChallenge: {
+        id: 'sc-1',
+        objective: 'Win the hand against the Card Sharp',
+        successes: 0,
+        failures: 0,
+        targetSuccesses: 3,
+        maxFailures: 2,
+        participantIds: ['char-1'],
+        stakes: 'the deed to the old mill',
+        updatedAt: new Date().toISOString(),
+      },
+    },
+  };
+  const result = await runMicroAction(chat, () => {}, {
+    action: 'try something',
+    character: fakeCharacter(),
+    worldState,
+    worldBible: fakeWorldBible(),
+    sceneInteractables: [],
+  });
+  assert.equal(result.contestIntent, 'attempt');
+  assert.equal(result.awaitingRoll, true);
+  assert.ok(result.rollContext);
+});
+
 test('narrateMicroActionRollOutcome templates success/fail/crit text without a second AI call', () => {
   const rollContext = {
     stat: 'dex' as const, dc: 14, diceType: 'd20',

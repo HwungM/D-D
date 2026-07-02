@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WorldState } from '../../../shared/types';
-import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary } from './advanceTurnService';
+import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary, buildContestConclusionSummary } from './advanceTurnService';
 
 test('appendFreeRoamEntry starts a fresh log for a new scene and accumulates within one scene', () => {
   const first = appendFreeRoamEntry(undefined, 'The Docks', 'ask the dockhand about the ship', 'He shrugs — "Ask the harbormaster."');
@@ -96,4 +96,55 @@ test('buildAdvanceActionText folds a combat conclusion summary in alongside the 
   const text = buildAdvanceActionText(undefined, 'Move on.', 'The party defeated the ogre during live combat this scene.');
   assert.match(text, /Move on\./);
   assert.match(text, /defeated the ogre during live combat/);
+});
+
+test('buildContestConclusionSummary is undefined when no contest happened this scene', () => {
+  assert.equal(buildContestConclusionSummary({} as WorldState), undefined);
+});
+
+test('buildContestConclusionSummary is undefined while the contest is still live — nothing new to fold in yet', () => {
+  const ws = {
+    sceneState: {
+      purpose: 'social', exchangeCount: 2, stalledCount: 0, pacingMode: 'tension',
+      skillChallenge: {
+        id: 'sc-1', objective: 'Win the hand', successes: 1, failures: 0,
+        targetSuccesses: 3, maxFailures: 2, participantIds: ['char-1'], stakes: 'the deed',
+        updatedAt: new Date().toISOString(),
+      },
+    },
+    lastContestOutcome: { outcome: 'won' as const, objective: 'Win the hand', concludedAt: new Date().toISOString() },
+  } as WorldState;
+  assert.equal(buildContestConclusionSummary(ws), undefined);
+});
+
+test('buildContestConclusionSummary reports a won contest resolved through micro-actions', () => {
+  const ws = {
+    lastContestOutcome: { outcome: 'won' as const, objective: 'Win the hand against the Card Sharp', contestType: 'gambling' as const, concludedAt: new Date().toISOString() },
+  } as WorldState;
+  const summary = buildContestConclusionSummary(ws);
+  assert.match(summary || '', /succeeded at "Win the hand against the Card Sharp"/);
+});
+
+test('buildContestConclusionSummary reports a lost and an abandoned contest', () => {
+  const lost = buildContestConclusionSummary({
+    lastContestOutcome: { outcome: 'lost', objective: 'Break into the archive', concludedAt: new Date().toISOString() },
+  } as WorldState);
+  assert.match(lost || '', /failed "Break into the archive"/);
+
+  const abandoned = buildContestConclusionSummary({
+    lastContestOutcome: { outcome: 'abandoned', objective: 'Win the hand', concludedAt: new Date().toISOString() },
+  } as WorldState);
+  assert.match(abandoned || '', /abandoned "Win the hand"/);
+});
+
+test('buildAdvanceActionText folds a contest conclusion summary in alongside the combat one and the free-roam log', () => {
+  const text = buildAdvanceActionText(
+    undefined,
+    'Move on.',
+    'The party defeated the ogre during live combat this scene.',
+    'The party succeeded at "Win the hand" during this scene\'s contest.',
+  );
+  assert.match(text, /Move on\./);
+  assert.match(text, /defeated the ogre during live combat/);
+  assert.match(text, /succeeded at "Win the hand"/);
 });

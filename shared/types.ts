@@ -585,6 +585,18 @@ export interface WorldState {
     enemyName?: string;
     concludedAt: string;
   } | null;
+  // Set when a live non-combat structured contest (heist/gambling/social con/
+  // chase — see NonCombatContestType and sceneState.skillChallenge) that
+  // played out through micro-actions concludes — folded into Advance's
+  // context the same way lastCombatOutcome is, so the DM's next narrated beat
+  // responds to how the contest actually went. Cleared whenever a macro-turn
+  // resolves and a new scene begins.
+  lastContestOutcome?: {
+    outcome: 'won' | 'lost' | 'abandoned';
+    objective: string;
+    contestType?: NonCombatContestType;
+    concludedAt: string;
+  } | null;
   activeNPC?: string | null;
   // What/who is present and interactable in the current scene — reused by the
   // micro-action free-roam layer so it knows who/what the player can poke at

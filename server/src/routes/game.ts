@@ -9,10 +9,11 @@ import { z } from 'zod';
 import { aiRateLimit } from '../middleware/rateLimit';
 import { repairWorldStateForGameplay } from '../services/coopStateIntegrity';
 import { buildSceneInteractables } from '../services/sceneInteractableSystem';
-import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary } from '../services/advanceTurnService';
+import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary, buildContestConclusionSummary } from '../services/advanceTurnService';
 import { resolveMysteryClueChanges } from '../services/mysteryClueSystem';
 import { narrateMicroActionRollOutcome, type MicroCombatIntent } from '../services/microActionService';
 import { resolveMicroActionCombatRoll } from '../services/microActionCombat';
+import { buildNewSkillChallenge, isContestGrounded, resolveMicroActionContestRoll, type ContestSeed } from '../services/microActionContest';
 import { escalateTension, resumeCombatFromTension } from '../services/tensionSystem';
 import { applyCharacterConsequences } from '../services/consequenceSystem';
 import { applyCompanionChanges } from '../services/companionSystem';
@@ -339,6 +340,19 @@ router.post('/resolve-roll', requireAuth, aiRateLimit, async (req: AuthRequest, 
               isCritFail,
               authoritativeContext,
               (pendingMetadata.combatIntent as MicroCombatIntent) || 'attack',
+            )
+          : pendingMetadata?.microActionContest === true
+          ? await resolveMicroActionContestRollAndPersist(
+              campaignId,
+              characterId,
+              rollResult,
+              rollTotal,
+              dc,
+              success,
+              isCritSuccess,
+              isCritFail,
+              authoritativeContext,
+              pendingMetadata.newContestSeed as ContestSeed | undefined,
             )
           : pendingMetadata?.microAction === true
           ? await resolveMicroActionRollAndPersist(campaignId, characterId, rollResult, rollTotal, dc, success, isCritSuccess, isCritFail, authoritativeContext)
@@ -1021,6 +1035,112 @@ async function resolveMicroActionCombatRollAndPersist(
   };
 }
 
+// Resolves a roll requested by the non-combat CONTEST-aware micro-action path
+// (see microActionService.ts's CONTEST_MICRO_ACTION_SYSTEM_PROMPT and the
+// startContest branch of the free-roam prompt). Mirrors
+// resolveMicroActionCombatRollAndPersist's shape but drives
+// microActionContest.ts instead: real successes/failures bookkeeping against
+// WorldState.sceneState.skillChallenge, deterministic (reusing rulesEngine.ts
+// via microActionContest.ts), no second AI call. When newContestSeed is set,
+// this roll is BOTH the contest's opening move and its first attempt — the
+// challenge is created here rather than beforehand, so a contest never exists
+// half-seeded with zero rolls made against it.
+async function resolveMicroActionContestRollAndPersist(
+  campaignId: string,
+  characterId: string,
+  rollResult: number,
+  rollTotal: number,
+  dc: number,
+  success: boolean,
+  isCritSuccess: boolean,
+  isCritFail: boolean,
+  rollContext: RollContext,
+  newContestSeed?: ContestSeed,
+) {
+  const { data: campaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaignId).single();
+  const ws = (campaign?.world_state || {}) as WorldState;
+  const baseChallenge = newContestSeed
+    ? buildNewSkillChallenge({ ...newContestSeed, participantIds: [characterId] })
+    : ws.sceneState?.skillChallenge;
+
+  // The contest that was active (or about to start) when this roll was
+  // requested no longer exists by the time the dice come back — fall back to
+  // flavor-only narration rather than mutating a contest that isn't there.
+  if (!baseChallenge) {
+    const narration = narrateMicroActionRollOutcome(rollContext, success, isCritSuccess, isCritFail);
+    const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, rollContext.description, narration);
+    await supabaseAdmin.from('campaigns').update({ world_state: { ...ws, freeRoam } }).eq('id', campaignId);
+    await supabaseAdmin.from('story_events').insert({
+      campaign_id: campaignId,
+      character_id: characterId,
+      event_type: 'narration',
+      content: narration,
+      metadata: { microAction: true, resolvedRoll: true },
+    });
+    return {
+      narration,
+      awaitingRoll: false,
+      diceRoll: { sides: 20, rolls: [rollResult], modifier: rollContext.modifier, total: rollTotal, description: rollContext.description },
+      success,
+      isCritSuccess,
+      isCritFail,
+    };
+  }
+
+  const outcome = resolveMicroActionContestRoll({ skillChallenge: baseChallenge, roll: rollResult, total: rollTotal, dc });
+  const baseNarration = narrateMicroActionRollOutcome(rollContext, success, isCritSuccess, isCritFail);
+  const extraBeats: string[] = [];
+  if (outcome.status === 'won') {
+    extraBeats.push(outcome.updatedChallenge.onSuccessHint || `You pull off "${outcome.updatedChallenge.objective}".`);
+  } else if (outcome.status === 'lost') {
+    extraBeats.push(outcome.updatedChallenge.onFailureHint || `"${outcome.updatedChallenge.objective}" falls apart.`);
+  } else {
+    extraBeats.push(`(${outcome.updatedChallenge.successes}/${outcome.updatedChallenge.targetSuccesses} successes, ${outcome.updatedChallenge.failures}/${outcome.updatedChallenge.maxFailures} failures so far.)`);
+  }
+  const narration = `${baseNarration} ${extraBeats.join(' ')}`;
+
+  const concludedAt = new Date().toISOString();
+  const lastContestOutcome: WorldState['lastContestOutcome'] = outcome.status === 'won'
+    ? { outcome: 'won', objective: outcome.updatedChallenge.objective, contestType: outcome.updatedChallenge.contestType, concludedAt }
+    : outcome.status === 'lost'
+    ? { outcome: 'lost', objective: outcome.updatedChallenge.objective, contestType: outcome.updatedChallenge.contestType, concludedAt }
+    : ws.lastContestOutcome;
+
+  const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, rollContext.description, narration);
+  const baseSceneState = ws.sceneState || { purpose: 'explore' as const, exchangeCount: 0, stalledCount: 0, pacingMode: 'exploration' as const };
+  const updatedWorldState: WorldState = {
+    ...ws,
+    sceneState: { ...baseSceneState, skillChallenge: outcome.status === 'ongoing' ? outcome.updatedChallenge : null },
+    lastContestOutcome,
+    freeRoam,
+  };
+  await supabaseAdmin.from('campaigns').update({ world_state: updatedWorldState }).eq('id', campaignId);
+
+  await supabaseAdmin.from('story_events').insert({
+    campaign_id: campaignId,
+    character_id: characterId,
+    event_type: 'narration',
+    content: narration,
+    metadata: {
+      microAction: true,
+      microActionContest: true,
+      resolvedRoll: true,
+      contestStatus: outcome.status,
+    },
+  });
+
+  return {
+    narration,
+    awaitingRoll: false,
+    diceRoll: { sides: 20, rolls: [rollResult], modifier: rollContext.modifier, total: rollTotal, description: rollContext.description },
+    success,
+    isCritSuccess,
+    isCritFail,
+    skillChallenge: updatedWorldState.sceneState?.skillChallenge,
+    contestStatus: outcome.status,
+  };
+}
+
 const microActionSchema = z.object({
   characterId: z.string().uuid(),
   campaignId: z.string().uuid(),
@@ -1135,12 +1255,65 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         ws.freeRoam?.actions,
       );
 
+      // A player explicitly backing out of an active contest resolves
+      // immediately — no roll, no pipeline — mirroring how flavor-only
+      // micro-actions resolve, and how "abandon" never carries a rollContext.
+      if (reaction.contestIntent === 'abandon' && ws.sceneState?.skillChallenge) {
+        const abandoned = ws.sceneState.skillChallenge;
+        const concludedAt = new Date().toISOString();
+        const lastContestOutcome: WorldState['lastContestOutcome'] = {
+          outcome: 'abandoned',
+          objective: abandoned.objective,
+          contestType: abandoned.contestType,
+          concludedAt,
+        };
+        const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, action, reaction.reaction);
+        const updatedWorldState: WorldState = {
+          ...ws,
+          sceneState: { ...ws.sceneState, skillChallenge: null },
+          lastContestOutcome,
+          sceneInteractables,
+          freeRoam,
+        };
+        await supabaseAdmin.from('campaigns').update({ world_state: updatedWorldState }).eq('id', campaignId);
+        await supabaseAdmin.from('story_events').insert({
+          campaign_id: campaignId,
+          character_id: characterId,
+          event_type: 'action',
+          content: action,
+          metadata: { microAction: true },
+        });
+        await supabaseAdmin.from('story_events').insert({
+          campaign_id: campaignId,
+          character_id: characterId,
+          event_type: 'narration',
+          content: reaction.reaction,
+          metadata: { microAction: true, contestAbandoned: true },
+        });
+        res.json({
+          reaction: reaction.reaction,
+          awaitingRoll: false,
+          contestStatus: 'abandoned',
+          sceneInteractables,
+          freeRoamCount: freeRoam.actions.length,
+        });
+        return;
+      }
+
       if (reaction.awaitingRoll && reaction.rollContext) {
         const narrationMetadata: Record<string, unknown> = { microAction: true, awaitingRoll: true, rollContext: reaction.rollContext };
         if (reaction.combatIntent) {
           narrationMetadata.microActionCombat = true;
           narrationMetadata.combatIntent = reaction.combatIntent;
           if (reaction.targetEnemy) narrationMetadata.targetEnemy = reaction.targetEnemy;
+        } else if (reaction.contestIntent === 'attempt' && ws.sceneState?.skillChallenge) {
+          // Rolling against an already-active contest — no new seed needed.
+          narrationMetadata.microActionContest = true;
+        } else if (reaction.startContest && isContestGrounded(reaction.startContest, sceneInteractables, ws.activeNPC)) {
+          // A brand-new contest, grounded in something actually present in the
+          // scene — this roll both creates it and is its first attempt.
+          narrationMetadata.microActionContest = true;
+          narrationMetadata.newContestSeed = reaction.startContest;
         }
         // Persist any tension-meter escalation from above (e.g. still hidden,
         // heat rose) even though this particular action needs a roll.
@@ -1165,6 +1338,7 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
           rollContext: reaction.rollContext,
           combatIntent: reaction.combatIntent,
           targetEnemy: reaction.targetEnemy,
+          contestIntent: narrationMetadata.microActionContest ? (reaction.contestIntent || 'attempt') : undefined,
           sceneInteractables,
         });
         return;
@@ -1311,7 +1485,7 @@ router.post('/advance', requireAuth, aiRateLimit, async (req: AuthRequest, res: 
           return;
         }
 
-        const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction, buildCombatConclusionSummary(ws));
+        const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction, buildCombatConclusionSummary(ws), buildContestConclusionSummary(ws));
 
         const pendingCreatedAt = ws.pendingTurn?.createdAt || ws.pendingTurn?.actions?.[0]?.submittedAt;
         const pendingStartedAt = pendingCreatedAt ? Date.parse(pendingCreatedAt) : NaN;
@@ -1367,7 +1541,7 @@ router.post('/advance', requireAuth, aiRateLimit, async (req: AuthRequest, res: 
         .eq('id', campaignId)
         .single();
       const ws = (campaign?.world_state || {}) as WorldState;
-      const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction, buildCombatConclusionSummary(ws));
+      const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction, buildCombatConclusionSummary(ws), buildContestConclusionSummary(ws));
       const result = await processAction(characterId, advanceActionText, campaignId);
       res.json(result);
     });

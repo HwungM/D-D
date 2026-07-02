@@ -154,6 +154,7 @@ export async function applyConsequences(
   // "still being hunted" state or a summary already folded into this turn.
   newWorldState.tensionMeter = null;
   newWorldState.lastCombatOutcome = null;
+  newWorldState.lastContestOutcome = null;
   await supabaseAdmin.from('campaigns').update({ world_state: newWorldState }).eq('id', campaign.id);
 
   if (Object.keys(updates).length > 0) {
