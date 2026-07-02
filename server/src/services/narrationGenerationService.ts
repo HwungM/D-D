@@ -153,7 +153,8 @@ export async function generateCoopNarrationFromService(
   function charBlock(c: Character, label: string): string {
     const s = c.stats;
     const abilities = (c.abilities || []).filter(a => !a.currentCooldown || a.currentCooldown <= 0);
-    return `${label}: ${c.name} (${c.race} ${c.class}, Level ${c.level})${characterGenderLine(c)}
+    const subLocation = worldState.characterSubLocations?.[c.id];
+    return `${label}: ${c.name} (${c.race} ${c.class}, Level ${c.level})${characterGenderLine(c)}${subLocation ? `\nLast standing in: ${subLocation} (within ${worldState.currentLocation || 'the current location'})` : ''}
 HP: ${c.hp}/${c.max_hp} | Gold: ${c.gold}
 Stats: STR ${s.str} DEX ${s.dex} CON ${s.con} INT ${s.int} WIS ${s.wis} CHA ${s.cha}
 BACKSTORY: ${c.backstory || 'Unknown origins'}

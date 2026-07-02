@@ -343,6 +343,7 @@ export async function runMicroAction(
   },
 ): Promise<MicroActionResult> {
   const { action, character, worldState, worldBible, sceneInteractables } = args;
+  const currentSubLocation = worldState.characterSubLocations?.[character.id];
   const inCombat = !!worldState.combatState?.inCombat;
   // Combat always takes priority (it has its own dedicated prompt/plumbing).
   // A contest can only be the active fast-path system when no combat is live.
@@ -352,7 +353,7 @@ export async function runMicroAction(
     : activeContest
     ? CONTEST_MICRO_ACTION_SYSTEM_PROMPT
     : MICRO_ACTION_SYSTEM_PROMPT;
-  const user = `${buildCombatStateBlock(worldState.combatState)}${buildContestStateBlock(activeContest)}SCENE: ${worldState.currentLocation || 'unknown location'} | ${worldState.timeOfDay || 'unknown time'}, ${worldState.weather || 'unclear weather'}
+  const user = `${buildCombatStateBlock(worldState.combatState)}${buildContestStateBlock(activeContest)}SCENE: ${worldState.currentLocation || 'unknown location'}${currentSubLocation ? ` — inside ${currentSubLocation}` : ''} | ${worldState.timeOfDay || 'unknown time'}, ${worldState.weather || 'unclear weather'}
 ${formatSceneInteractablesBlock(sceneInteractables)}
 ${buildCompanionsPromptBlock(worldState.companions)}
 ${buildClueBankBlock(worldState)}

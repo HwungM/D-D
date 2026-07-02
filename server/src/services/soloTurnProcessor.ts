@@ -115,6 +115,7 @@ export async function processAction(
     const lastSeen = ws.characterLastSeen?.[otherChar.id];
     const isOnline = lastSeen ? (Date.now() - new Date(lastSeen).getTime()) < 15 * 60 * 1000 : false;
     const lastLocation = ws.characterLocations?.[otherChar.id] || ws.currentLocation || 'Unknown';
+    const lastSubLocation = ws.characterSubLocations?.[otherChar.id];
 
     otherCharacters.push({
       characterId: otherChar.id,
@@ -122,6 +123,7 @@ export async function processAction(
       isOnline,
       lastSeen: lastSeen || new Date().toISOString(),
       lastLocation,
+      lastSubLocation,
     });
   }
 

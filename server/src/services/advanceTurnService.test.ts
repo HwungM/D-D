@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WorldState } from '../../../shared/types';
-import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary, buildContestConclusionSummary } from './advanceTurnService';
+import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary, buildContestConclusionSummary, buildPartySplitSummary } from './advanceTurnService';
 
 test('appendFreeRoamEntry starts a fresh log for a new scene and accumulates within one scene', () => {
   const first = appendFreeRoamEntry(undefined, 'The Docks', 'ask the dockhand about the ship', 'He shrugs — "Ask the harbormaster."');
@@ -135,6 +135,39 @@ test('buildContestConclusionSummary reports a lost and an abandoned contest', ()
     lastContestOutcome: { outcome: 'abandoned', objective: 'Win the hand', concludedAt: new Date().toISOString() },
   } as WorldState);
   assert.match(abandoned || '', /abandoned "Win the hand"/);
+});
+
+test('buildPartySplitSummary is undefined when nothing is split', () => {
+  assert.equal(buildPartySplitSummary(undefined, {}), undefined);
+  assert.equal(buildPartySplitSummary({}, { 'char-1': 'Alice', 'char-2': 'Bob' }), undefined);
+});
+
+test('buildPartySplitSummary reports two characters in different sub-locations', () => {
+  const summary = buildPartySplitSummary(
+    { 'char-1': 'The Rusty Anchor Tavern', 'char-2': 'Kellhaven Smithy' },
+    { 'char-1': 'Alice', 'char-2': 'Bob' },
+    'Kellhaven',
+  );
+  assert.match(summary || '', /split up/);
+  assert.match(summary || '', /Alice was in The Rusty Anchor Tavern/);
+  assert.match(summary || '', /Bob was in Kellhaven Smithy/);
+});
+
+test('buildPartySplitSummary reports one character in a sub-location while the other stayed at the general location', () => {
+  const summary = buildPartySplitSummary(
+    { 'char-1': 'The Rusty Anchor Tavern' },
+    { 'char-1': 'Alice', 'char-2': 'Bob' },
+    'Kellhaven',
+  );
+  assert.match(summary || '', /Alice was in The Rusty Anchor Tavern/);
+  assert.match(summary || '', /Bob was at Kellhaven/);
+});
+
+test('buildAdvanceActionText folds a party split summary in as regroup context', () => {
+  const text = buildAdvanceActionText(undefined, 'Move on.', undefined, undefined, 'The party was split up: Alice was in the Tavern; Bob was in the Smithy.');
+  assert.match(text, /Move on\./);
+  assert.match(text, /split up/);
+  assert.match(text, /bring the party back together/);
 });
 
 test('buildAdvanceActionText folds a contest conclusion summary in alongside the combat one and the free-roam log', () => {

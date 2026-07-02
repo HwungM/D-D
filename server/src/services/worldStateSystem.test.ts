@@ -26,6 +26,18 @@ test('world state reducer merges NPC memory and promotes recurring key NPCs', ()
   assert.equal(merged.keyNPCs?.[0].name, 'Veyra');
 });
 
+test('world state reducer merges characterSubLocations per-character without clobbering other entries — the co-op split path', () => {
+  const current: WorldState = {
+    characterSubLocations: { 'char-1': 'The Rusty Anchor Tavern' },
+  };
+  // Character 2 moves into the smithy — character 1's entry must survive untouched.
+  const merged = mergeWorldStateChanges(current, {
+    characterSubLocations: { 'char-2': 'Kellhaven Smithy' },
+  });
+  assert.equal(merged.characterSubLocations?.['char-1'], 'The Rusty Anchor Tavern');
+  assert.equal(merged.characterSubLocations?.['char-2'], 'Kellhaven Smithy');
+});
+
 test('world state reducer merges NPC memory case-insensitively', () => {
   const merged = mergeWorldStateChanges(
     {

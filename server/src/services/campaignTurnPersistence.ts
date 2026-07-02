@@ -7,8 +7,9 @@ import {
   applyCharacterConsequences,
 } from './consequenceSystem';
 import { resolveIdentityRevealed } from './hiddenIdentitySystem';
-import { extractFutureHooks, generateNextArcRoadmap } from './openai';
+import { extractFutureHooks, generateNextArcRoadmap, generateSubLocations } from './openai';
 import { buildSceneInteractables } from './sceneInteractableSystem';
+import { needsSubLocationGeneration } from './subLocationSystem';
 import { resolvePartyAssetGranted, resolveSignatureItemEarned } from './signatureRewardsService';
 import { supabaseAdmin } from './supabase';
 import {
@@ -143,10 +144,29 @@ export async function applyConsequences(
   // Single atomic world state write — eliminates co-op race conditions.
   newWorldState.locationGraph = buildLocationGraphSnapshot(newWorldState, campaign.world_bible);
   newWorldState.campaignSpine = buildCampaignSpineSnapshot(newWorldState, campaign.world_bible, campaign.act ?? 1);
+
+  // Lazily (and only once — cached onto the node) generate sub-locations for
+  // wherever the party just arrived, if this location type warrants them and
+  // doesn't have any yet. See subLocationSystem.ts.
+  const arrivedNode = newWorldState.locationGraph?.nodes?.find(n => n.name === newWorldState.currentLocation);
+  if (needsSubLocationGeneration(arrivedNode)) {
+    try {
+      const subLocations = await generateSubLocations(arrivedNode!, campaign.world_bible || ({} as WorldBible));
+      newWorldState.locationGraph = {
+        ...newWorldState.locationGraph!,
+        nodes: newWorldState.locationGraph!.nodes.map(n => n.name === arrivedNode!.name ? { ...n, subLocations } : n),
+      };
+    } catch { /* non-critical — the scene still works without sub-locations */ }
+  }
+
   // A macro-turn (this is the only path that reaches applyConsequences) always
   // resolves the current scene: refresh the free-roam interactable map for
   // wherever the party ended up, and close out the free-roam window that fed
   // this turn — the next micro-actions start a fresh log against the new scene.
+  // A macro-turn also reconverges the whole party into one shared narrated
+  // scene, so any co-op sub-location split from free-roam is cleared here —
+  // the next scene starts everyone back at the top-level location.
+  newWorldState.characterSubLocations = {};
   newWorldState.sceneInteractables = buildSceneInteractables(newWorldState);
   newWorldState.freeRoam = null;
   // A concluded scene's combat/tension bookkeeping is scene-scoped — the next

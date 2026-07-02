@@ -256,6 +256,9 @@ export function mergeWorldStateChanges(current: WorldState, changes: Partial<Wor
   if (changes.characterLocations) {
     merged.characterLocations = { ...current.characterLocations, ...changes.characterLocations };
   }
+  if (changes.characterSubLocations) {
+    merged.characterSubLocations = { ...current.characterSubLocations, ...changes.characterSubLocations };
+  }
   if (changes.currentLocation) merged.currentLocation = changes.currentLocation;
 
   if (changes.npcMemory) {

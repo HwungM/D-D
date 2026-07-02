@@ -1057,7 +1057,7 @@ WORLD STATE:
 - Actions since last high-stakes moment: ${worldState.actionCount ? (worldState.actionCount - (worldState.lastHighStakesAction || 0)) : 'unknown'}
 ${npcQuestMapBlock}
 
-CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATION: ${worldState.currentLocation || 'Unknown'}
+CHARACTER: ${character.name} | HP: ${character.hp}/${character.max_hp} | LOCATION: ${worldState.currentLocation || 'Unknown'}${worldState.characterSubLocations?.[character.id] ? ` (currently inside ${worldState.characterSubLocations[character.id]})` : ''}
 CLASS: ${character.class} | RACE: ${character.race} | LEVEL: ${character.level}${characterGenderLine(character)}${unusualNote}
 Gold: ${character.gold}
 BACKSTORY: ${character.backstory || 'Unknown origins'}
@@ -1084,11 +1084,15 @@ ${campaignContext?.continuityDirectives ? `\n${campaignContext.continuityDirecti
 ${campaignContext?.otherCharacters && campaignContext.otherCharacters.length > 0 ? `PARTY:
 ${campaignContext.otherCharacters.map(c => {
   const myLocation = worldState.characterLocations?.[character.id] || worldState.currentLocation;
-  const together = c.lastLocation === myLocation;
+  const mySubLocation = worldState.characterSubLocations?.[character.id];
+  const sameLocation = c.lastLocation === myLocation;
+  const together = sameLocation && (c.lastSubLocation || undefined) === (mySubLocation || undefined);
   const status = c.isOnline ? 'Active' : `Offline (${timeAgo(c.lastSeen)})`;
-  return `- ${c.characterName}: ${status}, ${c.lastLocation}${together ? ' (TOGETHER)' : ' (SEPARATED)'}`;
+  const whereLabel = c.lastSubLocation ? `${c.lastLocation} (${c.lastSubLocation})` : c.lastLocation;
+  const splitNote = sameLocation && !together ? ' (SAME LOCATION, DIFFERENT SUB-AREA)' : together ? ' (TOGETHER)' : ' (SEPARATED)';
+  return `- ${c.characterName}: ${status}, ${whereLabel}${splitNote}`;
 }).join('\n')}
-PARTY RULES: Offline = narrate absence in-world. Together = actions affect both.
+PARTY RULES: Offline = narrate absence in-world. Together = actions affect both. Same location but different sub-area = physically near but not in the same room — don't merge their scenes until Advance reconverges them.
 NPC CROSS-MEMORY: Check npcMemory.metCharacters for NPCs who met other party members.
 - If a party member is OFFLINE, narrate their absence naturally.
 - If SEPARATED, you can reference what the other character might be doing.

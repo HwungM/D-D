@@ -37,7 +37,8 @@ import type { NarrationResult } from './narrationResponseParser';
 import type { NarrationCampaignContext } from './narrationPromptBuilder';
 import { generateCoopRollOutcomeFromService, generateRollOutcomeFromService, type RollOutcomeContext } from './rollNarrationService';
 import { runMicroAction, type MicroActionResult } from './microActionService';
-import type { SceneInteractable } from '../../../shared/types';
+import { generateSubLocationsFromService } from './subLocationSystem';
+import type { LocationNode, SceneInteractable, SubLocation } from '../../../shared/types';
 
 dotenv.config();
 
@@ -115,6 +116,16 @@ export async function generateMicroActionReaction(
   recentFreeRoam?: { action: string; reaction: string }[],
 ): Promise<MicroActionResult> {
   return runMicroAction(openai, logAiCall, { action, character, worldState, worldBible, sceneInteractables, recentFreeRoam });
+}
+
+// One-time (per location) generation of the enterable sub-locations inside a
+// city/region/landmark node — see subLocationSystem.ts. Cheap gpt-4o-mini
+// call, only made when the node doesn't already have subLocations cached.
+export async function generateSubLocations(
+  node: LocationNode,
+  worldBible: WorldBible,
+): Promise<SubLocation[]> {
+  return generateSubLocationsFromService(openai, logAiCall, node, worldBible);
 }
 
 export async function generateRollOutcome(

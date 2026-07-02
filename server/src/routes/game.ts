@@ -3,13 +3,14 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
 import { processAction, getOpeningScene, getCoopOpeningScene, resolveRollAction, resolveCoopRollAction, processCoopAction, compressToJournalEntry } from '../services/gameEngine';
 import { getStatModifier } from '../services/characterProgressionSystem';
-import { generateEpilogue, generateMicroActionReaction } from '../services/openai';
+import { generateEpilogue, generateMicroActionReaction, generateSubLocations } from '../services/openai';
 import type { WorldState, WorldBible, Character, RollContext } from '../../../shared/types';
 import { z } from 'zod';
 import { aiRateLimit } from '../middleware/rateLimit';
 import { repairWorldStateForGameplay } from '../services/coopStateIntegrity';
 import { buildSceneInteractables } from '../services/sceneInteractableSystem';
-import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary, buildContestConclusionSummary } from '../services/advanceTurnService';
+import { matchSubLocationNavigation, needsSubLocationGeneration } from '../services/subLocationSystem';
+import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary, buildContestConclusionSummary, buildPartySplitSummary } from '../services/advanceTurnService';
 import { resolveMysteryClueChanges } from '../services/mysteryClueSystem';
 import { narrateMicroActionRollOutcome, type MicroCombatIntent } from '../services/microActionService';
 import { resolveMicroActionCombatRoll } from '../services/microActionCombat';
@@ -1242,9 +1243,75 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         ws = { ...ws, tensionMeter: escalated };
       }
 
-      const sceneInteractables = ws.sceneInteractables && ws.sceneInteractables.length > 0
-        ? ws.sceneInteractables
-        : buildSceneInteractables(ws);
+      // Lazily generate this location's sub-locations (once, cached onto the
+      // node) if it's a suitable type and doesn't have any yet — see
+      // subLocationSystem.ts. Covers scenes that started before the party's
+      // first macro-turn arrival ever ran this (e.g. the opening scene).
+      const locationForSubGen = ws.locationGraph?.currentLocation || ws.currentLocation;
+      const nodeForSubGen = ws.locationGraph?.nodes?.find(n => n.name === locationForSubGen);
+      if (needsSubLocationGeneration(nodeForSubGen)) {
+        try {
+          const subLocations = await generateSubLocations(nodeForSubGen!, wb);
+          ws = {
+            ...ws,
+            locationGraph: {
+              ...ws.locationGraph!,
+              nodes: ws.locationGraph!.nodes.map(n => n.name === nodeForSubGen!.name ? { ...n, subLocations } : n),
+            },
+          };
+        } catch { /* non-critical — the scene still works without sub-locations */ }
+      }
+
+      // Sub-location navigation: ordinary movement between sub-locations (or
+      // back out to the parent location) resolves deterministically, code-side
+      // — no AI call, no roll, no pacing cost, exactly like top-level
+      // location-to-location travel. Only THIS character's
+      // characterSubLocations entry changes, so two co-op players can be in
+      // different sub-locations at once without any lockstep requirement.
+      const currentNode = ws.locationGraph?.nodes?.find(n => n.name === (ws.locationGraph?.currentLocation || ws.currentLocation));
+      const currentSubLocationName = ws.characterSubLocations?.[characterId];
+      const navMatch = matchSubLocationNavigation(action, currentNode, currentSubLocationName);
+      if (navMatch) {
+        const updatedSubLocations = { ...(ws.characterSubLocations || {}) };
+        if (navMatch.kind === 'enter') {
+          updatedSubLocations[characterId] = navMatch.subLocation.name;
+        } else {
+          delete updatedSubLocations[characterId];
+        }
+        const wsWithSubLocation: WorldState = { ...ws, characterSubLocations: updatedSubLocations };
+        const scopedInteractables = buildSceneInteractables(wsWithSubLocation, characterId);
+        const parentName = currentNode?.name || ws.currentLocation || 'the area';
+        const navReaction = navMatch.kind === 'enter'
+          ? `You head into ${navMatch.subLocation.name}.`
+          : `You head back out to ${parentName}.`;
+        const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, action, navReaction);
+        const updatedWorldState: WorldState = { ...wsWithSubLocation, sceneInteractables: scopedInteractables, freeRoam };
+        await supabaseAdmin.from('campaigns').update({ world_state: updatedWorldState }).eq('id', campaignId);
+        await supabaseAdmin.from('story_events').insert({
+          campaign_id: campaignId,
+          character_id: characterId,
+          event_type: 'action',
+          content: action,
+          metadata: { microAction: true },
+        });
+        await supabaseAdmin.from('story_events').insert({
+          campaign_id: campaignId,
+          character_id: characterId,
+          event_type: 'narration',
+          content: navReaction,
+          metadata: { microAction: true, subLocationMove: true },
+        });
+        res.json({
+          reaction: navReaction,
+          awaitingRoll: false,
+          subLocation: navMatch.kind === 'enter' ? navMatch.subLocation.name : null,
+          sceneInteractables: scopedInteractables,
+          freeRoamCount: freeRoam.actions.length,
+        });
+        return;
+      }
+
+      const sceneInteractables = buildSceneInteractables(ws, characterId);
 
       const reaction = await generateMicroActionReaction(
         action,
@@ -1456,10 +1523,11 @@ router.post('/advance', requireAuth, aiRateLimit, async (req: AuthRequest, res: 
   try {
     const { data: activeCharacters } = await supabaseAdmin
       .from('characters')
-      .select('id, user_id')
+      .select('id, user_id, name')
       .eq('campaign_id', campaignId)
       .eq('is_alive', true);
     const activePlayerCount = new Set((activeCharacters || []).map(c => c.user_id)).size;
+    const characterIdToName = Object.fromEntries((activeCharacters || []).map(c => [c.id, c.name as string]));
 
     if (activePlayerCount > 1) {
       await withCampaignLock(campaignId, async () => {
@@ -1485,7 +1553,8 @@ router.post('/advance', requireAuth, aiRateLimit, async (req: AuthRequest, res: 
           return;
         }
 
-        const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction, buildCombatConclusionSummary(ws), buildContestConclusionSummary(ws));
+        const partySplitSummary = buildPartySplitSummary(ws.characterSubLocations, characterIdToName, ws.currentLocation);
+        const advanceActionText = buildAdvanceActionText(ws.freeRoam, framingAction, buildCombatConclusionSummary(ws), buildContestConclusionSummary(ws), partySplitSummary);
 
         const pendingCreatedAt = ws.pendingTurn?.createdAt || ws.pendingTurn?.actions?.[0]?.submittedAt;
         const pendingStartedAt = pendingCreatedAt ? Date.parse(pendingCreatedAt) : NaN;

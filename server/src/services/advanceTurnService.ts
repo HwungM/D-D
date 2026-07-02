@@ -72,6 +72,38 @@ export function buildContestConclusionSummary(worldState: WorldState): string | 
   return `The party abandoned "${objective}" partway through this scene's contest.`;
 }
 
+// Summarizes a co-op party split across sub-locations at the moment Advance
+// is called — e.g. one player free-roaming the tavern while the other is at
+// the blacksmith, both within the same top-level location. Returns undefined
+// when there's nothing to note (no split, or fewer than 2 characters with a
+// tracked sub-location that actually differs). Folded into Advance's context
+// so the DM's shared narrated beat can meaningfully bring the party back
+// together instead of silently ignoring where everyone was standing.
+export function buildPartySplitSummary(
+  characterSubLocations: WorldState['characterSubLocations'] | undefined,
+  characterIdToName: Record<string, string>,
+  parentLocation?: string,
+): string | undefined {
+  const entries = Object.entries(characterSubLocations || {})
+    .filter(([id]) => characterIdToName[id])
+    .map(([id, subLocation]) => ({ name: characterIdToName[id], subLocation }));
+  if (entries.length === 0) return undefined;
+
+  const distinctSubLocations = new Set(entries.map(e => e.subLocation));
+  // Only worth calling out when there's an actual split — two-plus characters
+  // in genuinely different sub-locations (or one of them still at the
+  // top-level location while another is off in a sub-location).
+  const namesWithoutSubLocation = Object.keys(characterIdToName).filter(id => !characterSubLocations?.[id]);
+  const hasSplit = distinctSubLocations.size > 1 || (entries.length > 0 && namesWithoutSubLocation.length > 0);
+  if (!hasSplit) return undefined;
+
+  const parts = [
+    ...entries.map(e => `${e.name} was in ${e.subLocation}`),
+    ...namesWithoutSubLocation.map(id => `${characterIdToName[id]} was at ${parentLocation || 'the general area'}`),
+  ];
+  return `The party was split up: ${parts.join('; ')}.`;
+}
+
 // Builds the single action-text string handed to the existing macro-turn
 // pipeline (processAction/processCoopAction) so "what happened during
 // free-roam" becomes context for the turn, without touching that pipeline's
@@ -83,6 +115,7 @@ export function buildAdvanceActionText(
   framingAction?: string,
   combatConclusionSummary?: string,
   contestConclusionSummary?: string,
+  partySplitSummary?: string,
 ): string {
   const framing = (framingAction || '').trim() || 'Move the story forward.';
   const entries = freeRoam?.actions || [];
@@ -93,15 +126,18 @@ export function buildAdvanceActionText(
   const contestBlock = contestConclusionSummary
     ? `\n\n(How this scene's contest concluded — respond to this outcome, don't re-resolve the contest itself: ${contestConclusionSummary})`
     : '';
+  const splitBlock = partySplitSummary
+    ? `\n\n(${partySplitSummary} Have this shared beat meaningfully bring the party back together — don't silently ignore that they were apart.)`
+    : '';
 
-  if (entries.length === 0) return `${framing}${combatBlock}${contestBlock}`;
+  if (entries.length === 0) return `${framing}${combatBlock}${contestBlock}${splitBlock}`;
 
   const summary = entries
     .slice(-10)
     .map(entry => `- ${entry.action.trim()} -> ${entry.reaction.trim()}`)
     .join('\n');
 
-  return `${framing}\n\n(During free-roam since the last turn, the party also did the following — treat this as established context, not a new request to resolve again:\n${summary})${combatBlock}${contestBlock}`;
+  return `${framing}\n\n(During free-roam since the last turn, the party also did the following — treat this as established context, not a new request to resolve again:\n${summary})${combatBlock}${contestBlock}${splitBlock}`;
 }
 
 export function clearFreeRoam(): WorldState['freeRoam'] {

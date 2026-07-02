@@ -440,6 +440,8 @@ export interface CharacterOnlineStatus {
   isOnline: boolean;
   lastSeen: string;
   lastLocation: string;
+  // Sub-location within lastLocation, if tracked (see WorldState.characterSubLocations).
+  lastSubLocation?: string;
 }
 
 export interface ActiveQuest {

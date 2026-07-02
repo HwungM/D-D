@@ -115,8 +115,8 @@ function leanSceneContext(worldState: WorldState): string {
   ].filter(Boolean).join('\n');
 }
 
-function characterLine(c: Character): string {
-  return `${c.name} — ${c.race} ${c.class} L${c.level}, HP ${c.hp}/${c.max_hp}${characterGenderLine(c)}
+function characterLine(c: Character, subLocation?: string): string {
+  return `${c.name} — ${c.race} ${c.class} L${c.level}, HP ${c.hp}/${c.max_hp}${characterGenderLine(c)}${subLocation ? ` — currently inside ${subLocation}` : ''}
 Stats: STR ${c.stats.str} DEX ${c.stats.dex} CON ${c.stats.con} INT ${c.stats.int} WIS ${c.stats.wis} CHA ${c.stats.cha} — ${buildStatHints(c.stats) || 'balanced'}
 Backstory: ${c.backstory || 'unknown origins'}`;
 }
@@ -501,7 +501,7 @@ export async function runSoloTurnPipeline(
   recentHistory: string[],
   campaignContext?: NarrationCampaignContext | null,
 ): Promise<NarrationResult> {
-  const charactersBlock = `CHARACTER:\n${characterLine(character)}\nNotable inventory: ${character.inventory.slice(0, 6).map(i => i.name).join(', ') || 'nothing special'}\nAbilities: ${abilitiesForExtractor(character)}`;
+  const charactersBlock = `CHARACTER:\n${characterLine(character, worldState.characterSubLocations?.[character.id])}\nNotable inventory: ${character.inventory.slice(0, 6).map(i => i.name).join(', ') || 'nothing special'}\nAbilities: ${abilitiesForExtractor(character)}`;
   const actionsBlock = `═══ PLAYER ACTION ═══\n${character.name}: ${action}`;
 
   const tableDirectives = buildTableDirectivesForActions([{ character, action }], worldState, worldBible);
@@ -552,9 +552,9 @@ export async function runCoopTurnPipeline(
   const c2 = a2.character;
   const tableDirectives = buildTableDirectivesForActions(actions, worldState, worldBible);
 
-  const charactersBlock = `CHARACTER 1 (id: ${c1.id}):\n${characterLine(c1)}\nInventory: ${c1.inventory.slice(0, 5).map(i => i.name).join(', ') || 'none'} | Abilities: ${abilitiesForExtractor(c1)}
+  const charactersBlock = `CHARACTER 1 (id: ${c1.id}):\n${characterLine(c1, worldState.characterSubLocations?.[c1.id])}\nInventory: ${c1.inventory.slice(0, 5).map(i => i.name).join(', ') || 'none'} | Abilities: ${abilitiesForExtractor(c1)}
 
-CHARACTER 2 (id: ${c2.id}):\n${characterLine(c2)}\nInventory: ${c2.inventory.slice(0, 5).map(i => i.name).join(', ') || 'none'} | Abilities: ${abilitiesForExtractor(c2)}`;
+CHARACTER 2 (id: ${c2.id}):\n${characterLine(c2, worldState.characterSubLocations?.[c2.id])}\nInventory: ${c2.inventory.slice(0, 5).map(i => i.name).join(', ') || 'none'} | Abilities: ${abilitiesForExtractor(c2)}`;
   const actionsBlock = `═══ PARTY ACTIONS ═══\nCHARACTER 1 (${c1.name}, id ${c1.id}): ${a1.action}\nCHARACTER 2 (${c2.name}, id ${c2.id}): ${a2.action}`;
 
   const plan = await runDirectorPass(openai, log, {
