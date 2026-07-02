@@ -76,7 +76,7 @@ export default function NarratorBox({
   if (isPlayerAction) {
     const isOtherPlayer = !!playerName
     return (
-      <div className="animate-fade-in flex items-start gap-3 px-1 py-0.5 sm:px-2">
+      <div className="animate-fade-in flex items-start gap-3 px-1 py-1 sm:px-2">
         <div
           className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden border text-xs font-fantasy"
           style={isOtherPlayer
@@ -90,7 +90,7 @@ export default function NarratorBox({
           ) : 'PC'}
         </div>
         <div
-          className="relative flex-1 border px-3 py-2.5"
+          className="relative flex-1 rounded-xl border px-4 py-3"
           style={isOtherPlayer
             ? { background: 'rgba(139,92,246,0.10)', borderColor: 'rgba(196,181,253,0.28)', borderLeftColor: 'rgba(196,181,253,0.55)', borderLeftWidth: 2 }
             : { background: 'rgba(34,211,238,0.08)', borderColor: 'rgba(103,232,249,0.22)', borderLeftColor: 'rgba(103,232,249,0.55)', borderLeftWidth: 2 }
@@ -102,7 +102,7 @@ export default function NarratorBox({
           {microAction && (
             <p className="mb-0.5 font-fantasy text-[9px] uppercase tracking-[0.2em] text-amber-200/60">In-scene</p>
           )}
-          <p className="font-serif text-sm italic leading-relaxed" style={{ color: 'rgba(240,228,200,0.88)' }}>
+          <p className="font-serif text-[15px] leading-relaxed" style={{ color: 'rgba(248,239,219,0.96)' }}>
             {displayed}
             {typing && (
               <span className="ml-0.5 inline-block h-3.5 w-0.5 align-middle bg-cyan-300/70"
@@ -126,10 +126,11 @@ export default function NarratorBox({
     const mainText = ambientMatch ? displayed.slice(0, ambientMatch.index).trim() : displayed
     const ambientAside = ambientMatch ? ambientMatch[1] : null
     return (
-      <div className="animate-fade-in flex items-start gap-2.5 px-1 py-0.5 sm:px-2">
-        <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: 'rgba(200,146,42,0.55)' }} />
-        <div className="relative flex-1 border-l-2 px-3 py-1.5" style={{ borderColor: 'rgba(200,146,42,0.35)', background: 'rgba(200,146,42,0.03)' }}>
-          <p className="font-serif text-xs italic leading-relaxed" style={{ color: 'rgba(220,200,160,0.78)' }}>
+      <div className="animate-fade-in flex items-start gap-3 px-1 py-1 sm:px-2">
+        <div className="mt-2 h-2 w-2 shrink-0 rounded-full" style={{ background: '#d6a541', boxShadow: '0 0 12px rgba(214,165,65,0.45)' }} />
+        <div className="relative flex-1 rounded-xl border px-4 py-3" style={{ borderColor: 'rgba(214,165,65,0.26)', background: 'linear-gradient(135deg, rgba(46,31,13,0.72), rgba(28,20,10,0.76))' }}>
+          <p className="mb-1 font-fantasy text-[9px] uppercase tracking-[0.18em]" style={{ color: 'rgba(232,190,100,0.78)' }}>Dungeon Master</p>
+          <p className="font-serif text-[15px] leading-[1.65]" style={{ color: 'rgba(246,234,207,0.94)' }}>
             {mainText}
             {ambientAside && (
               <span className="ml-1" style={{ color: 'rgba(190,172,200,0.58)', fontStyle: 'italic' }}>
@@ -150,9 +151,9 @@ export default function NarratorBox({
   const accent = MOOD_ACCENT[mood]
 
   return (
-    <div className="animate-fade-in narrator-box relative px-1 sm:px-2">
+    <div className="animate-fade-in narrator-box relative px-1 py-1 sm:px-2">
       <div
-        className="relative overflow-hidden border px-4 py-4 sm:px-5 sm:py-5"
+        className="relative overflow-hidden rounded-2xl border px-4 py-4 sm:px-5 sm:py-5"
         style={{
           background: 'linear-gradient(135deg, rgba(28,18,8,0.96) 0%, rgba(18,12,5,0.94) 100%)',
           borderColor: 'rgba(200,146,42,0.3)',
@@ -187,7 +188,7 @@ export default function NarratorBox({
 
           {/* Narration text */}
           <div className="flex-1 min-w-0 pt-0.5">
-            <p className="font-serif text-sm sm:text-base leading-[1.75] whitespace-pre-wrap"
+            <p className="font-serif text-base sm:text-[17px] leading-[1.72] whitespace-pre-wrap"
               style={{ color: 'rgba(245,234,210,0.96)' }}>
               {displayed}
               {typing && (

@@ -126,8 +126,9 @@
 /* Warm amber-lit narrative feed — feels like candlelit parchment, not a black void */
 .everrealm-story-feed {
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(200,146,42,0.09), transparent 50%),
-    radial-gradient(ellipse at 50% 100%, rgba(180,100,30,0.05), transparent 40%);
+    radial-gradient(ellipse at 50% 0%, rgba(200,146,42,0.13), transparent 48%),
+    linear-gradient(180deg, rgba(24,17,9,0.96), rgba(12,10,7,0.98));
+  scroll-behavior: smooth;
 }
 
 @media (min-width: 1024px) {

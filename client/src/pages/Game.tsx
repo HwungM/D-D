@@ -1291,6 +1291,8 @@ export default function Game() {
     ...(characterId ? companionNamesSharingScene(worldState, characterId) : []),
   ].filter(Boolean) as string[]
   const sidebarLabels = { character: 'Character Sheet', quests: 'Quest Log', map: 'Realm Map', world: 'World', people: 'People & Relations', clues: 'Clue Bank', journal: 'Journal', achievements: 'Achievements' } as const
+  const sidebarTabs = ['character', 'quests', 'people', 'map', 'world', 'clues', 'journal', 'achievements'] as const
+  const sidebarShortLabels = { character: 'Sheet', quests: 'Quests', map: 'Map', world: 'World', people: 'People', clues: 'Clues', journal: 'Log', achievements: 'Awards' } as const
   const sceneArtUrl = visibleSceneArt(currentSceneImage)
   const currentLocationNode = worldState?.locationGraph?.nodes?.find(n => n.name === (worldState?.locationGraph?.currentLocation || worldState?.currentLocation))
   const currentSubLocation = characterId ? worldState?.characterSubLocations?.[characterId] : undefined
@@ -1382,23 +1384,16 @@ export default function Game() {
               {endingSession ? 'Saving...' : `End S${activeSessionNumber}`}
             </button>
           )}
-          {(['character', 'quests', 'people', 'map', 'world', 'clues', 'journal', 'achievements'] as const).map(tab => {
-            const labels = { character: 'Sheet', quests: 'Quests', map: 'Map', world: 'World', people: 'People', clues: 'Clues', journal: 'Log', achievements: 'Awards' }
-            const isActive = showSidebar && sidebarTab === tab
-            return (
-              <button
-                key={tab}
-                onClick={() => { setSidebarTab(tab); setShowSidebar(sidebarTab !== tab || !showSidebar) }}
-                className="shrink-0 px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all duration-200"
-                style={isActive
-                  ? { border: '1px solid rgba(200,146,42,0.65)', background: 'rgba(200,146,42,0.16)', color: '#f5dea0', boxShadow: '0 0 14px rgba(200,146,42,0.14)' }
-                  : { border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'rgba(200,180,140,0.65)' }
-                }
-              >
-                {labels[tab]}
-              </button>
-            )
-          })}
+          <button
+            onClick={() => setShowSidebar(open => !open)}
+            className="shrink-0 rounded-lg px-4 py-2 font-fantasy text-[10px] uppercase tracking-[0.18em] transition-all duration-200"
+            style={showSidebar
+              ? { border: '1px solid rgba(200,146,42,0.65)', background: 'rgba(200,146,42,0.16)', color: '#f5dea0', boxShadow: '0 0 18px rgba(200,146,42,0.16)' }
+              : { border: '1px solid rgba(255,255,255,0.13)', background: 'rgba(255,255,255,0.04)', color: 'rgba(232,214,178,0.82)' }
+            }
+          >
+            Codex
+          </button>
         </div>
         </div>
       </header>
@@ -1443,11 +1438,11 @@ export default function Game() {
       )}
 
       {/* -- Main content area -- */}
-      <div className="relative z-10 everrealm-game-main mx-auto flex w-full max-w-[1540px] flex-col lg:flex-row flex-1 overflow-hidden gap-4 p-3 sm:p-4 min-h-0">
+      <div className="relative z-10 everrealm-game-main mx-auto flex w-full max-w-[1800px] flex-col lg:flex-row flex-1 overflow-hidden gap-3 p-3 min-h-0">
 
         {/* -- LEFT: Persistent scene panel -- */}
-        <div className="everrealm-scene-column flex flex-col shrink-0 overflow-hidden shadow-[0_24px_120px_rgba(0,0,0,0.65)]" style={{ border: '1px solid rgba(200,146,42,0.18)' }}>
-          <div className="w-full h-[36vh] min-h-[250px] lg:w-[42vw] xl:w-[46vw] lg:max-w-[760px] lg:h-full lg:min-h-0">
+        <div className="everrealm-scene-column flex flex-col shrink-0 overflow-hidden rounded-2xl shadow-[0_24px_120px_rgba(0,0,0,0.65)] lg:w-[34%] lg:min-w-[340px] lg:max-w-[500px] xl:w-[31%]" style={{ border: '1px solid rgba(200,146,42,0.22)', background: 'rgba(8,6,3,0.94)' }}>
+          <div className="h-[34vh] min-h-[240px] w-full lg:min-h-0 lg:flex-1">
             <SceneDisplay
               imageUrl={sceneArtUrl}
               location={worldState?.currentLocation}
@@ -1470,8 +1465,8 @@ export default function Game() {
         </div>
 
         {/* -- CENTER: Narrative feed -- */}
-        <div className="everrealm-story-column flex-1 flex flex-col overflow-hidden min-h-0" style={{ border: '1px solid rgba(200,146,42,0.15)', background: 'rgba(12,8,3,0.88)', backdropFilter: 'blur(12px)' }}>
-          <div className="shrink-0 px-4 py-3 flex items-center justify-between gap-3" style={{
+        <div className="everrealm-story-column relative flex-1 flex flex-col overflow-hidden min-h-0 rounded-2xl shadow-[0_22px_90px_rgba(0,0,0,0.48)]" style={{ border: '1px solid rgba(200,146,42,0.24)', background: 'rgba(13,10,6,0.96)', backdropFilter: 'blur(18px)' }}>
+          <div className="shrink-0 px-5 py-2.5 flex items-center justify-between gap-3" style={{
             borderBottom: '1px solid rgba(200,146,42,0.18)',
             background: 'linear-gradient(90deg, rgba(20,12,4,0.98), rgba(25,16,6,0.92))',
           }}>
@@ -1479,7 +1474,7 @@ export default function Game() {
               <p className="font-fantasy text-[10px] uppercase tracking-[0.28em]" style={{ color: 'rgba(200,146,42,0.8)' }}>
                 Dungeon Master
               </p>
-              <h1 className="mt-0.5 font-fantasy text-3xl truncate" style={{ color: '#f5e6c8' }}>
+              <h1 className="font-fantasy text-2xl truncate" style={{ color: '#f5e6c8' }}>
                 {campaignName || 'The Everrealm'}
               </h1>
             </div>
@@ -1507,7 +1502,7 @@ export default function Game() {
             </div>
           </div>
 
-          <div ref={narratorRef} className="everrealm-story-feed flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-2.5" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.3) transparent' }}>
+          <div ref={narratorRef} className="everrealm-story-feed min-h-[240px] flex-1 overflow-y-auto px-4 py-5 sm:px-6 space-y-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.42) transparent' }}>
 
               {showDice && lastActionResult?.diceRoll && (
                 <div className="px-4">
@@ -1650,7 +1645,7 @@ export default function Game() {
             <ContestPanel skillChallenge={activeSkillChallenge} />
           )}
           {!inCombat && !coopWaiting && currentCharacter?.is_alive !== false && (
-            <div className="flex items-center justify-end px-4 pb-1">
+            <div className="absolute right-6 top-[74px] z-10 flex items-center justify-end">
               <button
                 onClick={() => setShowRest(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.16em] transition-all opacity-50 hover:opacity-90"
@@ -1704,6 +1699,20 @@ export default function Game() {
               >
                 Close
               </button>
+            </div>
+            <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-amber-200/10 px-3 py-2" style={{ scrollbarWidth: 'none' }}>
+              {sidebarTabs.map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setSidebarTab(tab)}
+                  className="shrink-0 rounded-md px-2.5 py-1.5 font-fantasy text-[9px] uppercase tracking-[0.12em]"
+                  style={sidebarTab === tab
+                    ? { background: 'rgba(200,146,42,0.17)', color: '#f5dea0', border: '1px solid rgba(200,146,42,0.4)' }
+                    : { background: 'rgba(255,255,255,0.025)', color: 'rgba(220,202,168,0.62)', border: '1px solid rgba(255,255,255,0.07)' }}
+                >
+                  {sidebarShortLabels[tab]}
+                </button>
+              ))}
             </div>
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.18) transparent' }}>
               <SidebarErrorBoundary tabName={sidebarTab}>
@@ -1760,6 +1769,20 @@ export default function Game() {
               >
                 Close
               </button>
+            </div>
+            <div className="flex gap-1 overflow-x-auto border-b border-amber-200/10 px-3 py-2" style={{ scrollbarWidth: 'none' }}>
+              {sidebarTabs.map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setSidebarTab(tab)}
+                  className="shrink-0 rounded-md px-2.5 py-1.5 font-fantasy text-[9px] uppercase tracking-[0.12em]"
+                  style={sidebarTab === tab
+                    ? { background: 'rgba(200,146,42,0.17)', color: '#f5dea0', border: '1px solid rgba(200,146,42,0.4)' }
+                    : { background: 'rgba(255,255,255,0.025)', color: 'rgba(220,202,168,0.62)', border: '1px solid rgba(255,255,255,0.07)' }}
+                >
+                  {sidebarShortLabels[tab]}
+                </button>
+              ))}
             </div>
             <div className="max-h-[74vh] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(200,146,42,0.18) transparent' }}>
               <SidebarErrorBoundary tabName={sidebarTab}>

@@ -55,14 +55,17 @@ export default function ActionPanel({
   const suggestions = suggestedActions.slice(0, 4)
   const hasSuggestions = suggestions.length > 0
   const hasInput = input.trim().length > 0
-  const interactables = sceneInteractables.slice(0, 8)
+  // Movement is authoritative through the gold location controls. Generated
+  // exit suggestions used to duplicate those buttons and could bypass the
+  // location system, so this tray only contains things and people to engage.
+  const interactables = sceneInteractables.filter(item => item.kind !== 'exit').slice(0, 6)
   // When combat or a live contest is underway, those buttons should dominate
   // this panel — exploration chips (sub-locations, scene interactables) recede
   // behind a toggle so the composer isn't fighting four button rows for
   // attention at the exact moment the player needs to see Attack/Push/Bail.
   const urgentFocus = !!(combatState?.inCombat || skillChallenge)
   const exploreCount = interactables.length + subLocations.length + (currentSubLocation ? 1 : 0)
-  const exploreOpen = exploreCount > 0 && (exploreExpanded || !urgentFocus)
+  const exploreOpen = exploreCount > 0 && exploreExpanded && !urgentFocus
 
   function submitAction(action: string) {
     const trimmed = action.trim()
@@ -126,16 +129,16 @@ export default function ActionPanel({
         boxShadow: '0 -12px 48px rgba(0,0,0,0.6)',
       }}
     >
-      <div className="space-y-3 px-3 py-3 sm:px-4">
+      <div className="space-y-2 px-3 py-2.5 sm:px-4">
 
         {/* Header row */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="font-fantasy text-xs uppercase tracking-[0.24em]"
               style={{ color: inCombat ? '#fca5a5' : 'rgba(224,180,90,0.95)' }}>
               {inCombat ? '⚔ Combat' : isCoop ? 'Party Turn' : 'Your Turn'}
             </p>
-            <p className="font-serif text-xs mt-0.5" style={{ color: 'rgba(215,197,163,0.74)' }}>
+            <p className="hidden font-serif text-xs mt-0.5 sm:block" style={{ color: 'rgba(235,220,190,0.78)' }}>
               {disabledReason || 'Say what you do. The DM will call for rolls when they matter.'}
             </p>
           </div>
@@ -279,11 +282,11 @@ export default function ActionPanel({
             toggle the moment combat or a contest takes over, so it doesn't
             compete with those buttons for attention. */}
         {exploreCount > 0 && (
-          <div className="border border-white/8 bg-white/[0.015]">
+          <div className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.025]">
             <button
               type="button"
               onClick={() => setExploreExpanded(open => !open)}
-              className="flex w-full items-center justify-between px-2.5 py-1.5 font-fantasy text-[10px] uppercase tracking-[0.2em] transition-colors duration-150"
+              className="flex w-full items-center justify-between px-3 py-2 font-fantasy text-[10px] uppercase tracking-[0.2em] transition-colors duration-150"
               style={{ color: 'rgba(191,244,255,0.72)' }}
             >
               <span>Explore &middot; {exploreCount}</span>
@@ -351,7 +354,7 @@ export default function ActionPanel({
         )}
 
         {/* Input row */}
-        <form onSubmit={handleSubmit} className="flex gap-2 items-end">
+        <form onSubmit={handleSubmit} className="flex gap-2 items-stretch">
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
@@ -359,8 +362,8 @@ export default function ActionPanel({
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={disabled}
-              rows={2}
-              className="w-full resize-none px-3 py-2.5 font-serif text-sm leading-relaxed outline-none transition-all duration-200"
+              rows={1}
+              className="h-12 w-full resize-none rounded-xl px-4 py-3 font-serif text-[15px] leading-relaxed outline-none transition-all duration-200"
               placeholder={disabled
                 ? (disabledReason || 'Your character cannot act...')
                 : 'Describe what you try, say, inspect, cast, risk, or ask. Enter to react in the scene.'}
@@ -369,14 +372,14 @@ export default function ActionPanel({
                 border: `1px solid ${hasInput ? 'rgba(200,146,42,0.5)' : 'rgba(255,255,255,0.1)'}`,
                 color: 'rgba(245,234,210,0.96)',
                 caretColor: '#f59e0b',
-                fontStyle: 'italic',
+                fontStyle: 'normal',
               }}
             />
           </div>
           <button
             type="submit"
             disabled={disabled || !hasInput}
-            className="self-stretch px-5 font-fantasy text-xs uppercase tracking-[0.18em] transition-all duration-200 disabled:cursor-not-allowed sm:px-6"
+            className="self-stretch rounded-xl px-5 font-fantasy text-xs uppercase tracking-[0.18em] transition-all duration-200 disabled:cursor-not-allowed sm:px-6"
             style={{
               background: hasInput && !disabled ? 'rgba(200,146,42,0.2)' : 'rgba(255,255,255,0.04)',
               border: `1px solid ${hasInput && !disabled ? 'rgba(200,146,42,0.6)' : 'rgba(255,255,255,0.1)'}`,
@@ -395,7 +398,7 @@ export default function ActionPanel({
             type="button"
             onClick={handleAdvanceClick}
             disabled={advanceDisabled}
-            className="flex w-full items-center justify-between gap-3 px-4 py-2.5 font-fantasy text-xs uppercase tracking-[0.2em] transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex w-full items-center justify-between gap-3 rounded-lg px-4 py-2 font-fantasy text-[11px] uppercase tracking-[0.18em] transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40"
             style={{
               background: 'linear-gradient(90deg, rgba(139,92,246,0.14), rgba(34,211,238,0.1))',
               border: '1px solid rgba(167,139,250,0.42)',
@@ -425,7 +428,7 @@ export default function ActionPanel({
           >
             {showSuggestions ? 'Hide Ideas' : 'Ideas'}
           </button>
-          <span className="font-serif text-xs italic" style={{ color: 'rgba(200,182,144,0.62)' }}>
+          <span className="hidden font-serif text-xs italic sm:block" style={{ color: 'rgba(220,205,175,0.68)' }}>
             {hasSuggestions ? 'Optional nudges. Click one to draft it, then edit or send.' : 'No ideas yet. Trust your instinct.'}
           </span>
         </div>

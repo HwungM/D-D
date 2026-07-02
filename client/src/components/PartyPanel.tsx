@@ -36,20 +36,20 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
   if (others.length === 0 && companions.length === 0) return null
 
   return (
-    <div className="shrink-0 border-t border-parchment-100/14 bg-black/62 px-4 py-3 backdrop-blur-md">
+    <div className="shrink-0 border-t border-parchment-100/14 bg-black/72 px-3 py-2.5 backdrop-blur-md">
       <div className="flex items-center justify-between gap-3 mb-2">
         <span className="shrink-0 font-fantasy text-[10px] uppercase tracking-[0.24em] text-cyan-200/78">Party</span>
         <span className="font-serif text-xs text-parchment-200/62">
           {others.length + companions.length} companion{others.length + companions.length === 1 ? '' : 's'}
         </span>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex items-stretch gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
         {companions.map(companion => {
           const hpPct = Math.max(0, (companion.hp / companion.max_hp) * 100)
           const hpColor = hpPct > 60 ? '#16a34a' : hpPct > 30 ? '#ca8a04' : '#dc2626'
           const bond = bondMeter(companion.bondLevel)
           return (
-            <div key={companion.id} className="flex items-center gap-2 min-w-[190px] border border-violet-200/26 bg-violet-300/[0.06] px-2 py-1.5">
+            <div key={companion.id} className="flex min-w-[170px] flex-1 items-center gap-2 rounded-lg border border-violet-200/26 bg-violet-300/[0.07] px-2 py-1.5">
               <div className="relative shrink-0">
                 <img
                   src={companion.portrait_url || racePortraitUrl(companion.race)}
@@ -119,7 +119,7 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
           const subLocation = worldState?.characterSubLocations?.[char.id]
 
           return (
-            <div key={member.userId} className="flex items-center gap-2 min-w-[180px] border border-white/14 bg-white/[0.045] px-2 py-1.5">
+            <div key={member.userId} className="flex min-w-[170px] flex-1 items-center gap-2 rounded-lg border border-white/14 bg-white/[0.05] px-2 py-1.5">
               <div className="relative shrink-0">
                 <img
                   src={char.portrait_url || racePortraitUrl(char.race)}
