@@ -51,6 +51,56 @@ export interface DmRoadmapArcSegment {
   act3ResolutionOptions: string[];
 }
 
+// A single personal legendary item quest tied to one PC or companion's
+// backstory (Vex's bow, Grog's knuckles). Seeded from a backstory hook and
+// earned through a dedicated arc, not random loot. See WorldState.signatureItemQuests.
+export interface SignatureItemQuest {
+  id: string;
+  characterId: string; // PC or CompanionCharacter id — the intended owner
+  characterName: string;
+  itemName: string;
+  itemFlavor: string; // what the item is, why it matters to this character
+  questHook: string;  // what must happen in play to earn it
+  status: 'seeded' | 'in_progress' | 'earned';
+  earnedItem?: InventoryItem; // populated once earned, reusing the normal item shape
+  createdAt: string;
+  earnedAt?: string;
+}
+
+// A persistent non-item reward granted to the party or an individual
+// character — a title, property, or standing that isn't gold/loot and can
+// open up future narrative options. The "unlocking" logic itself belongs to
+// a later phase; unlocksHint is informational context for the AI DM.
+export interface PartyAsset {
+  id: string;
+  kind: 'property' | 'title' | 'position';
+  name: string;
+  description: string;
+  grantedAt: string;
+  grantedBy: string; // what earned it (event/quest/choice summary)
+  locationName?: string; // set when this asset is a place
+  characterId?: string; // set when granted to one character rather than the whole party
+  unlocksHint?: string; // short note on what having this might allow later
+}
+
+// A hidden true nature for any NPC (not just the primary antagonist) — a
+// trusted ally secretly working against the party, or secretly the
+// antagonist in disguise. revealCondition is loose/AI-interpreted narrative
+// guidance, not a hard trigger. See WorldState.hiddenIdentities and
+// WorldBible.plannedBetrayal for the authoring-time seed.
+export interface HiddenIdentity {
+  id: string;
+  npcName: string; // matches an NpcMemory.name
+  trueIdentity: string; // what/who they really are or serve
+  revealCondition: string; // natural-language description of what should trigger the reveal
+  isRevealed: boolean;
+  revealedAt?: string;
+  createdAt: string;
+}
+
+// What kind of non-combat contest a skill challenge represents.
+export type NonCombatContestType = 'heist' | 'social' | 'gambling' | 'chase' | 'other';
+
 export interface StatusEffect {
   name: string;
   description: string;
@@ -322,6 +372,20 @@ export interface EngineAuditEntry {
   };
 }
 
+// A specific spot nested inside a LocationNode (e.g. "The Rusty Anchor
+// Tavern" inside the town of Kellhaven) — spatial granularity below the
+// city/region level, mainly for co-op splits where different players are in
+// different buildings within the same location.
+export interface SubLocation {
+  id: string;
+  name: string;
+  parentLocationName: string; // matches a LocationNode.name
+  description: string;
+  npcsPresent: string[];
+  objectsOfInterest: string[]; // short strings, notable features/items
+  type: 'shop' | 'tavern' | 'residence' | 'civic' | 'outdoor' | 'other';
+}
+
 export interface LocationNode {
   name: string;
   region: string;
@@ -335,6 +399,20 @@ export interface LocationNode {
   questHooks: string[];
   partyHere: string[];
   tags: string[];
+  subLocations?: SubLocation[];
+}
+
+// A world event that fires independent of player action (not a reaction to
+// what the party did) — ambient flavor, complications, or windfalls. See
+// WorldState.recentWorldEvents (bounded, keep last 10) and
+// WorldBible.ambientEventSeeds for the authored seed pool these draw from.
+export interface RandomWorldEvent {
+  id: string;
+  description: string;
+  triggeredAt: string;
+  category: 'weather' | 'news' | 'stranger' | 'windfall' | 'complication' | 'omen' | 'other';
+  locationName?: string;
+  resolved?: boolean;
 }
 
 export interface LocationGraph {
@@ -435,6 +513,11 @@ export interface WorldState {
   villainMoveCount?: number;
   actGoalsAchieved?: string[];
   characterLocations?: Record<string, string>;  // characterId -> location name
+  // characterId -> sub-location name (matches a SubLocation.name), for
+  // tracking co-op splits at building-level granularity within one location.
+  // Parallel to characterLocations rather than reusing it, since existing
+  // consumers of characterLocations expect a top-level LocationNode name.
+  characterSubLocations?: Record<string, string>;
   characterLastSeen?: Record<string, string>;    // characterId -> ISO timestamp
   fallenHeroes?: { name: string; race: string; class: string; level: number; cause: string; diedAt: string; location?: string }[];
   currentSceneSummary?: string;
@@ -455,6 +538,14 @@ export interface WorldState {
       participantIds: string[];
       stakes: string;
       updatedAt: string;
+      // Optional formalization: what kind of contest this is and short
+      // natural-language hints for what success/failure mean narratively.
+      // Additive/backward-compatible — existing challenges without these
+      // fields still work exactly as before.
+      contestType?: NonCombatContestType;
+      stakesDescription?: string;
+      onSuccessHint?: string;
+      onFailureHint?: string;
     } | null;
   };
   combatState?: {
@@ -562,6 +653,14 @@ export interface WorldState {
       isCritFail?: boolean;
     }[];
   } | null;
+  // Phase 12 additions — see SignatureItemQuest, PartyAsset, HiddenIdentity,
+  // RandomWorldEvent doc comments above for full context.
+  signatureItemQuests?: SignatureItemQuest[];
+  partyAssets?: PartyAsset[];
+  hiddenIdentities?: HiddenIdentity[];
+  // Bounded ledger of fired ambient world events — keep last 10, like other
+  // bounded arrays in this file (e.g. keyNPCs).
+  recentWorldEvents?: RandomWorldEvent[];
 }
 
 export interface WorldBible {
@@ -594,6 +693,19 @@ export interface WorldBible {
   };
   toneBreaks?: string[];
   futureHookSeeds?: string[];
+  // A loose authoring-time seed for a planned hidden-identity twist, set at
+  // world-bible generation time. Not a concrete HiddenIdentity yet — the
+  // campaign-generation service turns this into one once an NPC matching
+  // npcRole is actually introduced in play (generation logic is a later phase).
+  plannedBetrayal?: {
+    npcRole: string;       // e.g. "a trusted mentor figure the party meets early"
+    trueIdentity: string;  // what they really are/serve
+    setupHint: string;     // how the twist should be foreshadowed before the reveal
+  };
+  // A handful of world-flavor-appropriate one-line ambient event prompts,
+  // generated once at campaign creation, so RandomWorldEvent instances feel
+  // authored/on-tone rather than generic. Later phases pick from/riff on these.
+  ambientEventSeeds?: string[];
   campaignBrief?: {
     hook: string;
     objective: string;
