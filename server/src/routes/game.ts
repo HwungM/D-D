@@ -4,11 +4,11 @@ import { supabaseAdmin } from '../services/supabase';
 import { processAction, getOpeningScene, getCoopOpeningScene, resolveRollAction, resolveCoopRollAction, processCoopAction, compressToJournalEntry } from '../services/gameEngine';
 import { getStatModifier } from '../services/characterProgressionSystem';
 import { generateEpilogue, generateMicroActionReaction, generateSubLocations } from '../services/openai';
-import type { WorldState, WorldBible, Character, RollContext, RandomWorldEvent } from '../../../shared/types';
+import type { WorldState, WorldBible, Character, RollContext, RandomWorldEvent, CompanionCharacter } from '../../../shared/types';
 import { z } from 'zod';
 import { aiRateLimit } from '../middleware/rateLimit';
 import { repairWorldStateForGameplay } from '../services/coopStateIntegrity';
-import { buildSceneInteractables } from '../services/sceneInteractableSystem';
+import { buildSceneInteractables, getOrBuildSceneInteractablesForCharacter, withSceneInteractablesForCharacter } from '../services/sceneInteractableSystem';
 import { matchSubLocationNavigation, needsSubLocationGeneration } from '../services/subLocationSystem';
 import { appendFreeRoamEntry, buildAdvanceActionText, buildCombatConclusionSummary, buildContestConclusionSummary, buildPartySplitSummary } from '../services/advanceTurnService';
 import { resolveMysteryClueChanges } from '../services/mysteryClueSystem';
@@ -19,6 +19,7 @@ import { escalateTension, resumeCombatFromTension } from '../services/tensionSys
 import { applyCharacterConsequences } from '../services/consequenceSystem';
 import { applyCompanionChanges } from '../services/companionSystem';
 import { appendWorldEvent, buildAmbientWorldEvent, pickAmbientEventSeed, shouldFireAmbientEvent, weaveAmbientEventIntoReaction } from '../services/ambientWorldEventSystem';
+import { buildCompanionPresenceBeat, companionsPresentWithCharacter, pickPresentCompanion, shouldFireCompanionPresence, weaveCompanionPresenceIntoReaction } from '../services/companionPresenceSystem';
 
 const router = Router();
 const COOP_TURN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -686,7 +687,19 @@ router.get('/scene/:campaignId/:characterId', requireAuth, async (req: AuthReque
 
   // "Previously on..." recap when returning after a long break
   let recap: { summary: string; keyDecisions: string[]; sessionNumber: number; gapHours: number } | null = null;
-  const ws = repairedWs;
+  // Self-heal this character's own sceneInteractables slot (lazily recomputing
+  // if it's missing, e.g. right after a macro-turn reconvergence or for a
+  // character the server hasn't scoped yet) — this endpoint is polled by BOTH
+  // co-op players, so it must only ever hand back THIS character's own scoped
+  // view, never another party member's.
+  const ws: WorldState = {
+    ...repairedWs,
+    sceneInteractables: withSceneInteractablesForCharacter(
+      repairedWs,
+      characterId,
+      getOrBuildSceneInteractablesForCharacter(repairedWs, characterId),
+    ),
+  };
   if (lastEvent?.created_at) {
     const gapHours = (Date.now() - new Date(lastEvent.created_at).getTime()) / (1000 * 60 * 60);
     if (gapHours >= 3) {
@@ -1215,7 +1228,14 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
           const hunterName = ws.tensionMeter.hunterName || resumedCombat.enemyName;
           const narration = `${hunterName} finds you again — combat erupts once more!`;
           const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, action, narration);
-          const updatedWorldState: WorldState = { ...ws, combatState: resumedCombat, tensionMeter: null, freeRoam };
+          const combatSceneInteractables = buildSceneInteractables(ws, characterId);
+          const updatedWorldState: WorldState = {
+            ...ws,
+            combatState: resumedCombat,
+            tensionMeter: null,
+            freeRoam,
+            sceneInteractables: withSceneInteractablesForCharacter(ws, characterId, combatSceneInteractables),
+          };
           await supabaseAdmin.from('campaigns').update({ world_state: updatedWorldState }).eq('id', campaignId);
           await supabaseAdmin.from('story_events').insert({
             campaign_id: campaignId,
@@ -1236,7 +1256,7 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
             awaitingRoll: false,
             combatResumed: true,
             combatState: resumedCombat,
-            sceneInteractables: updatedWorldState.sceneInteractables || [],
+            sceneInteractables: combatSceneInteractables,
             freeRoamCount: freeRoam.actions.length,
           });
           return;
@@ -1286,7 +1306,11 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
           ? `You head into ${navMatch.subLocation.name}.`
           : `You head back out to ${parentName}.`;
         const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, action, navReaction);
-        const updatedWorldState: WorldState = { ...wsWithSubLocation, sceneInteractables: scopedInteractables, freeRoam };
+        const updatedWorldState: WorldState = {
+          ...wsWithSubLocation,
+          sceneInteractables: withSceneInteractablesForCharacter(wsWithSubLocation, characterId, scopedInteractables),
+          freeRoam,
+        };
         await supabaseAdmin.from('campaigns').update({ world_state: updatedWorldState }).eq('id', campaignId);
         await supabaseAdmin.from('story_events').insert({
           campaign_id: campaignId,
@@ -1340,7 +1364,7 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
           ...ws,
           sceneState: { ...ws.sceneState, skillChallenge: null },
           lastContestOutcome,
-          sceneInteractables,
+          sceneInteractables: withSceneInteractablesForCharacter(ws, characterId, sceneInteractables),
           freeRoam,
         };
         await supabaseAdmin.from('campaigns').update({ world_state: updatedWorldState }).eq('id', campaignId);
@@ -1385,7 +1409,7 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         }
         // Persist any tension-meter escalation from above (e.g. still hidden,
         // heat rose) even though this particular action needs a roll.
-        await supabaseAdmin.from('campaigns').update({ world_state: { ...ws, sceneInteractables } }).eq('id', campaignId);
+        await supabaseAdmin.from('campaigns').update({ world_state: { ...ws, sceneInteractables: withSceneInteractablesForCharacter(ws, characterId, sceneInteractables) } }).eq('id', campaignId);
         await supabaseAdmin.from('story_events').insert({
           campaign_id: campaignId,
           character_id: characterId,
@@ -1435,6 +1459,23 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         }
       }
 
+      // Companion ambient presence: independent of (and alongside) the world
+      // event above — a moderate-cadence, code-driven chance that a companion
+      // who's actually present with this character gets a small in-character
+      // beat, so they read as an ambient party member instead of an inert
+      // sidebar stat block between combats. Only ever considered on this same
+      // fully-resolved flavor path (combat/contest already give companions
+      // real participation via companionSystem.ts). See companionPresenceSystem.ts.
+      let featuredCompanion: CompanionCharacter | undefined;
+      if (shouldFireCompanionPresence(ws, characterId)) {
+        const present = companionsPresentWithCharacter(ws, characterId);
+        featuredCompanion = pickPresentCompanion(present);
+        if (featuredCompanion) {
+          const beat = buildCompanionPresenceBeat(featuredCompanion);
+          finalReaction = weaveCompanionPresenceIntoReaction(finalReaction, featuredCompanion, beat);
+        }
+      }
+
       const freeRoam = appendFreeRoamEntry(ws.freeRoam, ws.currentLocation, action, finalReaction);
 
       const updatedWorldState: WorldState = {
@@ -1442,7 +1483,10 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         ...(mysteryClueChanges ? { mysteryClues: mysteryClueChanges } : {}),
         ...(npcMemoryChange ? { npcMemory: npcMemoryChange } : {}),
         ...(ambientWorldEvent ? { recentWorldEvents: appendWorldEvent(ws.recentWorldEvents, ambientWorldEvent) } : {}),
-        sceneInteractables,
+        ...(featuredCompanion ? {
+          companions: (ws.companions || []).map(c => c.id === featuredCompanion!.id ? { ...c, lastSeenAt: new Date().toISOString() } : c),
+        } : {}),
+        sceneInteractables: withSceneInteractablesForCharacter(ws, characterId, sceneInteractables),
         freeRoam,
       };
       await supabaseAdmin.from('campaigns').update({ world_state: updatedWorldState }).eq('id', campaignId);
@@ -1472,7 +1516,11 @@ router.post('/micro-action', requireAuth, aiRateLimit, async (req: AuthRequest, 
         character_id: characterId,
         event_type: 'narration',
         content: finalReaction,
-        metadata: ambientWorldEvent ? { microAction: true, ambientWorldEvent: true } : { microAction: true },
+        metadata: {
+          microAction: true,
+          ...(ambientWorldEvent ? { ambientWorldEvent: true } : {}),
+          ...(featuredCompanion ? { companionPresence: featuredCompanion.id } : {}),
+        },
       });
 
       res.json({

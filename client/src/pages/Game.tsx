@@ -1005,7 +1005,15 @@ export default function Game() {
     try {
       const { data } = await gameApi.microAction(characterId, campaignId, trimmed)
 
-      if (data.sceneInteractables) mergeWorldState({ sceneInteractables: data.sceneInteractables })
+      // The micro-action response carries only THIS character's own scoped
+      // interactables (see server sceneInteractableSystem.ts) — fold it into
+      // this character's slot of the shared record without touching any
+      // co-op partner's entry, so their action panel is never affected by ours.
+      if (data.sceneInteractables) {
+        mergeWorldState({
+          sceneInteractables: { ...(worldState?.sceneInteractables || {}), [characterId]: data.sceneInteractables },
+        })
+      }
 
       // Tension re-trigger: the party was hiding/fled and this action (even an
       // unrelated one) caused the threat to find them again — combat resumes
@@ -1617,7 +1625,7 @@ export default function Game() {
             onAdvance={handleAdvance}
             advanceDisabled={isLoading || isTyping || microActionLoading || currentCharacter?.is_alive === false || coopWaiting}
             freeRoamCount={freeRoamCount}
-            sceneInteractables={worldState?.sceneInteractables}
+            sceneInteractables={characterId ? worldState?.sceneInteractables?.[characterId] : undefined}
             disabled={isLoading || isTyping || microActionLoading || currentCharacter?.is_alive === false || coopWaiting}
             disabledReason={coopWaiting ? 'Your action is locked in. Waiting for the party to submit.' : undefined}
             location={worldState?.currentLocation}

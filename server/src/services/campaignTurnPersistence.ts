@@ -167,7 +167,24 @@ export async function applyConsequences(
   // scene, so any co-op sub-location split from free-roam is cleared here —
   // the next scene starts everyone back at the top-level location.
   newWorldState.characterSubLocations = {};
-  newWorldState.sceneInteractables = buildSceneInteractables(newWorldState);
+  // Reconvergence means every party member now shares the exact same
+  // top-level scene (no per-character sub-location split anymore), so the
+  // same freshly-built interactable list is correct for all of them — but it
+  // must still be written per-character (see WorldState.sceneInteractables)
+  // rather than as a bare shared array, or the next co-op poll would hand one
+  // player's stale/foreign entry to another. Cover every character id we
+  // actually know about (the acting character, plus anyone with a tracked
+  // location or a just-cleared sub-location); the micro-action route and
+  // GET /scene both self-heal any character id missing from this map.
+  const reconvergedInteractables = buildSceneInteractables(newWorldState);
+  const knownCharacterIds = new Set<string>([
+    characterId,
+    ...Object.keys(newWorldState.characterLocations || {}),
+    ...Object.keys(latestWorldState.characterSubLocations || {}),
+  ]);
+  newWorldState.sceneInteractables = Object.fromEntries(
+    Array.from(knownCharacterIds).map(id => [id, reconvergedInteractables])
+  );
   newWorldState.freeRoam = null;
   // A concluded scene's combat/tension bookkeeping is scene-scoped — the next
   // scene's micro-actions start clean rather than carrying over a stale

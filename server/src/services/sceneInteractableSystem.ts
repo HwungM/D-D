@@ -87,6 +87,32 @@ export function buildSceneInteractables(worldState: WorldState, characterId?: st
   return interactables.slice(0, 16);
 }
 
+// Writes one character's freshly-built interactables into the per-character
+// map without disturbing any other character's entry — the co-op-safe way to
+// update WorldState.sceneInteractables (see its doc comment in shared/types.ts;
+// this used to be a single flat array that any character's micro-action would
+// overwrite wholesale, cross-contaminating whichever other player was looking
+// at the action panel at the time).
+export function withSceneInteractablesForCharacter(
+  worldState: WorldState,
+  characterId: string,
+  interactables: SceneInteractable[],
+): Record<string, SceneInteractable[]> {
+  return { ...(worldState.sceneInteractables || {}), [characterId]: interactables };
+}
+
+// Reads this character's own slot, lazily (re)computing it if missing/stale —
+// self-healing so a character who has no entry yet (e.g. right after a macro
+// turn reconverged the party, or a character the server hasn't seen act yet)
+// always gets a correct, freshly-scoped view rather than another character's
+// leftover data or nothing at all.
+export function getOrBuildSceneInteractablesForCharacter(
+  worldState: WorldState,
+  characterId: string,
+): SceneInteractable[] {
+  return worldState.sceneInteractables?.[characterId] ?? buildSceneInteractables(worldState, characterId);
+}
+
 export function formatSceneInteractablesBlock(interactables: SceneInteractable[] | undefined): string {
   if (!interactables || interactables.length === 0) return 'Nothing specific is flagged as present — use judgment from recent narration/history for who/what is here.';
   const npcs = interactables.filter(i => i.kind === 'npc');

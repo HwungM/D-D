@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { WorldState } from '../../../shared/types';
-import { buildSceneInteractables, formatSceneInteractablesBlock } from './sceneInteractableSystem';
+import { buildSceneInteractables, formatSceneInteractablesBlock, getOrBuildSceneInteractablesForCharacter, withSceneInteractablesForCharacter } from './sceneInteractableSystem';
 
 test('buildSceneInteractables reuses locationGraph/npcMemory/activeNPC rather than a parallel system', () => {
   const ws: WorldState = {
@@ -149,6 +149,86 @@ test('two characters at the same top-level location but different sub-locations 
   assert.ok(char2Npcs.includes('Greta the Smith'));
   assert.ok(!char1Npcs.includes('Greta the Smith'));
   assert.ok(!char2Npcs.includes('Old Tomas'));
+});
+
+// Regression test for the live co-op bug: Tellini (char-1), off alone in a
+// sub-location, saw their action-panel chips change when Sun Mi (char-2) —
+// in a completely different sub-location — took her own micro-action. Root
+// cause was WorldState.sceneInteractables being a single flat array any
+// character's turn could overwrite; the fix keys it per-character, mirroring
+// characterSubLocations. This proves that invariant holds through the exact
+// merge helper the micro-action route uses.
+test('withSceneInteractablesForCharacter updates one character\'s slot without ever touching another character\'s stored entry — the co-op cross-contamination regression', () => {
+  const baseWs: WorldState = {
+    currentLocation: 'Kellhaven',
+    locationGraph: {
+      currentLocation: 'Kellhaven',
+      nodes: [baseNodeWithSubLocations()],
+      regions: [],
+      nearby: [],
+      updatedAt: new Date().toISOString(),
+    },
+    characterSubLocations: {
+      'char-1': 'The Rusty Anchor Tavern',
+      'char-2': 'Kellhaven Smithy',
+    },
+  };
+
+  // Tellini (char-1) takes a micro-action in the tavern; her scoped
+  // interactables get computed and written into the shared per-character map.
+  const char1Interactables = buildSceneInteractables(baseWs, 'char-1');
+  const afterChar1: WorldState = {
+    ...baseWs,
+    sceneInteractables: withSceneInteractablesForCharacter(baseWs, 'char-1', char1Interactables),
+  };
+
+  // Sun Mi (char-2), in the smithy, then takes her own micro-action.
+  const char2Interactables = buildSceneInteractables(afterChar1, 'char-2');
+  const afterChar2: WorldState = {
+    ...afterChar1,
+    sceneInteractables: withSceneInteractablesForCharacter(afterChar1, 'char-2', char2Interactables),
+  };
+
+  // Tellini's own stored slot must be exactly what it was before — Sun Mi's
+  // action never touched it.
+  assert.deepEqual(afterChar2.sceneInteractables!['char-1'], char1Interactables);
+  assert.deepEqual(afterChar2.sceneInteractables!['char-2'], char2Interactables);
+
+  // And the two views are genuinely different (tavern chips vs. smithy chips),
+  // not one shared array silently picked up by both.
+  const char1Npcs = afterChar2.sceneInteractables!['char-1'].filter(i => i.kind === 'npc').map(i => i.name);
+  const char2Npcs = afterChar2.sceneInteractables!['char-2'].filter(i => i.kind === 'npc').map(i => i.name);
+  assert.ok(char1Npcs.includes('Old Tomas'));
+  assert.ok(char2Npcs.includes('Greta the Smith'));
+  assert.ok(!char1Npcs.includes('Greta the Smith'));
+  assert.ok(!char2Npcs.includes('Old Tomas'));
+});
+
+test('getOrBuildSceneInteractablesForCharacter self-heals a missing per-character entry instead of leaking another character\'s stale data', () => {
+  const ws: WorldState = {
+    currentLocation: 'Kellhaven',
+    locationGraph: {
+      currentLocation: 'Kellhaven',
+      nodes: [baseNodeWithSubLocations()],
+      regions: [],
+      nearby: [],
+      updatedAt: new Date().toISOString(),
+    },
+    characterSubLocations: { 'char-1': 'The Rusty Anchor Tavern' },
+    sceneInteractables: { 'char-1': [{ kind: 'npc', name: 'Old Tomas', hook: 'the tavern keeper' }] },
+  };
+
+  // char-2 has never been scoped before — it must be freshly computed from
+  // its own (top-level, no sub-location) context, not char-1's stored array.
+  const result = getOrBuildSceneInteractablesForCharacter(ws, 'char-2');
+  assert.ok(!result.some(i => i.name === 'Old Tomas' && i.kind === 'npc' && result === ws.sceneInteractables!['char-1']));
+  assert.notEqual(result, ws.sceneInteractables!['char-1']);
+  const npcNames = result.filter(i => i.kind === 'npc').map(i => i.name);
+  assert.ok(npcNames.includes('Brannic the Innkeeper')); // top-level NPC, not the tavern's
+
+  // An existing entry is reused as-is rather than recomputed.
+  const existing = getOrBuildSceneInteractablesForCharacter(ws, 'char-1');
+  assert.equal(existing, ws.sceneInteractables!['char-1']);
 });
 
 test('formatSceneInteractablesBlock renders a readable block and a safe fallback when empty', () => {

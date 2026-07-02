@@ -603,7 +603,11 @@ export interface WorldState {
   // What/who is present and interactable in the current scene — reused by the
   // micro-action free-roam layer so it knows who/what the player can poke at
   // without running the full macro-turn pacing engine. See SceneInteractable.
-  sceneInteractables?: SceneInteractable[];
+  // Keyed by characterId — like characterSubLocations, this is PER-CHARACTER:
+  // two co-op players in different sub-locations see different interactables,
+  // so this must never collapse into one shared array (that was a real co-op
+  // bug — one player's micro-action was overwriting the other player's chips).
+  sceneInteractables?: Record<string, SceneInteractable[]>;
   // Free-roam ledger: micro-actions taken since the last Advance (macro-turn),
   // given to the next Advance call as "what the DM already knows happened"
   // context. Cleared whenever a macro-turn (Advance, or the legacy single
