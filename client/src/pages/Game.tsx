@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { gameApi, campaignApi, characterApi } from '../lib/api'
 import { useGameStore, useAuthStore } from '../lib/store'
 import { matchSceneImage, inferMood } from '../lib/sceneUtils'
-import { classifyStoryEvent } from '../lib/storyEventRouting'
+import { classifyStoryEvent, shouldDisplayStoryEvent } from '../lib/storyEventRouting'
 import { normalizeWorldStateForClient } from '../lib/worldStateCompat'
 import { createClient } from '@supabase/supabase-js'
 import SceneDisplay from '../components/SceneDisplay'
@@ -1518,7 +1518,7 @@ export default function Game() {
               )}
 
               {(() => {
-                const filtered = normalizeEvents(events.filter(e => !e.character_id || e.character_id === characterId || e.event_type === 'action'))
+                const filtered = normalizeEvents(events.filter(e => shouldDisplayStoryEvent(e, characterId)))
                 return filtered.map((event, i) => {
                   const isLast = i === filtered.length - 1
                   const isInstant = historicalIds.current.has(event.id) || historicalIds.current.has(event.id.replace(/-[an]$/, ''))

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { classifyStoryEvent } from './storyEventRouting'
+import { classifyStoryEvent, shouldDisplayStoryEvent } from './storyEventRouting'
 
 const ME = 'char-tellini'
 const PARTNER = 'char-sunmi'
@@ -55,5 +55,16 @@ describe('classifyStoryEvent', () => {
 
   it('treats a missing local characterId as never "own" (falls through to partner handling instead)', () => {
     expect(classifyStoryEvent({ character_id: ME, event_type: 'narration' }, null)).toBe('partner-narration')
+  })
+})
+
+describe('shouldDisplayStoryEvent', () => {
+  it('shows a partner action and its single persisted micro-action DM reaction', () => {
+    expect(shouldDisplayStoryEvent({ character_id: PARTNER, event_type: 'action' }, ME)).toBe(true)
+    expect(shouldDisplayStoryEvent({ character_id: PARTNER, event_type: 'narration', metadata: { microAction: true } }, ME)).toBe(true)
+  })
+
+  it('hides a partner macro-turn narration because each player receives their own copy', () => {
+    expect(shouldDisplayStoryEvent({ character_id: PARTNER, event_type: 'narration', metadata: {} }, ME)).toBe(false)
   })
 })

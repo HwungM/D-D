@@ -21,6 +21,7 @@ export type StoryEventKind = 'own-action' | 'partner-action' | 'own-narration' |
 export interface MinimalStoryEvent {
   character_id?: string | null
   event_type: string
+  metadata?: Record<string, unknown> | null
 }
 
 export function classifyStoryEvent(event: MinimalStoryEvent, characterId: string | null | undefined): StoryEventKind {
@@ -32,4 +33,14 @@ export function classifyStoryEvent(event: MinimalStoryEvent, characterId: string
   if (isPartnerEvent && event.event_type === 'narration') return 'partner-narration'
   if (isOwnEvent && event.event_type === 'narration') return 'own-narration'
   return 'other'
+}
+
+// Party-mode history contains one macro-turn narration copy per player, so
+// partner narration cannot be displayed indiscriminately without duplicating
+// the same DM passage. Micro-action reactions are different: the server saves
+// only one narration row, owned by the acting character. Every party member
+// must render that row or they see the partner's action with no DM response.
+export function shouldDisplayStoryEvent(event: MinimalStoryEvent, characterId: string | null | undefined): boolean {
+  if (!event.character_id || event.character_id === characterId || event.event_type === 'action') return true
+  return event.event_type === 'narration' && event.metadata?.microAction === true
 }
