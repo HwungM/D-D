@@ -1,5 +1,5 @@
 import type { Character, RollContext, WorldBible, WorldState } from '../../../shared/types';
-import { CO_OP_SINGLE_CAMERA_RULE, COMPANION_PARTY_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT } from './aiPromptContracts';
+import { CO_OP_SINGLE_CAMERA_RULE, COMPANION_PARTY_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, SIGNATURE_REWARDS_CONTRACT } from './aiPromptContracts';
 import { buildCompanionsPromptBlock } from './companionSystem';
 import { parseJsonRecord } from './aiResponseParser';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
@@ -375,7 +375,9 @@ const SOLO_EXTRACTOR_SCHEMA = `{
   "companionChanges": "[{id,hpChange,xpGained,bondLevelChange,isDeath,deathDescription}] | null — id must match a COMPANIONS id given in context; only for companions who changed this beat",
   "companionRecruit": "{name,race,class} | null — a new ally who joined the party as a full companion this beat, if narrated",
   "companionDeparture": "{id,reason} | null — an existing companion (by id) who left the party without dying, if narrated",
-  "revealedClueIds": "[exact ids from the MYSTERY CLUE BANK given in context that this beat concretely revealed] | null — never invent an id not listed there"
+  "revealedClueIds": "[exact ids from the MYSTERY CLUE BANK given in context that this beat concretely revealed] | null — never invent an id not listed there",
+  "signatureItemEarned": "{characterId,questId} | null — only at a genuine earned narrative payoff for a seeded SIGNATURE ITEM QUEST given in context; use its exact id",
+  "partyAssetGranted": "{kind:property|title|position,name,description,locationName,unlocksHint} | null — only for a real, major earned moment"
 }`;
 
 const COOP_EXTRACTOR_EXTRA = `,
@@ -415,10 +417,19 @@ async function runExtractorPass(
 - WORLD REACTION: if violence, intimidation, humiliation, theft, rescue, betrayal, mercy, or a hard-won alliance happened, reflect it with meaningful npcMemory relationshipScore/relationshipLabel and factionRepChange when relevant. A defeated or cornered enemy should not remain near-neutral unless the narration explicitly shows mercy/reconciliation.
 - SKILL CHALLENGE: if the table directives include an active skill challenge, extract incremental progress in worldStateChanges.sceneState.skillChallenge when the narration clearly records a success, failure, cost, or objective completion.
 - ${args.isCoop ? 'Co-op: attribute HP/loot/death/ability per character via character1Changes/character2Changes; characterHistoryNote and antagonistUpdate stay top-level.' : 'Solo: use top-level hpChange/loot/etc.'}
-- ${COMPANION_PARTY_CONTRACT}`;
+- ${COMPANION_PARTY_CONTRACT}
+- ${SIGNATURE_REWARDS_CONTRACT}`;
+
+  const signatureQuests = (args.worldState.signatureItemQuests || []).filter(q => q.status !== 'earned');
+  const signatureQuestsBlock = signatureQuests.length > 0
+    ? `\nSIGNATURE ITEM QUESTS (only complete one at a genuine earned payoff):\n${signatureQuests.map(q => `- id ${q.id} [${q.characterName}, ${q.status}]: ${q.itemName} — ${q.questHook}`).join('\n')}`
+    : '';
+  const partyAssetsBlock = (args.worldState.partyAssets || []).length > 0
+    ? `\nEXISTING PARTY ASSETS (reference these going forward — address the party by title, mention the property):\n${(args.worldState.partyAssets || []).map(a => `- [${a.kind}] ${a.name}: ${a.description}`).join('\n')}`
+    : '';
 
   const user = `BEAT PLAN: priorities=${plan.priorities.join(' | ')}; scenePurpose=${plan.scenePurpose}; pacing=${plan.pacingMode}; needsRoll=${plan.needsRoll}; combat=${plan.combatActive || plan.combatStarting}; highStakes=${plan.isHighStakes}${plan.threadToAdvance ? `; advanced thread="${plan.threadToAdvance}"` : ''}.
-${buildCompanionsPromptBlock(args.worldState.companions)}
+${buildCompanionsPromptBlock(args.worldState.companions)}${signatureQuestsBlock}${partyAssetsBlock}
 
 NARRATION JUST WRITTEN (extract state from THIS, do not change it):
 """

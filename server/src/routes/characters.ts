@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { supabaseAdmin } from '../services/supabase';
-import { generateCharacterPortrait, extractBackstoryHooks } from '../services/openai';
+import { generateCharacterPortrait, extractBackstoryHooks, generateSignatureItemQuest } from '../services/openai';
 import { z } from 'zod';
 import { RACE_STAT_BONUSES, CLASS_BASE_HP } from '../../../shared/types';
 import type { CharacterStats, Race, CharacterClass } from '../../../shared/types';
@@ -158,6 +158,20 @@ router.post('/', requireAuth, aiRateLimit, async (req: AuthRequest, res: Respons
         const existing = new Map((ws.backstoryHooks || []).map((h: import('../../../shared/types').BackstoryHook) => [`${h.characterId}:${h.hook}`, h]));
         for (const hook of hooks) existing.set(`${hook.characterId}:${hook.hook}`, hook);
         ws.backstoryHooks = Array.from(existing.values());
+
+        // Seed exactly one signature item quest for this character (Vox Machina
+        // style: a specific legendary item tied to THEIR story, earned in play,
+        // not random loot) — non-critical, skipped if a quest already exists.
+        const alreadySeeded = (ws.signatureItemQuests || []).some(q => q.characterId === character.id);
+        if (!alreadySeeded) {
+          try {
+            const quest = await generateSignatureItemQuest(hooks[0], race, characterClass, worldBible);
+            ws.signatureItemQuests = [...(ws.signatureItemQuests || []), quest];
+          } catch (err) {
+            console.error('Signature item quest generation failed (non-critical):', err);
+          }
+        }
+
         await supabaseAdmin.from('campaigns').update({ world_state: ws }).eq('id', campaignId);
       } catch (err) {
         console.error('Backstory hook extraction failed (non-critical):', err);

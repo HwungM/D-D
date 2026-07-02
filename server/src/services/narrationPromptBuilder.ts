@@ -1,6 +1,6 @@
 import type { Character, WorldState, WorldBible, CampaignJournalEntry, CharacterHistoryEntry, Antagonist, CharacterOnlineStatus, NpcMemory } from '../../../shared/types';
 import { CLASS_ABILITIES } from '../../../shared/classAbilities';
-import { COMBAT_AND_NPC_PERSISTENCE_CONTRACT, COMPANION_PARTY_CONTRACT, GROUNDED_ENCOUNTER_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, TURN_RESOLUTION_CONTRACT, STYLE_ANTI_REPETITION } from './aiPromptContracts';
+import { COMBAT_AND_NPC_PERSISTENCE_CONTRACT, COMPANION_PARTY_CONTRACT, GROUNDED_ENCOUNTER_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, SIGNATURE_REWARDS_CONTRACT, TURN_RESOLUTION_CONTRACT, STYLE_ANTI_REPETITION } from './aiPromptContracts';
 import { buildCompanionsPromptBlock } from './companionSystem';
 import { EVERREALM_ART_BIBLE } from './everrealmArtPrompt';
 import { actRoleFor, arcNumberFor } from './actPacingSystem';
@@ -317,6 +317,8 @@ COMPANION RULES:
 - To remove a companion (it leaves, dies, is given away), set companion to null and reflect this in the narration.
 
 ${COMPANION_PARTY_CONTRACT}
+
+${SIGNATURE_REWARDS_CONTRACT}
 
 FACTION REPUTATION RULES:
 - Track standing with recurring factions/groups/organizations the party interacts with (a guild, a noble house, a cult, a town's guards, etc.).
@@ -667,7 +669,9 @@ RESPONSE FORMAT: Always respond with valid JSON matching this schema:
   "companionChanges": "[{id,hpChange,xpGained,bondLevelChange,isDeath,deathDescription}] | null - id must match a COMPANIONS id given in context",
   "companionRecruit": "{name,race,class} | null - a new ally who joined the party as a full companion this turn",
   "companionDeparture": "{id,reason} | null - an existing companion (by id) who left the party without dying",
-  "revealedClueIds": "[exact ids from the MYSTERY CLUE BANK given in context that this turn concretely revealed] | null - never invent an id not listed there"
+  "revealedClueIds": "[exact ids from the MYSTERY CLUE BANK given in context that this turn concretely revealed] | null - never invent an id not listed there",
+  "signatureItemEarned": "{characterId,questId} | null - only at a genuine earned narrative payoff for a seeded SIGNATURE ITEM QUEST given in context; use its exact id",
+  "partyAssetGranted": "{kind:property|title|position,name,description,locationName,unlocksHint} | null - only for a real, major earned moment"
 }`;
 
 export type NarrationCampaignContext = {
@@ -692,6 +696,8 @@ export type NarrationCampaignContext = {
   railDirectives?: string;
   continuityDirectives?: string;
   memoryContext?: string;
+  signatureItemQuests?: import('../../../shared/types').SignatureItemQuest[];
+  partyAssets?: import('../../../shared/types').PartyAsset[];
 };
 
 export function buildCampaignContextBlock(campaignContext: NarrationCampaignContext | null | undefined, worldBible: WorldBible, characterLevel: number): string {
@@ -771,6 +777,18 @@ ${campaignContext?.futureHooks && campaignContext.futureHooks.length > 0 ? `
 FUTURE HOOKS TO HONOR (past choices with pending repercussions - bring these back):
 ${campaignContext.futureHooks.slice(-5).map(h => `- (id: ${h.id}) ${h.description}`).join('\n')}
 CRITICAL: If the player's action this turn directly addresses, confronts, pays off, or settles ANY of the hooks above, you MUST set resolvedFutureHooks to an array containing a short exact phrase (3-8 words) copied verbatim from that hook's description (e.g. "resolvedFutureHooks": ["a debt comes due"]). Do not leave it null when a hook is clearly being paid off - this is a required field, not optional flavor.` : ''}
+
+${campaignContext?.signatureItemQuests && campaignContext.signatureItemQuests.filter(q => q.status !== 'earned').length > 0 ? `
+═══ SIGNATURE ITEM QUESTS ═══
+${campaignContext.signatureItemQuests.filter(q => q.status !== 'earned').map(q => `- id ${q.id} [${q.characterName}, ${q.status}]: ${q.itemName} — ${q.questHook}`).join('\n')}
+Only set signatureItemEarned at a genuine earned narrative payoff for one of these exact ids - never casually.
+══════════════════════════` : ''}
+
+${campaignContext?.partyAssets && campaignContext.partyAssets.length > 0 ? `
+═══ PARTY ASSETS (reference these going forward) ═══
+${campaignContext.partyAssets.map(a => `- [${a.kind}] ${a.name}: ${a.description}`).join('\n')}
+Address the party by title or mention the property/standing when it fits naturally - don't let it sit inert.
+══════════════════════════` : ''}
 
 ${campaignContext?.pendingDirectorBeat ? `
 ═══ PENDING DIRECTOR BEAT ═══

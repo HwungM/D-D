@@ -18,6 +18,7 @@ import { buildAwaitingRollNarration, enforceTurnPlanNarration, planSoloTurn } fr
 import { buildLayeredMemoryChanges, buildMemoryPack } from './layeredMemoryEngine';
 import { resolveMysteryClueChanges } from './mysteryClueSystem';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
+import { guardPartyAssetGranted, guardSignatureItemEarned } from './signatureRewardsService';
 import { buildSceneInteractables } from './sceneInteractableSystem';
 import { generateNarration, generateSceneSummary, generateVillainMove, runStoryDirector } from './openai';
 import {
@@ -166,6 +167,8 @@ export async function processAction(
     railDirectives: turnPlan.guardrails,
     continuityDirectives,
     memoryContext: memoryPack.promptBlock || undefined,
+    signatureItemQuests: ws.signatureItemQuests,
+    partyAssets: ws.partyAssets,
   };
 
   if (turnPlan.awaitingRoll) {
@@ -505,6 +508,19 @@ export async function processAction(
   // Consumed items: prefer AI's explicit list, fall back to narration regex
   const consumedItems = resolveConsumedItems(character, aiResponse.consumedItems, aiResponse.narration);
 
+  // Signature item / party asset rewards: only honored at a genuinely earned
+  // moment (soft-guarded the same way companion death is), never casually and
+  // never in the opening actions of a fresh campaign.
+  const guardedSignatureItemEarned = guardSignatureItemEarned(aiResponse.signatureItemEarned, ws, {
+    isHighStakes: !!aiResponse.isHighStakes,
+    actionCount: newActionCount,
+  });
+  const guardedPartyAssetGranted = guardPartyAssetGranted(aiResponse.partyAssetGranted, {
+    isHighStakes: !!aiResponse.isHighStakes,
+    advanceAct: !!aiResponse.advanceAct,
+    actionCount: newActionCount,
+  });
+
   // Apply consequences
   const prevLevel = (character as Character).level;
   const { updatedCharacter, updatedWorldState } = await applyConsequences(
@@ -526,6 +542,8 @@ export async function processAction(
       isRest: aiResponse.isRest,
       abilityUsed: aiResponse.abilityUsed,
       consumedItems: consumedItems.length > 0 ? consumedItems : undefined,
+      signatureItemEarned: guardedSignatureItemEarned,
+      partyAssetGranted: guardedPartyAssetGranted,
     },
     character as Character,
     { id: campaignId, world_state: campaign.world_state as WorldState, act: campaign.act, world_bible: wb }

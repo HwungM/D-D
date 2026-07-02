@@ -25,6 +25,25 @@ test('parseNarrationResponse normalizes awaiting roll turns and suppresses sugge
   assert.equal(result.rollContext?.modifier, 5);
 });
 
+test('parseNarrationResponse surfaces a well-formed signatureItemEarned and partyAssetGranted, and drops malformed ones', () => {
+  const valid = parseNarrationResponse({
+    narration: 'The bow settles into your hands, humming with recognition.',
+    signatureItemEarned: { characterId: 'char-1', questId: 'quest-1' },
+    partyAssetGranted: { kind: 'property', name: 'Greyhawk Keep', description: 'Won from the dragon lord.', locationName: 'The Greylands' },
+  });
+  assert.deepEqual(valid.signatureItemEarned, { characterId: 'char-1', questId: 'quest-1' });
+  assert.equal(valid.partyAssetGranted?.name, 'Greyhawk Keep');
+  assert.equal(valid.partyAssetGranted?.kind, 'property');
+
+  const malformed = parseNarrationResponse({
+    narration: 'Nothing much happens.',
+    signatureItemEarned: { characterId: 'char-1' },
+    partyAssetGranted: { kind: 'castle', name: 'X' },
+  });
+  assert.equal(malformed.signatureItemEarned, undefined);
+  assert.equal(malformed.partyAssetGranted, undefined);
+});
+
 test('parseNarrationResponse requires valid choice cards before treating a turn as high stakes', () => {
   const invalid = parseNarrationResponse({
     narration: 'A bell tolls.',

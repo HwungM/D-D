@@ -23,6 +23,10 @@ export const COMPANION_PARTY_CONTRACT = `COMPANION PARTY MEMBER RULES (distinct 
 - RECRUITMENT: when the story organically introduces an NPC ally who joins the party as a real member (not just a friendly contact), set companionRecruit: {name, race, class} to bring them in as a full companion.
 - DEPARTURE: when an existing companion leaves the party without dying (bond breaks down, the story sends them away, they choose to part ways), set companionDeparture: {id, reason} — use their exact id from the COMPANIONS block.`;
 
+export const SIGNATURE_REWARDS_CONTRACT = `SIGNATURE ITEM & PARTY ASSET RULES:
+- SIGNATURE ITEM QUESTS: a hero may have a personal signature-item quest seeded from their backstory (given in context, if any are seeded/in_progress) — a specific legendary item that is THEIRS, Vox Machina style (Vex's bow, Grog's gauntlets), not random loot. Only set signatureItemEarned: {characterId, questId} at a genuine, earned narrative payoff for THAT exact quest's hook — never casually, never in the opening actions of a fresh campaign, and never for a quest that hasn't been meaningfully built toward in play. Use the exact quest id given in context; never invent one.
+- PARTY ASSETS: a title, property, or standing (a keep, a council seat, a name people call them by) can be granted instead of or alongside gold when the party accomplishes something genuinely major — completing an arc's climax, a decisive victory, a bargain that changes their standing. Set partyAssetGranted: {kind: property|title|position, name, description, locationName, unlocksHint} only for a real, earned major moment, not a routine reward. Existing party assets are given in context — once granted, reference them going forward (address the party by title, mention the property) rather than letting them sit inert.`;
+
 export const PLAYER_AUTHORSHIP_CONTRACT = `
 ═══ PLAYER AUTHORSHIP — HARD TABLE BOUNDARY ═══
 The DM owns the world, NPCs, opposition, sensory information, rules adjudication, and consequences. Each player exclusively owns their character's voluntary speech, thoughts, emotions, gestures, movement, decisions, and follow-up actions.

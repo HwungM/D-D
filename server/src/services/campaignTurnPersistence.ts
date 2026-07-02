@@ -1,4 +1,4 @@
-import type { Character, CharacterHistoryEntry, DiceRollResult, WorldBible, WorldState } from '../../../shared/types';
+import type { Character, CharacterHistoryEntry, DiceRollResult, PartyAsset, WorldBible, WorldState } from '../../../shared/types';
 import { activateBackstoryHooksForAct } from './actAdvancementState';
 import { actRoleFor, arcNumberFor, canAdvanceAct, needsNextArcRoadmap } from './actPacingSystem';
 import {
@@ -8,6 +8,7 @@ import {
 } from './consequenceSystem';
 import { extractFutureHooks, generateNextArcRoadmap } from './openai';
 import { buildSceneInteractables } from './sceneInteractableSystem';
+import { resolvePartyAssetGranted, resolveSignatureItemEarned } from './signatureRewardsService';
 import { supabaseAdmin } from './supabase';
 import {
   buildCampaignSpineSnapshot,
@@ -33,6 +34,14 @@ type ConsequenceInput = {
   isRest?: boolean;
   abilityUsed?: string;
   consumedItems?: string[];
+  // Already guarded by the caller (see signatureRewardsService.guardSignatureItemEarned)
+  // before reaching here. Resolved against WorldState.signatureItemQuests: marks
+  // the quest earned and attaches the built InventoryItem to whichever
+  // character/companion owns it.
+  signatureItemEarned?: { characterId: string; questId: string };
+  // Already guarded by the caller (see signatureRewardsService.guardPartyAssetGranted).
+  // Appended to WorldState.partyAssets.
+  partyAssetGranted?: { kind: PartyAsset['kind']; name: string; description: string; locationName?: string; unlocksHint?: string };
 };
 
 type CampaignPersistenceSnapshot = {
@@ -48,8 +57,6 @@ export async function applyConsequences(
   currentCharacter: Character,
   campaign: CampaignPersistenceSnapshot,
 ): Promise<{ updatedCharacter: Character; updatedWorldState: WorldState }> {
-  const updates: Partial<Character> = applyCharacterConsequences(currentCharacter, actionResult);
-
   // Re-fetch latest world state right before writing to minimize race window in co-op.
   const { data: freshCampaign } = await supabaseAdmin.from('campaigns').select('world_state').eq('id', campaign.id).single();
   const latestWorldState = (freshCampaign?.world_state as WorldState) || campaign.world_state;
@@ -58,6 +65,30 @@ export async function applyConsequences(
   if (actionResult.worldStateChanges) {
     newWorldState = mergeWorldStateChanges(newWorldState, actionResult.worldStateChanges as Partial<WorldState>);
   }
+
+  // Signature item quest completion: resolve against the freshest quest list,
+  // mark it earned, and route the built item to whichever character owns it —
+  // the acting PC (folded into the normal loot pipeline below) or a companion
+  // (patched directly into worldState.companions). If the owner is neither
+  // (e.g. a co-op partner's PC not loaded in this call), the quest is still
+  // marked earned with earnedItem attached so the item isn't lost.
+  const signatureResolution = resolveSignatureItemEarned(newWorldState, actionResult.signatureItemEarned, characterId);
+  if (signatureResolution.signatureItemQuests) newWorldState.signatureItemQuests = signatureResolution.signatureItemQuests;
+  if (signatureResolution.companions) newWorldState.companions = signatureResolution.companions;
+
+  const partyAssets = resolvePartyAssetGranted(
+    newWorldState,
+    actionResult.partyAssetGranted,
+    actionResult.characterHistoryNote?.description || 'a major earned moment',
+  );
+  if (partyAssets) newWorldState.partyAssets = partyAssets;
+
+  const updates: Partial<Character> = applyCharacterConsequences(currentCharacter, {
+    ...actionResult,
+    loot: signatureResolution.extraLootForActingCharacter
+      ? [...(actionResult.loot || []), ...signatureResolution.extraLootForActingCharacter]
+      : actionResult.loot,
+  });
 
   // Accumulate session notes until the players explicitly end the shared session.
   if (actionResult.sessionNote) {

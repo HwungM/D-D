@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Character, WorldBible, WorldState } from '../../../shared/types';
 import {
+  buildCampaignContextBlock,
   buildNarrationMessages,
   buildNpcQuestMapBlock,
   buildStatHints,
   characterGenderLine,
   DM_SYSTEM_PROMPT,
+  type NarrationCampaignContext,
 } from './narrationPromptBuilder';
 
 test('buildStatHints turns extreme stats into usable suggestion guidance', () => {
@@ -91,6 +93,58 @@ test('DM system prompt treats roadmap beats as adaptive pressure, not a forced s
   assert.match(DM_SYSTEM_PROMPT, /not a predetermined scene/);
   assert.match(DM_SYSTEM_PROMPT, /Do not teleport the party/);
   assert.doesNotMatch(DM_SYSTEM_PROMPT, /DM ROADMAP shows exactly what the act climax is/);
+});
+
+test('buildCampaignContextBlock surfaces seeded signature item quests and existing party assets for the DM', () => {
+  const worldBible = {
+    era: 'Age of Bells',
+    magicSystem: 'Names echo in water.',
+    centralConflict: 'Promises bind the river.',
+    geography: [],
+    pantheon: [],
+    toneRules: [],
+    forbiddenLoreHooks: [],
+    factions: [],
+    primaryAntagonist: {} as WorldBible['primaryAntagonist'],
+    antagonistRoster: [],
+    openingHooks: [],
+  } as WorldBible;
+
+  const campaignContext: NarrationCampaignContext = {
+    journal: [],
+    characterHistory: [],
+    antagonists: [],
+    centralConflict: 'Promises bind the river.',
+    act: 1,
+    sessionCount: 1,
+    signatureItemQuests: [{
+      id: 'quest-1',
+      characterId: 'char-1',
+      characterName: 'Vex',
+      itemName: "Whisperwind, the Hunter's Longbow",
+      itemFlavor: "Her sister's bow.",
+      questHook: 'Recover it from the ruins of House Thal.',
+      status: 'seeded',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    }],
+    partyAssets: [{
+      id: 'asset-1',
+      kind: 'property',
+      name: 'Greyhawk Keep',
+      description: 'A fortress won from the dragon lord.',
+      grantedAt: '2026-01-01T00:00:00.000Z',
+      grantedBy: 'defeating the dragon lord',
+    }],
+  };
+
+  const block = buildCampaignContextBlock(campaignContext, worldBible, 3);
+
+  assert.match(block, /SIGNATURE ITEM QUESTS/);
+  assert.match(block, /Whisperwind, the Hunter's Longbow/);
+  assert.match(block, /quest-1/);
+  assert.match(block, /PARTY ASSETS/);
+  assert.match(block, /Greyhawk Keep/);
+  assert.match(block, /A fortress won from the dragon lord/);
 });
 
 test('race and class awareness changes world reactions without assigning hero personality', () => {

@@ -18,6 +18,7 @@ import { enforceTurnPlanNarration, planCoopTurn } from './gameDirector';
 import { buildLayeredMemoryChanges, buildMemoryPack } from './layeredMemoryEngine';
 import { resolveMysteryClueChanges } from './mysteryClueSystem';
 import { actionSignals, combatantMemoryPatch } from './npcMemorySystem';
+import { guardPartyAssetGranted, guardSignatureItemEarned } from './signatureRewardsService';
 import { generateCoopNarration, generateSceneSummary, generateVillainMove, runStoryDirector } from './openai';
 import { calculateNarrativeXp } from './rulesEngine';
 import { applyContinuityRepairs, buildContinuityDirective, buildContinuityPatch } from './storyContinuity';
@@ -161,6 +162,8 @@ export async function processCoopAction(
     railDirectives: coopPlan.guardrails,
     continuityDirectives,
     memoryContext: memoryPack.promptBlock || undefined,
+    signatureItemQuests: ws.signatureItemQuests,
+    partyAssets: ws.partyAssets,
   };
 
   // Call generateCoopNarration
@@ -498,6 +501,22 @@ export async function processCoopAction(
   const char1ConsumedItems = resolveConsumedItems(characters[0], aiResponse.character1Changes?.consumedItems, aiResponse.narration);
   const char2ConsumedItems = resolveConsumedItems(characters[1], aiResponse.character2Changes?.consumedItems, aiResponse.narration);
 
+  // Signature item / party asset rewards: only honored at a genuinely earned
+  // moment, and routed to whichever applyConsequences call actually owns the
+  // quest's character (or, for a companion, the second call — by then the
+  // world state write from the first call already carries updated companions).
+  const guardedSignatureItemEarned = guardSignatureItemEarned(aiResponse.signatureItemEarned, ws, {
+    isHighStakes: !!aiResponse.isHighStakes,
+    actionCount: newActionCount,
+  });
+  const signatureItemForChar1 = guardedSignatureItemEarned?.characterId === characters[0].id ? guardedSignatureItemEarned : undefined;
+  const signatureItemForChar2 = guardedSignatureItemEarned && guardedSignatureItemEarned.characterId !== characters[0].id ? guardedSignatureItemEarned : undefined;
+  const guardedPartyAssetGranted = guardPartyAssetGranted(aiResponse.partyAssetGranted, {
+    isHighStakes: !!aiResponse.isHighStakes,
+    advanceAct: !!aiResponse.advanceAct,
+    actionCount: newActionCount,
+  });
+
   // Apply consequences to Character 1
   const char1Result = await applyConsequences(
     pendingActions[0].characterId,
@@ -516,6 +535,8 @@ export async function processCoopAction(
       isRest: aiResponse.character1Changes?.isRest,
       abilityUsed: aiResponse.character1Changes?.abilityUsed,
       consumedItems: char1ConsumedItems.length > 0 ? char1ConsumedItems : undefined,
+      signatureItemEarned: signatureItemForChar1,
+      partyAssetGranted: guardedPartyAssetGranted,
     },
     characters[0],
     { id: campaignId, world_state: ws, act: campaign.act, world_bible: wb }
@@ -537,6 +558,7 @@ export async function processCoopAction(
       consumedItems: char2ConsumedItems.length > 0 ? char2ConsumedItems : undefined,
       characterHistoryNote: aiResponse.characterHistoryNote as CharacterHistoryEntry | undefined,
       antagonistUpdate: aiResponse.antagonistUpdate,
+      signatureItemEarned: signatureItemForChar2,
     },
     characters[1],
     { id: campaignId, world_state: char1Result.updatedWorldState, act: campaign.act, world_bible: wb }

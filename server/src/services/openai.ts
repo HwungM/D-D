@@ -23,6 +23,7 @@ import {
   generateEpilogueFromService,
   generateVillainMoveFromService,
 } from './campaignSupportService';
+import { generateSignatureItemQuest as generateSignatureItemQuestFromService } from './signatureRewardsService';
 import {
   buildCharacterPortraitRequest,
   generateImageFromService,
@@ -214,6 +215,15 @@ export async function extractBackstoryHooks(
   characterId: string
 ): Promise<import('../../../shared/types').BackstoryHook[]> {
   return extractBackstoryHooksFromService(openai, backstory, characterName, race, characterClass, worldBible, characterId);
+}
+
+export async function generateSignatureItemQuest(
+  hook: import('../../../shared/types').BackstoryHook,
+  race: string,
+  characterClass: string,
+  worldBible: WorldBible,
+): Promise<import('../../../shared/types').SignatureItemQuest> {
+  return generateSignatureItemQuestFromService(openai, hook, race, characterClass, worldBible);
 }
 
 export async function generateVillainMove(

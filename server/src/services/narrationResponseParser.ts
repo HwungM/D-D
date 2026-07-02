@@ -1,5 +1,6 @@
-import type { WorldState, RollContext, CombatEnemy, Recipe, Companion, CompanionChangeEntry } from '../../../shared/types';
+import type { WorldState, RollContext, CombatEnemy, Recipe, Companion, CompanionChangeEntry, PartyAsset } from '../../../shared/types';
 import { cleanTurnOutcome, type TurnOutcome } from './narrationQualityValidator';
+import { cleanPartyAssetGranted, cleanSignatureItemEarned } from './signatureRewardsService';
 
 export type NarrationResult = {
   narration: string;
@@ -70,6 +71,13 @@ export type NarrationResult = {
   // narration concretely revealed. Never a freeform clue description — only
   // ids from the pre-seeded bank are honored (see mysteryClueSystem.ts).
   revealedClueIds?: string[];
+  // Signature item quest completion — only honored at a genuine earned moment
+  // (see signatureRewardsService.guardSignatureItemEarned). questId must match
+  // a WorldState.signatureItemQuests[] entry given in context.
+  signatureItemEarned?: { characterId: string; questId: string };
+  // A persistent title/property/position granted to the party — appended to
+  // WorldState.partyAssets when honored (see signatureRewardsService.guardPartyAssetGranted).
+  partyAssetGranted?: { kind: PartyAsset['kind']; name: string; description: string; locationName?: string; unlocksHint?: string };
 };
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -412,5 +420,7 @@ export function parseNarrationResponse(parsed: Record<string, unknown>): Narrati
     companionRecruit: cleanCompanionRecruit(parsed.companionRecruit),
     companionDeparture: cleanCompanionDeparture(parsed.companionDeparture),
     revealedClueIds: cleanStringArray(parsed.revealedClueIds, 5),
+    signatureItemEarned: cleanSignatureItemEarned(parsed.signatureItemEarned),
+    partyAssetGranted: cleanPartyAssetGranted(parsed.partyAssetGranted),
   };
 }

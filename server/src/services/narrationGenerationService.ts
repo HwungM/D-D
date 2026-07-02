@@ -1,5 +1,5 @@
 import type { Character, WorldState, WorldBible } from '../../../shared/types';
-import { CO_OP_SINGLE_CAMERA_RULE, COMPANION_PARTY_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, STYLE_ANTI_REPETITION, TURN_RESOLUTION_CONTRACT } from './aiPromptContracts';
+import { CO_OP_SINGLE_CAMERA_RULE, COMPANION_PARTY_CONTRACT, PLAYER_AUTHORSHIP_CONTRACT, SIGNATURE_REWARDS_CONTRACT, STYLE_ANTI_REPETITION, TURN_RESOLUTION_CONTRACT } from './aiPromptContracts';
 import { buildCompanionsPromptBlock } from './companionSystem';
 import { parseJsonRecord } from './aiResponseParser';
 import { repairNarrationDraftIfNeeded, type AiTurnRepairMessage } from './aiTurnRepairSystem';
@@ -187,6 +187,8 @@ ${worldState.unlockedAchievements && worldState.unlockedAchievements.length > 0 
 ${worldState.knownRecipes && worldState.knownRecipes.length > 0 ? `knownRecipes: ${worldState.knownRecipes.map(r => `${r.name} (needs: ${r.materials.map(m => `${m.quantity}x ${m.name}`).join(', ')} -> ${r.resultItem.name})`).join('; ')}` : ''}
 ${worldState.companion ? `companion: ${worldState.companion.name} the ${worldState.companion.species} (bond level ${worldState.companion.bondLevel}) - ${worldState.companion.description}` : ''}
 ${buildCompanionsPromptBlock(worldState.companions)}
+${(worldState.signatureItemQuests || []).filter(q => q.status !== 'earned').length > 0 ? `signature item quests: ${(worldState.signatureItemQuests || []).filter(q => q.status !== 'earned').map(q => `id ${q.id} [${q.characterName}]: ${q.itemName} — ${q.questHook}`).join('; ')}` : ''}
+${(worldState.partyAssets || []).length > 0 ? `party assets: ${(worldState.partyAssets || []).map(a => `[${a.kind}] ${a.name}`).join(', ')}` : ''}
 ${worldState.factionStandings && Object.keys(worldState.factionStandings).length > 0 ? `faction standings: ${Object.entries(worldState.factionStandings).map(([f, v]) => `${f} (${v})`).join(', ')}` : ''}
 Scene purpose: ${worldState.sceneState?.purpose || 'explore'} | Exchanges in scene: ${worldState.sceneState?.exchangeCount ?? 0} | Pacing mode: ${worldState.sceneState?.pacingMode || 'exploration'}${worldState.sceneState && worldState.sceneState.stalledCount >= 2 ? ` - STALL DETECTED (${worldState.sceneState.stalledCount} consecutive exchanges without story advancement), consider introducing a complication.` : ''}${(worldState.sceneState?.cluesThisScene ?? 0) >= 2 ? `
 ⚠ CLUE-TO-CHOICE ESCALATION (this scene has already handed out enough lore): do NOT produce another pure-exposition paragraph about the same object/NPC. This turn MUST introduce ONE of: a meaningful choice the party must make, a roll with real stakes, a complication or danger, a new location/lead, an NPC demand or pushback, or a clear scene exit. The mystery object stops being a Q&A booth - it forces a decision or sends them somewhere.` : ''}
@@ -345,10 +347,12 @@ Respond with JSON:
   "companionChanges": [{"id": "string", "hpChange": number, "xpGained": number, "bondLevelChange": number, "isDeath": boolean, "deathDescription": "string"}] | null,
   "companionRecruit": {"name": "string", "race": "string", "class": "string"} | null,
   "companionDeparture": {"id": "string", "reason": "string"} | null,
-  "revealedClueIds": ["exact ids from the MYSTERY CLUE BANK given in context that this turn concretely revealed"] | null
+  "revealedClueIds": ["exact ids from the MYSTERY CLUE BANK given in context that this turn concretely revealed"] | null,
+  "signatureItemEarned": {"characterId": "string", "questId": "string"} | null,
+  "partyAssetGranted": {"kind": "property|title|position", "name": "string", "description": "string", "locationName": "string|null", "unlocksHint": "string|null"} | null
 }`;
 
-  const coopContractBlock = PLAYER_AUTHORSHIP_CONTRACT + '\n' + TURN_RESOLUTION_CONTRACT + '\n' + CO_OP_SINGLE_CAMERA_RULE + '\n' + STYLE_ANTI_REPETITION + '\n' + COMPANION_PARTY_CONTRACT;
+  const coopContractBlock = PLAYER_AUTHORSHIP_CONTRACT + '\n' + TURN_RESOLUTION_CONTRACT + '\n' + CO_OP_SINGLE_CAMERA_RULE + '\n' + STYLE_ANTI_REPETITION + '\n' + COMPANION_PARTY_CONTRACT + '\n' + SIGNATURE_REWARDS_CONTRACT;
   const messages = [
     { role: 'system', content: DM_SYSTEM_PROMPT },
     { role: 'user', content: worldContext },
