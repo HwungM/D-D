@@ -1,13 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import LoadingScreen from '../components/LoadingScreen'
 import { campaignApi } from '../lib/api'
-import { TONE_ICONS, pickRandom4 } from '../lib/seeds'
-import type { PartyComposition, PartySlot, StorySeedOption } from '../../../shared/types'
+import type { PartyComposition, PartySlot } from '../../../shared/types'
 
-type ToneChoice = 'Perilous & Grounded' | 'Heroic & Epic' | 'Mystery & Intrigue' | 'Anything Goes'
-type Pillar = 'Combat & Tactics' | 'Exploration & Discovery' | 'Roleplay & Social' | 'Puzzles & Mysteries' | 'All of it equally'
 type PartyIntent = 'solo_alone' | 'solo_ai_companions' | 'collab_wait_for_party' | 'collab_start_now'
+
+// The DM decides tone and pacing dynamically during play (see the
+// genre-fluid, dynamically-toned design direction) rather than locking the
+// world into a tone/pillar picked before the first scene ever happens.
+const DM_DECIDES_TONE = 'Anything Goes'
+const DM_DECIDES_PILLARS = ['All of it equally']
+const DM_INVENTS_PREMISE =
+  'Invent the opening spark yourself. Start small and grounded, the way real adventures begin - a job, a favor, a rumor, trouble in town - and let it grow into something larger over time. Do not open with an epic prophecy or a world-ending stake; earn that scale through play.'
 
 const MAX_STARTING_SIZE = 4
 
@@ -32,10 +37,6 @@ function resizeSlots(slots: PartySlot[], newSize: number): PartySlot[] {
 interface WizardState {
   partyComposition: PartyComposition
   waitForParty: boolean
-  tone: ToneChoice | null
-  pillars: Pillar[]
-  selectedSeed: StorySeedOption | null
-  useCustomPremise: boolean
   customPremise: string
   campaignName: string
 }
@@ -45,34 +46,9 @@ const EVERREALM_ART_STYLE =
 
 const STEPS = [
   { eyebrow: 'Party', title: 'Build your table', detail: 'Choose how many adventurers set out, and who fills each seat beyond you.' },
-  { eyebrow: 'Tone', title: 'Tune the world', detail: 'Give the DM a north star without locking the realm into one mood forever.' },
-  { eyebrow: 'Pillars', title: 'Pick the pressure', detail: 'Tell the DM what kind of play should show up most often at the table.' },
-  { eyebrow: 'World Spark', title: 'Light the first scene', detail: 'Pick a seed or write the trouble you want the DM to build around.' },
+  { eyebrow: 'World Spark', title: 'Give the DM a nudge', detail: 'Optional. Leave it blank and the DM invents the opening spark and lets the tone grow from play, the way a real campaign does.' },
   { eyebrow: 'Legend Name', title: 'Seal the campaign', detail: 'Name the timeline. After this, you will review the brief and create your character.' },
 ]
-
-const TONE_CARDS: { label: ToneChoice; description: string }[] = [
-  { label: 'Perilous & Grounded', description: 'Danger, hard choices, and consequences without forcing the world into constant grimdark.' },
-  { label: 'Heroic & Epic', description: 'Rising heroes, impossible odds, clear purpose, legendary deeds, and a world worth saving.' },
-  { label: 'Mystery & Intrigue', description: 'Secrets, conspiracies, double meanings, false friends, and truths buried in layers.' },
-  { label: 'Anything Goes', description: 'Let the DM surprise you with whatever best fits the opening spark.' },
-]
-
-const PILLARS: Pillar[] = [
-  'Combat & Tactics',
-  'Exploration & Discovery',
-  'Roleplay & Social',
-  'Puzzles & Mysteries',
-  'All of it equally',
-]
-
-const PILLAR_DESCRIPTIONS: Record<Pillar, string> = {
-  'Combat & Tactics': 'Danger, positioning, monsters, clever plans, and meaningful risk.',
-  'Exploration & Discovery': 'Ruins, travel, hidden places, strange weather, and secrets in the world.',
-  'Roleplay & Social': 'NPCs, factions, rivalries, bargains, reputation, and emotional choices.',
-  'Puzzles & Mysteries': 'Clues, symbols, locked doors, conspiracies, and layered reveals.',
-  'All of it equally': 'A balanced campaign where the DM rotates the spotlight between pillars.',
-}
 
 function ChoiceCard({
   selected,
@@ -129,9 +105,7 @@ function ChoiceCard({
 }
 
 function suggestedCampaignName(state: WizardState) {
-  if (state.campaignName.trim()) return state.campaignName
-  if (state.selectedSeed) return state.selectedSeed.title
-  return ''
+  return state.campaignName
 }
 
 // Derives the legacy playerPreferences fields CampaignBrief.tsx (and the
@@ -164,24 +138,17 @@ export default function CampaignWizard() {
   const [visible, setVisible] = useState(true)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
-  const [seeds, setSeeds] = useState<StorySeedOption[]>(() => pickRandom4())
   const [state, setState] = useState<WizardState>({
     partyComposition: { startingSize: 1, slots: [] },
     waitForParty: true,
-    tone: null,
-    pillars: [],
-    selectedSeed: null,
-    useCustomPremise: false,
     customPremise: '',
     campaignName: '',
   })
 
-  const premise = state.useCustomPremise ? state.customPremise.trim() : state.selectedSeed?.premise
+  const premise = state.customPremise.trim() || DM_INVENTS_PREMISE
   const canProceed = [
     true,
-    !!state.tone,
-    state.pillars.length > 0,
-    !!(state.selectedSeed || (state.useCustomPremise && state.customPremise.trim().length > 20)),
+    true,
     !!state.campaignName.trim(),
   ]
 
@@ -189,18 +156,14 @@ export default function CampaignWizard() {
   const companionSeatCount = state.partyComposition.slots.filter(slot => slot.kind === 'ai_companion').length
   const isCollaborative = humanSeatCount > 0
 
-  const summary = useMemo(() => {
-    const rosterLabel = state.partyComposition.startingSize === 1
+  const summary = [
+    state.partyComposition.startingSize === 1
       ? 'Solo adventurer'
-      : `${state.partyComposition.startingSize} adventurers (${humanSeatCount + 1} human, ${companionSeatCount} companion${companionSeatCount === 1 ? '' : 's'})`
-    return [
-      rosterLabel,
-      isCollaborative ? (state.waitForParty ? 'Wait at the party gate' : 'Start now, invite later') : (companionSeatCount > 0 ? 'AI companions join at the start' : 'No companions'),
-      state.tone || 'Tone unset',
-      state.pillars.length ? state.pillars.join(', ') : 'Focus unset',
-      state.useCustomPremise ? 'Custom premise' : state.selectedSeed?.title || 'Premise unset',
-    ]
-  }, [state, humanSeatCount, companionSeatCount, isCollaborative])
+      : `${state.partyComposition.startingSize} adventurers (${humanSeatCount + 1} human, ${companionSeatCount} companion${companionSeatCount === 1 ? '' : 's'})`,
+    isCollaborative ? (state.waitForParty ? 'Wait at the party gate' : 'Start now, invite later') : (companionSeatCount > 0 ? 'AI companions join at the start' : 'No companions'),
+    state.customPremise.trim() ? 'Custom spark given to the DM' : 'DM invents the opening spark',
+    state.campaignName.trim() || 'Legend unnamed',
+  ]
 
   function animateTo(nextStep: number) {
     setVisible(false)
@@ -208,15 +171,6 @@ export default function CampaignWizard() {
       setStep(nextStep)
       setVisible(true)
     }, 180)
-  }
-
-  function togglePillar(pillar: Pillar) {
-    setState(prev => {
-      const has = prev.pillars.includes(pillar)
-      if (pillar === 'All of it equally') return { ...prev, pillars: has ? [] : ['All of it equally'] }
-      const withoutEqual = prev.pillars.filter(p => p !== 'All of it equally')
-      return { ...prev, pillars: has ? withoutEqual.filter(p => p !== pillar) : [...withoutEqual, pillar] }
-    })
   }
 
   function setStartingSize(size: number) {
@@ -236,11 +190,6 @@ export default function CampaignWizard() {
     }))
   }
 
-  function refreshSeeds() {
-    setSeeds(pickRandom4(seeds.map(seed => seed.id)))
-    setState(prev => ({ ...prev, selectedSeed: null }))
-  }
-
   async function handleCreate() {
     if (!premise || !state.campaignName.trim()) return
     setCreating(true)
@@ -250,9 +199,9 @@ export default function CampaignWizard() {
       const playerPreferences = {
         playMode: partyFields.playMode,
         partyIntent: partyFields.partyIntent,
-        tone: state.tone || 'Anything Goes',
+        tone: DM_DECIDES_TONE,
         artStyle: EVERREALM_ART_STYLE,
-        favoritePillars: state.pillars,
+        favoritePillars: DM_DECIDES_PILLARS,
         playerCount: partyFields.playerCount,
         targetPlayerCount: partyFields.targetPlayerCount,
         waitForParty: partyFields.waitForParty,
@@ -369,106 +318,21 @@ export default function CampaignWizard() {
       )}
     </div>,
 
-    <div key="tone" className="grid gap-4 sm:grid-cols-2">
-      {TONE_CARDS.map(card => (
-        <ChoiceCard
-          key={card.label}
-          selected={state.tone === card.label}
-          title={card.label}
-          meta="Story tone"
-          description={card.description}
-          actionLabel="Tune"
-          onClick={() => setState(prev => ({ ...prev, tone: card.label }))}
-        />
-      ))}
-    </div>,
-
-    <div key="pillars" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {PILLARS.map(pillar => {
-        const selected = state.pillars.includes(pillar)
-        return (
-          <button
-            key={pillar}
-            type="button"
-            onClick={() => togglePillar(pillar)}
-            className="min-h-[86px] border p-4 text-left transition-all"
-            style={{
-              borderColor: selected ? 'rgba(34,211,238,0.46)' : 'rgba(255,255,255,0.1)',
-              background: selected ? 'rgba(34,211,238,0.08)' : 'rgba(0,0,0,0.34)',
-            }}
-          >
-            <p className="font-fantasy text-base text-parchment-100">{pillar}</p>
-            <p className="mt-2 font-serif text-xs leading-relaxed text-parchment-200/56">{PILLAR_DESCRIPTIONS[pillar]}</p>
-            <p className="mt-3 font-fantasy text-[10px] uppercase tracking-[0.18em]" style={{ color: selected ? 'rgba(191,244,255,0.86)' : 'rgba(180,160,120,0.56)' }}>
-              {selected ? 'Threaded in' : 'Available'}
-            </p>
-          </button>
-        )
-      })}
-    </div>,
-
     <div key="premise" className="space-y-4">
-      <div className="flex flex-wrap justify-end gap-2">
-        {!state.useCustomPremise && (
-          <button type="button" onClick={refreshSeeds} className="border border-white/12 px-4 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] text-parchment-200/64 transition-all hover:border-cyan-200/36 hover:text-parchment-100">
-            New Seeds
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => setState(prev => ({ ...prev, useCustomPremise: !prev.useCustomPremise, selectedSeed: null }))}
-          className="border border-amber-300/36 bg-amber-300/8 px-4 py-2 font-fantasy text-[10px] uppercase tracking-[0.16em] text-amber-100 transition-all hover:border-amber-200"
-        >
-          {state.useCustomPremise ? 'Browse Seeds' : 'Write Premise'}
-        </button>
+      <div className="border border-cyan-200/16 bg-cyan-300/[0.045] px-4 py-3">
+        <p className="font-fantasy text-[10px] uppercase tracking-[0.22em] text-cyan-200/64">How This Works</p>
+        <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/68">
+          Leave this blank and the DM invents the opening spark, the tone, and where the pressure comes from - and lets all of it grow and shift through play, the way an actual campaign does. Only write something if you want to hand the DM a specific idea to build around.
+        </p>
       </div>
-
-      {state.useCustomPremise ? (
-        <div>
-          <textarea
-            value={state.customPremise}
-            onChange={event => setState(prev => ({ ...prev, customPremise: event.target.value }))}
-            className="min-h-[210px] w-full resize-none border border-cyan-200/18 bg-black/42 p-4 font-serif text-base leading-relaxed text-parchment-100 outline-none placeholder:text-parchment-200/32"
-            placeholder="Describe the world, the conflict, the opening image, or the kind of trouble you want the DM to build around."
-          />
-          <p className="mt-2 font-serif text-xs italic text-parchment-200/44">
-            {state.customPremise.trim().length < 20 ? 'Give the DM at least one strong sentence.' : `${state.customPremise.trim().length} characters. The DM has enough to begin.`}
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-3">
-          {seeds.map(seed => {
-            const selected = state.selectedSeed?.id === seed.id
-            return (
-              <button
-                key={seed.id}
-                type="button"
-                onClick={() => setState(prev => ({
-                  ...prev,
-                  selectedSeed: seed,
-                  campaignName: prev.campaignName.trim() ? prev.campaignName : seed.title,
-                }))}
-                className="border p-4 text-left transition-all"
-                style={{
-                  borderColor: selected ? 'rgba(245,158,11,0.56)' : 'rgba(255,255,255,0.1)',
-                  background: selected ? 'rgba(245,158,11,0.08)' : 'rgba(0,0,0,0.36)',
-                }}
-              >
-                <div className="flex items-start gap-4">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center border border-white/12 bg-black/44 text-lg">{TONE_ICONS[seed.tone] || '?'}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="font-fantasy text-xl text-parchment-100">{seed.title}</h3>
-                      <span className="shrink-0 font-fantasy text-[10px] uppercase tracking-[0.16em] text-amber-100/70">{selected ? 'Opening Set' : seed.tone}</span>
-                    </div>
-                    <p className="mt-2 font-serif text-sm leading-relaxed text-parchment-200/68">{seed.premise}</p>
-                    <p className="mt-3 font-fantasy text-[10px] uppercase tracking-[0.18em] text-cyan-200/50">{seed.startingLocation}</p>
-                  </div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
+      <textarea
+        value={state.customPremise}
+        onChange={event => setState(prev => ({ ...prev, customPremise: event.target.value }))}
+        className="min-h-[210px] w-full resize-none border border-cyan-200/18 bg-black/42 p-4 font-serif text-base leading-relaxed text-parchment-100 outline-none placeholder:text-parchment-200/32"
+        placeholder="Optional - describe the world, the conflict, the opening image, or the kind of trouble you want the DM to build around. Leave blank to let the DM invent everything."
+      />
+      {state.customPremise.trim().length > 0 && (
+        <p className="font-serif text-xs italic text-parchment-200/44">{state.customPremise.trim().length} characters given to the DM.</p>
       )}
     </div>,
 
@@ -478,9 +342,9 @@ export default function CampaignWizard() {
         type="text"
         value={suggestedCampaignName(state)}
         onChange={event => setState(prev => ({ ...prev, campaignName: event.target.value }))}
-        onKeyDown={event => { if (event.key === 'Enter' && canProceed[4]) handleCreate() }}
+        onKeyDown={event => { if (event.key === 'Enter' && canProceed[2]) handleCreate() }}
         className="mt-3 w-full border border-amber-300/34 bg-black/44 px-4 py-4 font-fantasy text-2xl text-parchment-100 outline-none placeholder:text-parchment-200/28"
-        placeholder={state.selectedSeed ? state.selectedSeed.title : 'Name your legend'}
+        placeholder="Name your legend"
         autoFocus
       />
       <div className="mt-4 border border-cyan-200/16 bg-cyan-300/[0.045] px-4 py-3">
@@ -493,7 +357,7 @@ export default function CampaignWizard() {
       <button
         type="button"
         onClick={handleCreate}
-        disabled={!canProceed[4]}
+        disabled={!canProceed[2]}
         className="mt-5 w-full border border-amber-300/46 bg-amber-300/12 px-5 py-4 font-fantasy text-xs uppercase tracking-[0.22em] text-amber-100 transition-all hover:border-amber-200 disabled:cursor-not-allowed disabled:opacity-35"
       >
         {isCollaborative ? 'Create Campaign and Invite Party' : 'Create Campaign'}
@@ -538,7 +402,7 @@ export default function CampaignWizard() {
           <p className="font-fantasy text-[10px] uppercase tracking-[0.28em] text-cyan-200/62">New Legend</p>
           <h1 className="mt-2 font-fantasy text-4xl leading-none text-parchment-100">Campaign Forge</h1>
           <p className="mt-4 font-serif text-sm leading-relaxed text-parchment-200/66">
-            Build the table, tone, and first spark. The DM turns these choices into an ongoing saga before character creation begins.
+            Build the table and, if you want, hand the DM a spark. The DM turns this into an ongoing saga, deciding the tone and pacing itself as you play, before character creation begins.
           </p>
 
           <div className="mt-7 space-y-2">
