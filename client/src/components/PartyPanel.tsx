@@ -28,6 +28,11 @@ function bondMeter(value: number) {
 export default function PartyPanel({ members, currentUserId, worldState }: PartyPanelProps) {
   const others = members.filter(m => m.userId !== currentUserId)
   const companions = (worldState?.companions || []).filter(c => c.is_alive)
+  const currentCharacterId = members.find(m => m.userId === currentUserId)?.character?.id
+  const currentSubLocation = currentCharacterId
+    ? worldState?.characterSubLocations?.[currentCharacterId]
+    : undefined
+  const companionLocation = worldState?.currentLocation
   if (others.length === 0 && companions.length === 0) return null
 
   return (
@@ -77,6 +82,17 @@ export default function PartyPanel({ members, currentUserId, worldState }: Party
                   </div>
                   <span className="text-[10px]" style={{ color: bond.color }}>{bond.label}</span>
                 </div>
+                <div className="mt-0.5 text-[10px] text-parchment-200/64">
+                  {currentSubLocation ? 'Away' : 'Present'}
+                </div>
+                {companionLocation && (
+                  <div
+                    className="mt-0.5 truncate font-fantasy text-[9px] uppercase tracking-[0.1em] text-cyan-200/56"
+                    title={currentSubLocation ? `${companionLocation} — main area` : companionLocation}
+                  >
+                    ↳ {companionLocation}{currentSubLocation ? ' · Main area' : ''}
+                  </div>
+                )}
               </div>
             </div>
           )
